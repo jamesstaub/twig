@@ -2,6 +2,7 @@ import { BaseController } from '../base/BaseController.js';
 import { SpectralSystemActions } from './spectralSystemActions.js';
 import { SpectralSystemComponent } from './SpectralSystemComponent.js';
 import { AppState, spectralSystems } from '../../config.js';
+import { SPECTRAL_SYSTEM_CHANGED } from '../../events.js';
 
 export class SpectralSystemController extends BaseController {
     /**
@@ -36,7 +37,7 @@ export class SpectralSystemController extends BaseController {
      * Listen to external/global events
      */
     bindExternalEvents() {
-        document.addEventListener('spectral-system-changed', () => {
+    document.addEventListener(SPECTRAL_SYSTEM_CHANGED, () => {
             this.update();
         });
     }

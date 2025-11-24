@@ -2,6 +2,7 @@
 // controller/DrawbarController.js
 import { DrawbarsComponent } from "./DrawbarsComponent.js";
 import { DrawbarsActions } from "./drawbarsActions.js";
+import { DRAWBAR_CHANGE, DRAWBARS_RANDOMIZED, DRAWBARS_RESET, SPECTRAL_SYSTEM_CHANGED } from "../../events.js";
 
 export class DrawbarsController {
     constructor() {
@@ -22,15 +23,15 @@ export class DrawbarsController {
     setupEvents() {
 
         // Whenever drawbar values change, update sliders
-        // document.addEventListener("drawbar-change", () => {
+    // document.addEventListener(DRAWBAR_CHANGE, () => {
         //     drawbars.update();
         // });
 
-        document.addEventListener("drawbars-randomized", () => this.update());
-        document.addEventListener("drawbars-reset", () => this.update());
+        document.addEventListener(DRAWBARS_RANDOMIZED, () => this.update());
+        document.addEventListener(DRAWBARS_RESET, () => this.update());
 
         // Update labels when spectral system changes
-        document.addEventListener("spectral-system-changed", () => {
+        document.addEventListener(SPECTRAL_SYSTEM_CHANGED, () => {
             this.update();
         });
     }

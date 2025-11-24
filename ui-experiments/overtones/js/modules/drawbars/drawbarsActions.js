@@ -2,6 +2,7 @@ import { updateAudioProperties } from "../../audio.js";
 import { AppState, updateAppState } from "../../config.js";
 import { UIStateManager } from "../../UIStateManager.js";
 import { momentumSmoother, smoothUpdateHarmonicAmplitude } from "../../utils.js";
+import { DRAWBAR_CHANGE, DRAWBARS_RANDOMIZED, DRAWBARS_RESET } from "../../events.js";
 
 /**
  * ACTIONS MODULE
@@ -80,7 +81,7 @@ export const DrawbarsActions = {
         smoothUpdateHarmonicAmplitude(index, value);
 
         document.dispatchEvent(
-            new CustomEvent("drawbar-change", {
+            new CustomEvent(DRAWBAR_CHANGE, {
                 detail: { index, value }
             })
         );
@@ -92,7 +93,7 @@ export const DrawbarsActions = {
             this.setDrawbar(i, value); // ensures audio updates
         });
 
-        document.dispatchEvent(new Event("drawbars-randomized"));
+    document.dispatchEvent(new Event(DRAWBARS_RANDOMIZED));
     },
 
     reset() {
@@ -105,6 +106,6 @@ export const DrawbarsActions = {
             smoothUpdateHarmonicAmplitude(i, v, true);
         });
 
-        document.dispatchEvent(new Event("drawbars-reset"));
+    document.dispatchEvent(new Event(DRAWBARS_RESET));
     }
 };

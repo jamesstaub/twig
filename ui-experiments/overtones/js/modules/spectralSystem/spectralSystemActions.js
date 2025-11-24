@@ -1,4 +1,5 @@
 import { AppState, spectralSystems, updateAppState } from '../../config.js';
+import { SPECTRAL_SYSTEM_CHANGED } from '../../events.js';
 import { smoothUpdateSystem } from '../../utils.js';
 
 export const SpectralSystemActions = {
@@ -19,7 +20,7 @@ export const SpectralSystemActions = {
 
         smoothUpdateSystem(index);
 
-        document.dispatchEvent(new CustomEvent('spectral-system-changed', {
+        document.dispatchEvent(new CustomEvent(SPECTRAL_SYSTEM_CHANGED, {
             detail: { index, system: AppState.currentSystem }
         }));
     }
