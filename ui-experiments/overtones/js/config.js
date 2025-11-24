@@ -15,7 +15,7 @@ export const spectralSystems = [
             'Classic harmonic series (exact integer partials). Use for natural, consonant spectra (e.g. voiced instruments, organ-like timbres). See the harmonic-series background: <a href="https://en.wikipedia.org/wiki/Harmonic_series_(music)">Wikipedia — Harmonic series</a>.',
         // exact integer partials expressed as math
         ratios: [1 / 1, 2 / 1, 3 / 1, 4 / 1, 5 / 1, 6 / 1, 7 / 1, 8 / 1, 9 / 1, 10 / 1, 11 / 1, 12 / 1],
-        labels: ["1/1", "2/1", "3/1", "4/1", "5/1", "6/1", "7/1", "8/1", "9/1", "10/1", "11/1", "12/1"],
+        labels: ["1:1", "2:1", "3:1", "4:1", "5:1", "6:1", "7:1", "8:1", "9:1", "10:1", "11:1", "12:1"],
         labelPrecision: 1
     },
 
@@ -428,7 +428,7 @@ export const AppState = {
     currentWaveform: 'sine',
 
     // Visualization properties
-    visualizationFrequency: 0.25,
+    visualizationFrequency: 5.25,
     spreadFactor: 0.2,
 
     // Custom waveforms

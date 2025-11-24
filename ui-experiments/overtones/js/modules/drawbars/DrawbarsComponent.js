@@ -8,10 +8,11 @@ export class DrawbarsComponent extends BaseComponent {
         this.sliders = [];
     }
 
-    render() {
+    // TODO always pass in app state via render props
+    render(props = {}) {
         this.sliders = [];
         this.setupDrawbars();
-        this.updateDrawbarLabels();
+        this.updateDrawbarLabels(props.isSubharmonic);
     }
 
     setupDrawbars() {
@@ -30,8 +31,12 @@ export class DrawbarsComponent extends BaseComponent {
         }
     }
 
-    updateDrawbarLabels() {
-        AppState.currentSystem.labels.forEach((label, index) => {
+    updateDrawbarLabels(isSubharmonic) {
+        // If isSubharmonic, use alternate labels if available
+        const labels = (isSubharmonic && AppState.currentSystem.subharmonicLabels)
+            ? AppState.currentSystem.subharmonicLabels
+            : AppState.currentSystem.labels;
+        labels.forEach((label, index) => {
             const labelEl = document.getElementById(`drawbar-label-${index}`);
             this.updateContent(labelEl, label);
         });

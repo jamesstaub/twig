@@ -1,8 +1,14 @@
 import { AppState, spectralSystems, updateAppState } from '../../config.js';
-import { SPECTRAL_SYSTEM_CHANGED } from '../../events.js';
+import { SPECTRAL_SYSTEM_CHANGED, SUBHARMONIC_TOGGLED } from '../../events.js';
 import { smoothUpdateSystem } from '../../utils.js';
 
+
 export const SpectralSystemActions = {
+    toggleSubharmonic() {
+        const isSubharmonic = !AppState.isSubharmonic;
+        updateAppState({ isSubharmonic });
+        document.dispatchEvent(new CustomEvent(SUBHARMONIC_TOGGLED, { detail: { isSubharmonic } }));
+    },
     setSystem(index) {
         updateAppState({ currentSystem: spectralSystems[index] });
 
