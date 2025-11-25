@@ -195,7 +195,7 @@ function startup() {
 // ================================
 
 // Export functions that might be useful for debugging or external control
-window.SpectralSynth = {
+window.SineLanguage = {
     // State access
     getState: () => AppState,
     

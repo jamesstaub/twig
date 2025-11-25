@@ -39,15 +39,14 @@ export function initUI() {
     setupControlSliders();
     setupFundamentalControls();
     setupKeyboard();
-    setupSubharmonicToggle();
+
     setupWaveformSelector();
     
     // Ensure currentSystem is set before rendering drawbars
     if (!AppState.currentSystem) {
         AppState.currentSystem = spectralSystems[0];
     }
-    
-    
+        
     setupDrawbars()
     setupSpectralSystem()
     // setupSystemSelector();
@@ -340,51 +339,6 @@ function updateSystemDescription() {
 }
 
 // ================================
-// SUBHARMONIC TOGGLE
-// ================================
-
-function setupSubharmonicToggle() {
-    // There may be multiple subharmonic toggles due to responsive layout
-    const toggles = document.querySelectorAll('#subharmonic-toggle');
-    toggles.forEach(toggle => {
-        toggle.addEventListener('click', handleSubharmonicToggle);
-    });
-}
-
-function handleSubharmonicToggle() {
-    const isSubharmonic = !AppState.isSubharmonic;
-    // Update all toggles and labels in the DOM
-    const toggles = document.querySelectorAll('#subharmonic-toggle');
-    const subharmonicLabels = document.querySelectorAll('#subharmonic-label');
-    const overtoneLabels = document.querySelectorAll('.toggle-label.overtone');
-    toggles.forEach(toggle => {
-        toggle.classList.toggle('active', isSubharmonic);
-        toggle.setAttribute('aria-checked', isSubharmonic);
-    });
-    subharmonicLabels.forEach(subharmonicLabel => {
-        if (isSubharmonic) {
-            subharmonicLabel.classList.add('active');
-            subharmonicLabel.classList.remove('inactive');
-        } else {
-            subharmonicLabel.classList.remove('active');
-            subharmonicLabel.classList.add('inactive');
-        }
-    });
-    overtoneLabels.forEach(overtoneLabel => {
-        if (isSubharmonic) {
-            overtoneLabel.classList.remove('overtone');
-            overtoneLabel.classList.add('inactive');
-        } else {
-            overtoneLabel.classList.add('overtone');
-            overtoneLabel.classList.remove('inactive');
-        }
-    });
-    // Use smooth mode update with callback for UI updates that depend on state
-    smoothUpdateSubharmonicMode(isSubharmonic, () => {
-        // drawbars.updateDrawbarLabels();
-        drawbarsController.init()
-    });
-}
 
 // ================================
 // WAVEFORM SELECTOR
@@ -443,10 +397,5 @@ export function updateUI() {
     // Update waveform selector
     updateValue('waveform-select', AppState.currentWaveform);
 
-    // Update subharmonic toggle
-    const toggle = document.getElementById('subharmonic-toggle');
-    if (toggle) {
-        toggle.classList.toggle('active', AppState.isSubharmonic);
-        toggle.setAttribute('aria-checked', AppState.isSubharmonic);
-    }
+
 }

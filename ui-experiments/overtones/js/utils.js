@@ -195,7 +195,6 @@ export function smoothUpdateMasterGain(value) {
  * @param {Function} onComplete - Optional callback when update completes
  */
 
-
 let pendingSystemIndex = null;
 export function smoothUpdateSystem(systemIndex, onComplete = null) {
     pendingSystemIndex = systemIndex;

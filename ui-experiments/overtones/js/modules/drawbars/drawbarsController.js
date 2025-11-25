@@ -2,25 +2,22 @@
 // controller/DrawbarController.js
 import { DrawbarsComponent } from "./DrawbarsComponent.js";
 import { DrawbarsActions } from "./drawbarsActions.js";
-import { DRAWBAR_CHANGE, DRAWBARS_RANDOMIZED, DRAWBARS_RESET, SPECTRAL_SYSTEM_CHANGED, SUBHARMONIC_TOGGLED } from "../../events.js";
+import { DRAWBARS_RANDOMIZED, DRAWBARS_RESET, SPECTRAL_SYSTEM_CHANGED, SUBHARMONIC_TOGGLED } from "../../events.js";
+import { BaseController } from "../base/BaseController.js";
 
-export class DrawbarsController {
-    constructor() {
-        this.component = new DrawbarsComponent("drawbars");
+export class DrawbarsController extends BaseController {
+    createComponent() {
+        return new DrawbarsComponent("drawbars");
     }
 
-    init() {
-        this.component.render();
+    bindComponentEvents() {
         // connect component → actions
         this.component.onChange = (i, val) => {
             DrawbarsActions.setDrawbar(i, val);
         }
-
-        this.setupEvents();
     }
 
-
-    setupEvents() {
+    bindExternalEvents() {
         document.addEventListener(DRAWBARS_RANDOMIZED, () => this.update());
         document.addEventListener(DRAWBARS_RESET, () => this.update());
         document.addEventListener(SPECTRAL_SYSTEM_CHANGED, () => this.update());

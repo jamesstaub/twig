@@ -9,14 +9,14 @@ export class SpectralSystemController extends BaseController {
      * Build and return the component instance
      */
     createComponent() {
-        const selectors = {
+        const elements = {
             selectEl: document.getElementById('ratio-system-select'),
             descriptionEl: document.getElementById('system-description'),
             subharmonicToggle: document.getElementById('subharmonic-toggle'),
             subharmonicLabel: document.getElementById('subharmonic-label'),
             overtoneLabels: document.querySelectorAll('.toggle-label.overtone')
         };
-        return new SpectralSystemComponent(selectors);
+        return new SpectralSystemComponent(elements);
     }
 
     /**
@@ -37,6 +37,15 @@ export class SpectralSystemController extends BaseController {
         this.component.onChange = (systemIndex) => {
             SpectralSystemActions.setSystem(systemIndex);
         };
+
+        // Subharmonic toggle click wiring using bindEvent from BaseComponent
+        if (this.component.elements.subharmonicToggle) {
+            this.component.bindEvent(
+                this.component.elements.subharmonicToggle,
+                'click',
+                () => SpectralSystemActions.toggleSubharmonic()
+            );
+        }
     }
 
     /**
@@ -46,25 +55,13 @@ export class SpectralSystemController extends BaseController {
         document.addEventListener(SPECTRAL_SYSTEM_CHANGED, () => {
             this.update();
         });
-        // Subharmonic toggle click wiring using bindEvent from BaseComponent
-        if (this.component.selectors.subharmonicToggle) {
-            this.component.bindEvent(
-                this.component.selectors.subharmonicToggle,
-                'click',
-                () => SpectralSystemActions.toggleSubharmonic()
-            );
-        }
+
         // Listen for subharmonic toggled event to update UI
         document.addEventListener(SUBHARMONIC_TOGGLED, () => {
             this.component.renderSubharmonicToggle({ isSubharmonic: this.getProps().isSubharmonic });
+            this.update();
+            SpectralSystemActions.updateAudio();
         });
     }
-    /**
-     * Update component with latest props
-     */
-    update() {
-        if (this.component && typeof this.component.render === 'function') {
-            this.component.render(this.getProps());
-        }
-    }
+
 }

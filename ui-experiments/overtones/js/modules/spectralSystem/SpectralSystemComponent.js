@@ -1,15 +1,15 @@
 import BaseComponent from "../base/BaseComponent.js";
 
 export class SpectralSystemComponent extends BaseComponent {
-    constructor(selectors) {
+    constructor(elements) {
         super();
-        this.selectors = selectors;
-        this.selectEl = selectors.selectEl;
-        this.descriptionEl = selectors.descriptionEl;
+        this.elements = elements;
+        this.selectEl = elements.selectEl;
+        this.descriptionEl = elements.descriptionEl;
         this.onChange = null;
     }
 
-    render({ systems, currentSystem }) {
+    render({ systems, currentSystem, isSubharmonic }) {
         if (!this.selectEl) return;
 
         // Populate selector
@@ -26,14 +26,15 @@ export class SpectralSystemComponent extends BaseComponent {
         this.updateContent(this.descriptionEl, currentSystem?.description || '', { asHTML: true });
 
         // Update subharmonic toggle UI
-        this.renderSubharmonicToggle({ isSubharmonic: currentSystem?.isSubharmonic });
+        this.renderSubharmonicToggle({ isSubharmonic });
 
         // Bind change event
         this.bindChange(this.selectEl, (val) => this.onChange(val));
     }
 
     renderSubharmonicToggle({ isSubharmonic }) {
-        const { subharmonicToggle, subharmonicLabel, overtoneLabels } = this.selectors;
+        const { subharmonicToggle, subharmonicLabel, overtoneLabels } = this.elements;
+        
         if (subharmonicToggle) {
             subharmonicToggle.classList.toggle('active', isSubharmonic);
             subharmonicToggle.setAttribute('aria-checked', isSubharmonic);
