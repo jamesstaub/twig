@@ -60,6 +60,8 @@ export class SpectralSystemController extends BaseController {
         document.addEventListener(SUBHARMONIC_TOGGLED, () => {
             this.component.renderSubharmonicToggle({ isSubharmonic: this.getProps().isSubharmonic });
             this.update();
+
+            // FIXME: move to an Audio Controler and listen to events there
             SpectralSystemActions.updateAudio();
         });
     }

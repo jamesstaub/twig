@@ -39,13 +39,6 @@ export class SpectralSystemComponent extends BaseComponent {
             subharmonicToggle.classList.toggle('active', isSubharmonic);
             subharmonicToggle.setAttribute('aria-checked', isSubharmonic);
         }
-        if (subharmonicLabel) {
-            subharmonicLabel.textContent = isSubharmonic ? 'Subharmonic' : 'Harmonic';
-        }
-        if (overtoneLabels && overtoneLabels.length) {
-            overtoneLabels.forEach(overtoneLabel => {
-                overtoneLabel.textContent = isSubharmonic ? 'Undertone' : 'Overtone';
-            });
-        }
+
     }
 }
