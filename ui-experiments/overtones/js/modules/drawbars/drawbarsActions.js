@@ -93,7 +93,7 @@ export const DrawbarsActions = {
             this.setDrawbar(i, value); // ensures audio updates
         });
 
-    document.dispatchEvent(new Event(DRAWBARS_RANDOMIZED));
+        document.dispatchEvent(new Event(DRAWBARS_RANDOMIZED));
     },
 
     reset() {
@@ -106,6 +106,6 @@ export const DrawbarsActions = {
             smoothUpdateHarmonicAmplitude(i, v, true);
         });
 
-    document.dispatchEvent(new Event(DRAWBARS_RESET));
+        document.dispatchEvent(new Event(DRAWBARS_RESET));
     }
 };

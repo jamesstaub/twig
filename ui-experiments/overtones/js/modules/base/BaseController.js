@@ -1,54 +1,91 @@
+/**
+ * BaseController
+ * ---------------
+ * A thin orchestrator between AppState and a visual Component.
+ * Controllers do NOT touch DOM directly — they:
+ *   - create a component instance
+ *   - compute props via getProps()
+ *   - call component.render(props)
+ *   - bind component-level events (via component.onX assignments)
+ *   - bind global events (document/window listeners)
+ *
+ * Lifecycle:
+ *   1. constructor() → createComponent() (must return a BaseComponent subclass)
+ *   2. init()
+ *       - bindComponentEvents()
+ *       - bindExternalEvents()
+ *       - update()   (renders with fresh props)
+ *
+ * You can safely call update() whenever app state changes.
+ */
+
 export class BaseController {
     constructor() {
-        if (!this.createComponent) {
+        if (typeof this.createComponent !== "function") {
             throw new Error("Subclass must implement createComponent()");
         }
 
-        // Subclass builds and returns the component instance
         this.component = this.createComponent();
+
+        if (!this.component) {
+            throw new Error("createComponent() must return a component instance");
+        }
     }
 
+
     /**
-     * Initializes the controller lifecycle.
-     * Call this after construction.
+     * Initialize controller lifecycle. Call this once after construction.
      */
     init() {
-        this.update();
         this.bindComponentEvents();
         this.bindExternalEvents();
+        this.update(); // first render with fresh props
     }
 
+
     /**
-     * Subclass must provide props derived from AppState.
+     * Subclasses MUST implement this to return props derived from app state.
      */
     getProps() {
         throw new Error("Subclass must implement getProps()");
     }
 
+
     /**
-     * Render the component using derived props.
+     * Re-render the component with fresh props.
+     * Safe to call any time state changes.
      */
     update() {
         const props = this.getProps();
+        if (this.component.teardown) this.component.teardown();
         this.component.render(props);
+        if (typeof this.component.bindRenderedEvents === 'function') {
+            this.component.bindRenderedEvents();
+        }
+        return props; // <-- return so child can reuse
     }
 
-    /**
-     * Override to listen to component-level events like:
-     * this.component.onChange = (v) => {}
-     */
-    bindComponentEvents() {}
+
 
     /**
-     * Override to listen for global or DOM events:
-     * document.addEventListener("...", this.update.bind(this))
+     * Subclasses MAY override this to wire component-level events, e.g.:
+     *   this.component.onChange = (value) => {...}
      */
-    bindExternalEvents() {}
+    bindComponentEvents() { }
+
 
     /**
-     * Optional cleanup method for future use
+     * Subclasses MAY override this to bind global events (ex: document listeners)
+     */
+    bindExternalEvents() { }
+
+
+    /**
+     * Optional destruction (future-proofing)
      */
     destroy() {
-        // Subclass may override for teardown
+        if (this.component.teardown) {
+            this.component.teardown();
+        }
     }
 }

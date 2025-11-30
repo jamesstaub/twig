@@ -41,12 +41,12 @@ export function initUI() {
     setupKeyboard();
 
     setupWaveformSelector();
-    
+
     // Ensure currentSystem is set before rendering drawbars
     if (!AppState.currentSystem) {
         AppState.currentSystem = spectralSystems[0];
     }
-        
+
     setupDrawbars()
     setupSpectralSystem()
     // setupSystemSelector();
@@ -67,14 +67,6 @@ export function initUI() {
 function setupDrawbars() {
     drawbarsController = new DrawbarsController();
     drawbarsController.init();
-
-    document.getElementById("reset-drawbars-button")?.addEventListener("click", () => {
-        drawbarsController.reset();
-    });
-
-    document.getElementById("randomize-drawbars-button")?.addEventListener("click", () => {
-        drawbarsController.randomize();
-    });
 }
 
 function setupSpectralSystem() {
@@ -387,12 +379,12 @@ export function updateUI() {
         playButton.classList.toggle('playing', AppState.isPlaying);
     }
 
-    // Update system selector
-    const systemSelect = document.getElementById('ratio-system-select');
-    if (systemSelect) {
-        const systemIndex = spectralSystems.indexOf(AppState.currentSystem);
-        systemSelect.value = systemIndex;
-    }
+    // // Update system selector
+    // const systemSelect = document.getElementById('ratio-system-select');
+    // if (systemSelect) {
+    //     const systemIndex = spectralSystems.indexOf(AppState.currentSystem);
+    //     systemSelect.value = systemIndex;
+    // }
 
     // Update waveform selector
     updateValue('waveform-select', AppState.currentWaveform);

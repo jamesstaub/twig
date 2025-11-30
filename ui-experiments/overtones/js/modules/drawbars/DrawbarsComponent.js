@@ -2,91 +2,100 @@ import { AppState, DRAWBAR_STYLES } from "../../config.js";
 import BaseComponent from "../base/BaseComponent.js";
 
 export class DrawbarsComponent extends BaseComponent {
-    constructor(containerId) {
-        super();
-        this.container = document.getElementById(containerId);
+
+    constructor(elementId) {
+        super(elementId);
         this.sliders = [];
     }
 
-    // TODO always pass in app state via render props
     render(props = {}) {
+        this.el.innerHTML = "";
         this.sliders = [];
+
         this.setupDrawbars();
         this.updateDrawbarLabels(props.isSubharmonic);
     }
 
+    /**
+     * Called by BaseComponent AFTER render().
+     */
+    bindRenderedEvents() {
+        this.sliders = this.qAll(".drawbar-slider");
+
+        this.sliders.forEach(slider => {
+            this.bindEvent(slider, "input", (e) => this.handleDrawbarChange(e));
+        });
+    }
+
     setupDrawbars() {
-        this.container.innerHTML = '';
         const numPartials = AppState.currentSystem.ratios.length;
 
-        if (!Array.isArray(AppState.harmonicAmplitudes) || AppState.harmonicAmplitudes.length !== numPartials) {
+        if (!Array.isArray(AppState.harmonicAmplitudes) ||
+            AppState.harmonicAmplitudes.length !== numPartials) {
+
             AppState.harmonicAmplitudes = Array(numPartials).fill(0);
             AppState.harmonicAmplitudes[0] = 1.0;
         }
 
         for (let i = 0; i < numPartials; i++) {
-            const drawbarDiv = this.createDrawbar(i, AppState.harmonicAmplitudes[i]);
-            this.container.appendChild(drawbarDiv);
-            this.sliders.push(drawbarDiv.querySelector('input'));
+            const value = AppState.harmonicAmplitudes[i];
+            this.el.appendChild(this.createDrawbar(i, value));
         }
     }
 
     updateDrawbarLabels(isSubharmonic) {
-        // If isSubharmonic, use alternate labels if available
         const labels = (isSubharmonic && AppState.currentSystem.subharmonicLabels)
             ? AppState.currentSystem.subharmonicLabels
             : AppState.currentSystem.labels;
-        labels.forEach((label, index) => {
-            const labelEl = document.getElementById(`drawbar-label-${index}`);
-            this.updateContent(labelEl, label);
+
+        labels.forEach((txt, idx) => {
+            const el = this.q(`#drawbar-label-${idx}`);
+            this.updateContent(el, txt);
         });
     }
 
     createDrawbar(index, value) {
-        const styleClass = DRAWBAR_STYLES[index] || 'white';
-        const initialValue = AppState.harmonicAmplitudes[index];
+        const styleClass = DRAWBAR_STYLES[index] || "white";
 
-        const drawbarDiv = document.createElement('div');
-        drawbarDiv.className = `drawbar ${styleClass}`;
+        const wrapper = document.createElement("div");
+        wrapper.className = `drawbar ${styleClass}`;
 
-        const labelSpan = document.createElement('span');
-        labelSpan.className = 'drawbar-label';
-        labelSpan.id = `drawbar-label-${index}`;
-        this.updateContent(labelSpan, AppState.currentSystem.labels[index] || '');
+        const label = document.createElement("span");
+        label.className = "drawbar-label";
+        label.id = `drawbar-label-${index}`;
+        this.updateContent(label, AppState.currentSystem.labels[index] || "");
 
-        const inputWrapper = document.createElement('div');
-        inputWrapper.className = 'drawbar-input-wrapper';
+        const track = document.createElement("div");
+        track.className = "drawbar-track";
 
-        const trackDiv = document.createElement('div');
-        trackDiv.className = 'drawbar-track';
+        const slider = document.createElement("input");
+        slider.type = "range";
+        slider.className = "drawbar-slider";
+        slider.min = "0";
+        slider.max = "1";
+        slider.step = "0.01";
+        slider.value = value;
+        slider.dataset.index = index;
 
-        const input = document.createElement('input');
-        input.type = 'range';
-        input.className = 'drawbar-slider';
-        input.min = '0';
-        input.max = '1';
-        input.step = '0.01';
-        input.value = value;
-        input.dataset.index = index;
+        const wrap = document.createElement("div");
+        wrap.className = "drawbar-input-wrapper";
+        wrap.append(track, slider);
 
-        this.bindEvent(input, 'input', this.handleDrawbarChange);
-
-        inputWrapper.appendChild(trackDiv);
-        inputWrapper.appendChild(input);
-        drawbarDiv.appendChild(labelSpan);
-        drawbarDiv.appendChild(inputWrapper);
-
-        return drawbarDiv;
+        wrapper.append(label, wrap);
+        return wrapper;
     }
 
     handleDrawbarChange(e) {
-        const index = parseInt(e.target.dataset.index);
-        const value = parseFloat(e.target.value);
+        const index = Number(e.target.dataset.index);
+        const value = Number(e.target.value);
+
         this.onChange?.(index, value);
-        e.target.setAttribute('aria-valuenow', value);
+        e.target.setAttribute("aria-valuenow", value);
     }
 
     setValue(index, value) {
-        if (this.sliders[index]) this.sliders[index].value = value;
+        if (this.sliders[index]) {
+            this.sliders[index].value = value;
+        }
     }
 }
