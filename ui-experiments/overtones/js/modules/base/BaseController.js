@@ -77,6 +77,8 @@ export class BaseController {
 
     /**
      * Subclasses MAY override this to bind global events (ex: document listeners)
+     * TODO: need to add cleanup for events bound here. 
+     * almost always calls this.update() so it could be streamlined
      */
     bindExternalEvents() { }
 

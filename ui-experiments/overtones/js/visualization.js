@@ -157,7 +157,7 @@ export function createVisualizationSketch() {
             const currentAngle = p.frameCount * rotationSpeed;
 
             drawIndividualPartials(points, currentAngle);
-            drawSummedWaveform(points, currentAngle);
+
             p.pop();
         }
 
@@ -203,24 +203,24 @@ export function createVisualizationSketch() {
         }
 
 
-        function drawSummedWaveform(points, currentAngle) {
-            p.strokeWeight(0);
-            p.fill(16, 185, 129, 15);
-            p.beginShape();
-            for (let i = 0; i < points; i++) {
-                const theta = p.map(i, 0, points, 0, p.TWO_PI);
-                let r = baseRadius;
-                for (let h = 0; h < AppState.harmonicAmplitudes.length; h++) {
-                    const amp = AppState.harmonicAmplitudes[h] * maxAmplitudeRadial;
-                    const ratio = AppState.currentSystem.ratios[h];
-                    r += p.getWaveValue(AppState.currentWaveform, ratio * theta + currentAngle) * amp / (ratio * 2);
-                }
-                const x = r * Math.cos(theta);
-                const y = r * Math.sin(theta);
-                p.vertex(x, y);
-            }
-            p.endShape(p.CLOSE);
-        }
+        // function drawSummedWaveform(points, currentAngle) {
+        //     p.strokeWeight(0);
+        //     p.fill(16, 185, 129, 15);
+        //     p.beginShape();
+        //     for (let i = 0; i < points; i++) {
+        //         const theta = p.map(i, 0, points, 0, p.TWO_PI);
+        //         let r = baseRadius;
+        //         for (let h = 0; h < AppState.harmonicAmplitudes.length; h++) {
+        //             const amp = AppState.harmonicAmplitudes[h] * maxAmplitudeRadial;
+        //             const ratio = AppState.currentSystem.ratios[h];
+        //             r += p.getWaveValue(AppState.currentWaveform, ratio * theta + currentAngle) * amp / (ratio * 2);
+        //         }
+        //         const x = r * Math.cos(theta);
+        //         const y = r * Math.sin(theta);
+        //         p.vertex(x, y);
+        //     }
+        //     p.endShape(p.CLOSE);
+        // }
 
         // ================================
         // MAIN DRAW LOOP

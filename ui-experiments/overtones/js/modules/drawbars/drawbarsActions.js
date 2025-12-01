@@ -102,7 +102,6 @@ export const DrawbarsActions = {
             smoothUpdateHarmonicAmplitude(i, value);
         });
 
-        // Emit a single semantic event indicating a batch randomize
         document.dispatchEvent(new Event(DRAWBARS_RANDOMIZED));
     },
 

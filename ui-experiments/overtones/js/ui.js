@@ -11,7 +11,6 @@ import {
 import {
     midiToFreq,
     smoothUpdateMasterGain,
-    smoothUpdateSubharmonicMode
 } from './utils.js';
 import { startTone, stopTone, updateAudioProperties, sampleCurrentWaveform, exportAsWAV, addToWaveforms } from './audio.js';
 import { setSpreadFactor } from './visualization.js';
@@ -35,6 +34,7 @@ import { handleWaveformChange } from './modules/waveform/waveformActions.js';
 let drawbarsController;
 let spectralSystemController;
 let waveformController;
+let summedWaveformController;
 /**
  * Initializes all UI components and event handlers
  */
@@ -80,11 +80,11 @@ function setupSpectralSystem() {
 }
 
 function setupWaveforms() {
-    waveformController = new WaveformController("#waveform-canvas-area");
-    waveformController.init();
+    summedWaveformController = new WaveformController("#waveform-canvas-area");
+    summedWaveformController.init();
 
-    // waveformController = new WaveformController("#current-waveform-canvas-area");
-    // waveformController.init();
+    waveformController = new WaveformController("#current-waveform-canvas-area", { mode: "single" });
+    waveformController.init();
 }
 
 // ================================

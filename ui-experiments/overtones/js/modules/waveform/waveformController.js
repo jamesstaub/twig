@@ -6,18 +6,23 @@ import WaveformComponent from "./WaveformComponent.js";
 
 
 export class WaveformController extends BaseController {
+    constructor(selector, options = {}) {
+        super(selector);
+        this.mode = options.mode || "sum"; // "sum" or "single"
+    }
+
     createComponent(selector) {
         return new WaveformComponent(selector);
     }
 
     getProps() {
         const { p5Instance, harmonicAmplitudes, currentSystem, currentWaveform } = AppState;
-
         return {
             p5Instance,
             harmonicAmplitudes,
             currentSystem,
             currentWaveform,
+            mode: this.mode,
         };
     }
 
@@ -28,7 +33,5 @@ export class WaveformController extends BaseController {
         document.addEventListener(CURRENT_WAVEFORM_CHANGED, () => this.update());
         document.addEventListener(DRAWBAR_CHANGE, () => this.update());
         document.addEventListener(DRAWBARS_RANDOMIZED, () => this.update());
-
     }
-
 }

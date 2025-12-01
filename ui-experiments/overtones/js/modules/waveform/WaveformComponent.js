@@ -1,7 +1,6 @@
 // WaveformComponent.js
 import BaseComponent from "../base/BaseComponent.js";
 
-const WAVEFORM_CANVAS_AREA_ID = "waveform-canvas-area";
 
 /**
  * Create a reusable p5 sketch for waveform drawing
@@ -15,7 +14,8 @@ function createWaveformSketch(component) {
             const container = component.el
             const width = container?.clientWidth || 400;
             const height = 150;
-            p.createCanvas(width, height).parent(container || document.body);
+
+            p.createCanvas(width, height).parent(container);
             p.noLoop(); // Only redraw on demand
         };
 
@@ -45,20 +45,31 @@ function createWaveformSketch(component) {
             p.noFill();
             p.beginShape();
 
-            for (let x = 0; x < width; x++) {
-                const theta = p.map(x, 0, width, 0, p.TWO_PI * 2);
-                let sum = 0;
-                let maxAmp = 0;
-
-                for (let h = 0; h < props.harmonicAmplitudes.length; h++) {
-                    const ratio = props.currentSystem.ratios[h];
-                    const amp = props.harmonicAmplitudes[h] || 0;
-                    sum += props.p5Instance.getWaveValue(props.currentWaveform, ratio * theta) * amp;
-                    maxAmp += amp;
+            if (props.mode === "single") {
+                // Only first partial
+                for (let x = 0; x < width; x++) {
+                    const theta = p.map(x, 0, width, 0, p.TWO_PI * 2);
+                    const ratio = props.currentSystem.ratios[0];
+                    const amp = props.harmonicAmplitudes[0] || 0;
+                    const wave = props.p5Instance.getWaveValue(props.currentWaveform, ratio * theta) * amp;
+                    const y = height / 2 - wave * ampScale;
+                    p.vertex(x, y);
                 }
-
-                const y = height / 2 - (sum / (maxAmp || 1)) * ampScale;
-                p.vertex(x, y);
+            } else {
+                // Summed waveform
+                for (let x = 0; x < width; x++) {
+                    const theta = p.map(x, 0, width, 0, p.TWO_PI * 2);
+                    let sum = 0;
+                    let maxAmp = 0;
+                    for (let h = 0; h < props.harmonicAmplitudes.length; h++) {
+                        const ratio = props.currentSystem.ratios[h];
+                        const amp = props.harmonicAmplitudes[h] || 0;
+                        sum += props.p5Instance.getWaveValue(props.currentWaveform, ratio * theta) * amp;
+                        maxAmp += amp;
+                    }
+                    const y = height / 2 - (sum / (maxAmp || 1)) * ampScale;
+                    p.vertex(x, y);
+                }
             }
 
             p.endShape();
@@ -91,9 +102,9 @@ export default class WaveformComponent extends BaseComponent {
             requestAnimationFrame(() => this.render(props));
             return;
         }
-
         const sketch = createWaveformSketch(this);
-        this._waveformP5 = new p5(sketch, WAVEFORM_CANVAS_AREA_ID);
+        // Use this.el as the parent container for the canvas
+        this._waveformP5 = new p5(sketch, this.el);
     }
 
     /**

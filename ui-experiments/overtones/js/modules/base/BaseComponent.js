@@ -28,9 +28,12 @@ export default class BaseComponent {
         * @param {HTMLElement|string} target - Element or query selector.
         */
     constructor(target) {
-        this.el = typeof target === "string"
-            ? document.querySelector(target)
-            : target;
+        if (typeof target === "string") {
+            this.el = document.querySelector(target)
+            this.selector = target
+        } else {
+            this.el = target;
+        }
 
         if (!this.el) {
             throw new Error(`BaseComponent: Target element "${target}" not found.`);
