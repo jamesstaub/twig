@@ -12,7 +12,7 @@ function createWaveformSketch(component) {
         component._waveformP5 = p;
 
         p.setup = function () {
-            const container = document.getElementById(WAVEFORM_CANVAS_AREA_ID);
+            const container = component.el
             const width = container?.clientWidth || 400;
             const height = 150;
             p.createCanvas(width, height).parent(container || document.body);
@@ -20,7 +20,7 @@ function createWaveformSketch(component) {
         };
 
         p.windowResized = function () {
-            const container = document.getElementById(WAVEFORM_CANVAS_AREA_ID);
+            const container = component.el
             const width = container?.clientWidth || 400;
             const height = 150;
             p.resizeCanvas(width, height);
@@ -84,19 +84,16 @@ export default class WaveformComponent extends BaseComponent {
     render(props) {
         this.props = props;
 
-        // Create p5 instance only once
-        if (!this._waveformP5) {
-            if (!props.p5Instance) {
-                requestAnimationFrame(() => this.render(props));
-                return;
-            }
+        // Always teardown before render to ensure only one canvas exists
+        this.teardown();
 
-            const sketch = createWaveformSketch(this);
-            this._waveformP5 = new p5(sketch, WAVEFORM_CANVAS_AREA_ID);
-        } else {
-            // Just redraw on new props
-            this._waveformP5.redraw();
+        if (!props.p5Instance) {
+            requestAnimationFrame(() => this.render(props));
+            return;
         }
+
+        const sketch = createWaveformSketch(this);
+        this._waveformP5 = new p5(sketch, WAVEFORM_CANVAS_AREA_ID);
     }
 
     /**

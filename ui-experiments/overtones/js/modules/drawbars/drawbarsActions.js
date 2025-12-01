@@ -88,11 +88,21 @@ export const DrawbarsActions = {
     },
 
     randomize() {
-        AppState.harmonicAmplitudes.forEach((_, i) => {
-            const value = i === 0 ? 0.5 + Math.random() * 0.5 : Math.random();
-            this.setDrawbar(i, value); // ensures audio updates
+        // Build a new amplitudes array in one go to avoid emitting
+        // DRAWBAR_CHANGE for every single drawbar update.
+        const newAmps = AppState.harmonicAmplitudes.map((_, i) => {
+            return i === 0 ? 0.5 + Math.random() * 0.5 : Math.random();
         });
 
+        // Apply state update once
+        updateAppState({ harmonicAmplitudes: newAmps });
+
+        // Update audio for each harmonic (keeps audio responsive)
+        newAmps.forEach((value, i) => {
+            smoothUpdateHarmonicAmplitude(i, value);
+        });
+
+        // Emit a single semantic event indicating a batch randomize
         document.dispatchEvent(new Event(DRAWBARS_RANDOMIZED));
     },
 
