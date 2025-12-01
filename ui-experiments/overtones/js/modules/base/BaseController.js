@@ -20,12 +20,13 @@
  */
 
 export class BaseController {
-    constructor() {
+    constructor(selector) {
         if (typeof this.createComponent !== "function") {
-            throw new Error("Subclass must implement createComponent()");
+            throw new Error("Subclass must implement createComponent(selector)");
         }
 
-        this.component = this.createComponent();
+        this.selector = selector;
+        this.component = this.createComponent(selector);
 
         if (!this.component) {
             throw new Error("createComponent() must return a component instance");

@@ -2,7 +2,7 @@
  * MAIN APPLICATION MODULE
  * Initializes and coordinates all modules
  */
-
+import p5 from 'p5';
 import { AppState, updateAppState } from './config.js';
 import { momentumSmoother } from './momentum-smoother.js';
 import { initAudio } from './audio.js';
@@ -18,19 +18,19 @@ import { showStatus } from './domUtils.js';
  * Main application initialization function
  */
 function initApp() {
-    try {        
+    try {
         // Initialize UI components
         initUI();
-        
+
         // Initialize visualization
         initVisualization();
-        
+
         // Set up accessibility features
 
-        
+
         // Update UI to reflect initial state
         updateUI();
-                
+
     } catch (error) {
         console.error('Failed to initialize application:', error);
         showStatus('Failed to initialize application. Please refresh the page.', 'error');
@@ -67,7 +67,7 @@ function cleanup() {
     try {
         // Clear momentum smoothing
         momentumSmoother.clear();
-        
+
         // Stop audio if playing
         if (AppState.isPlaying && AppState.audioContext) {
             AppState.oscillators.forEach(node => {
@@ -78,12 +78,12 @@ function cleanup() {
                 }
             });
         }
-        
+
         // Close audio context
         if (AppState.audioContext && AppState.audioContext.state !== 'closed') {
             AppState.audioContext.close();
         }
-        
+
         console.log('Application cleaned up successfully');
     } catch (error) {
         console.error('Error during cleanup:', error);
@@ -112,7 +112,7 @@ function setupPerformanceMonitoring() {
             if (AppState.audioContext && AppState.isPlaying) {
                 const currentTime = AppState.audioContext.currentTime;
                 const oscillatorCount = AppState.oscillators.length;
-                
+
                 // Log performance metrics occasionally
                 if (Math.floor(currentTime) % 30 === 0) {
                     console.log(`Audio performance: ${oscillatorCount} oscillators, context time: ${currentTime.toFixed(2)}s`);
@@ -131,29 +131,29 @@ function setupPerformanceMonitoring() {
  */
 function checkCompatibility() {
     const issues = [];
-    
+
     // Check for Web Audio API
     if (!window.AudioContext && !window.webkitAudioContext) {
         issues.push('Web Audio API not supported');
     }
-    
+
     // Check for ES6 modules
     if (!window.Promise) {
         issues.push('ES6 Promises not supported');
     }
-    
+
     // Check for p5.js
     if (typeof p5 === 'undefined') {
         issues.push('p5.js library not loaded');
     }
-    
+
     if (issues.length > 0) {
         const message = `Browser compatibility issues: ${issues.join(', ')}. Please use a modern browser.`;
         showStatus(message, 'error');
         console.error(message);
         return false;
     }
-    
+
     return true;
 }
 
@@ -164,28 +164,28 @@ function checkCompatibility() {
 /**
  * Main startup function
  */
-function startup() {    
+function startup() {
     // Setup error handling first
     setupErrorHandling();
-    
+
     // Check browser compatibility
     if (!checkCompatibility()) {
         return;
     }
-    
+
     // Wait for p5.js to be available
     if (typeof window.p5 === 'undefined') {
         console.log('Waiting for p5.js to load...');
         setTimeout(startup, 100);
         return;
     }
-    
+
     // Setup cleanup handlers
     setupCleanup();
-    
+
     // Setup performance monitoring
     setupPerformanceMonitoring();
-    
+
     // Initialize the application
     initApp();
 }
@@ -198,13 +198,13 @@ function startup() {
 window.SineLanguage = {
     // State access
     getState: () => AppState,
-    
+
     // Module access (for debugging)
     updateUI,
-    
+
     // Utility functions
     showStatus,
-    
+
     // Manual cleanup
     cleanup
 };

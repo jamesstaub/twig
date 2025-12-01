@@ -23,14 +23,16 @@ import { setupEventListener, showStatus, updateText, updateValue } from './domUt
 
 import { DrawbarsController } from './modules/drawbars/drawbarsController.js';
 import { SpectralSystemController } from './modules/spectralSystem/spectralSystemController.js';
+import { WaveformController } from './modules/waveform/waveformController.js';
 
 // ================================
 // INITIALIZATION
 // ================================
 
 
-let drawbarsController
-let spectralSystemController
+let drawbarsController;
+let spectralSystemController;
+let waveformController;
 /**
  * Initializes all UI components and event handlers
  */
@@ -49,6 +51,7 @@ export function initUI() {
 
     setupDrawbars()
     setupSpectralSystem()
+    setupWaveforms();
     // setupSystemSelector();
     // populateSystemSelector();
     // updateSystemDescription();
@@ -65,13 +68,18 @@ export function initUI() {
 }
 
 function setupDrawbars() {
-    drawbarsController = new DrawbarsController();
+    drawbarsController = new DrawbarsController("#drawbars");
     drawbarsController.init();
 }
 
 function setupSpectralSystem() {
-    spectralSystemController = new SpectralSystemController();
+    spectralSystemController = new SpectralSystemController("#spectral-system-root");
     spectralSystemController.init();
+}
+
+function setupWaveforms() {
+    waveformController = new WaveformController("#waveform-canvas-area");
+    waveformController.init();
 }
 
 // ================================

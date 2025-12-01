@@ -2,10 +2,9 @@
  * VISUALIZATION MODULE
  * Contains P5.js sketch and visualization logic for the spectral synthesizer
  */
-
+import p5 from 'p5';
 import {
     AppState,
-    updateAppState,
     VISUAL_HARMONIC_TERMS,
     CANVAS_HEIGHT_RATIOS,
     HARMONIC_COLORS
@@ -280,59 +279,6 @@ export function clearCustomWaveCache() {
 // WAVEFORM SKETCH
 // ================================
 
-function createWaveformSketch() {
-    return function (p) {
-        p.setup = function () {
-            const container = document.getElementById('waveform-canvas-area');
-            const w = container ? container.clientWidth : 400;
-            const h = 150;
-            p.createCanvas(w, h).parent(container ? 'waveform-canvas-area' : document.body);
-        };
-
-        p.windowResized = function () {
-            const container = document.getElementById('waveform-canvas-area');
-            const w = container ? container.clientWidth : 400;
-            const h = 150;
-            p.resizeCanvas(w, h);
-        };
-
-        p.draw = function () {
-            p.background('#0d131f');
-            const mainP5 = AppState.p5Instance;
-            const oscHeight = p.height;
-            const ampScale = oscHeight * 0.4;
-            p.noStroke();
-            p.fill('#0d131f');
-            p.rect(0, 0, p.width, p.height);
-            p.stroke('#374151');
-            p.strokeWeight(1);
-            p.line(0, oscHeight / 2, p.width, oscHeight / 2);
-
-            if (!mainP5 || !mainP5.getWaveValue) return;
-
-            p.stroke('#10b981');
-            p.strokeWeight(2);
-            p.noFill();
-            p.beginShape();
-            const points = p.width;
-            for (let x = 0; x < points; x++) {
-                const theta = p.map(x, 0, points, 0, p.TWO_PI * 2);
-                let summedWave = 0;
-                let maxPossibleAmp = 0;
-                for (let hIdx = 0; hIdx < AppState.harmonicAmplitudes.length; hIdx++) {
-                    const ratio = AppState.currentSystem.ratios[hIdx];
-                    const amp = AppState.harmonicAmplitudes[hIdx] || 0;
-                    summedWave += mainP5.getWaveValue(AppState.currentWaveform, ratio * theta) * amp;
-                    maxPossibleAmp += amp;
-                }
-                const normalizedWave = summedWave / (maxPossibleAmp || 1);
-                const y = oscHeight / 2 - normalizedWave * ampScale;
-                p.vertex(x, y);
-            }
-            p.endShape();
-        };
-    };
-}
 
 // ================================
 // INITIALIZATION
@@ -342,13 +288,4 @@ export function initVisualization() {
     const tonewheelSketch = createVisualizationSketch();
     new p5(tonewheelSketch, 'tonewheel-container');
 
-    const tryCreateWaveform = () => {
-        if (AppState.p5Instance && AppState.p5Instance.getWaveValue) {
-            const waveformSketch = createWaveformSketch();
-            new p5(waveformSketch, 'waveform-canvas-area');
-        } else {
-            setTimeout(tryCreateWaveform, 100);
-        }
-    };
-    tryCreateWaveform();
 }

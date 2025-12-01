@@ -1,6 +1,8 @@
 import { AppState, DRAWBAR_STYLES } from "../../config.js";
 import BaseComponent from "../base/BaseComponent.js";
 
+const DRAWBAR_SLIDER_SELECTOR = ".drawbar-slider";
+
 export class DrawbarsComponent extends BaseComponent {
 
     constructor(elementId) {
@@ -20,7 +22,7 @@ export class DrawbarsComponent extends BaseComponent {
      * Called by BaseComponent AFTER render().
      */
     bindRenderedEvents() {
-        this.sliders = this.qAll(".drawbar-slider");
+        this.sliders = this.qAll(DRAWBAR_SLIDER_SELECTOR);
 
         this.sliders.forEach(slider => {
             this.bindEvent(slider, "input", (e) => this.handleDrawbarChange(e));

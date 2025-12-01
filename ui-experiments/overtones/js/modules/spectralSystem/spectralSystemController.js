@@ -24,8 +24,8 @@ export class SpectralSystemController extends BaseController {
      * Instantiate the component.
      * BaseComponent will validate the target selector internally.
      */
-    createComponent() {
-        return new SpectralSystemComponent('#spectral-system-root');
+    createComponent(selector) {
+        return new SpectralSystemComponent(selector);
     }
 
     /**

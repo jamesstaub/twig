@@ -15,8 +15,8 @@ const RANDOMIZE_DRAWBARS_BUTTON_ID = "randomize-drawbars-button";
 
 export class DrawbarsController extends BaseController {
 
-    createComponent() {
-        return new DrawbarsComponent("#drawbars");
+    createComponent(selector) {
+        return new DrawbarsComponent(selector);
     }
 
     /**
