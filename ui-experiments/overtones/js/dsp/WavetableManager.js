@@ -33,7 +33,7 @@ export class WavetableManager {
         this.periodMultipliers = new Map(); // Store period multipliers for pitch correction
         this.count = 0;
     }
-    
+
     /**
      * Adds a new custom waveform from time-domain samples with period multiplier support.
      * 
@@ -62,25 +62,36 @@ export class WavetableManager {
         if (samples.length === 0) {
             throw new Error("Cannot add empty waveform data.");
         }
-        
+        // Normalize samples to peak amplitude 1
+        let max = 0;
+        for (let i = 0; i < samples.length; i++) {
+            if (Math.abs(samples[i]) > max) max = Math.abs(samples[i]);
+        }
+        let normSamples = samples;
+        if (max > 0 && max !== 1) {
+            normSamples = new Float32Array(samples.length);
+            for (let i = 0; i < samples.length; i++) {
+                normSamples[i] = samples[i] / max;
+            }
+        }
         // Perform DFT to extract frequency components
-        const { real, imag } = DFT.transform(samples, maxHarmonics);
-        
+        const { real, imag } = DFT.transform(normSamples, maxHarmonics);
+
         // Create PeriodicWave for Web Audio synthesis
         const periodicWave = WaveformGenerator.createCustomWaveform(context, real, imag);
-        
+
         // Generate unique key using timestamp for collision avoidance
         this.count++;
         const key = `custom_${Date.now()}_${this.count}`;
-        
+
         // Store all associated data: waveform, coefficients, and period multiplier
         this.waveforms.set(key, periodicWave);
         this.coefficients.set(key, { real, imag });
         this.periodMultipliers.set(key, periodMultiplier);
-        
+
         return key;
     }
-    
+
     /**
      * Adds a new custom waveform from Fourier coefficients
      * @param {Float32Array} real - Real coefficients
@@ -90,19 +101,19 @@ export class WavetableManager {
      */
     addFromCoefficients(real, imag, context) {
         const periodicWave = WaveformGenerator.createCustomWaveform(context, real, imag);
-        
+
         this.count++;
         const key = `custom_${this.count}`;
-        
+
         this.waveforms.set(key, periodicWave);
-        this.coefficients.set(key, { 
-            real: new Float32Array(real), 
-            imag: new Float32Array(imag) 
+        this.coefficients.set(key, {
+            real: new Float32Array(real),
+            imag: new Float32Array(imag)
         });
-        
+
         return key;
     }
-    
+
     /**
      * Gets a stored PeriodicWave
      * @param {string} key - Waveform key
@@ -111,7 +122,7 @@ export class WavetableManager {
     getWaveform(key) {
         return this.waveforms.get(key) || null;
     }
-    
+
     /**
      * Gets stored Fourier coefficients
      * @param {string} key - Waveform key
@@ -120,7 +131,7 @@ export class WavetableManager {
     getCoefficients(key) {
         return this.coefficients.get(key) || null;
     }
-    
+
     /**
      * Retrieves the period multiplier for a stored waveform.
      * 
@@ -142,7 +153,7 @@ export class WavetableManager {
     getPeriodMultiplier(key) {
         return this.periodMultipliers.get(key) || 1;
     }
-    
+
     /**
      * Reconstructs time-domain samples from stored coefficients
      * @param {string} key - Waveform key
@@ -152,10 +163,10 @@ export class WavetableManager {
     reconstructSamples(key, sampleCount = 512) {
         const coeffs = this.coefficients.get(key);
         if (!coeffs) return null;
-        
+
         return DFT.inverseTransform(coeffs.real, coeffs.imag, sampleCount);
     }
-    
+
     /**
      * Gets all stored waveform keys
      * @returns {Array<string>} Array of waveform keys
@@ -163,7 +174,7 @@ export class WavetableManager {
     getAllKeys() {
         return Array.from(this.waveforms.keys());
     }
-    
+
     /**
      * Removes a stored waveform
      * @param {string} key - Waveform key to remove
@@ -174,7 +185,7 @@ export class WavetableManager {
         const hadCoefficients = this.coefficients.delete(key);
         return hadWaveform && hadCoefficients;
     }
-    
+
     /**
      * Clears all stored waveforms
      */
@@ -183,7 +194,7 @@ export class WavetableManager {
         this.coefficients.clear();
         this.count = 0;
     }
-    
+
     /**
      * Gets the current count of stored waveforms
      * @returns {number} Number of stored waveforms
@@ -191,7 +202,7 @@ export class WavetableManager {
     getCount() {
         return this.waveforms.size;
     }
-    
+
     /**
      * Exports waveform data for serialization
      * @param {string} key - Waveform key
@@ -200,7 +211,7 @@ export class WavetableManager {
     exportData(key) {
         const coeffs = this.coefficients.get(key);
         if (!coeffs) return null;
-        
+
         return {
             key,
             real: Array.from(coeffs.real),
@@ -208,7 +219,7 @@ export class WavetableManager {
             timestamp: Date.now()
         };
     }
-    
+
     /**
      * Imports waveform data from serialization
      * @param {Object} data - Serialized waveform data
@@ -218,7 +229,7 @@ export class WavetableManager {
     importData(data, context) {
         const real = new Float32Array(data.real);
         const imag = new Float32Array(data.imag);
-        
+
         return this.addFromCoefficients(real, imag, context);
     }
 }

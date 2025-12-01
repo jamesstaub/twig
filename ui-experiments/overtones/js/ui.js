@@ -12,7 +12,7 @@ import {
     midiToFreq,
     smoothUpdateMasterGain,
 } from './utils.js';
-import { startTone, stopTone, updateAudioProperties, sampleCurrentWaveform, exportAsWAV, addToWaveforms } from './audio.js';
+import { startTone, stopTone, updateAudioProperties, sampleCurrentWaveform, exportAsWAV } from './audio.js';
 import { setSpreadFactor } from './visualization.js';
 
 import { HelpDialog } from './HelpDialog.js';
@@ -23,7 +23,7 @@ import { setupEventListener, showStatus, updateText, updateValue } from './domUt
 import { DrawbarsController } from './modules/drawbars/drawbarsController.js';
 import { SpectralSystemController } from './modules/spectralSystem/spectralSystemController.js';
 import { WaveformController } from './modules/waveform/waveformController.js';
-import { handleWaveformChange } from './modules/waveform/waveformActions.js';
+import { handleAddToWaveforms, handleWaveformChange } from './modules/waveform/waveformActions.js';
 
 
 // ================================
@@ -136,17 +136,6 @@ function handleExportWAV() {
     });
 }
 
-function handleAddToWaveforms() {
-    sampleCurrentWaveform().then(sampledData => {
-        const buffer = sampledData.buffer || sampledData; // Handle both old and new format
-        if (buffer.length > 0) {
-            return addToWaveforms(sampledData); // Pass the full data object (includes periodMultiplier)
-        }
-    }).catch(error => {
-        console.error('Failed to sample waveform for adding:', error);
-        showStatus('Failed to sample waveform for adding', 'error');
-    });
-}
 
 // ================================
 // CONTROL SLIDERS

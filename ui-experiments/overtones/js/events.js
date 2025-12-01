@@ -4,3 +4,4 @@ export const DRAWBARS_RANDOMIZED = 'drawbars-randomized';
 export const DRAWBARS_RESET = 'drawbars-reset';
 export const SPECTRAL_SYSTEM_CHANGED = 'spectral-system-changed';
 export const SUBHARMONIC_TOGGLED = 'subharmonic-toggled';
+export const ADD_CUSTOM_WAVEFORM = 'add-custom-waveform';
