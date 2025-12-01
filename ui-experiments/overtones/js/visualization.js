@@ -2,7 +2,7 @@
  * VISUALIZATION MODULE
  * Contains P5.js sketch and visualization logic for the spectral synthesizer
  */
-import p5 from 'p5';
+
 import {
     AppState,
     VISUAL_HARMONIC_TERMS,
@@ -206,7 +206,6 @@ export function createVisualizationSketch() {
         function drawSummedWaveform(points, currentAngle) {
             p.strokeWeight(0);
             p.fill(16, 185, 129, 15);
-
             p.beginShape();
             for (let i = 0; i < points; i++) {
                 const theta = p.map(i, 0, points, 0, p.TWO_PI);

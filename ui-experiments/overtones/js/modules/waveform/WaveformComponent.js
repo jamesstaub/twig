@@ -1,78 +1,112 @@
+// WaveformComponent.js
 import BaseComponent from "../base/BaseComponent.js";
 
-const WAVEFORM_CANVAS_AREA_ID = 'waveform-canvas-area';
+const WAVEFORM_CANVAS_AREA_ID = "waveform-canvas-area";
 
-export function createWaveformSketch({
-    p5Instance,
-    harmonicAmplitudes,
-    currentSystem,
-    currentWaveform
-}) {
+/**
+ * Create a reusable p5 sketch for waveform drawing
+ * @param {WaveformComponent} component - The component instance
+ */
+function createWaveformSketch(component) {
     return function (p) {
+        component._waveformP5 = p;
+
         p.setup = function () {
             const container = document.getElementById(WAVEFORM_CANVAS_AREA_ID);
-            const w = container ? container.clientWidth : 400;
-            const h = 150;
-            p.createCanvas(w, h).parent(container ? WAVEFORM_CANVAS_AREA_ID : document.body);
+            const width = container?.clientWidth || 400;
+            const height = 150;
+            p.createCanvas(width, height).parent(container || document.body);
+            p.noLoop(); // Only redraw on demand
         };
 
         p.windowResized = function () {
             const container = document.getElementById(WAVEFORM_CANVAS_AREA_ID);
-            const w = container ? container.clientWidth : 400;
-            const h = 150;
-            p.resizeCanvas(w, h);
+            const width = container?.clientWidth || 400;
+            const height = 150;
+            p.resizeCanvas(width, height);
+            p.redraw();
         };
 
         p.draw = function () {
-            p.background('#0d131f');
-            const mainP5 = p5Instance;
-            const oscHeight = p.height;
-            const ampScale = oscHeight * 0.4;
-            p.noStroke();
-            p.fill('#0d131f');
-            p.rect(0, 0, p.width, p.height);
-            p.stroke('#374151');
+            const props = component.props;
+            if (!props?.p5Instance || !props.harmonicAmplitudes?.length) return;
+
+            const width = p.width;
+            const height = p.height;
+            const ampScale = height * 0.4;
+
+            p.background("#0d131f");
+            p.stroke("#374151");
             p.strokeWeight(1);
-            p.line(0, oscHeight / 2, p.width, oscHeight / 2);
+            p.line(0, height / 2, width, height / 2);
 
-            if (!mainP5 || !mainP5.getWaveValue) return;
-
-            p.stroke('#10b981');
+            p.stroke("#10b981");
             p.strokeWeight(2);
             p.noFill();
             p.beginShape();
-            const points = p.width;
-            for (let x = 0; x < points; x++) {
-                const theta = p.map(x, 0, points, 0, p.TWO_PI * 2);
-                let summedWave = 0;
-                let maxPossibleAmp = 0;
-                for (let hIdx = 0; hIdx < harmonicAmplitudes.length; hIdx++) {
-                    const ratio = currentSystem.ratios[hIdx];
-                    const amp = harmonicAmplitudes[hIdx] || 0;
-                    summedWave += mainP5.getWaveValue(currentWaveform, ratio * theta) * amp;
-                    maxPossibleAmp += amp;
+
+            for (let x = 0; x < width; x++) {
+                const theta = p.map(x, 0, width, 0, p.TWO_PI * 2);
+                let sum = 0;
+                let maxAmp = 0;
+
+                for (let h = 0; h < props.harmonicAmplitudes.length; h++) {
+                    const ratio = props.currentSystem.ratios[h];
+                    const amp = props.harmonicAmplitudes[h] || 0;
+                    sum += props.p5Instance.getWaveValue(props.currentWaveform, ratio * theta) * amp;
+                    maxAmp += amp;
                 }
-                const normalizedWave = summedWave / (maxPossibleAmp || 1);
-                const y = oscHeight / 2 - normalizedWave * ampScale;
+
+                const y = height / 2 - (sum / (maxAmp || 1)) * ampScale;
                 p.vertex(x, y);
             }
+
             p.endShape();
         };
     };
 }
 
-
+/**
+ * WaveformComponent
+ * Displays a live waveform preview using p5.js
+ */
 export default class WaveformComponent extends BaseComponent {
-    render(props) {
-        const tryCreateWaveform = () => {
-            if (p5Instance && p5Instance.getWaveValue) {
-                const waveformSketch = createWaveformSketch(props);
-                new p5(waveformSketch, WAVEFORM_CANVAS_AREA_ID);
-            } else {
-                setTimeout(tryCreateWaveform, 100);
-            }
-        };
-        tryCreateWaveform();
+    constructor(elementId) {
+        super(elementId);
+        this._waveformP5 = null;
+        this.props = {};
+    }
 
+    /**
+     * Render waveform with new props
+     * @param {object} props - Includes p5Instance, currentWaveform, harmonicAmplitudes, currentSystem
+     */
+    render(props) {
+        this.props = props;
+
+        // Create p5 instance only once
+        if (!this._waveformP5) {
+            if (!props.p5Instance) {
+                requestAnimationFrame(() => this.render(props));
+                return;
+            }
+
+            const sketch = createWaveformSketch(this);
+            this._waveformP5 = new p5(sketch, WAVEFORM_CANVAS_AREA_ID);
+        } else {
+            // Just redraw on new props
+            this._waveformP5.redraw();
+        }
+    }
+
+    /**
+     * Clean up p5 instance and any other resources
+     */
+    teardown() {
+        if (this._waveformP5?.remove) {
+            this._waveformP5.remove();
+            this._waveformP5 = null;
+        }
+        super.teardown?.();
     }
 }

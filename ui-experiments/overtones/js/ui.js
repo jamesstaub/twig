@@ -13,7 +13,7 @@ import {
     smoothUpdateMasterGain,
     smoothUpdateSubharmonicMode
 } from './utils.js';
-import { startTone, stopTone, updateAudioProperties, restartAudio, sampleCurrentWaveform, exportAsWAV, addToWaveforms } from './audio.js';
+import { startTone, stopTone, updateAudioProperties, sampleCurrentWaveform, exportAsWAV, addToWaveforms } from './audio.js';
 import { setSpreadFactor } from './visualization.js';
 
 import { HelpDialog } from './HelpDialog.js';
@@ -24,6 +24,8 @@ import { setupEventListener, showStatus, updateText, updateValue } from './domUt
 import { DrawbarsController } from './modules/drawbars/drawbarsController.js';
 import { SpectralSystemController } from './modules/spectralSystem/spectralSystemController.js';
 import { WaveformController } from './modules/waveform/waveformController.js';
+import { handleWaveformChange } from './modules/waveform/waveformActions.js';
+
 
 // ================================
 // INITIALIZATION
@@ -80,6 +82,9 @@ function setupSpectralSystem() {
 function setupWaveforms() {
     waveformController = new WaveformController("#waveform-canvas-area");
     waveformController.init();
+
+    // waveformController = new WaveformController("#current-waveform-canvas-area");
+    // waveformController.init();
 }
 
 // ================================
@@ -347,16 +352,10 @@ function updateSystemDescription() {
 function setupWaveformSelector() {
     const select = document.getElementById('waveform-select');
     if (select) {
-        select.addEventListener('change', handleWaveformChange);
+        select.addEventListener('change', handleWaveformChange)
     }
 }
 
-function handleWaveformChange(e) {
-    updateAppState({ currentWaveform: e.target.value });
-    if (AppState.isPlaying) {
-        restartAudio();
-    }
-}
 
 // ================================
 // UI UPDATE FUNCTIONS

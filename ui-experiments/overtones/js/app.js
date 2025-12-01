@@ -2,7 +2,7 @@
  * MAIN APPLICATION MODULE
  * Initializes and coordinates all modules
  */
-import p5 from 'p5';
+
 import { AppState, updateAppState } from './config.js';
 import { momentumSmoother } from './momentum-smoother.js';
 import { initAudio } from './audio.js';
@@ -20,10 +20,10 @@ import { showStatus } from './domUtils.js';
 function initApp() {
     try {
         // Initialize UI components
+        initVisualization();
         initUI();
 
         // Initialize visualization
-        initVisualization();
 
         // Set up accessibility features
 
