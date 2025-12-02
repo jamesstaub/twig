@@ -1,5 +1,5 @@
 import { AppState } from "../../config.js";
-import { ADD_CUSTOM_WAVEFORM, DRAWBAR_CHANGE, DRAWBARS_RANDOMIZED, DRAWBARS_RESET, SPECTRAL_SYSTEM_CHANGED, SUBHARMONIC_TOGGLED } from "../../events.js";
+import { DRAWBAR_CHANGE, DRAWBARS_RANDOMIZED, DRAWBARS_RESET, SPECTRAL_SYSTEM_CHANGED, SUBHARMONIC_TOGGLED } from "../../events.js";
 import { BaseController } from "../base/BaseController.js";
 import { CURRENT_WAVEFORM_CHANGED } from "./waveformActions.js";
 import WaveformComponent from "./WaveformComponent.js";

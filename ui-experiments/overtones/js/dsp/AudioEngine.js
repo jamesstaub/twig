@@ -12,11 +12,11 @@ export class AudioEngine {
         this.compressor = null;
         this.oscillators = new Map();
         this.isInitialized = false;
-        
+
         // Standard waveforms
         this.standardWaveforms = new Map();
     }
-    
+
     /**
      * Initializes the audio engine for oscillator-based synthesis
      * @param {number} masterGainValue - Initial master gain value
@@ -24,24 +24,24 @@ export class AudioEngine {
      */
     async initialize(masterGainValue = 0.5, options = {}) {
         if (this.isInitialized) return;
-        
+
         // Create audio context
         this.context = new (window.AudioContext || window.webkitAudioContext)();
-        
+
         // Create audio graph
         this.setupAudioGraph(masterGainValue);
-        
+
         // Pre-generate standard waveforms
         this.generateStandardWaveforms();
-        
+
         this.isInitialized = true;
-        
+
         // Resume context if suspended
         if (this.context.state === 'suspended') {
             await this.context.resume();
         }
     }
-    
+
     /**
      * Resume the audio context if suspended
      */
@@ -50,7 +50,7 @@ export class AudioEngine {
             await this.context.resume();
         }
     }
-    
+
     /**
      * Sets up the main audio processing graph
      * @param {number} masterGainValue - Initial master gain value
@@ -70,26 +70,26 @@ export class AudioEngine {
         this.compressor.connect(this.masterGain);
         this.masterGain.connect(this.context.destination);
     }
-    
+
     /**
      * Generates standard band-limited waveforms
      */
     generateStandardWaveforms() {
         const types = ['square', 'sawtooth', 'triangle'];
-        
+
         for (const type of types) {
             const periodicWave = WaveformGenerator.createBandLimitedWaveform(this.context, type, 128);
             this.standardWaveforms.set(type, periodicWave);
         }
     }
-    
+
     /**
      * Start oscillator-based synthesis
      */
     startSynthesis(harmonicAmplitudes, harmonicRatios, fundamentalFreq, waveform) {
         return this.startOscillatorSynthesis(harmonicAmplitudes, harmonicRatios, fundamentalFreq, waveform);
     }
-    
+
     /**
      * Stop all synthesis
      */
@@ -97,21 +97,21 @@ export class AudioEngine {
         // Stop individual oscillators
         this.stopAllOscillators();
     }
-    
+
     /**
      * Update synthesis parameters
      */
     updateSynthesis(harmonicAmplitudes, harmonicRatios, fundamentalFreq, masterGain) {
         this.updateOscillatorParameters(harmonicAmplitudes, harmonicRatios, fundamentalFreq, masterGain);
     }
-    
+
     /**
      * Always returns false since we removed AudioWorklet support
      */
     isUsingAudioWorklet() {
         return false;
     }
-    
+
     /**
      * Get a standard waveform PeriodicWave object
      * @param {string} waveformType - Type of waveform ('square', 'sawtooth', 'triangle')
@@ -120,39 +120,31 @@ export class AudioEngine {
     getStandardWaveform(waveformType) {
         return this.standardWaveforms.get(waveformType) || null;
     }
-    
-    /**
-     * Dummy method for compatibility - custom waveforms are handled via PeriodicWave
-     */
-    addCustomWaveform(name, samples, periodMultiplier = 1) {
-        // For oscillator-based synthesis, custom waveforms are handled via PeriodicWave
-        // Period multipliers are stored separately in WavetableManager
-        // This method exists for API compatibility but does nothing
-    }
-    
+
+
     /**
      * Start oscillator-based synthesis (main implementation)
      */
     startOscillatorSynthesis(harmonicAmplitudes, harmonicRatios, fundamentalFreq, waveform) {
         // Clear any existing oscillators
         this.stopAllOscillators();
-        
+
         // Create oscillators for each harmonic - handled by calling code
         // This method mainly serves to clear existing oscillators
         return true;
     }
-    
+
     /**
      * Update oscillator parameters
      */
     updateOscillatorParameters(harmonicAmplitudes, harmonicRatios, fundamentalFreq, masterGain) {
         // Update master gain
         this.updateMasterGain(masterGain, 0.02);
-        
+
         // Individual oscillator updates are handled by calling code
         // This method mainly handles master gain updates
     }
-    
+
     /**
      * Create an oscillator with the specified parameters
      * @param {number} frequency - Oscillator frequency
@@ -164,13 +156,13 @@ export class AudioEngine {
         if (!this.isInitialized) {
             throw new Error("AudioEngine must be initialized before creating oscillators");
         }
-        
+
         const oscillator = this.context.createOscillator();
         const gainNode = this.context.createGain();
-        
+
         // Set frequency
         oscillator.frequency.setValueAtTime(frequency, this.context.currentTime);
-        
+
         // Set waveform
         if (typeof waveform === 'string') {
             if (waveform === 'sine') {
@@ -185,17 +177,17 @@ export class AudioEngine {
         } else {
             throw new Error("Waveform must be a string or PeriodicWave");
         }
-        
+
         // Set gain
         gainNode.gain.setValueAtTime(gain, this.context.currentTime);
-        
+
         // Connect oscillator -> gainNode -> compressor
         oscillator.connect(gainNode);
         gainNode.connect(this.compressor);
-        
+
         return { oscillator, gainNode };
     }
-    
+
     /**
      * Add an oscillator to the managed oscillators map
      * @param {string} key - Unique key for the oscillator
@@ -204,11 +196,11 @@ export class AudioEngine {
     addOscillator(key, oscData) {
         // Start the oscillator
         oscData.oscillator.start(this.context.currentTime);
-        
+
         // Store in oscillators map
         this.oscillators.set(key, oscData);
     }
-    
+
     /**
      * Update oscillator frequency with smooth transitions
      * @param {string} key - Oscillator key
@@ -222,7 +214,7 @@ export class AudioEngine {
             oscData.oscillator.frequency.setTargetAtTime(frequency, now, rampTime / 3);
         }
     }
-    
+
     /**
      * Update oscillator gain with smooth transitions
      * @param {string} key - Oscillator key
@@ -237,7 +229,7 @@ export class AudioEngine {
             oscData.gainNode.gain.setTargetAtTime(gain, now, rampTime / 3);
         }
     }
-    
+
     /**
      * Update master gain
      * @param {number} gain - New master gain value
@@ -250,13 +242,13 @@ export class AudioEngine {
             this.masterGain.gain.setTargetAtTime(gain, now, rampTime / 3);
         }
     }
-    
+
     /**
      * Stop all oscillators
      */
     stopAllOscillators() {
         const now = this.context.currentTime;
-        
+
         for (const [key, oscData] of this.oscillators) {
             if (oscData.oscillator) {
                 try {
@@ -266,10 +258,10 @@ export class AudioEngine {
                 }
             }
         }
-        
+
         this.oscillators.clear();
     }
-    
+
     /**
      * Get the audio context
      */

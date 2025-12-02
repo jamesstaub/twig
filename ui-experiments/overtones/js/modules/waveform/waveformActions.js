@@ -105,9 +105,6 @@ export async function addWaveformToAudio(buffer, periodMultiplier, AppState) {
         periodMultiplier
     );
 
-    getAudioEngine().addCustomWaveform(waveKey, buffer, periodMultiplier);
-
-
     const coefficients = getWavetableManager().getCoefficients(waveKey);
     const periodicWave = getWavetableManager().getWaveform(waveKey);
 
