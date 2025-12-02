@@ -1,4 +1,4 @@
-import { getAudioEngine, getWavetableManager, initAudio, restartAudio, sampleCurrentWaveform } from "../../audio.js";
+import { getAudioEngine, getWavetableManager, initAudio, precomputeWaveTable, restartAudio, sampleCurrentWaveform } from "../../audio.js";
 import { AppState, updateAppState } from "../../config.js";
 import { showStatus } from "../../domUtils.js";
 import { ADD_CUSTOM_WAVEFORM } from "../../events.js";
@@ -98,6 +98,7 @@ export async function addToWaveforms(sampledData) {
 export async function addWaveformToAudio(buffer, periodMultiplier, AppState) {
     await initAudio();
 
+    // Step 1: Add waveform to the WavetableManager
     const waveKey = getWavetableManager().addFromSamples(
         buffer,
         AppState.audioContext,
@@ -105,14 +106,20 @@ export async function addWaveformToAudio(buffer, periodMultiplier, AppState) {
         periodMultiplier
     );
 
+    // Step 3: Precompute table for p5 visualization
     const coefficients = getWavetableManager().getCoefficients(waveKey);
+    const table = precomputeWaveTable(coefficients, 512); // 512 samples for p5
+
+    // You can now store this table in AppState or wherever p5 needs it
+    if (!AppState.customWaveTables) AppState.customWaveTables = {};
+    AppState.customWaveTables[waveKey] = table;
+
     const periodicWave = getWavetableManager().getWaveform(waveKey);
 
-    return { waveKey, coefficients, periodicWave };
+    return { waveKey, coefficients, periodicWave, table };
 }
 
 // Handles ONLY AppState updates, no DOM, no audio
-
 
 
 export function addWaveformToState(AppState, waveKey, coefficients, periodicWave, periodMultiplier) {

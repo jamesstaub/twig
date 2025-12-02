@@ -1,4 +1,5 @@
 // WaveformComponent.js
+import { getWaveValue } from "../../visualization.js";
 import BaseComponent from "../base/BaseComponent.js";
 
 
@@ -51,7 +52,11 @@ function createWaveformSketch(component) {
                     const theta = p.map(x, 0, width, 0, p.TWO_PI * 2);
                     const ratio = props.currentSystem.ratios[0];
 
-                    const wave = props.p5Instance.getWaveValue(props.currentWaveform, ratio * theta);
+                    const wave = getWaveValue(
+                        props.currentWaveform,
+                        ratio * theta,
+                        props.customWaveCoefficients?.[props.currentWaveform]
+                    );
                     const y = height / 2 - wave * ampScale;
                     p.vertex(x, y);
                 }
@@ -64,7 +69,12 @@ function createWaveformSketch(component) {
                     for (let h = 0; h < props.harmonicAmplitudes.length; h++) {
                         const ratio = props.currentSystem.ratios[h];
                         const amp = props.harmonicAmplitudes[h] || 0;
-                        sum += props.p5Instance.getWaveValue(props.currentWaveform, ratio * theta) * amp;
+                        const harmonicPhase = ratio * theta;
+                        sum += getWaveValue(
+                            props.currentWaveform,
+                            harmonicPhase,
+                            component.props.customWaveCoefficients?.[props.currentWaveform]
+                        ) * amp;
                         maxAmp += amp;
                     }
                     const y = height / 2 - (sum / (maxAmp || 1)) * ampScale;

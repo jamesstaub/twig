@@ -3,6 +3,7 @@
  * Contains P5.js sketch and visualization logic for the spectral synthesizer
  */
 
+import { precomputeWaveTable } from './audio.js';
 import {
     AppState,
     VISUAL_HARMONIC_TERMS,
@@ -65,40 +66,6 @@ export function createVisualizationSketch() {
 
         p.customWaveTables = {};
 
-        p.getWaveValue = function (type, theta) {
-            if (type.startsWith('custom')) {
-                if (AppState.customWaveCoefficients && AppState.customWaveCoefficients[type]) {
-                    if (!p.customWaveTables[type]) {
-                        p.customWaveTables[type] = p.precomputeCustomWaveTable(AppState.customWaveCoefficients[type]);
-                    }
-                    const table = p.customWaveTables[type];
-                    const normalizedTheta = (theta % p.TWO_PI) / p.TWO_PI;
-                    const index = normalizedTheta * (table.length - 1);
-                    const lowIndex = Math.floor(index);
-                    const highIndex = Math.ceil(index);
-                    const fraction = index - lowIndex;
-                    return lowIndex === highIndex ? table[lowIndex] : table[lowIndex] * (1 - fraction) + table[highIndex] * fraction;
-                } else {
-                    return p.sin(theta);
-                }
-            }
-
-            if (type === 'sine') return p.sin(theta);
-
-            let sum = 0, multiplier = 1;
-            if (type === 'square') {
-                for (let n = 1; n < VISUAL_HARMONIC_TERMS * 2; n += 2) sum += (1 / n) * p.sin(theta * n), multiplier = 4 / p.PI;
-            } else if (type === 'sawtooth') {
-                for (let n = 1; n <= VISUAL_HARMONIC_TERMS; n++) sum += (1 / n) * p.sin(theta * n), multiplier = 2 / p.PI;
-            } else if (type === 'triangle') {
-                for (let n = 1; n < VISUAL_HARMONIC_TERMS * 2; n += 2) {
-                    const sign = ((n - 1) / 2) % 2 === 0 ? 1 : -1;
-                    sum += (sign / (n * n)) * p.sin(theta * n);
-                    multiplier = 8 / (p.PI * p.PI);
-                }
-            }
-            return sum * multiplier * 0.7;
-        };
 
         p.precomputeCustomWaveTable = function (coeffs) {
             const tableSize = 512;
@@ -162,6 +129,7 @@ export function createVisualizationSketch() {
         }
 
         function drawIndividualPartials(points, currentAngle) {
+            const type = AppState.currentWaveform;
             const numHarmonics = AppState.harmonicAmplitudes.length;
             const laneRadii = computeHarmonicLaneRadii({
                 harmonicAmplitudes: AppState.harmonicAmplitudes,
@@ -188,7 +156,8 @@ export function createVisualizationSketch() {
                 for (let i = 0; i < points; i++) {
                     let theta = p.map(i, 0, points, 0, p.TWO_PI);
                     let harmonicPhase = ratio * theta;
-                    let waveValue = p.getWaveValue(AppState.currentWaveform, harmonicPhase);
+                    let waveValue = getWaveValue(type, harmonicPhase, AppState.customWaveCoefficients?.[type])
+
 
                     let rotatedTheta = theta + currentAngle;
                     let r = ringRadius + waveValue * visualAmp;
@@ -201,26 +170,6 @@ export function createVisualizationSketch() {
                 p.endShape(p.CLOSE);
             }
         }
-
-
-        // function drawSummedWaveform(points, currentAngle) {
-        //     p.strokeWeight(0);
-        //     p.fill(16, 185, 129, 15);
-        //     p.beginShape();
-        //     for (let i = 0; i < points; i++) {
-        //         const theta = p.map(i, 0, points, 0, p.TWO_PI);
-        //         let r = baseRadius;
-        //         for (let h = 0; h < AppState.harmonicAmplitudes.length; h++) {
-        //             const amp = AppState.harmonicAmplitudes[h] * maxAmplitudeRadial;
-        //             const ratio = AppState.currentSystem.ratios[h];
-        //             r += p.getWaveValue(AppState.currentWaveform, ratio * theta + currentAngle) * amp / (ratio * 2);
-        //         }
-        //         const x = r * Math.cos(theta);
-        //         const y = r * Math.sin(theta);
-        //         p.vertex(x, y);
-        //     }
-        //     p.endShape(p.CLOSE);
-        // }
 
         // ================================
         // MAIN DRAW LOOP
@@ -287,4 +236,92 @@ export function initVisualization() {
     const tonewheelSketch = createVisualizationSketch();
     new p5(tonewheelSketch, 'tonewheel-container');
 
+}
+
+
+
+
+const waveformTables = new Map(); // key -> Float32Array table
+const TABLE_SIZE = 512;
+
+// /**
+//  * Precompute a table for a custom waveform given Fourier coefficients
+//  * @param {Object} coeffs - { real: Float32Array, imag: Float32Array }
+//  * @returns {Float32Array} Precomputed waveform table
+//  */
+// export function precomputeWaveTable(coeffs) {
+//     const table = new Float32Array(TABLE_SIZE);
+
+//     for (let i = 0; i < TABLE_SIZE; i++) {
+//         const theta = (i / TABLE_SIZE) * 2 * Math.PI;
+//         let sum = 0;
+//         for (let k = 1; k < coeffs.real.length && k < coeffs.imag.length; k++) {
+//             sum += coeffs.real[k] * Math.cos(k * theta) + coeffs.imag[k] * Math.sin(k * theta);
+//         }
+//         table[i] = sum;
+//     }
+
+//     return table;
+// }
+
+/**
+ * Get a waveform value from type/key at a given phase
+ * Handles standard waves and cached custom waves
+ * @param {string} type - 'sine', 'square', 'triangle', 'sawtooth', or 'custom_<key>'
+ * @param {number} theta - Phase in radians
+ * @param {Object} customCoeffs - Optional coefficients for 'custom_*'
+ * @returns {number} Waveform value
+ */
+export function getWaveValue(type, theta, customCoeffs) {
+    if (type.startsWith('custom')) {
+        const key = type;
+        if (!waveformTables.has(key) && customCoeffs) {
+            waveformTables.set(key, precomputeWaveTable(customCoeffs, TABLE_SIZE));
+        }
+
+        const table = waveformTables.get(key);
+        if (!table) return Math.sin(theta);
+
+        const normalizedTheta = (theta % (2 * Math.PI)) / (2 * Math.PI);
+        const index = normalizedTheta * (table.length - 1);
+        const low = Math.floor(index);
+        const high = Math.ceil(index);
+        const frac = index - low;
+
+        return low === high ? table[low] : table[low] * (1 - frac) + table[high] * frac;
+    }
+
+    // Standard waveform math
+    switch (type) {
+        case 'sine': return Math.sin(theta);
+        case 'square': {
+            let sum = 0;
+            const terms = 16;
+            for (let n = 1; n < terms * 2; n += 2) sum += (1 / n) * Math.sin(theta * n);
+            return sum * (4 / Math.PI) * 0.7;
+        }
+        case 'sawtooth': {
+            let sum = 0;
+            const terms = 16;
+            for (let n = 1; n <= terms; n++) sum += (1 / n) * Math.sin(theta * n);
+            return sum * (2 / Math.PI) * 0.7;
+        }
+        case 'triangle': {
+            let sum = 0;
+            const terms = 16;
+            for (let n = 1; n < terms * 2; n += 2) {
+                const sign = ((n - 1) / 2) % 2 === 0 ? 1 : -1;
+                sum += (sign / (n * n)) * Math.sin(theta * n);
+            }
+            return sum * (8 / (Math.PI * Math.PI)) * 0.7;
+        }
+        default: return Math.sin(theta);
+    }
+}
+
+/**
+ * Clears all cached waveform tables
+ */
+export function clearWaveTables() {
+    waveformTables.clear();
 }

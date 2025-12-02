@@ -342,59 +342,48 @@ export async function sampleCurrentWaveform() {
  * 
  * @returns {Object} {buffer: Float32Array, periodMultiplier: number}
  */
-function sampleCurrentWaveformBasic() {
+/**
+ * Samples the current waveform configuration into a wavetable buffer
+ * with period multiplier support.
+ *
+ * Fully decoupled from p5; can be used for visualization or audio synthesis.
+ *
+
+ */
+
+
+/**
+ * Samples the current waveform into a Float32Array with period multiplier support
+ * @returns {Object} { buffer: Float32Array, periodMultiplier: number }
+ */
+export function sampleCurrentWaveformBasic() {
     const buffer = new Float32Array(WAVETABLE_SIZE);
     let maxAmplitude = 0;
 
-    const p = AppState.p5Instance;
-
-    if (!p || !p.getWaveValue) {
-        console.error("Wavetable Error: p5 context not initialized or missing getWaveValue function");
-        showStatus("Export failed: Visualization is not fully initialized. Try playing the tone first.", 'error');
-        return { buffer: new Float32Array(0), periodMultiplier: 1 };
-    }
-
     if (!AppState.currentSystem || !AppState.currentSystem.ratios || AppState.harmonicAmplitudes.length === 0) {
-        console.error("Wavetable Error: Spectral system data is missing or incomplete");
-        showStatus("Export failed: Spectral data (ratios/amplitudes) is missing.", 'error');
+        console.error("Spectral system data missing or incomplete");
         return { buffer: new Float32Array(0), periodMultiplier: 1 };
     }
 
-    console.log('Sampling waveform with system:', AppState.currentSystem.name);
-
-    // Get active ratios (only those with meaningful amplitude)
     const activeRatios = [];
     for (let h = 0; h < AppState.harmonicAmplitudes.length; h++) {
-        if (AppState.harmonicAmplitudes[h] > 0.001) {
-            activeRatios.push(AppState.currentSystem.ratios[h]);
-        }
+        if (AppState.harmonicAmplitudes[h] > 0.001) activeRatios.push(AppState.currentSystem.ratios[h]);
     }
-    console.log('Active ratios:', activeRatios);
 
-    // Calculate the period multiplier to minimize discontinuity
-    // This is the mathematical core of the phase continuity solution
     const periodMultiplier = calculateOptimalPeriod(activeRatios);
-    console.log('Period multiplier:', periodMultiplier);
+    const totalPeriodLength = 2 * Math.PI * periodMultiplier;
 
-    // Sample over an extended period: periodMultiplier × fundamental period
-    // This ensures all active ratios complete near-integer cycles
-    const totalPeriodLength = p.TWO_PI * periodMultiplier;
+    const customCoeffs = AppState.customWaveCoefficients?.[AppState.currentWaveform];
 
     for (let i = 0; i < WAVETABLE_SIZE; i++) {
-        // Map buffer index to extended period phase (0 to periodMultiplier × 2π)
-        const theta = p.map(i, 0, WAVETABLE_SIZE, 0, totalPeriodLength);
-
+        const theta = (i / (WAVETABLE_SIZE - 1)) * totalPeriodLength;
         let summedWave = 0;
 
-        // Sum all active frequency components
         for (let h = 0; h < AppState.harmonicAmplitudes.length; h++) {
-            const ratio = AppState.currentSystem.ratios[h];
             const amp = AppState.harmonicAmplitudes[h];
-
-            if (amp > 0.001) { // Only include audible components
-                // Key insight: ratio frequency remains unchanged, we're just sampling
-                // over a longer period to ensure integer cycles for phase continuity
-                summedWave += p.getWaveValue(AppState.currentWaveform, ratio * theta) * amp;
+            if (amp > 0.001) {
+                const ratio = AppState.currentSystem.ratios[h];
+                summedWave += getWaveValue(AppState.currentWaveform, ratio * theta, customCoeffs) * amp;
             }
         }
 
@@ -402,31 +391,15 @@ function sampleCurrentWaveformBasic() {
         maxAmplitude = Math.max(maxAmplitude, Math.abs(summedWave));
     }
 
-    // Check for continuity
-    const startValue = buffer[0];
-    const endValue = buffer[buffer.length - 1];
-    const discontinuity = Math.abs(endValue - startValue);
-    console.log(`Wavetable discontinuity: ${discontinuity} (start: ${startValue}, end: ${endValue})`);
-
-    // Report if we achieved good continuity
-    if (discontinuity < 0.01) {
-        console.log('✓ Good continuity achieved');
-    } else {
-        console.log('⚠ Still has discontinuity - may cause buzzing');
-    }
-
-    // Normalize the buffer
+    // Normalize buffer
     if (maxAmplitude > 0) {
-        const normalizationFactor = 1.0 / maxAmplitude;
-        for (let i = 0; i < WAVETABLE_SIZE; i++) {
-            buffer[i] *= normalizationFactor;
-        }
+        const normFactor = 1 / maxAmplitude;
+        for (let i = 0; i < WAVETABLE_SIZE; i++) buffer[i] *= normFactor;
     }
-
-    console.log(`Sampled ${buffer.length} points, max amplitude: ${maxAmplitude}`);
 
     return { buffer, periodMultiplier };
 }
+
 
 /**
  * Calculate optimal period multiplier to minimize phase discontinuities in wavetables.
@@ -567,4 +540,116 @@ export function exportAsWAV(bufferOrData, numCycles = 1) {
     } catch (error) {
         showStatus(`WAV Export Failed: ${error.message}`, 'error');
     }
+}
+
+/**
+ * Standalone function to evaluate a waveform value at a given phase
+ * Handles standard waveforms and custom Fourier coefficients
+ * @param {string} type - Waveform type ('sine', 'square', 'triangle', 'sawtooth', 'custom_*')
+ * @param {number} theta - Phase angle in radians
+ * @param {Object} customCoeffs - Optional { real: Float32Array, imag: Float32Array } for custom waves
+ * @returns {number} Waveform amplitude at theta
+ */
+function getWaveValue(type, theta, customCoeffs) {
+    if (type.startsWith('custom')) {
+        if (customCoeffs) {
+            const tableSize = 512;
+            const table = new Float32Array(tableSize);
+            for (let i = 0; i < tableSize; i++) {
+                const t = (i / tableSize) * 2 * Math.PI;
+                let sum = 0;
+                for (let k = 1; k < customCoeffs.real.length && k < customCoeffs.imag.length; k++) {
+                    sum += customCoeffs.real[k] * Math.cos(k * t) + customCoeffs.imag[k] * Math.sin(k * t);
+                }
+                table[i] = sum;
+            }
+            const normalizedTheta = (theta % (2 * Math.PI)) / (2 * Math.PI);
+            const index = normalizedTheta * (tableSize - 1);
+            const lowIndex = Math.floor(index);
+            const highIndex = Math.ceil(index);
+            const fraction = index - lowIndex;
+            return lowIndex === highIndex ? table[lowIndex] : table[lowIndex] * (1 - fraction) + table[highIndex] * fraction;
+        } else {
+            return Math.sin(theta);
+        }
+    }
+
+    switch (type) {
+        case 'sine': return Math.sin(theta);
+        case 'square': {
+            let sum = 0;
+            const terms = 16; // VISUAL_HARMONIC_TERMS equivalent
+            for (let n = 1; n < terms * 2; n += 2) sum += (1 / n) * Math.sin(theta * n);
+            return sum * (4 / Math.PI) * 0.7;
+        }
+        case 'sawtooth': {
+            let sum = 0;
+            const terms = 16;
+            for (let n = 1; n <= terms; n++) sum += (1 / n) * Math.sin(theta * n);
+            return sum * (2 / Math.PI) * 0.7;
+        }
+        case 'triangle': {
+            let sum = 0;
+            const terms = 16;
+            for (let n = 1; n < terms * 2; n += 2) {
+                const sign = ((n - 1) / 2) % 2 === 0 ? 1 : -1;
+                sum += (sign / (n * n)) * Math.sin(theta * n);
+            }
+            return sum * (8 / (Math.PI * Math.PI)) * 0.7;
+        }
+        default: return Math.sin(theta);
+    }
+}
+
+/**
+ * Precompute a clean wavetable for visualization.
+ * Accepts EITHER:
+ *   - { real: Float32Array, imag: Float32Array }
+ *   - time-domain Float32Array samples
+ */
+export function precomputeWaveTable(input, tableSize = 512) {
+    let table = new Float32Array(tableSize);
+
+    // ----------------------------------------------------------
+    // CASE A: The input is time-domain samples → resample directly
+    // ----------------------------------------------------------
+    if (input instanceof Float32Array) {
+        const src = input;
+        const step = (src.length - 1) / (tableSize - 1);
+
+        for (let i = 0; i < tableSize; i++) {
+            const idx = i * step;
+            const i0 = Math.floor(idx);
+            const i1 = Math.min(i0 + 1, src.length - 1);
+            const f = idx - i0;
+            table[i] = src[i0] * (1 - f) + src[i1] * f;
+        }
+
+        return table;
+    }
+
+    // ----------------------------------------------------------
+    // CASE B: The input is a Fourier coefficient set
+    // ----------------------------------------------------------
+    if (input.real && input.imag) {
+        const real = input.real;
+        const imag = input.imag;
+        const harmonics = Math.min(real.length, imag.length);
+
+        for (let i = 0; i < tableSize; i++) {
+            const theta = (i / tableSize) * Math.PI * 2;
+            let sum = 0;
+
+            for (let k = 1; k < harmonics; k++) {
+                sum += real[k] * Math.cos(k * theta) +
+                    imag[k] * Math.sin(k * theta);
+            }
+            table[i] = sum;
+        }
+
+        return table;
+    }
+
+    console.error("precomputeUnifiedWaveTable: invalid input", input);
+    return new Float32Array(tableSize);
 }
