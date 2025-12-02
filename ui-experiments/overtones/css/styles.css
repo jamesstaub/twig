@@ -1,17 +1,30 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap');
+@import "tailwindcss";
+
+/* Tailwind v4 CSS-native config */
+
+
+@theme {
+    --breakpoint-sm: 640px;
+    --breakpoint-md: 768px;
+    --breakpoint-lg: 1024px;
+    --breakpoint-xl: 1280px;
+    --breakpoint-2xl: 1536px;
+}
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 /* Slim, streamlined drawbar action buttons */
 
 /* Ensure p5 waveform canvas never exceeds container width */
-#waveform-canvas-area canvas {
+#waveform-canvas-area canvas, #current-waveform-canvas-area canvas {
     width: 100% !important;
     max-width: 100%;
     box-sizing: border-box;
     display: block;
 }
-/* ================================
-   SPECTRAL AUDIO SYNTHESIZER STYLES
-   ================================ */
-
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap');
 
 /* ================================
    COLOR VARIABLES
@@ -312,8 +325,8 @@ canvas {
     background-color: #0d131f;
     width: 100% !important;
     max-width: 100% !important;
-    height: 100% !important;
-    min-height: 220px;
+    height: calc(100% - .5rem) !important;
+    min-height: 120px;
     object-fit: contain;
 }
 

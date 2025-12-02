@@ -7,11 +7,10 @@
     <title>sin(lang)</title>
 
     <!-- External Dependencies -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
-
+    <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script> -->
+    <script src="node_modules/p5/lib/p5.min.js"></script>
     <!-- Application Styles -->
     <link rel="stylesheet" href="css/styles-compiled.css">
-    <link rel="stylesheet" href="css/styles.css">
 </head>
 
 <body class="app-container">
@@ -58,6 +57,9 @@
                             <option value="triangle">Triangle</option>
                             <option value="sawtooth">Sawtooth</option>
                         </select>
+                        <div id="current-waveform-canvas-area" class="flex-1">
+                            <!-- P5 canvas injected here -->
+                        </div>
                     </div>
 
                     <!-- Fundamental & Waveform Controls Row -->
@@ -94,7 +96,7 @@
                 <div class="control-row flex flex-wrap gap-4">
                     <div class="w-full xl:grid xl:grid-cols-2 xl:gap-6 flex flex-col md:flex-row md:gap-4 gap-4">
                         <!-- Overtone System (title + select) -->
-                        <div
+                        <div id="spectral-system-root"
                             class="system-selector labeled-control flex flex-col gap-2 xl:col-span-1 w-full p-2 min-w-[24rem]">
                             <label for="ratio-system-select" class="text-[1.125rem] font-bold text-[#c7d2fe]">
                                 Overtone System
@@ -118,7 +120,7 @@
 
                         <!-- Waveform + controls -->
                         <div class="labeled-control">
-                            <label for="waveform-select">
+                            <label>
                                 Sum
                             </label>
                             <div class="control-row xl:col-span-1 w-full relative flex flex-col gap-4">
