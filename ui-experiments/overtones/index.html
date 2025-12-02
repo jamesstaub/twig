@@ -28,10 +28,18 @@
 
         <div class="navbar-section center">
             <!-- Master Gain Control -->
-            <div class="navbar-control-group">
+            <div class="navbar-control-group px-2 md:px-5 py-3">
                 <label for="master-gain-slider" class="navbar-control-label">Gain</label>
-                <input type="range" id="master-gain-slider" class="slider" min="0.01" max="1" step="0.01" value="0.5">
+                <input type="range" id="master-gain-slider" class="w-full min-w-16" min="0.01" max="1" step="0.01"
+                    value="0.5">
                 <span id="master-gain-value" class="control-value">50%</span>
+            </div>
+
+            <div class="navbar-control-group px-2 md:px-5 py-3">
+                <label for="master-slew-slider" class="navbar-control-label">Slew</label>
+                <input type="range" id="master-slew-slider" class="w-full min-w-16" min="0.01" max="10" step="0.01"
+                    value="0.05">
+                <span id="master-slew-value" class="control-value w-10">5ms</span>
             </div>
         </div>
 
@@ -49,7 +57,7 @@
                     <!-- Waveform Selector -->
                     <div class="labeled-control">
                         <label for="waveform-select">
-                            Waveform
+                            Oscillator
                         </label>
                         <select id="waveform-select" class="control-select">
                             <option value="sine">Sine</option>
@@ -121,7 +129,7 @@
                         <!-- Waveform + controls -->
                         <div class="labeled-control">
                             <label>
-                                Sum
+                                Result
                             </label>
                             <div class="control-row xl:col-span-1 w-full relative flex flex-col gap-4">
 
@@ -131,7 +139,7 @@
                                 <div class="flex items-stretch justify-end gap-4 flex-wrap">
                                     <button id="add-wave-button" type="button" role="button"
                                         class="action-btn mx-1 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
-                                        aria-label="Reset drawbars">Harmonize</button>
+                                        aria-label="Reset drawbars">Create Oscillator</button>
                                     <button id="export-wav-button" type="button" role="button"
                                         class="action-btn mx-1 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
                                         aria-label="Randomize drawbars">Download</button>

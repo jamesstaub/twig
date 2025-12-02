@@ -385,6 +385,7 @@ export const BASE_OCTAVE_MIDI = 48; // MIDI for C3
 export const WAVETABLE_SIZE = 4096; // Standard size for a PeriodicWave table
 export const NUM_HARMONICS = 12;
 export const DEFAULT_MASTER_GAIN = 0.3;
+export const DEFAULT_MASTER_SLEW = 0.01; // seconds
 
 // Visualization constants
 export const VISUAL_HARMONIC_TERMS = 12;
@@ -412,6 +413,7 @@ export const DRAWBAR_STYLES = [
 export const AppState = {
     // Audio properties
     masterGainValue: DEFAULT_MASTER_GAIN,
+    masterSlewValue: DEFAULT_MASTER_SLEW,
     fundamentalFrequency: DEFAULT_FUNDAMENTAL,
     currentMidiNote: DEFAULT_MIDI_NOTE,
     currentOctave: DEFAULT_OCTAVE,

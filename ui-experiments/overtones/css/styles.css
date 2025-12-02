@@ -133,10 +133,9 @@
     align-items: center;
     gap: 1rem;
     background-color: rgb(15 23 42 / 0.8);
-    padding: 0.75rem 1.5rem;
     border-radius: 0.5rem;
     border: 1px solid rgb(51 65 85);
-    min-width: 280px;
+    min-width: 180px;
   }
   
   .navbar-control-label {

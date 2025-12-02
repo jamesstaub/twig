@@ -252,10 +252,10 @@ export function stopTone() {
 /**
  * Updates synthesis parameters in real-time with period multiplier frequency correction
  */
-// TODO: pass in ramptime, independent control for gain/freq
 export function updateAudioProperties() {
     if (!AppState.isPlaying || !audioEngine) return;
-    const rampTime = 0.05; // Shorter ramp time since we have momentum smoothing
+    // eventually we could have separate slew values for each param, but its fun to have it global
+    const rampTime = AppState.masterSlewValue;
     updateAudioPropertiesOscillators(rampTime);
 }
 

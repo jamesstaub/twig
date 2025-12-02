@@ -162,6 +162,36 @@ function setupControlSliders() {
         });
     }
 
+    // master slew slider
+    const masterSlewSlider = document.getElementById('master-slew-slider');
+    const masterSlewDisplay = document.getElementById('master-slew-value');
+
+    if (masterSlewSlider) {
+        // Initialize with AppState value
+        masterSlewSlider.value = AppState.masterSlewValue;
+        if (masterSlewDisplay) {
+            masterSlewDisplay.textContent = `${(AppState.masterSlewValue * 1000).toFixed(0)}ms`;
+        }
+
+        masterSlewSlider.addEventListener('input', (e) => {
+            const value = parseFloat(e.target.value);
+            let displayValue = (value * 1000).toFixed(0);
+            let unit = 'ms';
+
+
+            if (value > 1) {
+                displayValue = (value).toFixed(2);
+                unit = 's';
+            }
+            updateText('master-slew-value', `${displayValue}${unit}`);
+            updateAppState({ masterSlewValue: value });
+        }
+        );
+    }
+
+
+
+
     // Spread slider
     const spreadSlider = document.getElementById('spread-slider');
     const spreadDisplay = document.getElementById('spread-value');
@@ -364,6 +394,13 @@ export function updateUI() {
     // Update slider values
     updateValue('master-gain-slider', AppState.masterGainValue);
     updateText('master-gain-value', `${(AppState.masterGainValue * 100).toFixed(0)}%`);
+
+    // Update slider values
+    updateValue('master-gain-slider', AppState.masterGainValue);
+    updateText('master-gain-value', `${(AppState.masterGainValue * 100).toFixed(0)}%`);
+
+    updateValue('master-slew-slider', AppState.masterSlewValue);
+    updateText('master-slew-value', `${(AppState.masterSlewValue * 1000).toFixed(0)}ms`);
 
     updateValue('viz-freq-slider', AppState.visualizationFrequency);
     updateText('viz-freq-value', `${AppState.visualizationFrequency.toFixed(1)} Hz`);
