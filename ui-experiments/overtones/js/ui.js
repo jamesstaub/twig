@@ -211,10 +211,15 @@ function setupControlSliders() {
     if (vizFreqSlider) {
         vizFreqSlider.addEventListener('input', (e) => {
             const value = parseFloat(e.target.value);
-            updateAppState({ visualizationFrequency: value });
+            setVisualizationFrequency(value);
             updateText('viz-freq-value', `${value.toFixed(1)} Hz`);
         });
     }
+}
+
+export function setVisualizationFrequency(freq) {
+    // Set a variable that your animation loop reads each frame
+    AppState.visualizationFrequency = freq;
 }
 
 // ================================

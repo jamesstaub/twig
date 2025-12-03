@@ -70,7 +70,6 @@ export class SpectralSystemController extends BaseController {
         document.addEventListener(SUBHARMONIC_TOGGLED, () => {
             // If the component includes a specialized sub-render method,
             // we update that first.
-            console.log('SpectralSystemController: SUBHARMONIC_TOGGLED event received');
             if (typeof this.component.renderSubharmonicToggle === 'function') {
                 this.component.renderSubharmonicToggle({
                     isSubharmonic: AppState.isSubharmonic

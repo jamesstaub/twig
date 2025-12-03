@@ -542,64 +542,6 @@ export function exportAsWAV(bufferOrData, numCycles = 1) {
     }
 }
 
-// /**
-//  * Standalone function to evaluate a waveform value at a given phase
-//  * Handles standard waveforms and custom Fourier coefficients
-//  * @param {string} type - Waveform type ('sine', 'square', 'triangle', 'sawtooth', 'custom_*')
-//  * @param {number} theta - Phase angle in radians
-//  * @param {Object} customCoeffs - Optional { real: Float32Array, imag: Float32Array } for custom waves
-//  * @returns {number} Waveform amplitude at theta
-//  */
-// function getWaveValue(type, theta, customCoeffs) {
-//     if (type.startsWith('custom')) {
-//         if (customCoeffs) {
-//             const tableSize = 512;
-//             const table = new Float32Array(tableSize);
-//             for (let i = 0; i < tableSize; i++) {
-//                 const t = (i / tableSize) * 2 * Math.PI;
-//                 let sum = 0;
-//                 for (let k = 1; k < customCoeffs.real.length && k < customCoeffs.imag.length; k++) {
-//                     sum += customCoeffs.real[k] * Math.cos(k * t) + customCoeffs.imag[k] * Math.sin(k * t);
-//                 }
-//                 table[i] = sum;
-//             }
-//             const normalizedTheta = (theta % (2 * Math.PI)) / (2 * Math.PI);
-//             const index = normalizedTheta * (tableSize - 1);
-//             const lowIndex = Math.floor(index);
-//             const highIndex = Math.ceil(index);
-//             const fraction = index - lowIndex;
-//             return lowIndex === highIndex ? table[lowIndex] : table[lowIndex] * (1 - fraction) + table[highIndex] * fraction;
-//         } else {
-//             return Math.sin(theta);
-//         }
-//     }
-
-// switch (type) {
-//     case 'sine': return Math.sin(theta);
-//     case 'square': {
-//         let sum = 0;
-//         const terms = 16; // VISUAL_HARMONIC_TERMS equivalent
-//         for (let n = 1; n < terms * 2; n += 2) sum += (1 / n) * Math.sin(theta * n);
-//         return sum * (4 / Math.PI) * 0.7;
-//     }
-//     case 'sawtooth': {
-//         let sum = 0;
-//         const terms = 16;
-//         for (let n = 1; n <= terms; n++) sum += (1 / n) * Math.sin(theta * n);
-//         return sum * (2 / Math.PI) * 0.7;
-//     }
-//     case 'triangle': {
-//         let sum = 0;
-//         const terms = 16;
-//         for (let n = 1; n < terms * 2; n += 2) {
-//             const sign = ((n - 1) / 2) % 2 === 0 ? 1 : -1;
-//             sum += (sign / (n * n)) * Math.sin(theta * n);
-//         }
-//         return sum * (8 / (Math.PI * Math.PI)) * 0.7;
-//     }
-//     default: return Math.sin(theta);
-// }
-// }
 
 // wavetableCache = { customName: Float32Array(512) }
 const wavetableCache = {};

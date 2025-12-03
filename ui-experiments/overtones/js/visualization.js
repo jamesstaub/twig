@@ -6,7 +6,6 @@
 import { precomputeWaveTable } from './audio.js';
 import {
     AppState,
-    VISUAL_HARMONIC_TERMS,
     CANVAS_HEIGHT_RATIOS,
     HARMONIC_COLORS
 } from './config.js';
@@ -128,6 +127,8 @@ export function createVisualizationSketch() {
             p.pop();
         }
 
+        const getHarmonicPhase = (ratio, theta) => AppState.isSubharmonic ? theta / ratio : theta * ratio
+
         function drawIndividualPartials(points, currentAngle) {
             const type = AppState.currentWaveform;
             const numHarmonics = AppState.harmonicAmplitudes.length;
@@ -149,13 +150,13 @@ export function createVisualizationSketch() {
                 const visualAmp = MAX_RING_MOD * (maxAmplitudeRadial / numHarmonics) * spreadFactor * amp;
 
                 p.stroke(p.color(HARMONIC_COLORS[h] + '99'));
-                p.strokeWeight(1.5);
+                p.strokeWeight(2);
                 p.noFill();
                 p.beginShape();
 
                 for (let i = 0; i < points; i++) {
                     let theta = p.map(i, 0, points, 0, p.TWO_PI);
-                    let harmonicPhase = ratio * theta;
+                    let harmonicPhase = getHarmonicPhase(ratio, theta);
                     let waveValue = getWaveValue(type, harmonicPhase, AppState.customWaveCoefficients?.[type])
 
 
@@ -176,7 +177,7 @@ export function createVisualizationSketch() {
         // ================================
 
         p.draw = function () {
-            p.background('#0d131f');
+            p.clear();
             updateDimensions();
             drawRadialDisplay();
         };
@@ -234,7 +235,6 @@ export function clearCustomWaveCache() {
 export function initVisualization() {
     const tonewheelSketch = createVisualizationSketch();
     new p5(tonewheelSketch, 'tonewheel-container');
-
 }
 
 

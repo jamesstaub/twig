@@ -5,10 +5,10 @@
 
 import { AppState, updateAppState } from './config.js';
 import { momentumSmoother } from './momentum-smoother.js';
-import { initAudio } from './audio.js';
 import { initVisualization } from './visualization.js';
 import { initUI, updateUI } from './ui.js';
 import { showStatus } from './domUtils.js';
+import { faviconService } from './modules/favicon/faviconService.js';
 
 // ================================
 // APPLICATION INITIALIZATION
@@ -22,7 +22,7 @@ function initApp() {
         // Initialize UI components
         initVisualization();
         initUI();
-
+        faviconService.start();
         // Initialize visualization
 
         // Set up accessibility features

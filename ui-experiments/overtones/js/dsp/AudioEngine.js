@@ -56,19 +56,29 @@ export class AudioEngine {
      * @param {number} masterGainValue - Initial master gain value
      */
     setupAudioGraph(masterGainValue) {
-        // Create dynamics compressor
+        // Create dynamics compressor (gentle pre-limiter compression)
         this.compressor = this.context.createDynamicsCompressor();
-        this.compressor.threshold.setValueAtTime(-6, this.context.currentTime);
-        this.compressor.ratio.setValueAtTime(12, this.context.currentTime);
+        this.compressor.threshold.setValueAtTime(-24, this.context.currentTime);
+        this.compressor.ratio.setValueAtTime(6, this.context.currentTime); // more aggressive
+        this.compressor.attack.setValueAtTime(0.01, this.context.currentTime);
+        this.compressor.release.setValueAtTime(0.20, this.context.currentTime);
 
         // Create master gain node
         this.masterGain = this.context.createGain();
         this.masterGain.gain.setValueAtTime(masterGainValue, this.context.currentTime);
         this.masterGain.maxGain = 1.0;
 
+        // Fast final limiter
+        this.limiter = this.context.createDynamicsCompressor();
+        this.limiter.threshold.setValueAtTime(-6, this.context.currentTime); // more headroom
+        this.limiter.ratio.setValueAtTime(6, this.context.currentTime);
+        this.limiter.attack.setValueAtTime(0.005, this.context.currentTime); // much faster
+        this.limiter.release.setValueAtTime(0.15, this.context.currentTime); // less pumping
+
         // Connect the audio graph
         this.compressor.connect(this.masterGain);
-        this.masterGain.connect(this.context.destination);
+        this.masterGain.connect(this.limiter);
+        this.limiter.connect(this.context.destination);
     }
 
     /**
