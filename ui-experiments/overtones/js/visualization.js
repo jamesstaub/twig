@@ -179,7 +179,6 @@ export function createVisualizationSketch() {
             p.background('#0d131f');
             updateDimensions();
             drawRadialDisplay();
-            // drawOscilloscope();
         };
 
         // ================================
@@ -239,30 +238,8 @@ export function initVisualization() {
 }
 
 
-
-
 const waveformTables = new Map(); // key -> Float32Array table
 const TABLE_SIZE = 512;
-
-// /**
-//  * Precompute a table for a custom waveform given Fourier coefficients
-//  * @param {Object} coeffs - { real: Float32Array, imag: Float32Array }
-//  * @returns {Float32Array} Precomputed waveform table
-//  */
-// export function precomputeWaveTable(coeffs) {
-//     const table = new Float32Array(TABLE_SIZE);
-
-//     for (let i = 0; i < TABLE_SIZE; i++) {
-//         const theta = (i / TABLE_SIZE) * 2 * Math.PI;
-//         let sum = 0;
-//         for (let k = 1; k < coeffs.real.length && k < coeffs.imag.length; k++) {
-//             sum += coeffs.real[k] * Math.cos(k * theta) + coeffs.imag[k] * Math.sin(k * theta);
-//         }
-//         table[i] = sum;
-//     }
-
-//     return table;
-// }
 
 /**
  * Get a waveform value from type/key at a given phase

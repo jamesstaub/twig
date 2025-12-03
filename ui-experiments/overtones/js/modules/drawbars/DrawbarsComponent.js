@@ -26,6 +26,7 @@ export class DrawbarsComponent extends BaseComponent {
 
         this.sliders.forEach(slider => {
             this.bindEvent(slider, "input", (e) => this.handleDrawbarChange(e));
+            // CSS touch-action handles scroll prevention; no need for JS preventDefault
         });
     }
 
@@ -88,6 +89,7 @@ export class DrawbarsComponent extends BaseComponent {
     }
 
     handleDrawbarChange(e) {
+
         const index = Number(e.target.dataset.index);
         const value = Number(e.target.value);
 
