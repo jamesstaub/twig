@@ -42,8 +42,8 @@ export class FaviconService {
             ctx.drawImage(canvas, cropX, cropY, cropW, cropH, 0, 0, size, size);
             // Optionally increase brightness by 100%
             const imageData = ctx.getImageData(0, 0, size, size);
-            this.increaseBrightness(imageData.data, 64); // 128/255 ≈ 100% boost
-            this.increaseContrast(imageData.data, 2);
+            this.increaseBrightness(imageData.data, 128); // 128/255 ≈ 100% boost
+            this.increaseContrast(imageData.data, 8);
             ctx.putImageData(imageData, 0, 0);
             const url = offscreen.toDataURL('image/png');
             this.setFavicon(url);

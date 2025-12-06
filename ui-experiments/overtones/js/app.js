@@ -9,6 +9,7 @@ import { initVisualization } from './visualization.js';
 import { initUI, updateUI } from './ui.js';
 import { showStatus } from './domUtils.js';
 import { faviconService } from './modules/favicon/faviconService.js';
+import { getAudioEngine } from './audio.js';
 
 // ================================
 // APPLICATION INITIALIZATION
@@ -195,9 +196,11 @@ function startup() {
 // ================================
 
 // Export functions that might be useful for debugging or external control
-window.SineLanguage = {
+window.TWIG = {
     // State access
     getState: () => AppState,
+
+    getAudioCtx: () => getAudioEngine().getContext(),
 
     // Module access (for debugging)
     updateUI,

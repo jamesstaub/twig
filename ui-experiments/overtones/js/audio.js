@@ -43,7 +43,7 @@
 
 import { AppState, updateAppState, WAVETABLE_SIZE } from './config.js';
 import { calculateFrequency, generateFilenameParts } from './utils.js';
-import { clearCustomWaveCache } from './visualization.js';
+
 import { AudioEngine, WavetableManager, WAVExporter } from './dsp/index.js';
 import { showStatus } from './domUtils.js';
 
@@ -53,6 +53,11 @@ import { showStatus } from './domUtils.js';
 
 let audioEngine = null;
 let wavetableManager = null;
+
+// Routing mode: 'mono', 'stereo', 'multichannel' (default: mono) for WAV export only
+export function setDownloadRoutingMode(mode) {
+    AppState.downloadRoutingMode = mode;
+}
 
 // Accessors – SAFE to import anywhere
 export function getAudioEngine() {
@@ -190,7 +195,8 @@ async function startToneWithOscillators() {
     // Clear any existing oscillators
     AppState.oscillators = [];
 
-    // Create oscillators for all harmonics in the current system
+    // Always stereo playback: each oscillator gets a stereo panner
+    const panArray = AppState.oscillatorPans || [];
     const numPartials = AppState.currentSystem.ratios.length;
     for (let i = 0; i < AppState.harmonicAmplitudes.length; i++) {
         if (i < numPartials) {
@@ -203,8 +209,11 @@ async function startToneWithOscillators() {
                 const frequencyCorrection = getFrequencyCorrection(AppState.currentWaveform);
                 const correctedFrequency = frequency * frequencyCorrection;
 
+                // Stereo panning for playback
+                let oscOptions = { pan: panArray[i] ?? (i % 2 === 0 ? -0.8 : 0.8) };
+
                 try {
-                    const oscData = audioEngine.createOscillator(correctedFrequency, waveform, gain);
+                    const oscData = audioEngine.createOscillator(correctedFrequency, waveform, gain, oscOptions);
                     const oscKey = `harmonic_${i}`;
                     audioEngine.addOscillator(oscKey, oscData);
                     while (AppState.oscillators.length <= i) {
@@ -226,13 +235,6 @@ async function startToneWithOscillators() {
     }
 }
 
-/**
- * Fallback oscillator-based synthesis for compatibility
- */
-async function startToneOscillatorFallback() {
-    // Legacy function - delegate to new implementation
-    await startToneWithOscillators();
-}
 
 /**
  * Stops all synthesis
@@ -305,12 +307,175 @@ export function restartAudio() {
  * Samples the current waveform configuration into a buffer with period multiplier support
  * @returns {Object} {buffer: Float32Array, periodMultiplier: number}
  */
-export async function sampleCurrentWaveform() {
+/**
+ * Samples the current waveform configuration into a buffer with period multiplier support
+ * and supports mono, stereo, or multichannel output for WAV export.
+ * @param {string} routingMode - 'mono', 'stereo', 'multichannel'
+ * @returns {Object} { buffer(s), periodMultiplier }
+ */
+export async function sampleCurrentWaveform(routingMode = 'mono') {
     await initAudio();
 
-    // Use the working oscillator-based sampling with period multiplier algorithm
-    return sampleCurrentWaveformBasic();
+    const numOsc = AppState.harmonicAmplitudes.length;
+    const tableSize = WAVETABLE_SIZE;
+
+    // Validate system
+    if (!AppState.currentSystem || !AppState.currentSystem.ratios) {
+        console.error("Spectral system missing");
+        return { buffer: new Float32Array(0), periodMultiplier: 1 };
+    }
+
+    //----------------------------------------------------------------------
+    // 1. Compute base period (same as old sampleCurrentWaveformBasic)
+    //----------------------------------------------------------------------
+    const activeRatios = [];
+    for (let h = 0; h < numOsc; h++) {
+        if (AppState.harmonicAmplitudes[h] > 0.001) {
+            activeRatios.push(AppState.currentSystem.ratios[h]);
+        }
+    }
+
+    const periodMultiplier = calculateOptimalPeriod(activeRatios);
+    const totalPeriodLen = 2 * Math.PI * periodMultiplier;
+    const customCoeffs = AppState.customWaveCoefficients?.[AppState.currentWaveform];
+
+    //----------------------------------------------------------------------
+    // 2. Render each oscillator separately (always)
+    //    => This gives us max routing flexibility with no recomputation.
+    //----------------------------------------------------------------------
+    const oscBuffers = Array(numOsc).fill(null).map(() => new Float32Array(tableSize));
+
+    for (let h = 0; h < numOsc; h++) {
+
+        const amp = AppState.harmonicAmplitudes[h];
+        if (amp <= 0.001) continue;
+
+        const ratio = AppState.currentSystem.ratios[h];
+        const buf = oscBuffers[h];
+
+        for (let i = 0; i < tableSize; i++) {
+            const theta = (i / (tableSize - 1)) * totalPeriodLen;
+            buf[i] =
+                getWaveValue(AppState.currentWaveform, ratio * theta, customCoeffs) * amp;
+        }
+
+        // Normalize each osc so stereo/multi routing behaves cleanly
+        let maxA = 0;
+        for (let i = 0; i < tableSize; i++) maxA = Math.max(maxA, Math.abs(buf[i]));
+        if (maxA > 0) {
+            const n = 1 / maxA;
+            for (let i = 0; i < tableSize; i++) buf[i] *= n;
+        }
+    }
+
+    //----------------------------------------------------------------------
+    // 3. Routing
+    //----------------------------------------------------------------------
+
+    switch (routingMode) {
+
+        //------------------------------------------------------------------
+        // MONO — sum all oscillators
+        //------------------------------------------------------------------
+        case 'mono': {
+            const mono = new Float32Array(tableSize);
+
+            for (let h = 0; h < numOsc; h++) {
+                const b = oscBuffers[h];
+                if (!b) continue;
+                for (let i = 0; i < tableSize; i++) mono[i] += b[i];
+            }
+
+            // normalize
+            let maxA = 0;
+            for (let i = 0; i < tableSize; i++) maxA = Math.max(maxA, Math.abs(mono[i]));
+            if (maxA > 0) {
+                const n = 1 / maxA;
+                for (let i = 0; i < tableSize; i++) mono[i] *= n;
+            }
+
+            return { buffer: mono, periodMultiplier };
+        }
+
+        //------------------------------------------------------------------
+        // STEREO — use AppState.oscillatorPans for equal-power panning
+        //------------------------------------------------------------------
+        case 'stereo': {
+            const L = new Float32Array(tableSize);
+            const R = new Float32Array(tableSize);
+
+            for (let h = 0; h < numOsc; h++) {
+                const b = oscBuffers[h];
+                if (!b) continue;
+
+                // read pan value
+                const pan = AppState.oscillatorPans?.[h] ?? 0; // -1 to +1
+                const p = (pan + 1) * 0.5;                     // 0–1
+
+                // equal-power panning
+                const gainL = Math.cos(p * Math.PI * 0.5);
+                const gainR = Math.sin(p * Math.PI * 0.5);
+
+                for (let i = 0; i < tableSize; i++) {
+                    const v = b[i];
+                    L[i] += v * gainL;
+                    R[i] += v * gainR;
+                }
+            }
+
+            // Normalize stereo pair together
+            let maxA = 0;
+            for (let i = 0; i < tableSize; i++) {
+                maxA = Math.max(maxA, Math.abs(L[i]), Math.abs(R[i]));
+            }
+            if (maxA > 0) {
+                const n = 1 / maxA;
+                for (let i = 0; i < tableSize; i++) {
+                    L[i] *= n;
+                    R[i] *= n;
+                }
+            }
+
+            return { buffers: [L, R], periodMultiplier };
+        }
+
+        //------------------------------------------------------------------
+        // MULTICHANNEL — each oscillator isolated
+        //------------------------------------------------------------------
+        case 'multichannel': {
+            const numChannels = 12;
+            const channels = [];
+
+            for (let ch = 0; ch < numChannels; ch++) {
+                channels[ch] = oscBuffers[ch] ?? new Float32Array(tableSize);
+            }
+
+            // Normalize each channel independently
+            for (let ch = 0; ch < numChannels; ch++) {
+                const c = channels[ch];
+                let maxA = 0;
+                for (let i = 0; i < tableSize; i++) {
+                    maxA = Math.max(maxA, Math.abs(c[i]));
+                }
+                if (maxA > 0) {
+                    const n = 1 / maxA;
+                    for (let i = 0; i < tableSize; i++) c[i] *= n;
+                }
+            }
+
+            return { buffers: channels, periodMultiplier };
+        }
+
+        //------------------------------------------------------------------
+        // fallback = mono
+        //------------------------------------------------------------------
+        default:
+            console.warn(`Unknown routingMode ${routingMode}, defaulting to mono`);
+            return sampleCurrentWaveform('mono');
+    }
 }
+
+
 
 /**
  * Advanced waveform sampling with period multiplier optimization for phase continuity.
@@ -346,59 +511,11 @@ export async function sampleCurrentWaveform() {
  * Samples the current waveform configuration into a wavetable buffer
  * with period multiplier support.
  *
- * Fully decoupled from p5; can be used for visualization or audio synthesis.
  *
 
  */
 
 
-/**
- * Samples the current waveform into a Float32Array with period multiplier support
- * @returns {Object} { buffer: Float32Array, periodMultiplier: number }
- */
-export function sampleCurrentWaveformBasic() {
-    const buffer = new Float32Array(WAVETABLE_SIZE);
-    let maxAmplitude = 0;
-
-    if (!AppState.currentSystem || !AppState.currentSystem.ratios || AppState.harmonicAmplitudes.length === 0) {
-        console.error("Spectral system data missing or incomplete");
-        return { buffer: new Float32Array(0), periodMultiplier: 1 };
-    }
-
-    const activeRatios = [];
-    for (let h = 0; h < AppState.harmonicAmplitudes.length; h++) {
-        if (AppState.harmonicAmplitudes[h] > 0.001) activeRatios.push(AppState.currentSystem.ratios[h]);
-    }
-
-    const periodMultiplier = calculateOptimalPeriod(activeRatios);
-    const totalPeriodLength = 2 * Math.PI * periodMultiplier;
-
-    const customCoeffs = AppState.customWaveCoefficients?.[AppState.currentWaveform];
-
-    for (let i = 0; i < WAVETABLE_SIZE; i++) {
-        const theta = (i / (WAVETABLE_SIZE - 1)) * totalPeriodLength;
-        let summedWave = 0;
-
-        for (let h = 0; h < AppState.harmonicAmplitudes.length; h++) {
-            const amp = AppState.harmonicAmplitudes[h];
-            if (amp > 0.001) {
-                const ratio = AppState.currentSystem.ratios[h];
-                summedWave += getWaveValue(AppState.currentWaveform, ratio * theta, customCoeffs) * amp;
-            }
-        }
-
-        buffer[i] = summedWave;
-        maxAmplitude = Math.max(maxAmplitude, Math.abs(summedWave));
-    }
-
-    // Normalize buffer
-    if (maxAmplitude > 0) {
-        const normFactor = 1 / maxAmplitude;
-        for (let i = 0; i < WAVETABLE_SIZE; i++) buffer[i] *= normFactor;
-    }
-
-    return { buffer, periodMultiplier };
-}
 
 
 /**
@@ -500,28 +617,46 @@ function calculateOptimalPeriod(ratios) {
  * @param {Float32Array|Object} bufferOrData - Waveform buffer or {buffer, periodMultiplier}
  * @param {number} numCycles - Number of cycles to export (default: 1)
  */
-export function exportAsWAV(bufferOrData, numCycles = 1) {
+export function exportAsWAV(data, numCycles = 1) {
     if (!AppState.audioContext) {
         showStatus("Error: Audio system not initialized. Please click 'Start Tone' first.", 'error');
         return;
     }
 
-    // Handle both old format (just buffer) and new format (object with buffer + periodMultiplier)
-    const buffer = bufferOrData.buffer || bufferOrData;
-    const periodMultiplier = bufferOrData.periodMultiplier || 1;
+    if (!data) {
+        showStatus("WAV Export Failed: No waveform data passed.", 'error');
+        return;
+    }
 
-    if (buffer.length === 0) {
+    const periodMultiplier = data.periodMultiplier || 1;
+
+    // Determine routing mode (mono, stereo, multi)
+    let channelBuffers;
+
+    if (data.buffers && Array.isArray(data.buffers)) {
+        // Stereo or multi-channel
+        channelBuffers = data.buffers;
+    } else if (data.buffer) {
+        // Mono
+        channelBuffers = [data.buffer];
+    } else {
+        showStatus("WAV Export Failed: Invalid waveform data structure.", 'error');
+        return;
+    }
+
+    if (channelBuffers.length === 0 || channelBuffers[0].length === 0) {
         showStatus("WAV Export Failed: Cannot export empty waveform data.", 'error');
         return;
     }
 
-    // CRITICAL: Adjust sample rate to compensate for period multiplier
-    // If wavetable contains N periods, reduce sample rate by factor of N
-    // This ensures correct pitch when the WAV is played back
+    // Pitch-correct the sample rate based on periodMultiplier
     const baseSampleRate = AppState.audioContext.sampleRate;
     const correctedSampleRate = baseSampleRate / periodMultiplier;
 
-    console.log(`WAV Export: Period multiplier=${periodMultiplier}, base rate=${baseSampleRate}Hz, corrected rate=${correctedSampleRate}Hz`);
+    console.log(
+        `WAV Export: channels=${channelBuffers.length}, ` +
+        `period multiplier=${periodMultiplier}, sampleRate=${correctedSampleRate}`
+    );
 
     // Generate filename
     const parts = generateFilenameParts();
@@ -534,13 +669,13 @@ export function exportAsWAV(bufferOrData, numCycles = 1) {
     ].filter(Boolean).join('-') + '.wav';
 
     try {
-        // Use WAVExporter class with corrected sample rate
-        WAVExporter.exportAsWAV(buffer, correctedSampleRate, filename, numCycles);
-        showStatus(`Wavetable exported as ${filename} (${correctedSampleRate}Hz sample rate)!`, 'success');
+        WAVExporter.exportAsWAV(channelBuffers, correctedSampleRate, filename, numCycles);
+        showStatus(`Wavetable exported as ${filename} (${correctedSampleRate}Hz)!`, 'success');
     } catch (error) {
         showStatus(`WAV Export Failed: ${error.message}`, 'error');
     }
 }
+
 
 
 // wavetableCache = { customName: Float32Array(512) }

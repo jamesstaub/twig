@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>sin(lang)</title>
+    <title>TWIG</title>
 
     <!-- External Dependencies -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
@@ -13,10 +13,11 @@
     <link rel="stylesheet" href="css/styles-compiled.css">
 </head>
 
-<body class="app-container pt-[12rem] md:pt-[6rem]">
+<body class="app-container pt-[8rem] md:pt-[6rem]">
     <!-- Fixed Top Navbar -->
     <nav class="navbar top-0 left-0 right-0 fixed pr-24">
-        <div class="flex flex-wrap gap-3 p-[1rem] justify-center md:justify-between xs:h-[9rem] h-[12rem] md:h-[6rem]">
+        <div
+            class="flex flex-wrap gap-3 px-8 py-[1rem] justify-center md:justify-between xs:h-[9rem] h-[8rem] md:h-[6rem]">
             <div class="navbar-section flex basis-auto">
                 <!-- Play/Stop Toggle -->
                 <div class="play-toggle-container flex-grow">
@@ -45,8 +46,8 @@
             </div>
         </div>
 
-        <div class="navbar-section absolute right-2">
-            <div class="text-lg font-semibold text-slate-200">sin(lang)</div>
+        <div class="navbar-section absolute right-8">
+            <div class="text-lg font-semibold text-slate-200">TWIG</div>
         </div>
     </nav>
 
@@ -141,11 +142,25 @@
                                     <button id="add-wave-button" type="button" role="button"
                                         class="action-btn mx-1 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
                                         aria-label="Reset drawbars">Create Oscillator</button>
-                                    <button id="export-wav-button" type="button" role="button"
-                                        class="action-btn mx-1 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
-                                        aria-label="Randomize drawbars">Download</button>
-                                </div>
 
+
+                                    <div
+                                        class="download-group flex items-center gap-2 px-4 py-2 rounded border border-slate-500 bg-slate-800/60">
+                                        <button id="export-wav-button" type="button" role="button"
+                                            class="action-btn mx-1 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
+                                            aria-label="Download wav">Download</button>
+                                        <div id="routing-mode-group"
+                                            class="routing-mode-group flex items-center gap-2 ml-2">
+                                            <select name="routing-mode" id="routing-mode-select" class="control-select">
+                                                <option value="mono" selected>Mono</option>
+                                                <option value="stereo">Stereo</option>
+                                                <option value="multichannel">Multichannel</option>
+                                            </select>
+                                        </div>
+                                    </div>
+
+
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -170,7 +185,6 @@
 
                         </div>
                     </div>
-
 
                     <!-- Main Tonewheel Canvas -->
                     <div id="tonewheel-container" class="canvas-container col-span-1">
@@ -226,6 +240,15 @@
                     </div>
 
 
+                </div>
+            </div>
+
+            <div class="control-card">
+                <div class="control-row flex flex-wrap gap-4">
+                    <!-- Routing Control Module Root -->
+                    <div id="routing-control-root"
+                        class="routing-control labeled-control flex flex-col gap-2 w-full p-2 min-w-[24rem]">
+                    </div>
                 </div>
             </div>
         </div>

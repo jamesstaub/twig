@@ -15,6 +15,8 @@ export class AudioEngine {
 
         // Standard waveforms
         this.standardWaveforms = new Map();
+
+        // No routingMode needed; playback is always stereo
     }
 
     /**
@@ -22,10 +24,8 @@ export class AudioEngine {
      * @param {number} masterGainValue - Initial master gain value
      * @param {Object} options - Configuration options (for compatibility)
      */
-    async initialize(masterGainValue = 0.5, options = {}) {
+    async initialize(masterGainValue = 0.5) {
         if (this.isInitialized) return;
-
-        // Create audio context
         this.context = new (window.AudioContext || window.webkitAudioContext)();
 
         // Create audio graph
@@ -75,8 +75,9 @@ export class AudioEngine {
         this.limiter.attack.setValueAtTime(0.005, this.context.currentTime); // much faster
         this.limiter.release.setValueAtTime(0.15, this.context.currentTime); // less pumping
 
-        // Connect the audio graph
+        // mono or stereo: compressor to masterGain
         this.compressor.connect(this.masterGain);
+
         this.masterGain.connect(this.limiter);
         this.limiter.connect(this.context.destination);
     }
@@ -93,34 +94,6 @@ export class AudioEngine {
         }
     }
 
-    /**
-     * Start oscillator-based synthesis
-     */
-    startSynthesis(harmonicAmplitudes, harmonicRatios, fundamentalFreq, waveform) {
-        return this.startOscillatorSynthesis(harmonicAmplitudes, harmonicRatios, fundamentalFreq, waveform);
-    }
-
-    /**
-     * Stop all synthesis
-     */
-    stopSynthesis() {
-        // Stop individual oscillators
-        this.stopAllOscillators();
-    }
-
-    /**
-     * Update synthesis parameters
-     */
-    updateSynthesis(harmonicAmplitudes, harmonicRatios, fundamentalFreq, masterGain) {
-        this.updateOscillatorParameters(harmonicAmplitudes, harmonicRatios, fundamentalFreq, masterGain);
-    }
-
-    /**
-     * Always returns false since we removed AudioWorklet support
-     */
-    isUsingAudioWorklet() {
-        return false;
-    }
 
     /**
      * Get a standard waveform PeriodicWave object
@@ -133,36 +106,14 @@ export class AudioEngine {
 
 
     /**
-     * Start oscillator-based synthesis (main implementation)
-     */
-    startOscillatorSynthesis(harmonicAmplitudes, harmonicRatios, fundamentalFreq, waveform) {
-        // Clear any existing oscillators
-        this.stopAllOscillators();
-
-        // Create oscillators for each harmonic - handled by calling code
-        // This method mainly serves to clear existing oscillators
-        return true;
-    }
-
-    /**
-     * Update oscillator parameters
-     */
-    updateOscillatorParameters(harmonicAmplitudes, harmonicRatios, fundamentalFreq, masterGain) {
-        // Update master gain
-        this.updateMasterGain(masterGain, 0.02);
-
-        // Individual oscillator updates are handled by calling code
-        // This method mainly handles master gain updates
-    }
-
-    /**
      * Create an oscillator with the specified parameters
      * @param {number} frequency - Oscillator frequency
      * @param {string|PeriodicWave} waveform - Waveform type or PeriodicWave
      * @param {number} gain - Oscillator gain (0-1)
-     * @returns {Object} Object containing oscillator and gain nodes
+     * @param {Object} options - { pan, channel } for stereo/multichannel
+     * @returns {Object} Object containing oscillator, gain node, and (optional) panner
      */
-    createOscillator(frequency, waveform, gain = 1.0) {
+    createOscillator(frequency, waveform, gain = 1.0, options = {}) {
         if (!this.isInitialized) {
             throw new Error("AudioEngine must be initialized before creating oscillators");
         }
@@ -191,12 +142,16 @@ export class AudioEngine {
         // Set gain
         gainNode.gain.setValueAtTime(gain, this.context.currentTime);
 
-        // Connect oscillator -> gainNode -> compressor
+        // Always stereo: use StereoPannerNode per oscillator
+        const panner = this.context.createStereoPanner();
+        panner.pan.setValueAtTime(options.pan ?? 0, this.context.currentTime);
         oscillator.connect(gainNode);
-        gainNode.connect(this.compressor);
+        gainNode.connect(panner);
+        panner.connect(this.compressor);
 
-        return { oscillator, gainNode };
+        return { oscillator, gainNode, panner };
     }
+    // No setRoutingMode needed
 
     /**
      * Add an oscillator to the managed oscillators map
@@ -259,11 +214,11 @@ export class AudioEngine {
     stopAllOscillators() {
         const now = this.context.currentTime;
 
-        for (const [key, oscData] of this.oscillators) {
+        for (const oscData of this.oscillators.values()) {
             if (oscData.oscillator) {
                 try {
                     oscData.oscillator.stop(now + 0.01); // Small delay to avoid clicks
-                } catch (e) {
+                } catch {
                     // Oscillator may already be stopped
                 }
             }

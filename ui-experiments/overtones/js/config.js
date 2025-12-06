@@ -411,6 +411,8 @@ export const DRAWBAR_STYLES = [
 // ================================
 
 export const AppState = {
+    // Routing mode for audio export
+    audioRoutingMode: 'mono',
     // Audio properties
     masterGainValue: DEFAULT_MASTER_GAIN,
     masterSlewValue: DEFAULT_MASTER_SLEW,

@@ -12,7 +12,7 @@ import {
     midiToFreq,
     smoothUpdateMasterGain,
 } from './utils.js';
-import { startTone, stopTone, updateAudioProperties, sampleCurrentWaveform, exportAsWAV } from './audio.js';
+import { startTone, stopTone, updateAudioProperties } from './audio.js';
 import { setSpreadFactor } from './visualization.js';
 
 import { HelpDialog } from './HelpDialog.js';
@@ -24,6 +24,7 @@ import { DrawbarsController } from './modules/drawbars/drawbarsController.js';
 import { SpectralSystemController } from './modules/spectralSystem/spectralSystemController.js';
 import { WaveformController } from './modules/waveform/waveformController.js';
 import { handleAddToWaveforms, handleWaveformChange } from './modules/waveform/waveformActions.js';
+import { DownloadControlController } from './modules/downloadControl/downloadControlController.js';
 
 
 // ================================
@@ -35,6 +36,7 @@ let drawbarsController;
 let spectralSystemController;
 let waveformController;
 let summedWaveformController;
+let downloadControlController;
 /**
  * Initializes all UI components and event handlers
  */
@@ -54,6 +56,8 @@ export function initUI() {
     setupDrawbars()
     setupSpectralSystem()
     setupWaveforms();
+    setupRoutingControl();
+
     // setupSystemSelector();
     // populateSystemSelector();
     // updateSystemDescription();
@@ -87,6 +91,11 @@ function setupWaveforms() {
     waveformController.init();
 }
 
+function setupRoutingControl() {
+    downloadControlController = new DownloadControlController("#routing-control-root");
+    downloadControlController.init();
+}
+
 // ================================
 // MAIN CONTROL BUTTONS
 // ================================
@@ -94,9 +103,6 @@ function setupWaveforms() {
 function setupMainButtons() {
     // Play/Stop toggle (new navbar toggle)
     setupEventListener('play-toggle', 'click', handlePlayToggle);
-
-    // Export WAV button
-    setupEventListener('export-wav-button', 'click', handleExportWAV);
 
     // Add to waveforms button
     setupEventListener('add-wave-button', 'click', handleAddToWaveforms);
@@ -124,17 +130,6 @@ export async function handlePlayToggle() {
     }
 }
 
-function handleExportWAV() {
-    sampleCurrentWaveform().then(sampledData => {
-        const buffer = sampledData.buffer || sampledData; // Handle both old and new format
-        if (buffer.length > 0) {
-            exportAsWAV(sampledData, 1); // Pass full data object (includes periodMultiplier)
-        }
-    }).catch(error => {
-        console.error('Failed to sample waveform for export:', error);
-        showStatus('Failed to sample waveform for export', 'error');
-    });
-}
 
 
 // ================================

@@ -159,7 +159,6 @@ export function createVisualizationSketch() {
                     let harmonicPhase = getHarmonicPhase(ratio, theta);
                     let waveValue = getWaveValue(type, harmonicPhase, AppState.customWaveCoefficients?.[type])
 
-
                     let rotatedTheta = theta + currentAngle;
                     let r = ringRadius + waveValue * visualAmp;
 

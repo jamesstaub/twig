@@ -681,7 +681,7 @@ border: 1px solid rgb(71 85 105);
     padding: 10px 0 10px 1.5rem; /* extra left padding for scroll */
     overflow-x: auto;
     max-width: 100%;
-    justify-content: left;
+    justify-content: center;
     scroll-padding-left: 1.5rem;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
