@@ -40,7 +40,7 @@ export default class SliderComponent extends BaseComponent {
 
         // Value display (optional, for accessibility)
         this.valueDisplay = document.createElement("span");
-        this.valueDisplay.className = "slider-value text-blue-300 text-xs md:text-sm font-medium mr-1 min-w-8";
+        this.valueDisplay.className = "slider-value text-blue-300 text-xs md:text-sm font-medium mr-1 min-w-12";
         const formatValue = typeof props.formatValue === "function" ? props.formatValue : (v) => v;
         this.valueDisplay.textContent = formatValue(props.value ?? "");
         this.el.appendChild(this.valueDisplay);

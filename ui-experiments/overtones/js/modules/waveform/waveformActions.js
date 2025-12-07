@@ -22,8 +22,8 @@ export function handleWaveformChange(e) {
 }
 
 
-export function handleAddToWaveforms() {
-    sampleCurrentWaveform().then(sampledData => {
+export function handleAddToWaveforms(routingMode, isSubharmonic) {
+    sampleCurrentWaveform(routingMode, isSubharmonic).then(sampledData => {
         const buffer = sampledData.buffer || sampledData; // Handle both old and new format
         if (buffer.length > 0) {
             addToWaveforms(sampledData);

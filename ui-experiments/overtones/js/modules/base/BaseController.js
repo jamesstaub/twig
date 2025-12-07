@@ -71,6 +71,8 @@ export class BaseController {
     /**
      * Subclasses MAY override this to wire component-level events, e.g.:
      *   this.component.onChange = (value) => {...}
+     * 
+     *   TODO: consider instead passing in functions as props to the render method
      */
     bindComponentEvents() { }
 

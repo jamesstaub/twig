@@ -88,6 +88,13 @@ export class DrawbarsComponent extends BaseComponent {
         return wrapper;
     }
 
+    updateSingleDrawbar(index, value) {
+        // rather than a full rerender, just set one slider value
+        if (this.sliders[index]) {
+            this.sliders[index].value = value;
+        }
+    }
+
     handleDrawbarChange(e) {
 
         const index = Number(e.target.dataset.index);

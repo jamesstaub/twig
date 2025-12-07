@@ -3,6 +3,7 @@ import { DownloadControlComponent } from "./DownloadControlComponent.js";
 import { DownloadControlActions } from "./downloadControlActions.js";
 import { AppState } from "../../config.js";
 import { ROUTING_MODE_CHANGED } from "../../events.js";
+import { handleAddToWaveforms } from "../waveform/waveformActions.js";
 
 export class DownloadControlController extends BaseController {
     createComponent(selector) {
@@ -11,7 +12,8 @@ export class DownloadControlController extends BaseController {
 
     getProps() {
         return {
-            routingMode: AppState.audioRoutingMode
+            routingMode: AppState.audioRoutingMode,
+            isSubharmonic: AppState.isSubharmonic
         };
     }
 
@@ -22,7 +24,13 @@ export class DownloadControlController extends BaseController {
         };
 
         this.component.onDownload = () => {
-            DownloadControlActions.handleExportWAV(this.getProps().routingMode);
+            const { routingMode, isSubharmonic } = this.getProps();
+            DownloadControlActions.handleExportWAV(routingMode, isSubharmonic);
+        };
+
+        this.component.onAddToWaveforms = () => {
+            const { routingMode, isSubharmonic } = this.getProps();
+            handleAddToWaveforms(routingMode, isSubharmonic);
         };
     }
 

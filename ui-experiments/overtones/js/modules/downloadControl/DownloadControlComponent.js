@@ -1,6 +1,7 @@
 import BaseComponent from "../base/BaseComponent.js";
 
 
+// TODO: move all selectors to CONSTS at head of file
 export class DownloadControlComponent extends BaseComponent {
     constructor(selector) {
         super(selector);
@@ -38,6 +39,15 @@ export class DownloadControlComponent extends BaseComponent {
                 this.onDownload?.();
             });
         }
+
+        const addWaveBtn = document.getElementById('add-wave-button');
+        if (addWaveBtn) {
+            this.bindEvent(addWaveBtn, 'click', () => {
+                this.onAddToWaveforms?.();
+            });
+        }
+
+
     }
 
     setRoutingMode(mode) {

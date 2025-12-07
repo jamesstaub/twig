@@ -2,6 +2,7 @@
 import { DrawbarsComponent } from "./DrawbarsComponent.js";
 import { DrawbarsActions } from "./drawbarsActions.js";
 import {
+    DRAWBAR_CHANGE,
     DRAWBARS_RANDOMIZED,
     DRAWBARS_RESET,
     SPECTRAL_SYSTEM_CHANGED,
@@ -19,6 +20,7 @@ export class DrawbarsController extends BaseController {
         return new DrawbarsComponent(selector);
     }
 
+
     /**
      * Wire Component → Actions
      */
@@ -26,6 +28,10 @@ export class DrawbarsController extends BaseController {
         this.component.onChange = (index, value) => {
             DrawbarsActions.setDrawbar(index, value);
         };
+    }
+
+    updateDrawbar({ index, value }) {
+        this.component.updateSingleDrawbar(index, value);
     }
 
     reset() {
@@ -40,6 +46,8 @@ export class DrawbarsController extends BaseController {
      * DOM / Global events
      */
     bindExternalEvents() {
+        console.log('BIND EXTERNAL EVENTS ');
+        document.addEventListener(DRAWBAR_CHANGE, (event) => this.updateDrawbar(event.detail));
         document.addEventListener(DRAWBARS_RANDOMIZED, () => this.update());
         document.addEventListener(DRAWBARS_RESET, () => this.update());
         document.addEventListener(SPECTRAL_SYSTEM_CHANGED, () => this.update());

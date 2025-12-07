@@ -1,4 +1,4 @@
-import { AppState, CANVAS_HEIGHT_RATIOS, HARMONIC_COLORS } from '../../config.js';
+import { AppState, CANVAS_HEIGHT_RATIOS, HARMONIC_COLORS, updateAppState } from '../../config.js';
 import { precomputeWaveTable } from '../../audio.js';
 
 let spreadFactor = 1;
@@ -14,6 +14,12 @@ export const TonewheelActions = {
         }
         return null;
     },
+
+    setVisualizationFrequency(freq) {
+        // Set a variable that your animation loop reads each frame
+        updateAppState({ visualizationFrequency: freq });
+    },
+
     setSpreadFactor(value) {
         if (AppState.p5Instance && AppState.p5Instance.setSpreadFactor) {
             AppState.p5Instance.setSpreadFactor(value);
@@ -233,3 +239,4 @@ export function getWaveValue(type, theta, customCoeffs) {
         default: return Math.sin(theta);
     }
 }
+

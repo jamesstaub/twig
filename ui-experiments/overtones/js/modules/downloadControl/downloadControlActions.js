@@ -12,8 +12,8 @@ export const DownloadControlActions = {
         }
     },
 
-    handleExportWAV(routingMode) {
-        sampleCurrentWaveform(routingMode)
+    handleExportWAV(routingMode, isSubharmonic) {
+        sampleCurrentWaveform(routingMode, isSubharmonic)
             .then(sampled => {
                 exportAsWAV(sampled, 1);
             })

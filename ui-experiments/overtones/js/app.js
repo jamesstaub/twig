@@ -3,7 +3,7 @@
  * Initializes and coordinates all modules
  */
 
-import { AppState, updateAppState } from './config.js';
+import { AppState } from './config.js';
 import { momentumSmoother } from './momentum-smoother.js';
 
 import { initUI, updateUI } from './ui.js';
@@ -23,12 +23,7 @@ function initApp() {
         // Initialize UI components
         initUI();
         faviconService.start();
-        // Initialize visualization
 
-        // Set up accessibility features
-
-
-        // Update UI to reflect initial state
         updateUI();
 
     } catch (error) {
@@ -152,6 +147,13 @@ function checkCompatibility() {
         showStatus(message, 'error');
         console.error(message);
         return false;
+    }
+
+    // check for midi access
+    if (!navigator.requestMIDIAccess) {
+        const message = 'Web MIDI API not supported in this browser. MIDI functionality will be disabled.';
+        showStatus(message, 'warning');
+        console.warn(message);
     }
 
     return true;
