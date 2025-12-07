@@ -313,7 +313,7 @@ export function restartAudio() {
  * @param {string} routingMode - 'mono', 'stereo', 'multichannel'
  * @returns {Object} { buffer(s), periodMultiplier }
  */
-export async function sampleCurrentWaveform(routingMode = 'mono') {
+export async function sampleCurrentWaveform(routingMode = 'mono', isSubharmonic = false) {
     await initAudio();
 
     const numOsc = AppState.harmonicAmplitudes.length;
@@ -326,7 +326,7 @@ export async function sampleCurrentWaveform(routingMode = 'mono') {
     }
 
     //----------------------------------------------------------------------
-    // 1. Compute base period (same as old sampleCurrentWaveformBasic)
+    // 1. Compute base period
     //----------------------------------------------------------------------
     const activeRatios = [];
     for (let h = 0; h < numOsc; h++) {
@@ -335,7 +335,7 @@ export async function sampleCurrentWaveform(routingMode = 'mono') {
         }
     }
 
-    const periodMultiplier = calculateOptimalPeriod(activeRatios);
+    const periodMultiplier = calculateOptimalPeriod(activeRatios, isSubharmonic);
     const totalPeriodLen = 2 * Math.PI * periodMultiplier;
     const customCoeffs = AppState.customWaveCoefficients?.[AppState.currentWaveform];
 
@@ -355,8 +355,9 @@ export async function sampleCurrentWaveform(routingMode = 'mono') {
 
         for (let i = 0; i < tableSize; i++) {
             const theta = (i / (tableSize - 1)) * totalPeriodLen;
+            const harmonic = isSubharmonic ? (1 / ratio) * theta : ratio * theta;
             buf[i] =
-                getWaveValue(AppState.currentWaveform, ratio * theta, customCoeffs) * amp;
+                getWaveValue(AppState.currentWaveform, harmonic, customCoeffs) * amp;
         }
 
         // Normalize each osc so stereo/multi routing behaves cleanly
@@ -471,7 +472,7 @@ export async function sampleCurrentWaveform(routingMode = 'mono') {
         //------------------------------------------------------------------
         default:
             console.warn(`Unknown routingMode ${routingMode}, defaulting to mono`);
-            return sampleCurrentWaveform('mono');
+            return sampleCurrentWaveform('mono', isSubharmonic);
     }
 }
 
@@ -551,7 +552,7 @@ export async function sampleCurrentWaveform(routingMode = 'mono') {
  * @param {Array} ratios - Active frequency ratios from the current tuning system
  * @returns {number} Period multiplier - number of fundamental periods to sample
  */
-function calculateOptimalPeriod(ratios) {
+function calculateOptimalPeriod(ratios, isSubharmonic) {
     if (ratios.length === 0) return 1;
 
     // For each ratio, find the smallest integer period where ratio * period ≈ integer
@@ -562,7 +563,13 @@ function calculateOptimalPeriod(ratios) {
 
         // Test periods 1-20 (computational limit for real-time use)
         for (let period = 1; period <= 20; period++) {
-            const cycles = ratio * period;
+            let cycles;
+            if (isSubharmonic) {
+                cycles = (1 / ratio) * period;
+            } else {
+                cycles = ratio * period;
+            }
+
             const fractionalPart = Math.abs(cycles - Math.round(cycles));
 
             if (fractionalPart < smallestError) {
