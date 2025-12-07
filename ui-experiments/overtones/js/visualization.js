@@ -1,303 +1,289 @@
-/**
- * VISUALIZATION MODULE
- * Contains P5.js sketch and visualization logic for the spectral synthesizer
- */
+// /**
+//  * VISUALIZATION MODULE
+//  * Contains P5.js sketch and visualization logic for the spectral synthesizer
+//  */
 
-import { precomputeWaveTable } from './audio.js';
-import {
-    AppState,
-    CANVAS_HEIGHT_RATIOS,
-    HARMONIC_COLORS
-} from './config.js';
-
-
-let spreadFactor = 1;
-let baseRadius;
-let maxAmplitudeRadial;
-const baseRadiusRatio = 0.08; // Smaller fundamental, more spread
+// import { precomputeWaveTable } from './audio.js';
+// import {
+//     AppState,
+//     CANVAS_HEIGHT_RATIOS,
+//     HARMONIC_COLORS
+// } from './config.js';
 
 
-// ================================
-// P5.JS SKETCH CONFIGURATION
-// ================================
-
-export function createVisualizationSketch() {
-    return function (p) {
-        AppState.p5Instance = p;
-
-        // Add spreadFactor setter/getter to p5 instance for UI reactivity
-        p.setSpreadFactor = function (value) {
-            spreadFactor = value;
-        };
-        p.getSpreadFactor = function () {
-            return spreadFactor;
-        };
-
-        // ================================
-        // SETUP
-        // ================================
-
-        p.setup = function () {
-            const container = document.getElementById('tonewheel-container');
-            let w = container ? container.clientWidth : 800;
-            let h = w;
-            if (w === 0) {
-                w = window.innerWidth < 640 ? 320 : 800;
-                h = w;
-                console.warn('Canvas container width was 0, using fallback width:', w);
-            }
-            p.createCanvas(w, h).parent(container ? 'tonewheel-container' : 'body');
-            p.angleMode(p.RADIANS);
-            updateDimensions();
-        };
-
-        function updateDimensions() {
-            const radialHeight = p.height * CANVAS_HEIGHT_RATIOS.RADIAL;
-            maxAmplitudeRadial = p.min(p.width, radialHeight) * (1 - baseRadiusRatio) * 0.45;
-            baseRadius = p.min(p.width, radialHeight) * baseRadiusRatio;
-        }
-
-        p.updateDimensions = updateDimensions;
-
-        // ================================
-        // WAVEFORM CALCULATION
-        // ================================
-
-        p.customWaveTables = {};
+// let spreadFactor = 1;
+// let baseRadius;
+// let maxAmplitudeRadial;
+// const baseRadiusRatio = 0.08; // Smaller fundamental, more spread
 
 
-        p.precomputeCustomWaveTable = function (coeffs) {
-            const tableSize = 512;
-            const table = new Float32Array(tableSize);
-            for (let i = 0; i < tableSize; i++) {
-                const theta = (i / tableSize) * p.TWO_PI;
-                let sum = 0;
-                for (let k = 1; k < coeffs.real.length && k < coeffs.imag.length; k++) {
-                    sum += coeffs.real[k] * p.cos(k * theta) + coeffs.imag[k] * p.sin(k * theta);
-                }
-                table[i] = sum;
-            }
-            return table;
-        };
+// // ================================
+// // P5.JS SKETCH CONFIGURATION
+// // ================================
 
-        p.clearCustomWaveCache = function () {
-            p.customWaveTables = {};
-        };
+// export function createVisualizationSketch() {
+//     return function (p) {
+//         AppState.p5Instance = p;
 
-        // ================================
-        // RADIAL DISPLAY (TONEWHEEL)
-        // ================================
+//         // Add spreadFactor setter/getter to p5 instance for UI reactivity
+//         p.setSpreadFactor = function (value) {
+//             spreadFactor = value;
+//         };
+//         p.getSpreadFactor = function () {
+//             return spreadFactor;
+//         };
 
-        function computeHarmonicLaneRadii({ harmonicAmplitudes, baseRadius, maxLaneHeight }) {
-            const activeHarmonics = harmonicAmplitudes
-                .map((amp, idx) => ({ amp, idx }))
-                .filter(h => h.amp > 0);
+//         // ================================
+//         // SETUP
+//         // ================================
 
-            const num = activeHarmonics.length;
-            const radii = new Array(harmonicAmplitudes.length);
+//         p.setup = function () {
+//             const container = document.getElementById('tonewheel-container');
+//             let w = container ? container.clientWidth : 800;
+//             let h = w;
+//             if (w === 0) {
+//                 w = window.innerWidth < 640 ? 320 : 800;
+//                 h = w;
+//                 console.warn('Canvas container width was 0, using fallback width:', w);
+//             }
+//             p.createCanvas(w, h).parent(container ? 'tonewheel-container' : 'body');
+//             p.angleMode(p.RADIANS);
+//             updateDimensions();
+//         };
 
-            const laneSpacing = maxLaneHeight / num;  // full height divided evenly
+//         function updateDimensions() {
+//             const radialHeight = p.height * CANVAS_HEIGHT_RATIOS.RADIAL;
+//             maxAmplitudeRadial = p.min(p.width, radialHeight) * (1 - baseRadiusRatio) * 0.45;
+//             baseRadius = p.min(p.width, radialHeight) * baseRadiusRatio;
+//         }
 
-            let currentRadius = baseRadius;
-            for (let i = 0; i < num; i++) {
-                const hIdx = activeHarmonics[i].idx;
-                radii[hIdx] = currentRadius;
-                currentRadius += laneSpacing;
-            }
+//         p.updateDimensions = updateDimensions;
 
-            return radii;
-        }
+//         // ================================
+//         // WAVEFORM CALCULATION
+//         // ================================
 
-
-
-        function drawRadialDisplay() {
-            p.push();
-            p.translate(p.width / 2, p.height / 2);
-
-            p.noFill();
-            p.stroke('#374151');
-            p.ellipse(0, 0, baseRadius * 2, baseRadius * 2);
-
-            const points = 360;
-            const rotationSpeed = (AppState.visualizationFrequency * p.TWO_PI) / 60;
-            const currentAngle = p.frameCount * rotationSpeed;
-
-            drawIndividualPartials(points, currentAngle);
-
-            p.pop();
-        }
-
-        const getHarmonicPhase = (ratio, theta) => AppState.isSubharmonic ? theta / ratio : theta * ratio
-
-        function drawIndividualPartials(points, currentAngle) {
-            const type = AppState.currentWaveform;
-            const numHarmonics = AppState.harmonicAmplitudes.length;
-            const laneRadii = computeHarmonicLaneRadii({
-                harmonicAmplitudes: AppState.harmonicAmplitudes,
-                baseRadius,
-                maxLaneHeight: maxAmplitudeRadial
-            });
-
-            for (let h = 0; h < numHarmonics; h++) {
-                const amp = AppState.harmonicAmplitudes[h];
-                if (amp <= 0.001) continue;
-
-                const ratio = AppState.currentSystem.ratios[h];
-                const ringRadius = laneRadii[h];
-
-                // Visual amplitude now depends on both gain and spreadFactor
-                const MAX_RING_MOD = 0.45;       // max radial wiggle
-                const visualAmp = MAX_RING_MOD * (maxAmplitudeRadial / numHarmonics) * spreadFactor * amp;
-
-                p.stroke(p.color(HARMONIC_COLORS[h] + '99'));
-                p.strokeWeight(2);
-                p.noFill();
-                p.beginShape();
-
-                for (let i = 0; i < points; i++) {
-                    let theta = p.map(i, 0, points, 0, p.TWO_PI);
-                    let harmonicPhase = getHarmonicPhase(ratio, theta);
-                    let waveValue = getWaveValue(type, harmonicPhase, AppState.customWaveCoefficients?.[type])
-
-                    let rotatedTheta = theta + currentAngle;
-                    let r = ringRadius + waveValue * visualAmp;
-
-                    let x = r * p.cos(rotatedTheta);
-                    let y = r * p.sin(rotatedTheta);
-                    p.vertex(x, y);
-                }
-
-                p.endShape(p.CLOSE);
-            }
-        }
-
-        // ================================
-        // MAIN DRAW LOOP
-        // ================================
-
-        p.draw = function () {
-            p.clear();
-            updateDimensions();
-            drawRadialDisplay();
-        };
-
-        // ================================
-        // RESPONSIVENESS
-        // ================================
-
-        p.windowResized = function () {
-            const container = document.getElementById('tonewheel-container');
-            let w = container ? container.clientWidth : 800;
-            let h = w;
-            if (w === 0) {
-                w = window.innerWidth < 640 ? 320 : 800;
-                h = w;
-            }
-            p.resizeCanvas(w, h);
-            updateDimensions();
-        };
-    };
-}
-
-// ================================
-// INTERFACE FUNCTIONS
-// ================================
-
-export function setSpreadFactor(value) {
-    if (AppState.p5Instance && AppState.p5Instance.setSpreadFactor) {
-        AppState.p5Instance.setSpreadFactor(value);
-    }
-}
-
-export function getSpreadFactor() {
-    if (AppState.p5Instance && AppState.p5Instance.getSpreadFactor) {
-        return AppState.p5Instance.getSpreadFactor();
-    }
-    return 0.2;
-}
-
-export function clearCustomWaveCache() {
-    if (AppState.p5Instance && AppState.p5Instance.clearCustomWaveCache) {
-        AppState.p5Instance.clearCustomWaveCache();
-    }
-}
-
-// ================================
-// WAVEFORM SKETCH
-// ================================
+//         p.customWaveTables = {};
 
 
-// ================================
-// INITIALIZATION
-// ================================
+//         p.precomputeCustomWaveTable = function (coeffs) {
+//             const tableSize = 512;
+//             const table = new Float32Array(tableSize);
+//             for (let i = 0; i < tableSize; i++) {
+//                 const theta = (i / tableSize) * p.TWO_PI;
+//                 let sum = 0;
+//                 for (let k = 1; k < coeffs.real.length && k < coeffs.imag.length; k++) {
+//                     sum += coeffs.real[k] * p.cos(k * theta) + coeffs.imag[k] * p.sin(k * theta);
+//                 }
+//                 table[i] = sum;
+//             }
+//             return table;
+//         };
 
-export function initVisualization() {
-    const tonewheelSketch = createVisualizationSketch();
-    new p5(tonewheelSketch, 'tonewheel-container');
-}
+//         p.clearCustomWaveCache = function () {
+//             p.customWaveTables = {};
+//         };
+
+//         // ================================
+//         // RADIAL DISPLAY (TONEWHEEL)
+//         // ================================
+
+//         function computeHarmonicLaneRadii({ harmonicAmplitudes, baseRadius, maxLaneHeight }) {
+//             const activeHarmonics = harmonicAmplitudes
+//                 .map((amp, idx) => ({ amp, idx }))
+//                 .filter(h => h.amp > 0);
+
+//             const num = activeHarmonics.length;
+//             const radii = new Array(harmonicAmplitudes.length);
+
+//             const laneSpacing = maxLaneHeight / num;  // full height divided evenly
+
+//             let currentRadius = baseRadius;
+//             for (let i = 0; i < num; i++) {
+//                 const hIdx = activeHarmonics[i].idx;
+//                 radii[hIdx] = currentRadius;
+//                 currentRadius += laneSpacing;
+//             }
+
+//             return radii;
+//         }
 
 
-const waveformTables = new Map(); // key -> Float32Array table
-const TABLE_SIZE = 512;
 
-/**
- * Get a waveform value from type/key at a given phase
- * Handles standard waves and cached custom waves
- * @param {string} type - 'sine', 'square', 'triangle', 'sawtooth', or 'custom_<key>'
- * @param {number} theta - Phase in radians
- * @param {Object} customCoeffs - Optional coefficients for 'custom_*'
- * @returns {number} Waveform value
- */
-export function getWaveValue(type, theta, customCoeffs) {
-    if (type.startsWith('custom')) {
-        const key = type;
-        if (!waveformTables.has(key) && customCoeffs) {
-            waveformTables.set(key, precomputeWaveTable(customCoeffs, TABLE_SIZE));
-        }
+//         function drawRadialDisplay() {
+//             p.push();
+//             p.translate(p.width / 2, p.height / 2);
 
-        const table = waveformTables.get(key);
-        if (!table) return Math.sin(theta);
+//             p.noFill();
+//             p.stroke('#374151');
+//             p.ellipse(0, 0, baseRadius * 2, baseRadius * 2);
 
-        const normalizedTheta = (theta % (2 * Math.PI)) / (2 * Math.PI);
-        const index = normalizedTheta * (table.length - 1);
-        const low = Math.floor(index);
-        const high = Math.ceil(index);
-        const frac = index - low;
+//             const points = 360;
+//             const rotationSpeed = (AppState.visualizationFrequency * p.TWO_PI) / 60;
+//             const currentAngle = p.frameCount * rotationSpeed;
 
-        return low === high ? table[low] : table[low] * (1 - frac) + table[high] * frac;
-    }
+//             drawIndividualPartials(points, currentAngle);
 
-    // Standard waveform math
-    switch (type) {
-        case 'sine': return Math.sin(theta);
-        case 'square': {
-            let sum = 0;
-            const terms = 16;
-            for (let n = 1; n < terms * 2; n += 2) sum += (1 / n) * Math.sin(theta * n);
-            return sum * (4 / Math.PI) * 0.7;
-        }
-        case 'sawtooth': {
-            let sum = 0;
-            const terms = 16;
-            for (let n = 1; n <= terms; n++) sum += (1 / n) * Math.sin(theta * n);
-            return sum * (2 / Math.PI) * 0.7;
-        }
-        case 'triangle': {
-            let sum = 0;
-            const terms = 16;
-            for (let n = 1; n < terms * 2; n += 2) {
-                const sign = ((n - 1) / 2) % 2 === 0 ? 1 : -1;
-                sum += (sign / (n * n)) * Math.sin(theta * n);
-            }
-            return sum * (8 / (Math.PI * Math.PI)) * 0.7;
-        }
-        default: return Math.sin(theta);
-    }
-}
+//             p.pop();
+//         }
 
-/**
- * Clears all cached waveform tables
- */
-export function clearWaveTables() {
-    waveformTables.clear();
-}
+//         const getHarmonicPhase = (ratio, theta) => AppState.isSubharmonic ? theta / ratio : theta * ratio
+
+//         function drawIndividualPartials(points, currentAngle) {
+//             const type = AppState.currentWaveform;
+//             const numHarmonics = AppState.harmonicAmplitudes.length;
+//             const laneRadii = computeHarmonicLaneRadii({
+//                 harmonicAmplitudes: AppState.harmonicAmplitudes,
+//                 baseRadius,
+//                 maxLaneHeight: maxAmplitudeRadial
+//             });
+
+//             for (let h = 0; h < numHarmonics; h++) {
+//                 const amp = AppState.harmonicAmplitudes[h];
+//                 if (amp <= 0.001) continue;
+
+//                 const ratio = AppState.currentSystem.ratios[h];
+//                 const ringRadius = laneRadii[h];
+
+//                 // Visual amplitude now depends on both gain and spreadFactor
+//                 const MAX_RING_MOD = 0.45;       // max radial wiggle
+//                 const visualAmp = MAX_RING_MOD * (maxAmplitudeRadial / numHarmonics) * spreadFactor * amp;
+
+//                 p.stroke(p.color(HARMONIC_COLORS[h] + '99'));
+//                 p.strokeWeight(2);
+//                 p.noFill();
+//                 p.beginShape();
+
+//                 for (let i = 0; i < points; i++) {
+//                     let theta = p.map(i, 0, points, 0, p.TWO_PI);
+//                     let harmonicPhase = getHarmonicPhase(ratio, theta);
+//                     let waveValue = getWaveValue(type, harmonicPhase, AppState.customWaveCoefficients?.[type])
+
+//                     let rotatedTheta = theta + currentAngle;
+//                     let r = ringRadius + waveValue * visualAmp;
+
+//                     let x = r * p.cos(rotatedTheta);
+//                     let y = r * p.sin(rotatedTheta);
+//                     p.vertex(x, y);
+//                 }
+
+//                 p.endShape(p.CLOSE);
+//             }
+//         }
+
+//         // ================================
+//         // MAIN DRAW LOOP
+//         // ================================
+
+//         p.draw = function () {
+//             p.clear();
+//             updateDimensions();
+//             drawRadialDisplay();
+//         };
+
+//         // ================================
+//         // RESPONSIVENESS
+//         // ================================
+
+//         p.windowResized = function () {
+//             const container = document.getElementById('tonewheel-container');
+//             let w = container ? container.clientWidth : 800;
+//             let h = w;
+//             if (w === 0) {
+//                 w = window.innerWidth < 640 ? 320 : 800;
+//                 h = w;
+//             }
+//             p.resizeCanvas(w, h);
+//             updateDimensions();
+//         };
+//     };
+// }
+
+// // ================================
+// // INTERFACE FUNCTIONS
+// // ================================
+
+// export function setSpreadFactor(value) {
+//     if (AppState.p5Instance && AppState.p5Instance.setSpreadFactor) {
+//         AppState.p5Instance.setSpreadFactor(value);
+//     }
+// }
+
+// export function getSpreadFactor() {
+//     if (AppState.p5Instance && AppState.p5Instance.getSpreadFactor) {
+//         return AppState.p5Instance.getSpreadFactor();
+//     }
+//     return 0.2;
+// }
+
+
+// export function initVisualization() {
+//     const tonewheelSketch = createVisualizationSketch();
+//     new p5(tonewheelSketch, 'tonewheel-container');
+// }
+
+
+// const waveformTables = new Map(); // key -> Float32Array table
+// const TABLE_SIZE = 512;
+
+// /**
+//  * Get a waveform value from type/key at a given phase
+//  * Handles standard waves and cached custom waves
+//  * @param {string} type - 'sine', 'square', 'triangle', 'sawtooth', or 'custom_<key>'
+//  * @param {number} theta - Phase in radians
+//  * @param {Object} customCoeffs - Optional coefficients for 'custom_*'
+//  * @returns {number} Waveform value
+//  */
+// export function getWaveValue(type, theta, customCoeffs) {
+//     if (type.startsWith('custom')) {
+//         const key = type;
+//         if (!waveformTables.has(key) && customCoeffs) {
+//             waveformTables.set(key, precomputeWaveTable(customCoeffs, TABLE_SIZE));
+//         }
+
+//         const table = waveformTables.get(key);
+//         if (!table) return Math.sin(theta);
+
+//         const normalizedTheta = (theta % (2 * Math.PI)) / (2 * Math.PI);
+//         const index = normalizedTheta * (table.length - 1);
+//         const low = Math.floor(index);
+//         const high = Math.ceil(index);
+//         const frac = index - low;
+
+//         return low === high ? table[low] : table[low] * (1 - frac) + table[high] * frac;
+//     }
+
+//     // Standard waveform math
+//     switch (type) {
+//         case 'sine': return Math.sin(theta);
+//         case 'square': {
+//             let sum = 0;
+//             const terms = 16;
+//             for (let n = 1; n < terms * 2; n += 2) sum += (1 / n) * Math.sin(theta * n);
+//             return sum * (4 / Math.PI) * 0.7;
+//         }
+//         case 'sawtooth': {
+//             let sum = 0;
+//             const terms = 16;
+//             for (let n = 1; n <= terms; n++) sum += (1 / n) * Math.sin(theta * n);
+//             return sum * (2 / Math.PI) * 0.7;
+//         }
+//         case 'triangle': {
+//             let sum = 0;
+//             const terms = 16;
+//             for (let n = 1; n < terms * 2; n += 2) {
+//                 const sign = ((n - 1) / 2) % 2 === 0 ? 1 : -1;
+//                 sum += (sign / (n * n)) * Math.sin(theta * n);
+//             }
+//             return sum * (8 / (Math.PI * Math.PI)) * 0.7;
+//         }
+//         default: return Math.sin(theta);
+//     }
+// }
+
+// /**
+//  * Clears all cached waveform tables
+//  */
+// export function clearWaveTables() {
+//     waveformTables.clear();
+// }

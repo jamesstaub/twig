@@ -1,9 +1,9 @@
-import { addWaveformToAudio, getAudioEngine, getWavetableManager, initAudio, precomputeWaveTable, restartAudio, sampleCurrentWaveform } from "../../audio.js";
+import { addWaveformToAudio, restartAudio, sampleCurrentWaveform } from "../../audio.js";
 import { AppState, updateAppState } from "../../config.js";
 import { showStatus } from "../../domUtils.js";
-import { ADD_CUSTOM_WAVEFORM } from "../../events.js";
 import { generateFilenameParts } from "../../utils.js";
-import { clearCustomWaveCache } from "../../visualization.js";
+
+import { TonewheelActions } from "../tonewheel/tonewheelActions.js";
 
 export const CURRENT_WAVEFORM_CHANGED = 'currentWaveformChanged';
 
@@ -116,7 +116,7 @@ export function addWaveformToState(AppState, waveKey, coefficients, periodicWave
     }
     AppState.customWavePeriodMultipliers[waveKey] = periodMultiplier;
 
-    clearCustomWaveCache();
+    TonewheelActions.clearCustomWaveCache();
 
     return AppState.customWaveCount;
 }

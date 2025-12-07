@@ -5,7 +5,7 @@
 
 import { AppState, updateAppState } from './config.js';
 import { momentumSmoother } from './momentum-smoother.js';
-import { initVisualization } from './visualization.js';
+
 import { initUI, updateUI } from './ui.js';
 import { showStatus } from './domUtils.js';
 import { faviconService } from './modules/favicon/faviconService.js';
@@ -21,7 +21,6 @@ import { getAudioEngine } from './audio.js';
 function initApp() {
     try {
         // Initialize UI components
-        initVisualization();
         initUI();
         faviconService.start();
         // Initialize visualization

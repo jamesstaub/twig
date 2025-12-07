@@ -1,6 +1,6 @@
 // WaveformComponent.js
-import { getWaveValue } from "../../visualization.js";
 import BaseComponent from "../base/BaseComponent.js";
+import { getWaveValue, TonewheelActions } from "../tonewheel/tonewheelActions.js";
 
 
 /**
@@ -115,7 +115,7 @@ export default class WaveformComponent extends BaseComponent {
         const sketch = createWaveformSketch(this);
 
         // Use this.el as the parent container for the canvas
-        this._waveformP5 = new p5(sketch, this.el);
+        this._waveformP5 = new window.p5(sketch, this.el);
     }
 
     /**

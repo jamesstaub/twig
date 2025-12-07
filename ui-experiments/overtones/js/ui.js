@@ -3,30 +3,21 @@
  * Contains UI event handlers, DOM manipulation, and interface logic
  */
 
-import {
-    AppState,
-    updateAppState,
-    spectralSystems,
-} from './config.js';
-import {
-    midiToFreq,
-    smoothUpdateMasterGain,
-} from './utils.js';
-import { startTone, stopTone, updateAudioProperties } from './audio.js';
-import { setSpreadFactor } from './visualization.js';
-
-import { HelpDialog } from './HelpDialog.js';
-
-import { KeyboardShortcuts } from './KeyboardShortcuts.js';
-import { setupEventListener, showStatus, updateText, updateValue } from './domUtils.js';
-
+import { AppState, updateAppState } from './config.js';
+import { updateText, updateValue, setupEventListener, showStatus } from './domUtils.js';
 import { DrawbarsController } from './modules/drawbars/drawbarsController.js';
 import { SpectralSystemController } from './modules/spectralSystem/spectralSystemController.js';
 import { WaveformController } from './modules/waveform/waveformController.js';
 import { handleAddToWaveforms, handleWaveformChange } from './modules/waveform/waveformActions.js';
 import { DownloadControlController } from './modules/downloadControl/downloadControlController.js';
-
-
+// import { updateFundamentalDisplay, updateKeyboardUI, updateSystemDescription } from './ui.js';
+import { HelpDialog } from './HelpDialog.js';
+import { KeyboardShortcuts } from './KeyboardShortcuts.js';
+import { TonewheelController } from './modules/tonewheel/tonewheelController.js';
+import { startTone, stopTone, updateAudioProperties } from './audio.js';
+import { smoothUpdateMasterGain } from './utils.js';
+import { TonewheelActions } from './modules/tonewheel/tonewheelActions.js';
+import { SliderController } from './modules/atoms/slider/sliderController.js';
 // ================================
 // INITIALIZATION
 // ================================
@@ -37,9 +28,14 @@ let spectralSystemController;
 let waveformController;
 let summedWaveformController;
 let downloadControlController;
-/**
- * Initializes all UI components and event handlers
- */
+let tonewheelController;
+
+let masterGainSliderController;
+let masterSlewSliderController;
+let spreadSliderController;
+let vizFreqSliderController;
+
+
 export function initUI() {
     setupMainButtons();
     setupControlSliders();
@@ -48,10 +44,6 @@ export function initUI() {
 
     setupWaveformSelector();
 
-    // Ensure currentSystem is set before rendering drawbars
-    if (!AppState.currentSystem) {
-        AppState.currentSystem = spectralSystems[0];
-    }
 
     setupDrawbars()
     setupSpectralSystem()
@@ -61,6 +53,7 @@ export function initUI() {
     // setupSystemSelector();
     // populateSystemSelector();
     // updateSystemDescription();
+
 
 
     // Set initial UI values
@@ -81,7 +74,14 @@ function setupDrawbars() {
 function setupSpectralSystem() {
     spectralSystemController = new SpectralSystemController("#spectral-system-root");
     spectralSystemController.init();
+    setupTonewheel();
 }
+
+function setupTonewheel() {
+    tonewheelController = new TonewheelController("#tonewheel-container");
+    tonewheelController.init();
+}
+
 
 function setupWaveforms() {
     summedWaveformController = new WaveformController("#waveform-canvas-area");
@@ -107,6 +107,68 @@ function setupMainButtons() {
     // Add to waveforms button
     setupEventListener('add-wave-button', 'click', handleAddToWaveforms);
 }
+
+function setupControlSliders() {
+    // Master Gain Slider
+    masterGainSliderController = new SliderController('#master-gain-slider-root', {
+        min: 0,
+        max: 1,
+        step: 0.01,
+        value: AppState.masterGainValue,
+        label: 'Gain',
+        formatValue: (v) => `${(v * 100).toFixed(0)}%`,
+    }, (value) => {
+        updateText('master-gain-value', `${(value * 100).toFixed(0)}%`);
+        smoothUpdateMasterGain(value);
+    });
+    masterGainSliderController.init();
+
+    // Master Slew Slider
+    masterSlewSliderController = new SliderController('#master-slew-slider-root', {
+        min: 0,
+        max: 2,
+        step: 0.01,
+        value: AppState.masterSlewValue,
+        label: 'Slew',
+    }, (value) => {
+        let displayValue = (value * 1000).toFixed(0);
+        let unit = 'ms';
+        if (value > 1) {
+            displayValue = (value).toFixed(2);
+            unit = 's';
+        }
+        updateText('master-slew-value', `${displayValue}${unit}`);
+        updateAppState({ masterSlewValue: value });
+    });
+    masterSlewSliderController.init();
+
+    // Spread Slider
+    spreadSliderController = new SliderController('#spread-slider-root', {
+        min: 0,
+        max: 1,
+        step: 0.01,
+        value: AppState.spreadFactor ?? 0.2,
+        label: 'Gain',
+    }, (value) => {
+        TonewheelActions.setSpreadFactor(value);
+        updateText('spread-value', `${(value * 100).toFixed(0)}%`);
+    });
+    spreadSliderController.init();
+
+    // Visualization Frequency Slider
+    vizFreqSliderController = new SliderController('#viz-freq-slider-root', {
+        min: 0.1,
+        max: 20,
+        step: 0.1,
+        value: AppState.visualizationFrequency ?? 1,
+        label: 'Rate',
+    }, (value) => {
+        setVisualizationFrequency(value);
+        updateText('viz-freq-value', `${value.toFixed(1)} Hz`);
+    });
+    vizFreqSliderController.init();
+}
+
 
 export async function handlePlayToggle() {
     const toggle = document.getElementById('play-toggle');
@@ -136,81 +198,77 @@ export async function handlePlayToggle() {
 // CONTROL SLIDERS
 // ================================
 
-function setupControlSliders() {
-    // Master gain slider
-    const masterGainSlider = document.getElementById('master-gain-slider');
-    const masterGainDisplay = document.getElementById('master-gain-value');
+// function setupControlSliders() {
+//     // Master gain slider
+//     const masterGainSlider = document.getElementById('master-gain-slider');
+//     const masterGainDisplay = document.getElementById('master-gain-value');
 
-    if (masterGainSlider) {
-        // Initialize with AppState value
-        masterGainSlider.value = AppState.masterGainValue;
-        if (masterGainDisplay) {
-            masterGainDisplay.textContent = `${(AppState.masterGainValue * 100).toFixed(0)}%`;
-        }
+//     if (masterGainSlider) {
+//         // Initialize with AppState value
+//         masterGainSlider.value = AppState.masterGainValue;
+//         if (masterGainDisplay) {
+//             masterGainDisplay.textContent = `${(AppState.masterGainValue * 100).toFixed(0)}%`;
+//         }
 
-        masterGainSlider.addEventListener('input', (e) => {
-            const value = parseFloat(e.target.value);
-            updateText('master-gain-value', `${(value * 100).toFixed(0)}%`);
+//         masterGainSlider.addEventListener('input', (e) => {
+//             const value = parseFloat(e.target.value);
+//             updateText('master-gain-value', `${(value * 100).toFixed(0)}%`);
 
-            // Use smooth parameter interpolation to prevent crackling
-            smoothUpdateMasterGain(value);
-        });
-    }
+//             // Use smooth parameter interpolation to prevent crackling
+//             smoothUpdateMasterGain(value);
+//         });
+//     }
 
-    // master slew slider
-    const masterSlewSlider = document.getElementById('master-slew-slider');
-    const masterSlewDisplay = document.getElementById('master-slew-value');
+//     // master slew slider
+//     const masterSlewSlider = document.getElementById('master-slew-slider');
+//     const masterSlewDisplay = document.getElementById('master-slew-value');
 
-    if (masterSlewSlider) {
-        // Initialize with AppState value
-        masterSlewSlider.value = AppState.masterSlewValue;
-        if (masterSlewDisplay) {
-            masterSlewDisplay.textContent = `${(AppState.masterSlewValue * 1000).toFixed(0)}ms`;
-        }
+//     if (masterSlewSlider) {
+//         // Initialize with AppState value
+//         masterSlewSlider.value = AppState.masterSlewValue;
+//         if (masterSlewDisplay) {
+//             masterSlewDisplay.textContent = `${(AppState.masterSlewValue * 1000).toFixed(0)}ms`;
+//         }
 
-        masterSlewSlider.addEventListener('input', (e) => {
-            const value = parseFloat(e.target.value);
-            let displayValue = (value * 1000).toFixed(0);
-            let unit = 'ms';
-
-
-            if (value > 1) {
-                displayValue = (value).toFixed(2);
-                unit = 's';
-            }
-            updateText('master-slew-value', `${displayValue}${unit}`);
-            updateAppState({ masterSlewValue: value });
-        }
-        );
-    }
+//         masterSlewSlider.addEventListener('input', (e) => {
+//             const value = parseFloat(e.target.value);
+//             let displayValue = (value * 1000).toFixed(0);
+//             let unit = 'ms';
 
 
+//             if (value > 1) {
+//                 displayValue = (value).toFixed(2);
+//                 unit = 's';
+//             }
+//             updateText('master-slew-value', `${displayValue}${unit}`);
+//             updateAppState({ masterSlewValue: value });
+//         }
+//         );
+//     }
 
 
-    // Spread slider
-    const spreadSlider = document.getElementById('spread-slider');
-    const spreadDisplay = document.getElementById('spread-value');
+//     // Spread slider
+//     const spreadSlider = document.getElementById('spread-slider');
 
-    if (spreadSlider) {
-        spreadSlider.addEventListener('input', (e) => {
-            const value = parseFloat(e.target.value);
-            setSpreadFactor(value);
-            updateText('spread-value', `${(value * 100).toFixed(0)}%`);
-        });
-    }
+//     if (spreadSlider) {
+//         spreadSlider.addEventListener('input', (e) => {
+//             const value = parseFloat(e.target.value);
+//             TonewheelActions.setSpreadFactor(value);
+//             updateText('spread-value', `${(value * 100).toFixed(0)}%`);
+//         });
+//     }
 
-    // Visualization frequency slider
-    const vizFreqSlider = document.getElementById('viz-freq-slider');
-    const vizFreqDisplay = document.getElementById('viz-freq-value');
+//     // Visualization frequency slider
+//     const vizFreqSlider = document.getElementById('viz-freq-slider');
 
-    if (vizFreqSlider) {
-        vizFreqSlider.addEventListener('input', (e) => {
-            const value = parseFloat(e.target.value);
-            setVisualizationFrequency(value);
-            updateText('viz-freq-value', `${value.toFixed(1)} Hz`);
-        });
-    }
-}
+//     if (vizFreqSlider) {
+//         vizFreqSlider.addEventListener('input', (e) => {
+//             const value = parseFloat(e.target.value);
+//             setVisualizationFrequency(value);
+//             updateText('viz-freq-value', `${value.toFixed(1)} Hz`);
+//         });
+//     }
+// }
 
 export function setVisualizationFrequency(freq) {
     // Set a variable that your animation loop reads each frame
@@ -358,7 +416,7 @@ export function updateKeyboardUI() {
 
 
 
-function updateSystemDescription() {
+export function updateSystemDescription() {
     updateText('system-description', AppState.currentSystem.description, true);
 }
 
@@ -391,20 +449,6 @@ export function updateUI() {
 
     updateSystemDescription();
 
-    // Update slider values
-    updateValue('master-gain-slider', AppState.masterGainValue);
-    updateText('master-gain-value', `${(AppState.masterGainValue * 100).toFixed(0)}%`);
-
-    // Update slider values
-    updateValue('master-gain-slider', AppState.masterGainValue);
-    updateText('master-gain-value', `${(AppState.masterGainValue * 100).toFixed(0)}%`);
-
-    updateValue('master-slew-slider', AppState.masterSlewValue);
-    updateText('master-slew-value', `${(AppState.masterSlewValue * 1000).toFixed(0)}ms`);
-
-    updateValue('viz-freq-slider', AppState.visualizationFrequency);
-    updateText('viz-freq-value', `${AppState.visualizationFrequency.toFixed(1)} Hz`);
-
     // Update play button state
     const playButton = document.getElementById('play-button');
     if (playButton) {
@@ -412,12 +456,6 @@ export function updateUI() {
         playButton.classList.toggle('playing', AppState.isPlaying);
     }
 
-    // // Update system selector
-    // const systemSelect = document.getElementById('ratio-system-select');
-    // if (systemSelect) {
-    //     const systemIndex = spectralSystems.indexOf(AppState.currentSystem);
-    //     systemSelect.value = systemIndex;
-    // }
 
     // Update waveform selector
     updateValue('waveform-select', AppState.currentWaveform);
