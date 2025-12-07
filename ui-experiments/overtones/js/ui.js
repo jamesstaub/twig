@@ -8,7 +8,7 @@ import { updateText, updateValue, setupEventListener, showStatus } from './domUt
 import { DrawbarsController } from './modules/drawbars/drawbarsController.js';
 import { SpectralSystemController } from './modules/spectralSystem/spectralSystemController.js';
 import { WaveformController } from './modules/waveform/waveformController.js';
-import { handleAddToWaveforms, handleWaveformChange } from './modules/waveform/waveformActions.js';
+import { handleWaveformChange } from './modules/waveform/waveformActions.js';
 import { DownloadControlController } from './modules/downloadControl/downloadControlController.js';
 // import { updateFundamentalDisplay, updateKeyboardUI, updateSystemDescription } from './ui.js';
 import { HelpDialog } from './HelpDialog.js';
@@ -185,6 +185,8 @@ function setupFundamentalControls() {
     setupEventListener('octave-up', 'click', () => changeOctave(1));
 }
 
+// TODO move this to a FundamentalFrequencyComponent
+// clean separate the action from the DOM event to allow for midi binding etc
 function handleFundamentalChange(e) {
     let val = parseFloat(e.target.value);
     // Allow very low frequencies (down to 0.01 Hz)

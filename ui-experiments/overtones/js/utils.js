@@ -71,7 +71,7 @@ export function generateFilenameParts() {
     const systemName = AppState.currentSystem.name.split('.')[1].trim().replace(/[^a-zA-Z0-9_]/g, '');
     const levels = generateOvertoneString();
     const subharmonicFlag = AppState.isSubharmonic ? 'subharmonic' : '';
-    
+
     return {
         noteLetter,
         waveform,
@@ -176,6 +176,9 @@ export function smoothUpdateHarmonicAmplitude(index, value, immediate = false) {
  * Smooth master gain update with momentum (immediate response)
  * @param {number} value - New gain value
  */
+
+// TODO: move this to a component action. it should also fire an event
+// so midi controllers can update the slider ui
 export function smoothUpdateMasterGain(value) {
     momentumSmoother.smoothTo(
         'master_gain',
@@ -234,21 +237,21 @@ export function smoothUpdateSubharmonicMode(isSubharmonic, onComplete = null) {
     const applyModeChange = async () => {
         const { updateAppState } = await import('./config.js');
         const { updateAudioProperties } = await import('./audio.js');
-        
+
         // Update state
         updateAppState({ isSubharmonic: isSubharmonic });
-        
+
         // If playing, smoothly update frequencies
         if (AppState.isPlaying) {
             updateAudioProperties();
         }
-        
+
         // Call completion callback if provided
         if (onComplete) {
             onComplete();
         }
     };
-    
+
     // Small delay to prevent too rapid mode switching
     setTimeout(applyModeChange, 50);
 }

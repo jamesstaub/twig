@@ -1,3 +1,4 @@
+import { smoothUpdateMasterGain } from "../../utils.js";
 import { DrawbarsActions } from "../drawbars/drawbarsActions.js";
 
 
@@ -27,6 +28,15 @@ export class MidiInputRouter {
 
     handleCC(cc, val) {
         const norm = val / 127;
+        switch (cc) {
+            case 7:
+                smoothUpdateMasterGain(norm);
+                break;
+            case 10:
+                break;
+            default:
+                break;
+        }
 
         // throttle flood of CC changes
         if (this.lastCC[cc] === val) return;
