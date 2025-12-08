@@ -137,11 +137,6 @@ function checkCompatibility() {
         issues.push('ES6 Promises not supported');
     }
 
-    // Check for p5.js
-    if (typeof p5 === 'undefined') {
-        issues.push('p5.js library not loaded');
-    }
-
     if (issues.length > 0) {
         const message = `Browser compatibility issues: ${issues.join(', ')}. Please use a modern browser.`;
         showStatus(message, 'error');
@@ -172,13 +167,6 @@ function startup() {
 
     // Check browser compatibility
     if (!checkCompatibility()) {
-        return;
-    }
-
-    // Wait for p5.js to be available
-    if (typeof window.p5 === 'undefined') {
-        console.log('Waiting for p5.js to load...');
-        setTimeout(startup, 100);
         return;
     }
 

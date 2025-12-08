@@ -210,7 +210,8 @@ async function startToneWithOscillators() {
                 const correctedFrequency = frequency * frequencyCorrection;
 
                 // Stereo panning for playback
-                let oscOptions = { pan: panArray[i] ?? (i % 2 === 0 ? -0.8 : 0.8) };
+                let panValue = i === 0 ? 0 : (panArray[i] ?? (i % 2 === 0 ? -0.8 : 0.8));
+                let oscOptions = { pan: panValue };
 
                 try {
                     const oscData = audioEngine.createOscillator(correctedFrequency, waveform, gain, oscOptions);

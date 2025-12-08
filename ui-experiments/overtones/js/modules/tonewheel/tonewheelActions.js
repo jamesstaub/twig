@@ -8,9 +8,9 @@ const baseRadiusRatio = 0.08;
 
 export const TonewheelActions = {
     initVisualization() {
-        if (window.p5) {
+        if (p5) {
             const sketch = createVisualizationSketch();
-            return new window.p5(sketch, 'tonewheel-canvas');
+            return new p5(sketch, 'tonewheel-canvas');
         }
         return null;
     },

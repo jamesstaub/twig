@@ -1,14 +1,20 @@
 {
-  "name": "sine-language",
+  "name": "twig",
   "version": "1.0.0",
   "description": "Web-based harmonic series explorer",
-  "main": "server.js",
+  "main": "server.cjs",
+  "type": "module",
   "scripts": {
-    "start": "node server.js",
-    "dev": "npm-run-all --parallel build:css:start node-server",
     "build:css:start": "npx @tailwindcss/cli -i ./css/styles.css -o ./css/styles-compiled.css --watch",
-    "node-server": "node server.js",
-    "build:css:prod": "npx @tailwindcss/cli -i ./css/styles.css -o ./css/styles-compiled.css --minify"
+    "build:css:prod": "npx @tailwindcss/cli -i ./css/styles.css -o ./css/styles-compiled.css --minify",
+    "start": "node server.cjs",
+    "dev": "npm-run-all --parallel css:watch js:watch node-server",
+    "css:watch": "npx @tailwindcss/cli -i ./css/styles.css -o ./css/styles-compiled.css --watch",
+    "js:watch": "esbuild js/app.js --bundle --outfile=dist/app.js --format=esm --watch",
+    "build": "npm-run-all css:prod js:build",
+    "css:prod": "npx @tailwindcss/cli -i ./css/styles.css -o ./css/styles-compiled.css --minify",
+    "js:build": "node build.js",
+    "node-server": "node server.cjs"
   },
   "dependencies": {
     "express": "^4.21.2"
@@ -25,6 +31,7 @@
   "devDependencies": {
     "@eslint/js": "^9.39.1",
     "autoprefixer": "^10.4.22",
+    "esbuild": "^0.27.1",
     "eslint": "^9.39.1",
     "globals": "^16.5.0",
     "npm-run-all": "^4.1.5",

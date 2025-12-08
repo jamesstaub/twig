@@ -50,11 +50,8 @@ export class TonewheelController extends BaseController {
     }
 
     getProps() {
-        // Create the p5 sketch and pass it as a prop
         let p5Instance = null;
-        if (typeof window !== 'undefined' && window.p5) {
-            p5Instance = TonewheelActions.initVisualization();
-        }
+        p5Instance = TonewheelActions.initVisualization();
         return { p5Instance };
     }
 

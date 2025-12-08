@@ -46,7 +46,6 @@ export class DrawbarsController extends BaseController {
      * DOM / Global events
      */
     bindExternalEvents() {
-        console.log('BIND EXTERNAL EVENTS ');
         document.addEventListener(DRAWBAR_CHANGE, (event) => this.updateDrawbar(event.detail));
         document.addEventListener(DRAWBARS_RANDOMIZED, () => this.update());
         document.addEventListener(DRAWBARS_RESET, () => this.update());

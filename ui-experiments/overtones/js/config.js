@@ -7,6 +7,13 @@
 // SPECTRAL SYSTEMS CONFIGURATION
 // ================================
 
+/**
+ * 
+ * 
+ * https://lawrencephelps.com/Documents/Articles/compoundstops.shtml
+ */
+
+
 export const spectralSystems = [
     // 1
     {
