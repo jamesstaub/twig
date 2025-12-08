@@ -2465,23 +2465,23 @@ function lcmArray(arr) {
   return arr.reduce((a, b) => lcm(a, b), 1);
 }
 function createWaveformSketch(component) {
-  return function(p) {
+  return function (p) {
     component._waveformP5 = p;
-    p.setup = function() {
+    p.setup = function () {
       const container = component.el;
       const width = container?.clientWidth || 400;
       const height = 150;
       p.createCanvas(width, height).parent(container);
       p.noLoop();
     };
-    p.windowResized = function() {
+    p.windowResized = function () {
       const container = component.el;
       const width = container?.clientWidth || 400;
       const height = 150;
       p.resizeCanvas(width, height);
       p.redraw();
     };
-    p.draw = function() {
+    p.draw = function () {
       const props = component.props;
       if (!props?.p5Instance || !props.harmonicAmplitudes?.length) return;
       const width = p.width;
@@ -2583,15 +2583,15 @@ var init_WaveformComponent = __esm({
 
 // js/modules/tonewheel/tonewheelActions.js
 function createVisualizationSketch() {
-  return function(p) {
+  return function (p) {
     AppState.p5Instance = p;
-    p.setSpreadFactor = function(value) {
+    p.setSpreadFactor = function (value) {
       spreadFactor = value;
     };
-    p.getSpreadFactor = function() {
+    p.getSpreadFactor = function () {
       return spreadFactor;
     };
-    p.setup = function() {
+    p.setup = function () {
       const container = document.getElementById("tonewheel-canvas");
       let w = container ? container.clientWidth : 800;
       let h = w;
@@ -2611,7 +2611,7 @@ function createVisualizationSketch() {
     }
     p.updateDimensions = updateDimensions;
     p.customWaveTables = {};
-    p.precomputeCustomWaveTable = function(coeffs) {
+    p.precomputeCustomWaveTable = function (coeffs) {
       const tableSize = 512;
       const table = new Float32Array(tableSize);
       for (let i = 0; i < tableSize; i++) {
@@ -2624,7 +2624,7 @@ function createVisualizationSketch() {
       }
       return table;
     };
-    p.clearCustomWaveCache = function() {
+    p.clearCustomWaveCache = function () {
       p.customWaveTables = {};
     };
     function computeHarmonicLaneRadii({ harmonicAmplitudes, baseRadius: baseRadius2, maxLaneHeight }) {
@@ -2693,12 +2693,12 @@ function createVisualizationSketch() {
         p.endShape(p.CLOSE);
       }
     }
-    p.draw = function() {
+    p.draw = function () {
       p.clear();
       updateDimensions();
       drawRadialDisplay();
     };
-    p.windowResized = function() {
+    p.windowResized = function () {
       const container = document.getElementById("tonewheel-canvas");
       let w = container ? container.clientWidth : 800;
       let h = w;

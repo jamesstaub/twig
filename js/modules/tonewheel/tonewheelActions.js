@@ -188,6 +188,7 @@ function createVisualizationSketch() {
 
         p.draw = function () {
             p.clear();
+            p.background('#111827');
             updateDimensions();
             drawRadialDisplay();
         };
