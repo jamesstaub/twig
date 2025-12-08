@@ -1,5 +1,0 @@
-# Backend-specific dependencies
--r base.txt
-flask>=2.0.0
-flask-pymongo>=2.3.0
-pymongo>=4.0.0

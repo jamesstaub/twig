@@ -11,9 +11,6 @@ import { showStatus } from './domUtils.js';
 import { faviconService } from './modules/favicon/faviconService.js';
 import { getAudioEngine } from './audio.js';
 
-// ================================
-// APPLICATION INITIALIZATION
-// ================================
 
 /**
  * Main application initialization function
@@ -32,10 +29,6 @@ function initApp() {
     }
 }
 
-// ================================
-// ERROR HANDLING
-// ================================
-
 /**
  * Global error handler
  */
@@ -50,10 +43,6 @@ function setupErrorHandling() {
         showStatus('A promise was rejected. Please check the console.', 'error');
     });
 }
-
-// ================================
-// APPLICATION LIFECYCLE
-// ================================
 
 /**
  * Clean up function for when the app is being closed
@@ -93,33 +82,6 @@ function setupCleanup() {
     window.addEventListener('pagehide', cleanup);
 }
 
-// ================================
-// PERFORMANCE MONITORING
-// ================================
-
-/**
- * Basic performance monitoring
- */
-function setupPerformanceMonitoring() {
-    // Monitor audio context performance
-    if (window.performance && window.performance.mark) {
-        setInterval(() => {
-            if (AppState.audioContext && AppState.isPlaying) {
-                const currentTime = AppState.audioContext.currentTime;
-                const oscillatorCount = AppState.oscillators.length;
-
-                // Log performance metrics occasionally
-                if (Math.floor(currentTime) % 30 === 0) {
-                    console.log(`Audio performance: ${oscillatorCount} oscillators, context time: ${currentTime.toFixed(2)}s`);
-                }
-            }
-        }, 1000);
-    }
-}
-
-// ================================
-// BROWSER COMPATIBILITY
-// ================================
 
 /**
  * Checks for browser compatibility
@@ -172,9 +134,6 @@ function startup() {
 
     // Setup cleanup handlers
     setupCleanup();
-
-    // Setup performance monitoring
-    setupPerformanceMonitoring();
 
     // Initialize the application
     initApp();

@@ -10,8 +10,8 @@ function lcm(a, b) {
 function gcd(a, b) {
     return b === 0 ? a : gcd(b, a % b);
 }
-
-function lcmArray(arr) {
+// TODO: move these to a utils
+export function lcmArray(arr) {
     return arr.reduce((a, b) => lcm(a, b), 1);
 }
 

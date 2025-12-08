@@ -42,14 +42,19 @@ export default class SliderComponent extends BaseComponent {
         this.valueDisplay = document.createElement("span");
         this.valueDisplay.className = "slider-value text-blue-300 text-xs md:text-sm font-medium mr-1 min-w-12";
         const formatValue = typeof props.formatValue === "function" ? props.formatValue : (v) => v;
-        this.valueDisplay.textContent = formatValue(props.value ?? "");
+        // Always coerce to number for formatting
+        const displayValue = props.value !== undefined && props.value !== null ? parseFloat(props.value) : 0;
+        this.valueDisplay.textContent = formatValue(displayValue);
         this.el.appendChild(this.valueDisplay);
 
         // Event binding
         if (typeof props.onChange === "function") {
             this.bindEvent(this.input, "input", (e) => {
-                this.valueDisplay.textContent = formatValue(e.target.value);
-                props.onChange(parseFloat(e.target.value));
+                // Always coerce to number for formatting
+                const inputValue = e.target.value ?? "";
+                const numValue = parseFloat(inputValue);
+                this.valueDisplay.textContent = formatValue(numValue);
+                props.onChange(numValue);
             });
         }
     }

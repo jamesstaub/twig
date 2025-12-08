@@ -1,5 +1,6 @@
 import { AppState, CANVAS_HEIGHT_RATIOS, HARMONIC_COLORS, updateAppState } from '../../config.js';
 import { precomputeWaveTable } from '../../audio.js';
+import { lcmArray } from '../waveform/WaveformComponent.js';
 
 let spreadFactor = 1;
 let baseRadius;
@@ -128,7 +129,6 @@ function createVisualizationSketch() {
             p.pop();
         }
 
-        const getHarmonicPhase = (ratio, theta) => AppState.isSubharmonic ? theta / ratio : theta * ratio;
 
         function drawIndividualPartials(points, currentAngle) {
             const type = AppState.currentWaveform;
@@ -139,13 +139,27 @@ function createVisualizationSketch() {
                 maxLaneHeight: maxAmplitudeRadial
             });
 
+            // Determine full period multiplier for subharmonics
+            let fullPeriodMultiplier = 1; // default: 1 cycle
+            if (AppState.isSubharmonic) {
+                const denominators = AppState.currentSystem.ratios
+                    .map((r, h) => AppState.harmonicAmplitudes[h] > 0.001 ? Math.round(r) : null)
+                    .filter(Boolean);
+
+                if (denominators.length > 0) {
+                    fullPeriodMultiplier = lcmArray(denominators);
+                    fullPeriodMultiplier = Math.min(fullPeriodMultiplier, 32); // cap to prevent extreme values
+                }
+            }
+
+            const thetaScale = (p.TWO_PI * fullPeriodMultiplier) / points;
+
             for (let h = 0; h < numHarmonics; h++) {
                 const amp = AppState.harmonicAmplitudes[h];
                 if (amp <= 0.001) continue;
 
                 const ratio = AppState.currentSystem.ratios[h];
                 const ringRadius = laneRadii[h];
-
                 const MAX_RING_MOD = 0.45;
                 const visualAmp = MAX_RING_MOD * (maxAmplitudeRadial / numHarmonics) * spreadFactor * amp;
 
@@ -155,21 +169,22 @@ function createVisualizationSketch() {
                 p.beginShape();
 
                 for (let i = 0; i < points; i++) {
-                    let theta = p.map(i, 0, points, 0, p.TWO_PI);
-                    let harmonicPhase = getHarmonicPhase(ratio, theta);
-                    let waveValue = getWaveValue(type, harmonicPhase, AppState.customWaveCoefficients?.[type]);
+                    const theta = i * thetaScale;
+                    const harmonicPhase = AppState.isSubharmonic ? theta / ratio : theta * ratio;
+                    const waveValue = getWaveValue(type, harmonicPhase, AppState.customWaveCoefficients?.[type]);
 
-                    let rotatedTheta = theta + currentAngle;
-                    let r = ringRadius + waveValue * visualAmp;
+                    const rotatedTheta = theta + currentAngle;
+                    const r = ringRadius + waveValue * visualAmp;
 
-                    let x = r * p.cos(rotatedTheta);
-                    let y = r * p.sin(rotatedTheta);
+                    const x = r * p.cos(rotatedTheta);
+                    const y = r * p.sin(rotatedTheta);
                     p.vertex(x, y);
                 }
 
                 p.endShape(p.CLOSE);
             }
         }
+
 
         p.draw = function () {
             p.clear();

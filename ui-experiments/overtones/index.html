@@ -7,7 +7,7 @@
     <title>TWIG</title>
 
     <!-- Application Styles -->
-    <link rel="stylesheet" href="css/styles-compiled.css">
+    <link rel="stylesheet" href="dist/styles-compiled.css">
 </head>
 
 <body class="app-container pt-[8rem] md:pt-[6rem]">
@@ -130,8 +130,7 @@
                                         class="action-btn mx-1 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
                                         aria-label="Reset drawbars">Create Oscillator</button>
 
-
-                                    <div
+                                    <div id="routing-control-root"
                                         class="download-group flex items-center gap-2 px-4 py-2 rounded border border-slate-500 bg-slate-800/60">
                                         <button id="export-wav-button" type="button" role="button"
                                             class="action-btn mx-1 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
@@ -212,17 +211,6 @@
                     </div>
 
 
-                </div>
-            </div>
-
-            <div class="control-card">
-                <div class="control-row flex flex-wrap gap-4">
-                    <!-- Routing Control Module Root -->
-                    <div id="routing-control-root"
-                        class="routing-control labeled-control flex flex-col gap-2 w-full p-2 min-w-[24rem]">
-                        <p>Created by James Staub</p>
-
-                    </div>
                 </div>
             </div>
         </div>

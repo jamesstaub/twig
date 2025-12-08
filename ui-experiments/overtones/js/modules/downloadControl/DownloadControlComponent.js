@@ -46,8 +46,6 @@ export class DownloadControlComponent extends BaseComponent {
                 this.onAddToWaveforms?.();
             });
         }
-
-
     }
 
     setRoutingMode(mode) {

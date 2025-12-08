@@ -1,4 +1,0 @@
-# Core dependencies shared across all services
-redis>=4.0.0
-pydantic>=1.8.0
-python-dotenv>=0.19.0

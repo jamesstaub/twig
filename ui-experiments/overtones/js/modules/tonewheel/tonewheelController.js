@@ -3,7 +3,6 @@
  */
 
 import { AppState } from "../../config.js";
-import { updateText } from "../../domUtils.js";
 import { SliderController } from "../atoms/slider/sliderController.js";
 import { BaseController } from "../base/BaseController.js";
 import { TonewheelComponent } from "./TonewheelComponent.js";
@@ -24,9 +23,9 @@ export class TonewheelController extends BaseController {
             step: 0.01,
             value: AppState.spreadFactor ?? 0.2,
             label: 'Gain',
+            formatValue: (v) => `${(v * 100).toFixed(0)}%`
         }, (value) => {
             TonewheelActions.setSpreadFactor(value);
-            updateText('spread-value', `${(value * 100).toFixed(0)}%`);
         });
         spreadSliderController.init();
 
@@ -37,9 +36,9 @@ export class TonewheelController extends BaseController {
             step: 0.1,
             value: AppState.visualizationFrequency ?? 1,
             label: 'Rate',
+            formatValue: (v) => `${v.toFixed(1)} Hz`
         }, (value) => {
             TonewheelActions.setVisualizationFrequency(value);
-            updateText('viz-freq-value', `${value.toFixed(1)} Hz`);
         });
         vizFreqSliderController.init();
 

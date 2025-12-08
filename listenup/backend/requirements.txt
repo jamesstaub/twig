@@ -1,7 +1,0 @@
-# For MongoDB support
-pymongo
-# Backend requirements
--r /app/requirements/backend.txt
-python-dotenv
-requests
-gunicorn

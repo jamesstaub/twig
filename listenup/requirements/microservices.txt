@@ -1,7 +1,0 @@
-# Microservices-specific dependencies
--r base.txt
-
-# State machine library
-transitions>=0.9.0
-
-# Add other common microservice dependencies here

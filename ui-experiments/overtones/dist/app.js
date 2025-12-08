@@ -1,1 +1,3854 @@
-var ft=Object.defineProperty;var gn=(n,e,t)=>e in n?ft(n,e,{enumerable:!0,configurable:!0,writable:!0,value:t}):n[e]=t;var f=(n,e)=>()=>(n&&(e=n(n=0)),e);var Ne=(n,e)=>{for(var t in e)ft(n,t,{get:e[t],enumerable:!0})};var gt=(n,e,t)=>gn(n,typeof e!="symbol"?e+"":e,t);var St={};Ne(St,{AppState:()=>i,BASE_OCTAVE_MIDI:()=>wn,CANVAS_HEIGHT_RATIOS:()=>He,DEFAULT_FUNDAMENTAL:()=>wt,DEFAULT_MASTER_GAIN:()=>At,DEFAULT_MASTER_SLEW:()=>xt,DEFAULT_MIDI_NOTE:()=>vt,DEFAULT_OCTAVE:()=>bt,DRAWBAR_STYLES:()=>Ue,HARMONIC_COLORS:()=>Ve,MIDI_NOTE_NAMES:()=>Ge,NUM_HARMONICS:()=>yt,VISUAL_HARMONIC_TERMS:()=>vn,WAVETABLE_SIZE:()=>qe,getCurrentSystem:()=>yn,getHarmonicAmplitude:()=>xn,resetHarmonicAmplitudes:()=>bn,setCurrentSystem:()=>An,setHarmonicAmplitude:()=>Sn,spectralSystems:()=>L,updateAppState:()=>v});function v(n){Object.assign(i,n)}function bn(){i.harmonicAmplitudes.fill(0),i.harmonicAmplitudes[0]=1}function yn(){return i.currentSystem}function An(n){i.currentSystem=L[n]}function xn(n){return i.harmonicAmplitudes[n]||0}function Sn(n,e){n>=0&&n<i.harmonicAmplitudes.length&&(i.harmonicAmplitudes[n]=e)}var L,Ge,wt,vt,bt,wn,qe,yt,At,xt,vn,He,Ve,Ue,i,A=f(()=>{L=[{name:"1. Harmonic Overtone Series (Integer)",description:'Classic harmonic series (exact integer partials). Use for natural, consonant spectra (e.g. voiced instruments, organ-like timbres). See the harmonic-series background: <a href="https://en.wikipedia.org/wiki/Harmonic_series_(music)">Wikipedia \u2014 Harmonic series</a>.',ratios:[1,2,3,4,5,6,7,8,9,10,11,12],labels:["1:1","2:1","3:1","4:1","5:1","6:1","7:1","8:1","9:1","10:1","11:1","12:1"],labelPrecision:1},{name:"2. Spectral Progressive Detuned Harmonics (Microtonal)",description:"Progressive microtonal detuning of the integer harmonic series. Detuning increases with partial index to produce time-varying beating and spectral shimmer (useful for spectral / ambient textures). This is an intentional synthesis choice rather than a canonical acoustic law.",ratios:[1,2.01,3.02,4.03,5.04,6.05,7.06,8.08,9.1,10.12,11.14,12.16],labels:["1/1","201/100","151/50","403/100","126/25","121/20","353/50","202/25","91/10","253/25","557/50","304/25"],labelPrecision:2},{name:"3. Inharmonic Membrane / Plate Modes (Bessel-root based)",description:'Modal ratios derived from the first zeros of Bessel-type modal functions \u2014 a physically informed inharmonic series used to synthesize metallic / bell / plate timbres. This is a simplified circular-membrane / plate approximation (modal zeros of Bessel functions scale the modal frequencies). For background, see the math of Bessel roots and plate/modal modeling: <a href="https://en.wikipedia.org/wiki/Bessel_function">Bessel functions</a> and a modal-plate overview: <a href="https://courses.cs.washington.edu/courses/cse481i/20wi/pdfs/G-waveguides.pdf">modal plate notes (UW)</a>.',ratios:[1,2.295417267427694,3.5984846739581138,4.903280573212368,6.208732130572546,7.514500962483965,8.820447105611922,10.126502295693772,11.432629299891351,12.738806093605008,14.04501881871901,15.351258321221767],labels:["1","5.52/2.40","8.65/2.40","11.79/2.40","14.93/2.40","18.07/2.40","21.21/2.40","24.35/2.40","27.49/2.40","30.63/2.40","33.78/2.40","36.92/2.40"],labelPrecision:3},{name:"4. Gamelan Slendro (Common Approximation)",description:'A conservative Slendro approximation \u2014 Slendro tunings vary widely between ensembles and islands. This is a plausible normalized Slendro-like series (useful as a starting point). See tuning variability and research: <a href="https://eamusic.dartmouth.edu/~larry/misc_writings/out_of_print/slendro_balungan.pdf">Javanese Slendro analyses</a> and a detailed study: <a href="https://www.31edo.com/slendrogamelan.pdf">Stearns \u2014 Slendro analysis</a>.',ratios:[1,1.22,1.48,1.76,2.05,2.44,2.96,3.52,4.1,4.88,5.92,7.04],labels:["1/1","61/50","37/25","44/25","41/20","61/25","74/25","88/25","41/10","122/25","148/25","176/25"],labelPrecision:2},{name:"4b. Slendro \u2014 Adventurous Variant (Exploratory)",description:"A more adventurous Slendro-inspired variant that shifts a few degrees towards septimal/7-limit alignments (useful for exotic spectral palettes). This is deliberately non-standard; treat it as a creative tuning palette rather than an ethnographic map.",ratios:[1,1.1428571428571428,1.4,1.7142857142857142,1.8,2.2857142857142856,2.625,3.5,4.5,5.5,6.5,7.5],labels:["1/1","8/7","7/5","12/7","9/5","16/7","21/8","7/2","9/2","11/2","13/2","15/2"],labelPrecision:3},{name:"5. Gamelan Pelog (Common Approximation)",description:'A conservative Pelog approximation (Pelog also varies a lot by ensemble). This is a practical Pelog-like set for synthesis; it compresses Pelog\u2019s characteristic unequal steps into a usable spectral array. See overview and sample tunings: <a href="https://tuning.ableton.com/sundanese-gamelan/">Ableton \u2014 Gamelan tuning intro</a>.',ratios:[1,1.06,1.25,1.3333333333333333,1.5,1.66,1.78,2,2.12,2.5,2.66,3],labels:["1/1","53/50","5/4","4/3","3/2","83/50","89/50","2/1","53/25","5/2","133/50","3/1"],labelPrecision:2},{name:"5b. Pelog \u2014 Adventurous Variant (Exploratory)",description:"A more adventurous Pelog variant that includes stronger septimal and odd-limit colors \u2014 useful when you want Pelog-ish contours but with richer microtonal tension.",ratios:[1,1.0416666666666667,1.125,1.2,1.1666666666666667,1.375,1.2857142857142858,1.5,1.75,1.6,1.8,2],labels:["1/1","25/24","9/8","6/5","7/6","11/8","9/7","3/2","7/4","8/5","9/5","2/1"],labelPrecision:3},{name:"6. Bohlen\u2013Pierce (13-EDT of the Tritave)",description:'Equal-tempered Bohlen\u2013Pierce: 13 equal divisions of the tritave (3:1) \u2014 the most common practical realization of BP. Each step = 3^(1/13) above the previous. Useful when you want the distinctive BP non-octave (tritave) periodicity. See the Bohlen\u2013Pierce overview: <a href="https://en.wikipedia.org/wiki/Bohlen%E2%80%93Pierce_scale">Bohlen\u2013Pierce (Wikipedia)</a>.',ratios:[1,Math.pow(3,.07692307692307693),Math.pow(3,.15384615384615385),Math.pow(3,.23076923076923078),Math.pow(3,.3076923076923077),Math.pow(3,.38461538461538464),Math.pow(3,.46153846153846156),Math.pow(3,.5384615384615384),Math.pow(3,.6153846153846154),Math.pow(3,.6923076923076923),Math.pow(3,.7692307692307693),Math.pow(3,.8461538461538461),Math.pow(3,.9230769230769231)],labels:["1/1","3^(1/13)","3^(2/13)","3^(3/13)","3^(4/13)","3^(5/13)","3^(6/13)","3^(7/13)","3^(8/13)","3^(9/13)","3^(10/13)","3^(11/13)"],labelPrecision:4},{name:"6b. Bohlen\u2013Pierce (Representative Just Intonation set)",description:'A commonly-cited Bohlen\u2013Pierce just-intonation palette assembled from small-ratio JI intervals historically associated with BP discussions (normalized to 1). This is an illustrative JI BP set \u2014 there are multiple JI realizations in the literature. See the JI vs. ET BP table: <a href="https://en.wikipedia.org/wiki/Bohlen%E2%80%93Pierce_scale#Intervals_and_scale_diagrams">BP intervals (Wikipedia)</a>.',ratios:[1,1.08,1.1904761904761905,1.2857142857142858,1.4,1.530612244897959,1.6666666666666667,1.8,1.96,2.142857142857143,2.3333333333333335,2.52],labels:["1/1","27/25","25/21","9/7","7/5","75/49","5/3","9/5","49/25","15/7","7/3","63/25"],labelPrecision:3},{name:"7. Standardized Lydian Root Set (Just-intonation oriented)",description:'A compact, standardized Lydian root set expressed in just-intonation ratios. This keeps the Lydian #4 character while using small-integer ratios for musical stability \u2014 useful when you want a Lydian-centered just palette (informed by George Russell\u02BCs idea of the Lydian center; see the Lydian Chromatic Concept: <a href="https://georgerussell.com/lydian-chromatic-concept">George Russell \u2014 Lydian Chromatic Concept</a>).',ratios:[1,1.125,1.25,1.40625,1.5,1.6,1.875,2,2.25,2.5,3.75,4],labels:["1/1","9/8","5/4","45/32","3/2","8/5","15/8","2/1","9/4","5/2","15/4","4/1"],labelPrecision:3},{name:"8. Fractional Series (n/4 Multiples)",description:"A deliberately inharmonic fractional series using n/4 multipliers (1, 1.25, 1.5, ...). Very metallic and clanging \u2014 excellent for bell-like additive synthesis with strong inharmonic beating.",ratios:[1,1.25,1.5,1.75,2,2.25,2.5,2.75,3,3.25,3.5,3.75],labels:["1/1","5/4","3/2","7/4","2/1","9/4","5/2","11/4","3/1","13/4","7/2","15/4"],labelPrecision:2},{name:"HP-A. Harry Partch \u2014 43-Tone Scale (overview subset)",description:`Harry Partch\u02BCs 43-tone scale (per octave) is a systematic 11-limit-based just-intonation framework Partch used for much of his instrument design and composition. This entry provides a practical 12-value subset sampled from Partch's larger lattice. See: <a href="https://en.wikipedia.org/wiki/Harry_Partch%27s_43-tone_scale">Harry Partch\u02BCs 43-tone scale (Wikipedia)</a>.`,ratios:[1,1.0909090909090908,1.1,1.1111111111111112,1.125,1.1428571428571428,1.1666666666666667,1.2,1.2222222222222223,1.25,1.2727272727272727,1.2857142857142858],labels:["1/1","12/11","11/10","10/9","9/8","8/7","7/6","6/5","11/9","5/4","14/11","9/7"],labelPrecision:4},{name:"HP-B. Harry Partch \u2014 11-Limit Tonality Diamond (subset)",description:'A focused 11-limit tonality diamond subset (useful Partchian palette). This selection expresses Partch\u02BCs hierarchy of consonance-to-dissonance in small integer ratios; use as a microtonal palette or for Partch-inspired composition. Reference: <a href="https://en.wikipedia.org/wiki/Harry_Partch%27s_43-tone_scale">Partch \u2014 43-tone & 11-limit ideas</a>.',ratios:[1,1.0666666666666667,1.125,1.2,1.25,1.3333333333333333,1.4,1.5,1.6,1.6666666666666667,1.8,2],labels:["1/1","16/15","9/8","6/5","5/4","4/3","7/5","3/2","8/5","5/3","9/5","2/1"],labelPrecision:4},{name:"HP-C. Harry Partch \u2014 Practical Instrument Subset (for keyboard/percussion)",description:"A small practical subset inspired by the subsets Partch used on instruments (Chromelodeon, Adapted Guitar, etc.) \u2014 chosen for playability while retaining Partch's just-intonation character. See Partch instrument descriptions: <a href='https://en.wikipedia.org/wiki/Harry_Partch%27s_43-tone_scale'>Partch overview</a>.",ratios:[1,1.125,1.2,1.25,1.3333333333333333,1.5,1.6,1.6666666666666667,1.8,1.875,2,2.25],labels:["1/1","9/8","6/5","5/4","4/3","3/2","8/5","5/3","9/5","15/8","2/1","9/4"],labelPrecision:4},{name:"OD-1. Hammond \u2014 Standard 9-drawbar (Manual) (Drawbars / Stops)",description:"Canonical Hammond single-manual drawbar mapping (left\u2192right): 16', 5 1/3', 8', 4', 2 2/3', 2', 1 3/5', 1 1/3', 1' \u2014 each represents a harmonic/aliquot of the fundamental. These are the classic additive palette used on B-3 / tonewheel organs. See Hammond drawbar docs for details.",ratios:[.5,1.5,1,2,3,4,5,6,8],labels:["1/2","3/2","1/1","2/1","3/1","4/1","5/1","6/1","8/1"],labelPrecision:3,notes:"Hammond drawbars intentionally sample selected harmonics (sub-octave through high partials); the 7th harmonic is omitted in the classic tonewheel mapping."},{name:"OD-1b. Hammond \u2014 Archaic / Mechanical Variant (Detuned Drawbars)",description:"Same drawbar targets as the standard Hammond set, but each partial includes a small progressive detune to model mechanical imperfections and tonewheel wear \u2014 useful to emulate slow beating and organic instability.",ratios:[.5,1.5011999999999999,1.0003,2.0012,2.9979,4.004,5.0075,5.997,8.016],labels:["1/2*1.00","3/2*1.00","1/1*1.00","2/1*1.00","3/1*0.99","4/1*1.00","5/1*1.00","6/1*1.00","8/1*1.00"],labelPrecision:5,notes:"Detune multipliers expressed as small fractional offsets (e.g. 8/10000 \u2248 0.8\u2030). These are artistic suggestions \u2014 increase offsets for stronger beating."},{name:"OD-2. Pipe Organ \u2014 Principal / Foundation Chorus (Stops)",description:"Common principal stops (footages) used in organ choruses: 16', 8', 4', 2', 1' \u2014 octave-power ranks; each rank doubles/halves frequency by powers of two. Good base palette for a church/archaic organ sound.",ratios:[.5,1,2,4,8],labels:["1/2","1/1","2/1","4/1","8/1"],labelPrecision:3,notes:"These are octave-related ranks (powers of two). Combine with mixture/mutation stops to build classic organ choruses."},{name:"OD-3. Baroque Cornet / Mixture \u2014 Mutation (Aliquot) Stops",description:"Typical cornet/mixture elements: mutation stops that speak at non-octave partials (3rd, 5th, 6th, etc.). Mutations color the principal chorus and are essential to many historical organ timbres.",ratios:[3,5,6,3,8],labels:["3/1 Naz","5/1 Tie","6/1 Lar","3/1 Naz","8/1 Mix"],labelPrecision:3,notes:"Mixtures vary by builder; the labels give common mutation names (Nazard, Tierce, Larigot). Mix design determines exact harmonic set."}],Ge=["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"],wt=130.81,vt=48,bt=3,wn=48,qe=4096,yt=12,At=.3,xt=.01,vn=12,He={RADIAL:.75,OSCILLOSCOPE:.25},Ve=["#10b981","#fcd34d","#3b82f6","#ef4444","#a855f7","#f97316","#22c55e","#ec4899","#84cc16","#eab308","#7c3aed","#6d28d9"],Ue=["white","brown","white","white","brown","black","brown","white","black","blue","red","black","white","brown","black","blue"],i={audioRoutingMode:"mono",masterGainValue:At,masterSlewValue:xt,fundamentalFrequency:wt,currentMidiNote:vt,currentOctave:bt,isPlaying:!1,currentSystem:L[0],harmonicAmplitudes:(()=>{let n=Array(yt).fill(0);return n[0]=1,n})(),isSubharmonic:!1,currentWaveform:"sine",visualizationFrequency:5.25,spreadFactor:.2,customWaveCount:0,audioContext:null,compressor:null,masterGain:null,oscillators:[],blWaveforms:{},p5Instance:null}});var ze,T,oe=f(()=>{ze=class{constructor(){this.params=new Map,this.isRunning=!1,this.frame=null,this.dt=1/60}debounce(e,t,r){this._debouncers||(this._debouncers=new Map),this._debouncers.has(e)&&clearTimeout(this._debouncers.get(e));let o=setTimeout(()=>{this._debouncers.delete(e),r()},t);this._debouncers.set(e,o)}smoothTo(e,t,r,o=.75){let a=this.params.get(e);a?(a.pendingTarget=t,a.smoothness=Math.min(Math.max(o,.01),.99999),a.active=!0):(a={current:t,target:t,pendingTarget:null,callback:r,smoothness:Math.min(Math.max(o,.01),.99999),active:!0},this.params.set(e,a)),this.isRunning||this.start()}setImmediate(e,t){let r=this.params.get(e);r&&(r.current=t,r.target=t,r.pendingTarget=null,r.active=!1,r.callback(t))}start(){this.isRunning||(this.isRunning=!0,this.tick())}tick(){let e=0;for(let[t,r]of this.params){if(r.pendingTarget!==null&&(r.target=r.pendingTarget,r.pendingTarget=null),!r.active)continue;let o=r.target-r.current;if(Math.abs(o)<1e-5){r.current=r.target,r.callback(r.current),r.active=!1;continue}let a=r.smoothness,s=Math.pow(a,this.dt*60);r.current=r.current*s+r.target*(1-s),r.callback(r.current),e++}e>0?this.frame=requestAnimationFrame(()=>this.tick()):(this.isRunning=!1,this.frame=null)}remove(e){this.params.delete(e)}clear(){this.params.clear(),this.frame&&cancelAnimationFrame(this.frame),this.isRunning=!1,this.frame=null}getCurrentValue(e){let t=this.params.get(e);return t?t.current:null}},T=new ze});function ae(n){let e=document.getElementById(n);return e||console.warn(`Element with id '${n}' not found`),e}function N(n,e,t=!1){let r=ae(n);r&&(t?r.innerHTML=e:r.textContent=e)}function $e(n,e){let t=ae(n);t&&(t.value=e)}function ie(n,e,t){let r=ae(n);r&&r.addEventListener(e,t)}function w(n,e="info"){let t=ae("status-message");t&&(t.textContent=n,t.classList.remove("hidden","error","success","warning","info"),t.classList.add(e),setTimeout(()=>{t.classList.add("hidden")},4e3))}var k=f(()=>{});var x,B=f(()=>{x=class{constructor(e){if(typeof e=="string"?(this.el=document.querySelector(e),this.selector=e):this.el=e,!this.el)throw new Error(`BaseComponent: Target element "${e}" not found.`);this._boundEvents=[]}bindEvent(e,t,r){e&&(e.addEventListener(t,r),this._boundEvents.push({el:e,evt:t,handler:r}))}unbindAll(){for(let{el:e,evt:t,handler:r}of this._boundEvents)e.removeEventListener(t,r);this._boundEvents.length=0}teardown(){this.unbindAll()}updateContent(e,t="",{asHTML:r=!1}={}){e&&(r?e.innerHTML=t:e.textContent=t)}render(e){throw new Error("render() must be implemented in subclass")}q(e){return this.el.querySelector(e)}qAll(e){return Array.from(this.el.querySelectorAll(e))}}});var En,se,Et=f(()=>{A();B();En=".drawbar-slider",se=class extends x{constructor(e){super(e),this.sliders=[]}render(e={}){this.el.innerHTML="",this.sliders=[],this.setupDrawbars(),this.updateDrawbarLabels(e.isSubharmonic)}bindRenderedEvents(){this.sliders=this.qAll(En),this.sliders.forEach(e=>{this.bindEvent(e,"input",t=>this.handleDrawbarChange(t))})}setupDrawbars(){let e=i.currentSystem.ratios.length;(!Array.isArray(i.harmonicAmplitudes)||i.harmonicAmplitudes.length!==e)&&(i.harmonicAmplitudes=Array(e).fill(0),i.harmonicAmplitudes[0]=1);for(let t=0;t<e;t++){let r=i.harmonicAmplitudes[t];this.el.appendChild(this.createDrawbar(t,r))}}updateDrawbarLabels(e){(e&&i.currentSystem.subharmonicLabels?i.currentSystem.subharmonicLabels:i.currentSystem.labels).forEach((r,o)=>{let a=this.q(`#drawbar-label-${o}`);this.updateContent(a,r)})}createDrawbar(e,t){let r=Ue[e]||"white",o=document.createElement("div");o.className=`drawbar ${r}`;let a=document.createElement("span");a.className="drawbar-label",a.id=`drawbar-label-${e}`,this.updateContent(a,i.currentSystem.labels[e]||"");let s=document.createElement("div");s.className="drawbar-track";let c=document.createElement("input");c.type="range",c.className="drawbar-slider",c.min="0",c.max="1",c.step="0.01",c.value=t,c.dataset.index=e;let l=document.createElement("div");return l.className="drawbar-input-wrapper",l.append(s,c),o.append(a,l),o}updateSingleDrawbar(e,t){this.sliders[e]&&(this.sliders[e].value=t)}handleDrawbarChange(e){let t=Number(e.target.dataset.index),r=Number(e.target.value);this.onChange?.(t,r),e.target.setAttribute("aria-valuenow",r)}setValue(e,t){this.sliders[e]&&(this.sliders[e].value=t)}}});var G,Ke=f(()=>{G=class{static transform(e,t=128){let r=e.length,o=Math.min(t,Math.floor(r/2)),a=new Float32Array(o+1).fill(0),s=new Float32Array(o+1).fill(0);a[0]=0;for(let c=1;c<=o;c++){let l=0,u=0;for(let d=0;d<r;d++){let m=2*Math.PI*c*d/r;l+=e[d]*Math.cos(m),u-=e[d]*Math.sin(m)}a[c]=2*l/r,s[c]=2*u/r}return{real:a,imag:s}}static inverseTransform(e,t,r=512){let o=new Float32Array(r);for(let a=0;a<r;a++){let s=a/r*2*Math.PI,c=0;for(let l=1;l<e.length&&l<t.length;l++)c+=e[l]*Math.cos(l*s)+t[l]*Math.sin(l*s);o[a]=c}return o}static getMagnitudeSpectrum(e,t){let r=new Float32Array(Math.min(e.length,t.length));for(let o=0;o<r.length;o++)r[o]=Math.sqrt(e[o]*e[o]+t[o]*t[o]);return r}static getPhaseSpectrum(e,t){let r=new Float32Array(Math.min(e.length,t.length));for(let o=0;o<r.length;o++)r[o]=Math.atan2(t[o],e[o]);return r}}});var P,ce=f(()=>{P=class n{static createBandLimitedWaveform(e,t,r=1024){let o=new Float32Array(r+1),a=new Float32Array(r+1),s=n.getFourierCoefficients(t,r);for(let c=1;c<=r;c++)a[c]=s[c]||0;return e.createPeriodicWave(o,a,{disableNormalization:!1})}static getFourierCoefficients(e,t){let r=new Array(t+1).fill(0);for(let o=1;o<=t;o++){let a=0,s=1;switch(e){case"square":o%2!==0&&(a=4/(Math.PI*o));break;case"sawtooth":a=2/(Math.PI*o),s=o%2===0?-1:1;break;case"triangle":o%2!==0&&(a=8/(Math.PI*Math.PI*o*o),s=(o-1)/2%2===0?1:-1);break;default:throw new Error(`Unsupported waveform type: ${e}`)}r[o]=a*s}return r}static generateTimeDomainSamples(e,t=1024,r=64){let o=new Float32Array(t),a=n.getFourierCoefficients(e,r);for(let s=0;s<t;s++){let c=s/t*2*Math.PI,l=0;for(let u=1;u<=r;u++)a[u]!==0&&(l+=a[u]*Math.sin(u*c));o[s]=l*.7}return o}static createCustomWaveform(e,t,r){return e.createPeriodicWave(t,r,{disableNormalization:!1})}}});var Y,Ct=f(()=>{Y=class n{static exportAsWAV(e,t,r,o=1){if(!Array.isArray(e)||e.length===0)throw new Error("WAV export failed: expected an array of channel buffers.");let a=e.length,s=e[0].length;for(let u=0;u<a;u++){if(!(e[u]instanceof Float32Array))throw new Error(`Channel ${u} is not a Float32Array.`);if(e[u].length!==s)throw new Error(`Channel ${u} length mismatch.`)}let c=e.map(u=>n.repeatBuffer(u,o)),l=n.createWAVBufferMulti(c,t);n.downloadFile(l,r)}static repeatBuffer(e,t){let r=e.length,o=r*t,a=new Float32Array(o);for(let s=0;s<o;s++)a[s]=e[s%r];return a}static createWAVBufferMulti(e,t){let r=e.length,o=e[0].length,a=2,s=r*a,c=t*s,l=o*s,u=new ArrayBuffer(44+l),d=new DataView(u),m=0;n.writeString(d,m,"RIFF"),m+=4,d.setUint32(m,36+l,!0),m+=4,n.writeString(d,m,"WAVE"),m+=4,n.writeString(d,m,"fmt "),m+=4,d.setUint32(m,16,!0),m+=4,d.setUint16(m,1,!0),m+=2,d.setUint16(m,r,!0),m+=2,d.setUint32(m,t,!0),m+=4,d.setUint32(m,c,!0),m+=4,d.setUint16(m,s,!0),m+=2,d.setUint16(m,a*8,!0),m+=2,n.writeString(d,m,"data"),m+=4,d.setUint32(m,l,!0),m+=4;for(let h=0;h<o;h++)for(let p=0;p<r;p++){let g=Math.max(-1,Math.min(1,e[p][h]));d.setInt16(m,g*32767,!0),m+=2}return u}static writeString(e,t,r){for(let o=0;o<r.length;o++)e.setUint8(t+o,r.charCodeAt(o))}static downloadFile(e,t){let r=new Blob([e],{type:"audio/wav"}),o=URL.createObjectURL(r),a=document.createElement("a");a.href=o,a.download=t,a.style.display="none",document.body.appendChild(a),a.click(),document.body.removeChild(a),setTimeout(()=>URL.revokeObjectURL(o),100)}}});var Z,Mt=f(()=>{Ke();ce();Z=class{constructor(){this.waveforms=new Map,this.coefficients=new Map,this.periodMultipliers=new Map,this.count=0}addFromSamples(e,t,r=128,o=1){if(e.length===0)throw new Error("Cannot add empty waveform data.");let a=0;for(let m=0;m<e.length;m++)Math.abs(e[m])>a&&(a=Math.abs(e[m]));let s=e;if(a>0&&a!==1){s=new Float32Array(e.length);for(let m=0;m<e.length;m++)s[m]=e[m]/a}let{real:c,imag:l}=G.transform(s,r),u=P.createCustomWaveform(t,c,l);this.count++;let d=`custom_${Date.now()}_${this.count}`;return this.waveforms.set(d,u),this.coefficients.set(d,{real:c,imag:l}),this.periodMultipliers.set(d,o),d}addFromCoefficients(e,t,r){let o=P.createCustomWaveform(r,e,t);this.count++;let a=`custom_${this.count}`;return this.waveforms.set(a,o),this.coefficients.set(a,{real:new Float32Array(e),imag:new Float32Array(t)}),a}getWaveform(e){return this.waveforms.get(e)||null}getCoefficients(e){return this.coefficients.get(e)||null}getPeriodMultiplier(e){return this.periodMultipliers.get(e)||1}reconstructSamples(e,t=512){let r=this.coefficients.get(e);return r?G.inverseTransform(r.real,r.imag,t):null}getAllKeys(){return Array.from(this.waveforms.keys())}remove(e){let t=this.waveforms.delete(e),r=this.coefficients.delete(e);return t&&r}clear(){this.waveforms.clear(),this.coefficients.clear(),this.count=0}getCount(){return this.waveforms.size}exportData(e){let t=this.coefficients.get(e);return t?{key:e,real:Array.from(t.real),imag:Array.from(t.imag),timestamp:Date.now()}:null}importData(e,t){let r=new Float32Array(e.real),o=new Float32Array(e.imag);return this.addFromCoefficients(r,o,t)}}});var J,Tt=f(()=>{ce();J=class{constructor(){this.context=null,this.masterGain=null,this.compressor=null,this.oscillators=new Map,this.isInitialized=!1,this.standardWaveforms=new Map}async initialize(e=.5){this.isInitialized||(this.context=new(window.AudioContext||window.webkitAudioContext),this.setupAudioGraph(e),this.generateStandardWaveforms(),this.isInitialized=!0,this.context.state==="suspended"&&await this.context.resume())}async resume(){this.context&&this.context.state==="suspended"&&await this.context.resume()}setupAudioGraph(e){this.compressor=this.context.createDynamicsCompressor(),this.compressor.threshold.setValueAtTime(-24,this.context.currentTime),this.compressor.ratio.setValueAtTime(6,this.context.currentTime),this.compressor.attack.setValueAtTime(.01,this.context.currentTime),this.compressor.release.setValueAtTime(.2,this.context.currentTime),this.masterGain=this.context.createGain(),this.masterGain.gain.setValueAtTime(e,this.context.currentTime),this.masterGain.maxGain=1,this.limiter=this.context.createDynamicsCompressor(),this.limiter.threshold.setValueAtTime(-6,this.context.currentTime),this.limiter.ratio.setValueAtTime(6,this.context.currentTime),this.limiter.attack.setValueAtTime(.005,this.context.currentTime),this.limiter.release.setValueAtTime(.15,this.context.currentTime),this.compressor.connect(this.masterGain),this.masterGain.connect(this.limiter),this.limiter.connect(this.context.destination)}generateStandardWaveforms(){let e=["square","sawtooth","triangle"];for(let t of e){let r=P.createBandLimitedWaveform(this.context,t,128);this.standardWaveforms.set(t,r)}}getStandardWaveform(e){return this.standardWaveforms.get(e)||null}createOscillator(e,t,r=1,o={}){if(!this.isInitialized)throw new Error("AudioEngine must be initialized before creating oscillators");let a=this.context.createOscillator(),s=this.context.createGain();if(a.frequency.setValueAtTime(e,this.context.currentTime),typeof t=="string")if(t==="sine")a.type="sine";else if(this.standardWaveforms.has(t))a.setPeriodicWave(this.standardWaveforms.get(t));else throw new Error(`Unknown waveform type: ${t}`);else if(t instanceof PeriodicWave)a.setPeriodicWave(t);else throw new Error("Waveform must be a string or PeriodicWave");s.gain.setValueAtTime(r,this.context.currentTime);let c=this.context.createStereoPanner();return c.pan.setValueAtTime(o.pan??0,this.context.currentTime),a.connect(s),s.connect(c),c.connect(this.compressor),{oscillator:a,gainNode:s,panner:c}}addOscillator(e,t){t.oscillator.start(this.context.currentTime),this.oscillators.set(e,t)}updateOscillatorFrequency(e,t,r=.02){let o=this.oscillators.get(e);if(o&&o.oscillator){let a=this.context.currentTime;o.oscillator.frequency.setTargetAtTime(t,a,r/3)}}updateOscillatorGain(e,t,r=.02){let o=this.oscillators.get(e);if(o&&o.gainNode){let a=this.context.currentTime;o.gainNode.gain.setTargetAtTime(t,a,r/3)}}updateMasterGain(e,t=.02){if(this.masterGain){let r=this.context.currentTime;this.masterGain.gain.setTargetAtTime(e,r,t/3)}}stopAllOscillators(){let e=this.context.currentTime;for(let t of this.oscillators.values())if(t.oscillator)try{t.oscillator.stop(e+.01)}catch{}this.oscillators.clear()}getContext(){return this.context}}});var Pt=f(()=>{Ke();ce();Ct();Mt();Tt()});var et={};Ne(et,{addWaveformToAudio:()=>Je,exportAsWAV:()=>Ze,getAudioEngine:()=>Ye,getWaveValue:()=>Wt,getWavetableManager:()=>le,initAudio:()=>ue,precomputeWaveTable:()=>Xe,precomputeWavetableFromCoefficients:()=>Qe,restartAudio:()=>he,sampleCurrentWaveform:()=>q,setDownloadRoutingMode:()=>Cn,startTone:()=>me,stopTone:()=>de,updateAudioProperties:()=>I});function Cn(n){i.downloadRoutingMode=n}function Ye(){return y}function le(){return X}async function ue(){y||(y=new J,X=new Z,await y.initialize(i.masterGainValue),i.audioContext=y.getContext(),i.compressor=y.compressor,i.masterGain=y.masterGain,i.blWaveforms=i.blWaveforms||{},i.blWaveforms.square=y.getStandardWaveform("square"),i.blWaveforms.sawtooth=y.getStandardWaveform("sawtooth"),i.blWaveforms.triangle=y.getStandardWaveform("triangle")),await y.resume()}function Mn(n){return n?n.startsWith("custom_")?X.getWaveform(n)||"sine":n:"sine"}function It(n){if(!n||!n.startsWith("custom_"))return 1;let e=1;return X?e=X.getPeriodMultiplier(n):i.customWavePeriodMultipliers&&(e=i.customWavePeriodMultipliers[n]||1),1/e}async function me(){if(await ue(),!i.isPlaying)try{await Tn(),v({isPlaying:!0})}catch(n){throw console.error("Failed to start synthesis:",n),n}}async function Tn(){i.oscillators=[];let n=i.oscillatorPans||[],e=i.currentSystem.ratios.length;for(let t=0;t<i.harmonicAmplitudes.length;t++)if(t<e){let r=i.currentSystem.ratios[t],o=i.harmonicAmplitudes[t]||0;if(r>0){let a=tt(r),s=o*i.masterGainValue,c=Mn(i.currentWaveform),l=It(i.currentWaveform),u=a*l,m={pan:t===0?0:n[t]??(t%2===0?-.8:.8)};try{let h=y.createOscillator(u,c,s,m),p=`harmonic_${t}`;for(y.addOscillator(p,h);i.oscillators.length<=t;)i.oscillators.push(null);i.oscillators[t]={key:p,ratio:r}}catch(h){console.error(`Failed to create oscillator ${t}:`,h),i.oscillators[t]=null}}else i.oscillators[t]=null}else i.harmonicAmplitudes[t]=0,i.oscillators[t]=null}function de(){!i.isPlaying||!y||(y.stopAllOscillators(),v({oscillators:[],isPlaying:!1}))}function I(){if(!i.isPlaying||!y)return;let n=i.masterSlewValue;Pn(n)}function Pn(n){y.updateMasterGain(i.masterGainValue,n),i.oscillators.forEach((e,t)=>{if(e&&e.key){let r=i.currentSystem.ratios[t],o=tt(r),a=It(i.currentWaveform),s=o*a,l=(i.harmonicAmplitudes[t]||0)*i.masterGainValue;!isFinite(s)||isNaN(s)?l=0:y.updateOscillatorFrequency(e.key,s,n),y.updateOscillatorGain(e.key,l,n)}})}function he(){i.isPlaying&&(de(),setTimeout(me,50))}async function q(n="mono",e=!1){await ue();let t=i.harmonicAmplitudes.length,r=qe;if(!i.currentSystem||!i.currentSystem.ratios)return console.error("Spectral system missing"),{buffer:new Float32Array(0),periodMultiplier:1};let o=[];for(let u=0;u<t;u++)i.harmonicAmplitudes[u]>.001&&o.push(i.currentSystem.ratios[u]);let a=In(o,e),s=2*Math.PI*a,c=i.customWaveCoefficients?.[i.currentWaveform],l=Array(t).fill(null).map(()=>new Float32Array(r));for(let u=0;u<t;u++){let d=i.harmonicAmplitudes[u];if(d<=.001)continue;let m=i.currentSystem.ratios[u],h=l[u];for(let g=0;g<r;g++){let b=g/(r-1)*s,R=e?1/m*b:m*b;h[g]=Wt(i.currentWaveform,R,c)*d}let p=0;for(let g=0;g<r;g++)p=Math.max(p,Math.abs(h[g]));if(p>0){let g=1/p;for(let b=0;b<r;b++)h[b]*=g}}switch(n){case"mono":{let u=new Float32Array(r);for(let m=0;m<t;m++){let h=l[m];if(h)for(let p=0;p<r;p++)u[p]+=h[p]}let d=0;for(let m=0;m<r;m++)d=Math.max(d,Math.abs(u[m]));if(d>0){let m=1/d;for(let h=0;h<r;h++)u[h]*=m}return{buffer:u,periodMultiplier:a}}case"stereo":{let u=new Float32Array(r),d=new Float32Array(r);for(let h=0;h<t;h++){let p=l[h];if(!p)continue;let b=((i.oscillatorPans?.[h]??0)+1)*.5,R=Math.cos(b*Math.PI*.5),j=Math.sin(b*Math.PI*.5);for(let M=0;M<r;M++){let re=p[M];u[M]+=re*R,d[M]+=re*j}}let m=0;for(let h=0;h<r;h++)m=Math.max(m,Math.abs(u[h]),Math.abs(d[h]));if(m>0){let h=1/m;for(let p=0;p<r;p++)u[p]*=h,d[p]*=h}return{buffers:[u,d],periodMultiplier:a}}case"multichannel":{let d=[];for(let m=0;m<12;m++)d[m]=l[m]??new Float32Array(r);for(let m=0;m<12;m++){let h=d[m],p=0;for(let g=0;g<r;g++)p=Math.max(p,Math.abs(h[g]));if(p>0){let g=1/p;for(let b=0;b<r;b++)h[b]*=g}}return{buffers:d,periodMultiplier:a}}default:return console.warn(`Unknown routingMode ${n}, defaulting to mono`),q("mono",e)}}function In(n,e){if(n.length===0)return 1;let r=n.map(o=>{let a=1,s=1/0;for(let c=1;c<=20;c++){let l;e?l=1/o*c:l=o*c;let u=Math.abs(l-Math.round(l));if(u<s&&(s=u,a=c),u<.001)break}return console.log(`Ratio ${o}: best period ${a} gives ${o*a} cycles (error: ${s})`),a}).reduce((o,a)=>{let s=(c,l)=>l===0?c:s(l,c%l);return o*a/s(o,a)},1);return Math.min(r,20)}function Ze(n,e=1){if(!i.audioContext){w("Error: Audio system not initialized. Please click 'Start Tone' first.","error");return}if(!n){w("WAV Export Failed: No waveform data passed.","error");return}let t=n.periodMultiplier||1,r;if(n.buffers&&Array.isArray(n.buffers))r=n.buffers;else if(n.buffer)r=[n.buffer];else{w("WAV Export Failed: Invalid waveform data structure.","error");return}if(r.length===0||r[0].length===0){w("WAV Export Failed: Cannot export empty waveform data.","error");return}let a=i.audioContext.sampleRate/t;console.log(`WAV Export: channels=${r.length}, period multiplier=${t}, sampleRate=${a}`);let s=pe(),c=[s.noteLetter,s.waveform,s.systemName,s.levels,s.subharmonicFlag].filter(Boolean).join("-")+".wav";try{Y.exportAsWAV(r,a,c,e),w(`Wavetable exported as ${c} (${a}Hz)!`,"success")}catch(l){w(`WAV Export Failed: ${l.message}`,"error")}}function Wt(n,e,t){if(n.startsWith("custom")){let r=je[n];if(!r){if(!t)return Math.sin(e);r=je[n]=Qe(t,512)}let a=e%(2*Math.PI)/(2*Math.PI)*(r.length-1),s=a|0,c=(s+1)%r.length,l=a-s;return r[s]*(1-l)+r[c]*l}switch(n){case"sine":return Math.sin(e);case"square":{let r=0,o=16;for(let a=1;a<o*2;a+=2)r+=1/a*Math.sin(e*a);return r*(4/Math.PI)*.7}case"sawtooth":{let r=0,o=16;for(let a=1;a<=o;a++)r+=1/a*Math.sin(e*a);return r*(2/Math.PI)*.7}case"triangle":{let r=0,o=16;for(let a=1;a<o*2;a+=2){let s=(a-1)/2%2===0?1:-1;r+=s/(a*a)*Math.sin(e*a)}return r*(8/(Math.PI*Math.PI))*.7}default:return Math.sin(e)}}async function Je(n,e,t){await ue();let r=le().addFromSamples(n,t.audioContext,128,e),o=le().getCoefficients(r);je[r]=Qe(o);let a=le().getWaveform(r);return{waveKey:r,coefficients:o,periodicWave:a}}function Xe(n,e=512){let t=new Float32Array(e);if(n instanceof Float32Array){let r=n,o=(r.length-1)/(e-1);for(let a=0;a<e;a++){let s=a*o,c=Math.floor(s),l=Math.min(c+1,r.length-1),u=s-c;t[a]=r[c]*(1-u)+r[l]*u}return t}if(n.real&&n.imag){let r=n.real,o=n.imag,a=Math.min(r.length,o.length);for(let s=0;s<e;s++){let c=s/e*Math.PI*2,l=0;for(let u=1;u<a;u++)l+=r[u]*Math.cos(u*c)+o[u]*Math.sin(u*c);t[s]=l}return t}return console.error("precomputeUnifiedWaveTable: invalid input",n),new Float32Array(e)}function Qe(n,e=512){let t=new Float32Array(e),r=0;for(let o=0;o<e;o++){let a=o/e*2*Math.PI,s=0;for(let c=1;c<n.real.length&&c<n.imag.length;c++)s+=n.real[c]*Math.cos(c*a)+n.imag[c]*Math.sin(c*a);t[o]=s,Math.abs(s)>r&&(r=Math.abs(s))}if(r>0){let o=1/r;for(let a=0;a<e;a++)t[a]*=o}return t}var y,X,je,E=f(()=>{A();O();Pt();k();y=null,X=null;je={}});function Wn(n){let e=Math.floor(n/12)-1,t=n%12;return Ge[t]+e}function Dn(n){return Math.round(n*15).toString(16).toUpperCase()}function Fn(){return i.harmonicAmplitudes.slice(0,12).map(Dn).join("")}function pe(){let n=Wn(i.currentMidiNote).replace("#","s"),e=i.currentWaveform.toUpperCase().replace("_","-"),t=i.currentSystem.name.split(".")[1].trim().replace(/[^a-zA-Z0-9_]/g,""),r=Fn(),o=i.isSubharmonic?"subharmonic":"";return{noteLetter:n,waveform:e,systemName:t,levels:r,subharmonicFlag:o}}function tt(n){return i.isSubharmonic?n===0?0:i.fundamentalFrequency/n:i.fundamentalFrequency*n}function fe(n,e,t=!1){let r=`harmonic_${n}`;if(t){T.setImmediate(r,e),i.harmonicAmplitudes[n]=e,I();return}T.smoothTo(r,e,o=>{i.harmonicAmplitudes[n]=o,I()},.8)}function ge(n){T.smoothTo("master_gain",n,async e=>{i.masterGainValue=e;let{updateAudioProperties:t}=await Promise.resolve().then(()=>(E(),et));t()},.8)}function Dt(n,e=null){nt=n,T.debounce("systemChange",35,async()=>{let t=nt;if(t===null)return;let{setCurrentSystem:r}=await Promise.resolve().then(()=>(A(),St)),{updateAudioProperties:o}=await Promise.resolve().then(()=>(E(),et));r(t),i.isPlaying&&o(),e&&e(),nt=null})}var nt,O=f(()=>{A();oe();oe();E();nt=null});var H,V,U,W,D,we,F=f(()=>{H="drawbar-change",V="drawbars-randomized",U="drawbars-reset",W="spectral-system-changed",D="subharmonic-toggled",we="routing-mode-changed"});var C,ve=f(()=>{A();O();F();C={setDrawbar(n,e){let t=i.harmonicAmplitudes;t&&t.length>n&&t[n]!==e&&(t[n]=e,v({harmonicAmplitudes:t}),fe(n,e),document.dispatchEvent(new CustomEvent(H,{detail:{index:n,value:e}})))},randomize(){let n=i.harmonicAmplitudes.map((e,t)=>t===0?.5+Math.random()*.5:Math.random());v({harmonicAmplitudes:n}),n.forEach((e,t)=>{fe(t,e)}),document.dispatchEvent(new Event(V))},reset(){let e=(i.harmonicAmplitudes||[]).map((t,r)=>r===0?1:0);v({harmonicAmplitudes:e}),e.forEach((t,r)=>{fe(r,t,!0)}),document.dispatchEvent(new Event(U))}}});var S,z=f(()=>{S=class{constructor(e){if(typeof this.createComponent!="function")throw new Error("Subclass must implement createComponent(selector)");if(this.selector=e,this.component=this.createComponent(e),!this.component)throw new Error("createComponent() must return a component instance")}init(){this.bindComponentEvents(),this.bindExternalEvents(),this.update()}getProps(){throw new Error("Subclass must implement getProps()")}update(){let e=this.getProps();return this.component.teardown&&this.component.teardown(),this.component.render(e),typeof this.component.bindRenderedEvents=="function"&&this.component.bindRenderedEvents(),e}bindComponentEvents(){}bindExternalEvents(){}destroy(){this.component.teardown&&this.component.teardown()}}});var _n,Rn,be,Ft=f(()=>{Et();ve();F();z();A();_n="reset-drawbars-button",Rn="randomize-drawbars-button",be=class extends S{createComponent(e){return new se(e)}bindComponentEvents(){this.component.onChange=(e,t)=>{C.setDrawbar(e,t)}}updateDrawbar({index:e,value:t}){this.component.updateSingleDrawbar(e,t)}reset(){C.reset()}randomize(){C.randomize()}bindExternalEvents(){document.addEventListener(H,e=>this.updateDrawbar(e.detail)),document.addEventListener(V,()=>this.update()),document.addEventListener(U,()=>this.update()),document.addEventListener(W,()=>this.update()),document.addEventListener(D,()=>this.update()),document.getElementById(_n)?.addEventListener("click",()=>{this.reset()}),document.getElementById(Rn)?.addEventListener("click",()=>{this.randomize()})}getProps(){return{isSubharmonic:i.isSubharmonic}}}});var ye,_t=f(()=>{E();A();F();O();ye={toggleSubharmonic(){let n=!i.isSubharmonic;v({isSubharmonic:n}),document.dispatchEvent(new CustomEvent(D,{detail:{isSubharmonic:n}}))},setSystem(n){v({currentSystem:L[n]});let e=i.currentSystem.ratios.length,t=i.harmonicAmplitudes||[],r=[];for(let o=0;o<e;o++)r[o]=typeof t[o]=="number"?t[o]:o===0?1:0;for(let o=t.length;o<e;o++)r[o]=o===0?1:0;i.harmonicAmplitudes=r,Dt(n),document.dispatchEvent(new CustomEvent(W,{detail:{index:n,system:i.currentSystem}}))},updateAudio(){I()}}});var Ln,Ae,Rt=f(()=>{B();Ln="#ratio-system-select",Ae=class extends x{constructor(t){super(t);gt(this,"_subharmonicToggleHandler",null);this.onChange=null,this.onSubharmonicToggle=null}render({systems:t,currentSystem:r,isSubharmonic:o}){let a=this.q("#ratio-system-select"),s=this.q("#system-description");if(a){for(;a.firstChild;)a.removeChild(a.firstChild);t.forEach((c,l)=>{let u=document.createElement("option");u.textContent=c.name,u.value=l,c===r&&(u.selected=!0),a.appendChild(u)}),this.updateContent(s,r?.description||"",{asHTML:!0}),this.renderSubharmonicToggle({isSubharmonic:o})}}updateSelector({currentSystem:t,systems:r}){let o=this.q("#ratio-system-select");if(!o)return;let a=r.findIndex(s=>s===t);a>=0&&(o.value=a)}bindComponentEvents(){let t=this.q(Ln);t&&(this._selectChangeHandler&&t.removeEventListener("change",this._selectChangeHandler),this._selectChangeHandler=r=>{let o=parseInt(r.target.value);console.log("[SpectralSystemComponent] Dropdown changed:",o),this.onChange?.(o),r.target.setAttribute("aria-valuenow",o)},t.addEventListener("change",this._selectChangeHandler))}renderSubharmonicToggle({isSubharmonic:t}){let r=this.q("#subharmonic-toggle");r&&(r.classList.toggle("active",t),r.setAttribute("aria-checked",t),this._subharmonicToggleHandler&&r.removeEventListener("click",this._subharmonicToggleHandler),this._subharmonicToggleHandler=o=>{this.onSubharmonicToggle?.()},r.addEventListener("click",this._subharmonicToggleHandler))}}});var xe,Lt=f(()=>{z();_t();Rt();A();F();xe=class extends S{init(){super.init(),this.component.bindComponentEvents()}update(){let e=super.update();this.component.updateSelector(e)}createComponent(e){return new Ae(e)}getProps(){return{systems:L,currentSystem:i.currentSystem,isSubharmonic:i.isSubharmonic}}bindComponentEvents(){this.component.onChange=e=>{ye.setSystem(e)},this.component.onSubharmonicToggle=()=>{ye.toggleSubharmonic()},typeof this.component.bindComponentEvents=="function"&&this.component.bindComponentEvents()}bindExternalEvents(){document.addEventListener(W,()=>{this.update()}),document.addEventListener(D,()=>{typeof this.component.renderSubharmonicToggle=="function"&&this.component.renderSubharmonicToggle({isSubharmonic:i.isSubharmonic}),this.update(),ye.updateAudio()})}}});function kn(){return function(n){i.p5Instance=n,n.setSpreadFactor=function(s){rt=s},n.getSpreadFactor=function(){return rt},n.setup=function(){let s=document.getElementById("tonewheel-canvas"),c=s?s.clientWidth:800,l=c;c===0&&(c=window.innerWidth<640?320:800,l=c,console.warn("Canvas container width was 0, using fallback width:",c)),n.createCanvas(c,l).parent(s?"tonewheel-canvas":"body"),n.angleMode(n.RADIANS),e()};function e(){let s=n.height*He.RADIAL;ot=n.min(n.width,s)*(1-kt)*.45,Se=n.min(n.width,s)*kt}n.updateDimensions=e,n.customWaveTables={},n.precomputeCustomWaveTable=function(s){let l=new Float32Array(512);for(let u=0;u<512;u++){let d=u/512*n.TWO_PI,m=0;for(let h=1;h<s.real.length&&h<s.imag.length;h++)m+=s.real[h]*n.cos(h*d)+s.imag[h]*n.sin(h*d);l[u]=m}return l},n.clearCustomWaveCache=function(){n.customWaveTables={}};function t({harmonicAmplitudes:s,baseRadius:c,maxLaneHeight:l}){let u=s.map((g,b)=>({amp:g,idx:b})).filter(g=>g.amp>0),d=u.length,m=new Array(s.length),h=l/d,p=c;for(let g=0;g<d;g++){let b=u[g].idx;m[b]=p,p+=h}return m}function r(){n.push(),n.translate(n.width/2,n.height/2),n.noFill(),n.stroke("#374151"),n.ellipse(0,0,Se*2,Se*2);let s=360,c=i.visualizationFrequency*n.TWO_PI/60,l=n.frameCount*c;a(s,l),n.pop()}let o=(s,c)=>i.isSubharmonic?c/s:c*s;function a(s,c){let l=i.currentWaveform,u=i.harmonicAmplitudes.length,d=t({harmonicAmplitudes:i.harmonicAmplitudes,baseRadius:Se,maxLaneHeight:ot});for(let m=0;m<u;m++){let h=i.harmonicAmplitudes[m];if(h<=.001)continue;let p=i.currentSystem.ratios[m],g=d[m],R=.45*(ot/u)*rt*h;n.stroke(n.color(Ve[m]+"99")),n.strokeWeight(2),n.noFill(),n.beginShape();for(let j=0;j<s;j++){let M=n.map(j,0,s,0,n.TWO_PI),re=o(p,M),hn=Ee(l,re,i.customWaveCoefficients?.[l]),ht=M+c,pt=g+hn*R,pn=pt*n.cos(ht),fn=pt*n.sin(ht);n.vertex(pn,fn)}n.endShape(n.CLOSE)}}n.draw=function(){n.clear(),e(),r()},n.windowResized=function(){let s=document.getElementById("tonewheel-canvas"),c=s?s.clientWidth:800,l=c;c===0&&(c=window.innerWidth<640?320:800,l=c),n.resizeCanvas(c,l),e()}}}function Ee(n,e,t){if(n&&n.startsWith("custom")){let r=n;!at.has(r)&&t&&at.set(r,Xe(t,Bn));let o=at.get(r);if(!o)return Math.sin(e);let s=e%(2*Math.PI)/(2*Math.PI)*(o.length-1),c=Math.floor(s),l=Math.ceil(s),u=s-c;return c===l?o[c]:o[c]*(1-u)+o[l]*u}switch(n){case"sine":return Math.sin(e);case"square":{let r=0,o=16;for(let a=1;a<o*2;a+=2)r+=1/a*Math.sin(e*a);return r*(4/Math.PI)*.7}case"sawtooth":{let r=0,o=16;for(let a=1;a<=o;a++)r+=1/a*Math.sin(e*a);return r*(2/Math.PI)*.7}case"triangle":{let r=0,o=16;for(let a=1;a<o*2;a+=2){let s=(a-1)/2%2===0?1:-1;r+=s/(a*a)*Math.sin(e*a)}return r*(8/(Math.PI*Math.PI))*.7}default:return Math.sin(e)}}var rt,Se,ot,kt,$,at,Bn,Ce=f(()=>{A();E();rt=1,kt=.08,$={initVisualization(){if(p5){let n=kn();return new p5(n,"tonewheel-canvas")}return null},setVisualizationFrequency(n){v({visualizationFrequency:n})},setSpreadFactor(n){i.p5Instance&&i.p5Instance.setSpreadFactor&&i.p5Instance.setSpreadFactor(n)},getSpreadFactor(){return i.p5Instance&&i.p5Instance.getSpreadFactor?i.p5Instance.getSpreadFactor():.2},clearCustomWaveCache(){i.p5Instance&&i.p5Instance.clearCustomWaveCache&&i.p5Instance.clearCustomWaveCache()}};at=new Map,Bn=512});function Bt(n){let e=n.target.value;v({currentWaveform:e}),document.dispatchEvent(new CustomEvent(Me,{detail:{currentWaveform:e}})),i.isPlaying&&he()}function Ot(n,e){q(n,e).then(t=>{(t.buffer||t).length>0&&On(t)}).catch(t=>{console.error("Failed to sample waveform for adding:",t),w("Failed to sample waveform for adding","error")})}async function On(n){let e=n.buffer||n,t=n.periodMultiplier||1;if(e.length===0){w("Warning: Cannot add empty waveform data.","warning");return}try{let{waveKey:r,coefficients:o,periodicWave:a}=await Je(e,t,i),s=Nn(i,r,o,a,t);Gn(i,r,s),document.dispatchEvent(new CustomEvent(Me))}catch(r){w(`Failed to add waveform: ${r.message}`,"error")}}function Nn(n,e,t,r,o){return n.blWaveforms[e]=r,n.customWaveCoefficients||(n.customWaveCoefficients={}),n.customWaveCoefficients[e]=t,n.customWaveCount=(n.customWaveCount||0)+1,n.customWavePeriodMultipliers||(n.customWavePeriodMultipliers={}),n.customWavePeriodMultipliers[e]=o,$.clearCustomWaveCache(),n.customWaveCount}function Gn(n,e,t){let r=document.getElementById("waveform-select");if(!r)return;let o=pe(),a=`${o.noteLetter}-${o.waveform}-${o.systemName}-${o.levels}`+(o.subharmonicFlag?`-${o.subharmonicFlag}`:""),s=document.createElement("option");s.textContent=`Custom ${t}: ${a}`,s.value=e,r.appendChild(s),v({currentWaveform:e}),r.value=e,w(`Successfully added new waveform: Custom ${t}. Now synthesizing with it!`,"success"),n.isPlaying&&he()}var Me,Te=f(()=>{E();A();k();O();Ce();Me="currentWaveformChanged"});function qn(n,e){return n*e/Nt(n,e)}function Nt(n,e){return e===0?n:Nt(e,n%e)}function Hn(n){return n.reduce((e,t)=>qn(e,t),1)}function Vn(n){return function(e){n._waveformP5=e,e.setup=function(){let t=n.el,r=t?.clientWidth||400;e.createCanvas(r,150).parent(t),e.noLoop()},e.windowResized=function(){let r=n.el?.clientWidth||400;e.resizeCanvas(r,150),e.redraw()},e.draw=function(){let t=n.props;if(!t?.p5Instance||!t.harmonicAmplitudes?.length)return;let r=e.width,o=e.height,a=o*.4;if(e.background("#0d131f"),e.stroke("#374151"),e.strokeWeight(1),e.line(0,o/2,r,o/2),e.stroke("#10b981"),e.strokeWeight(2),e.noFill(),e.beginShape(),t.mode==="single")for(let s=0;s<r;s++){let c=e.map(s,0,r,0,e.TWO_PI*2),l=t.currentSystem.ratios[0],u=Ee(t.currentWaveform,l*c,t.customWaveCoefficients?.[t.currentWaveform]),d=o/2-u*a;e.vertex(s,d)}else{let s=2;if(t.isSubharmonic){let l=t.currentSystem.ratios.map((u,d)=>t.harmonicAmplitudes[d]>.001?Math.round(u):null).filter(Boolean);l.length>0&&(s=Hn(l),s=Math.min(s,32))}let c=e.TWO_PI*s/r;for(let l=0;l<r;l++){let u=l*c,d=0,m=0;for(let p=0;p<t.harmonicAmplitudes.length;p++){let g=t.harmonicAmplitudes[p]||0;if(g>.001){let b=t.currentSystem.ratios[p],R=t.isSubharmonic?u/b:b*u;d+=Ee(t.currentWaveform,R,n.props.customWaveCoefficients?.[t.currentWaveform])*g,m+=g}}let h=o/2-d/(m||1)*a;e.vertex(l,h)}}e.endShape()}}}var Q,Gt=f(()=>{B();Ce();Q=class extends x{constructor(e){super(e),this._waveformP5=null,this.props={}}render(e){if(this.props=e,this.teardown(),!e.p5Instance){requestAnimationFrame(()=>this.render(e));return}let t=Vn(this);this._waveformP5=new p5(t,this.el)}teardown(){this._waveformP5?.remove&&(this._waveformP5.remove(),this._waveformP5=null),super.teardown?.()}}});var ee,qt=f(()=>{A();F();z();Te();Gt();ee=class extends S{constructor(e,t={}){super(e),this.mode=t.mode||"sum"}createComponent(e){return new Q(e)}getProps(){let{p5Instance:e,harmonicAmplitudes:t,currentSystem:r,currentWaveform:o,customWaveCoefficients:a,isSubharmonic:s}=i;return{p5Instance:e,harmonicAmplitudes:t,currentSystem:r,currentWaveform:o,customWaveCoefficients:a,isSubharmonic:s,mode:this.mode}}bindExternalEvents(){document.addEventListener(U,()=>this.update()),document.addEventListener(W,()=>this.update()),document.addEventListener(D,()=>this.update()),document.addEventListener(H,()=>this.update()),document.addEventListener(V,()=>this.update()),document.addEventListener(Me,()=>this.update())}}});var Pe,Ht=f(()=>{B();Pe=class extends x{constructor(e){super(e),this.onRoutingChange=null,this.onDownload=null}render({routingMode:e}){this.renderRoutingMode({routingMode:e})}renderRoutingMode({routingMode:e}){let t=document.getElementById("routing-mode-select");t&&(t.value=e)}bindRenderedEvents(){let e=document.getElementById("routing-mode-select");e&&this.bindEvent(e,"change",o=>{this.onRoutingChange?.(o.target.value)});let t=document.getElementById("export-wav-button");t&&this.bindEvent(t,"click",()=>{this.onDownload?.()});let r=document.getElementById("add-wave-button");r&&this.bindEvent(r,"click",()=>{this.onAddToWaveforms?.()})}setRoutingMode(e){let t=document.getElementById("routing-mode-select");t&&(t.value=e)}}});var it,Vt=f(()=>{E();A();k();F();it={setRoutingMode(n){i.audioRoutingMode!==n&&(v({audioRoutingMode:n}),document.dispatchEvent(new CustomEvent(we,{detail:{mode:n}})))},handleExportWAV(n,e){q(n,e).then(t=>{Ze(t,1)}).catch(t=>{console.error("Failed to sample waveform for export:",t),w("Failed to sample waveform for export","error")})}}});var Ie,Ut=f(()=>{z();Ht();Vt();A();F();Te();Ie=class extends S{createComponent(e){return new Pe(e)}getProps(){return{routingMode:i.audioRoutingMode,isSubharmonic:i.isSubharmonic}}bindComponentEvents(){this.component.onRoutingChange=e=>{it.setRoutingMode(e)},this.component.onDownload=()=>{let{routingMode:e,isSubharmonic:t}=this.getProps();it.handleExportWAV(e,t)},this.component.onAddToWaveforms=()=>{let{routingMode:e,isSubharmonic:t}=this.getProps();Ot(e,t)}}bindExternalEvents(){document.addEventListener(we,()=>this.update())}}});var We,zt=f(()=>{We=class{static init(){let e=document.getElementById("help-button"),t=document.getElementById("help-modal"),r=document.getElementById("close-help-modal");!e||!t||!r||(e.addEventListener("click",()=>{t.classList.remove("hidden")}),r.addEventListener("click",()=>{t.classList.add("hidden")}),t.addEventListener("click",o=>{o.target===t&&t.classList.add("hidden")}),document.addEventListener("keydown",o=>{!t.classList.contains("hidden")&&(o.code==="Escape"||o.code==="Enter")&&t.classList.add("hidden")}))}}});var De={};Ne(De,{UIStateManager:()=>K});var K,te=f(()=>{A();Re();E();K=class n{static getState(){return i}static setFundamentalByMidi(e){let t=Math.min(127,e),r=n.midiToFreq(t),o=Math.floor(t/12)-1;v({currentMidiNote:t,fundamentalFrequency:r,currentOctave:o}),Fe(),_e(),I()}static setFundamentalByFrequency(e){let t=Math.round(n.freqToMidi(e));n.setFundamentalByMidi(t)}static midiToFreq(e){return 440*Math.pow(2,(e-69)/12)}static freqToMidi(e){return 69+12*Math.log2(e/440)}}});var Le,$t=f(()=>{ve();Re();te();Le=class{constructor(){this.focusedDrawbar=null}init(){document.addEventListener("keydown",e=>{if(e.code==="Space"){e.preventDefault(),st();return}let r=["KeyA","KeyS","KeyD","KeyF","KeyG","KeyH","KeyJ","KeyK","KeyL","Semicolon","Quote","Backslash"].indexOf(e.code);if(r!==-1){let c=((K.getState()?.currentOctave??3)+1)*12;K.setFundamentalByMidi(c+r);return}let a=["Digit1","Digit2","Digit3","Digit4","Digit5","Digit6","Digit7","Digit8","Digit9","Digit0","Minus","Equal"].indexOf(e.code);if(a!==-1){let s=document.querySelectorAll("#drawbars .drawbar-slider");s[a]&&(s[a].focus(),this.focusedDrawbar=s[a]);return}if(this.focusedDrawbar){let s=document.querySelectorAll("#drawbars .drawbar-slider"),c=parseInt(this.focusedDrawbar.dataset.index);if(e.code==="ArrowLeft"||e.code==="ArrowRight"){e.preventDefault();let l=e.code==="ArrowLeft"?-1:1,u=(c+l+s.length)%s.length;s[u].focus(),this.focusedDrawbar=s[u];return}if(e.shiftKey&&(e.code==="ArrowUp"||e.code==="ArrowDown")){e.preventDefault();let l=e.code==="ArrowUp"?1:0;this.focusedDrawbar.value=l.toFixed(2),C.setDrawbar(c,l);return}if(e.code==="ArrowUp"||e.code==="ArrowDown"){e.preventDefault();let l=e.metaKey||e.ctrlKey?.1:.01,u=parseFloat(this.focusedDrawbar.value)+(e.code==="ArrowUp"?l:-l),d=Math.max(0,Math.min(1,u));this.focusedDrawbar.value=d.toFixed(2),C.setDrawbar(c,d);return}}!this.focusedDrawbar&&(e.ctrlKey||e.metaKey)&&(e.code==="ArrowUp"?(e.preventDefault(),window.changeOctave?.(1)):e.code==="ArrowDown"&&(e.preventDefault(),window.changeOctave?.(-1)))})}}});var ne,Kt=f(()=>{B();ne=class extends x{constructor(e){super(e),this.input=null,this.labelEl=null}render(e={}){this.teardown(),this.props=e,this.el.innerHTML="",e.label&&(this.labelEl=document.createElement("label"),this.labelEl.textContent=e.label,this.labelEl.className="slider-label text-blue-300 text-xs md:text-sm font-medium mr-1",this.el.appendChild(this.labelEl)),this.input=document.createElement("input"),this.input.type="range",this.input.min=e.min??0,this.input.max=e.max??1,this.input.step=e.step??.01,this.input.value=e.value??0,this.input.className="slider-input w-16 md:w-24 accent-blue-400 bg-transparent rounded h-1 mx-1",this.el.appendChild(this.input),this.valueDisplay=document.createElement("span"),this.valueDisplay.className="slider-value text-blue-300 text-xs md:text-sm font-medium mr-1 min-w-12";let t=typeof e.formatValue=="function"?e.formatValue:r=>r;this.valueDisplay.textContent=t(e.value??""),this.el.appendChild(this.valueDisplay),typeof e.onChange=="function"&&this.bindEvent(this.input,"input",r=>{this.valueDisplay.textContent=t(r.target.value),e.onChange(parseFloat(r.target.value))})}teardown(){super.teardown(),this.input=null,this.labelEl=null,this.valueDisplay=null}}});var jt,Yt=f(()=>{jt={clamp(n,e,t){return Math.max(e,Math.min(t,n))}}});var _,ct=f(()=>{Kt();Yt();_=class{constructor(e,t={},r=null){this.component=new ne(e),this.props=t,this.onChange=r}init(){this.render(this.props)}render(e={}){this.props=e,this.component.render({...e,onChange:t=>{typeof this.onChange=="function"&&this.onChange(t)}})}setValue(e){let t=jt.clamp(e,this.props.min,this.props.max);this.render({...this.props,value:t})}teardown(){this.component.teardown()}}});var ke,Zt=f(()=>{B();ke=class extends x{constructor(e){super(e),this.canvasId="tonewheel-canvas"}render(e){let t=this.el;if(!t)return;let r=t.querySelector("canvas");r&&r.remove(),this._p5Instance&&this._p5Instance.remove&&(this._p5Instance.remove(),this._p5Instance=null);let o=document.createElement("div");o.id=this.canvasId,t.appendChild(o),e&&e.p5Instance&&(this._p5Instance=e.p5Instance,this._p5Instance.canvas&&this._p5Instance.canvas.parentNode!==o&&o.appendChild(this._p5Instance.canvas))}teardown(){this._p5Instance&&this._p5Instance.remove&&(this._p5Instance.remove(),this._p5Instance=null);let e=this.el.querySelector(`#${this.canvasId}`);e&&e.remove(),super.teardown?.()}}});var Jt,Xt,Be,Qt=f(()=>{A();k();ct();z();Zt();Ce();Be=class extends S{init(){super.init(),Jt=new _("#spread-slider-root",{min:0,max:1,step:.01,value:i.spreadFactor??.2,label:"Gain"},e=>{$.setSpreadFactor(e),N("spread-value",`${(e*100).toFixed(0)}%`)}),Jt.init(),Xt=new _("#viz-freq-slider-root",{min:.1,max:20,step:.1,value:i.visualizationFrequency??1,label:"Rate"},e=>{$.setVisualizationFrequency(e),N("viz-freq-value",`${e.toFixed(1)} Hz`)}),Xt.init()}createComponent(e){return new ke(e)}getProps(){let e=null;return e=$.initVisualization(),{p5Instance:e}}bindComponentEvents(){}bindExternalEvents(){}}});var Oe,en=f(()=>{O();ve();Oe=class{constructor(){this.lastCC={}}async init(){let e=await navigator.requestMIDIAccess();for(let t of e.inputs.values())t.onmidimessage=r=>this.route(r)}route(e){let[t,r,o]=e.data;if((t&240)===176)return this.handleCC(r,o);let s=(t&240)===144&&o>0,c=(t&240)===128||o===0;if(s)return this.handleNoteOn(r,o);if(c)return this.handleNoteOff(r)}handleCC(e,t){let r=t/127;switch(e){case 7:ge(r);break;case 10:break;default:break}this.lastCC[e]!==t&&(this.lastCC[e]=t,e>19&&e<32&&C.setDrawbar(e-20,r))}handleNoteOn(e,t){}handleNoteOff(e){}}});function mn(){Yn(),Zn(),Jn(),Qn(),nr(),Un(),zn(),Kn(),jn(),Fe(),_e(),We.init(),new Le().init(),setTimeout(()=>{new Oe().init()},2e3)}function Un(){tn=new be("#drawbars"),tn.init()}function zn(){nn=new xe("#spectral-system-root"),nn.init(),$n()}function $n(){sn=new Be("#tonewheel-container"),sn.init()}function Kn(){on=new ee("#waveform-canvas-area"),on.init(),rn=new ee("#current-waveform-canvas-area",{mode:"single"}),rn.init()}function jn(){an=new Ie("#routing-control-root"),an.init()}function Yn(){ie("play-toggle","click",st)}function Zn(){cn=new _("#master-gain-slider-root",{min:0,max:1,step:.01,value:i.masterGainValue,label:"Gain",formatValue:n=>`${(n*100).toFixed(0)}%`},n=>{ge(n)}),cn.init(),ln=new _("#master-slew-slider-root",{min:0,max:10,step:.01,value:i.masterSlewValue,label:"Slew",formatValue:n=>{n=parseFloat(n);let e=(n*1e3).toFixed(0),t="ms";return n>1&&(e=n.toFixed(2),t="s"),`${e}${t}`}},n=>{v({masterSlewValue:n})}),ln.init()}async function st(){let n=document.getElementById("play-toggle"),e=document.getElementById("play-label");if(i.isPlaying)de(),n.classList.remove("active"),n.setAttribute("aria-checked","false"),e.textContent="Play";else try{await me(),n.classList.add("active"),n.setAttribute("aria-checked","true"),e.textContent="Stop"}catch(t){console.error("Failed to start tone:",t),w("Failed to start audio. Please check browser permissions.","error")}}function Jn(){let n=document.getElementById("fundamental-input");n&&n.addEventListener("change",Xn),ie("octave-down","click",()=>un(-1)),ie("octave-up","click",()=>un(1))}function Xn(n){let e=parseFloat(n.target.value);(isNaN(e)||e<.01||e>1e4)&&(w("Frequency must be between 0.01 Hz and 10000 Hz.","error"),e=i.fundamentalFrequency),Promise.resolve().then(()=>(te(),De)).then(({UIStateManager:t})=>{t.setFundamentalByFrequency(e),n.target.value=e.toFixed(2)})}function un(n){Promise.resolve().then(()=>(te(),De)).then(({UIStateManager:e})=>{let r=e.getState().currentMidiNote+n*12;e.setFundamentalByMidi(r)})}function Fe(){$e("fundamental-input",i.fundamentalFrequency.toFixed(2)),N("current-octave-display",`Octave ${i.currentOctave}`)}function Qn(){let n=document.getElementById("piano-keyboard");if(!n)return;let e=[{name:"C",class:"white",index:0},{name:"C#",class:"black",index:1},{name:"D",class:"white",index:2},{name:"D#",class:"black",index:3},{name:"E",class:"white",index:4},{name:"F",class:"white",index:5},{name:"F#",class:"black",index:6},{name:"G",class:"white",index:7},{name:"G#",class:"black",index:8},{name:"A",class:"white",index:9},{name:"A#",class:"black",index:10},{name:"B",class:"white",index:11}];n.innerHTML="",e.forEach(t=>{let r=document.createElement("div");r.className=`key ${t.class}`,r.textContent=t.name,r.dataset.noteIndex=t.index,r.addEventListener("click",()=>er(t.index)),n.appendChild(r)})}function er(n){Promise.resolve().then(()=>(te(),De)).then(({UIStateManager:e})=>{let o=(e.getState().currentOctave+1)*12+n;e.setFundamentalByMidi(o)})}function _e(){document.querySelectorAll(".key").forEach(r=>r.classList.remove("active"));let e=i.currentMidiNote%12;e<0&&(e+=12);let t=document.querySelector(`.key[data-note-index="${e}"]`);t&&t.classList.add("active")}function tr(){N("system-description",i.currentSystem.description,!0)}function nr(){let n=document.getElementById("waveform-select");n&&n.addEventListener("change",Bt)}function lt(){Fe(),_e(),tr();let n=document.getElementById("play-button");n&&(n.textContent=i.isPlaying?"Stop Tone":"Start Tone",n.classList.toggle("playing",i.isPlaying)),$e("waveform-select",i.currentWaveform)}var tn,nn,rn,on,an,sn,cn,ln,Re=f(()=>{A();k();Ft();Lt();qt();Te();Ut();zt();$t();Qt();E();O();ct();en()});A();oe();Re();k();var ut=class{constructor(){this.interval=null,this.faviconId="dynamic-favicon"}start(){this.interval||(this.updateFavicon(),this.interval=setInterval(()=>this.updateFavicon(),100))}stop(){this.interval&&(clearInterval(this.interval),this.interval=null)}updateFavicon(){let e=document.getElementById("tonewheel-container");if(!e)return;let t=e.querySelector("canvas");if(t)try{let o=document.createElement("canvas");o.width=128,o.height=128;let a=o.getContext("2d"),s=t.width,c=t.height,l=s*.25,u=c*.25,d=s*.5,m=c*.5;a.drawImage(t,l,u,d,m,0,0,128,128);let h=a.getImageData(0,0,128,128);this.increaseBrightness(h.data,128),this.increaseContrast(h.data,8),a.putImageData(h,0,0);let p=o.toDataURL("image/png");this.setFavicon(p)}catch{}}increaseBrightness(e,t=128){for(let r=0;r<e.length;r+=4)for(let o=0;o<3;o++)e[r+o]=Math.max(0,Math.min(255,e[r+o]+t))}increaseContrast(e,t=1.2){for(let o=0;o<e.length;o+=4)for(let a=0;a<3;a++)e[o+a]=Math.max(0,Math.min(255,128+t*(e[o+a]-128)))}setFavicon(e){let t=document.getElementById(this.faviconId);t||(t=document.createElement("link"),t.id=this.faviconId,t.rel="icon",document.head.appendChild(t)),t.type="image/png",t.href=e}},mt=new ut;typeof window<"u"&&window.addEventListener("DOMContentLoaded",()=>mt.start());E();function rr(){try{mn(),mt.start(),lt()}catch(n){console.error("Failed to initialize application:",n),w("Failed to initialize application. Please refresh the page.","error")}}function or(){window.addEventListener("error",n=>{console.error("Application error:",n.error),w("An unexpected error occurred. Please check the console.","error")}),window.addEventListener("unhandledrejection",n=>{console.error("Unhandled promise rejection:",n.reason),w("A promise was rejected. Please check the console.","error")})}function dt(){try{T.clear(),i.isPlaying&&i.audioContext&&i.oscillators.forEach(n=>{n.osc&&(n.osc.stop(),n.osc.disconnect(),n.gainNode.disconnect())}),i.audioContext&&i.audioContext.state!=="closed"&&i.audioContext.close(),console.log("Application cleaned up successfully")}catch(n){console.error("Error during cleanup:",n)}}function ar(){window.addEventListener("beforeunload",dt),window.addEventListener("pagehide",dt)}function ir(){window.performance&&window.performance.mark&&setInterval(()=>{if(i.audioContext&&i.isPlaying){let n=i.audioContext.currentTime,e=i.oscillators.length;Math.floor(n)%30===0&&console.log(`Audio performance: ${e} oscillators, context time: ${n.toFixed(2)}s`)}},1e3)}function sr(){let n=[];if(!window.AudioContext&&!window.webkitAudioContext&&n.push("Web Audio API not supported"),window.Promise||n.push("ES6 Promises not supported"),n.length>0){let e=`Browser compatibility issues: ${n.join(", ")}. Please use a modern browser.`;return w(e,"error"),console.error(e),!1}if(!navigator.requestMIDIAccess){let e="Web MIDI API not supported in this browser. MIDI functionality will be disabled.";w(e,"warning"),console.warn(e)}return!0}function dn(){or(),sr()&&(ar(),ir(),rr())}window.TWIG={getState:()=>i,getAudioCtx:()=>Ye().getContext(),updateUI:lt,showStatus:w,cleanup:dt};document.readyState==="loading"?document.addEventListener("DOMContentLoaded",dn):dn();
+var __defProp = Object.defineProperty;
+var __getOwnPropNames = Object.getOwnPropertyNames;
+var __esm = (fn, res) => function __init() {
+  return fn && (res = (0, fn[__getOwnPropNames(fn)[0]])(fn = 0)), res;
+};
+var __export = (target, all) => {
+  for (var name in all)
+    __defProp(target, name, { get: all[name], enumerable: true });
+};
+
+// js/config.js
+var config_exports = {};
+__export(config_exports, {
+  AppState: () => AppState,
+  BASE_OCTAVE_MIDI: () => BASE_OCTAVE_MIDI,
+  CANVAS_HEIGHT_RATIOS: () => CANVAS_HEIGHT_RATIOS,
+  DEFAULT_FUNDAMENTAL: () => DEFAULT_FUNDAMENTAL,
+  DEFAULT_MASTER_GAIN: () => DEFAULT_MASTER_GAIN,
+  DEFAULT_MASTER_SLEW: () => DEFAULT_MASTER_SLEW,
+  DEFAULT_MIDI_NOTE: () => DEFAULT_MIDI_NOTE,
+  DEFAULT_OCTAVE: () => DEFAULT_OCTAVE,
+  DRAWBAR_STYLES: () => DRAWBAR_STYLES,
+  HARMONIC_COLORS: () => HARMONIC_COLORS,
+  MIDI_NOTE_NAMES: () => MIDI_NOTE_NAMES,
+  NUM_HARMONICS: () => NUM_HARMONICS,
+  VISUAL_HARMONIC_TERMS: () => VISUAL_HARMONIC_TERMS,
+  WAVETABLE_SIZE: () => WAVETABLE_SIZE,
+  getCurrentSystem: () => getCurrentSystem,
+  getHarmonicAmplitude: () => getHarmonicAmplitude,
+  resetHarmonicAmplitudes: () => resetHarmonicAmplitudes,
+  setCurrentSystem: () => setCurrentSystem,
+  setHarmonicAmplitude: () => setHarmonicAmplitude,
+  spectralSystems: () => spectralSystems,
+  updateAppState: () => updateAppState
+});
+function updateAppState(updates) {
+  Object.assign(AppState, updates);
+}
+function resetHarmonicAmplitudes() {
+  AppState.harmonicAmplitudes.fill(0);
+  AppState.harmonicAmplitudes[0] = 1;
+}
+function getCurrentSystem() {
+  return AppState.currentSystem;
+}
+function setCurrentSystem(systemIndex) {
+  AppState.currentSystem = spectralSystems[systemIndex];
+}
+function getHarmonicAmplitude(index) {
+  return AppState.harmonicAmplitudes[index] || 0;
+}
+function setHarmonicAmplitude(index, amplitude) {
+  if (index >= 0 && index < AppState.harmonicAmplitudes.length) {
+    AppState.harmonicAmplitudes[index] = amplitude;
+  }
+}
+var spectralSystems, MIDI_NOTE_NAMES, DEFAULT_FUNDAMENTAL, DEFAULT_MIDI_NOTE, DEFAULT_OCTAVE, BASE_OCTAVE_MIDI, WAVETABLE_SIZE, NUM_HARMONICS, DEFAULT_MASTER_GAIN, DEFAULT_MASTER_SLEW, VISUAL_HARMONIC_TERMS, CANVAS_HEIGHT_RATIOS, HARMONIC_COLORS, DRAWBAR_STYLES, AppState;
+var init_config = __esm({
+  "js/config.js"() {
+    spectralSystems = [
+      // 1
+      {
+        name: "1. Harmonic Overtone Series (Integer)",
+        description: 'Classic harmonic series (exact integer partials). Use for natural, consonant spectra (e.g. voiced instruments, organ-like timbres). See the harmonic-series background: <a href="https://en.wikipedia.org/wiki/Harmonic_series_(music)">Wikipedia \u2014 Harmonic series</a>.',
+        // exact integer partials expressed as math
+        ratios: [1 / 1, 2 / 1, 3 / 1, 4 / 1, 5 / 1, 6 / 1, 7 / 1, 8 / 1, 9 / 1, 10 / 1, 11 / 1, 12 / 1],
+        labels: ["1:1", "2:1", "3:1", "4:1", "5:1", "6:1", "7:1", "8:1", "9:1", "10:1", "11:1", "12:1"],
+        labelPrecision: 1
+      },
+      // 2
+      {
+        name: "2. Spectral Progressive Detuned Harmonics (Microtonal)",
+        description: "Progressive microtonal detuning of the integer harmonic series. Detuning increases with partial index to produce time-varying beating and spectral shimmer (useful for spectral / ambient textures). This is an intentional synthesis choice rather than a canonical acoustic law.",
+        // progressive detune with explicit fractional offsets
+        ratios: [
+          1 / 1,
+          2 + 1 / 100,
+          // 2 + 0.01
+          3 + 2 / 100,
+          // 3.02
+          4 + 3 / 100,
+          // 4.03
+          5 + 4 / 100,
+          // 5.04
+          6 + 5 / 100,
+          // 6.05
+          7 + 6 / 100,
+          // 7.06
+          8 + 8 / 100,
+          // 8.08
+          9 + 10 / 100,
+          // 9.10
+          10 + 12 / 100,
+          // 10.12
+          11 + 14 / 100,
+          // 11.14
+          12 + 16 / 100
+          // 12.16
+        ],
+        labels: ["1/1", "201/100", "151/50", "403/100", "126/25", "121/20", "353/50", "202/25", "91/10", "253/25", "557/50", "304/25"],
+        labelPrecision: 2
+      },
+      // 3
+      {
+        name: "3. Inharmonic Membrane / Plate Modes (Bessel-root based)",
+        description: 'Modal ratios derived from the first zeros of Bessel-type modal functions \u2014 a physically informed inharmonic series used to synthesize metallic / bell / plate timbres. This is a simplified circular-membrane / plate approximation (modal zeros of Bessel functions scale the modal frequencies). For background, see the math of Bessel roots and plate/modal modeling: <a href="https://en.wikipedia.org/wiki/Bessel_function">Bessel functions</a> and a modal-plate overview: <a href="https://courses.cs.washington.edu/courses/cse481i/20wi/pdfs/G-waveguides.pdf">modal plate notes (UW)</a>.',
+        // first several J0 zeros used as numeric literals; ratios normalized to first root
+        ratios: [
+          1 / 1,
+          5.520078110286311 / 2.404825557695773,
+          // ≈ 2.2949
+          8.653727912911013 / 2.404825557695773,
+          // ≈ 3.5994
+          11.791534439014281 / 2.404825557695773,
+          // ≈ 4.9037
+          14.930917708487787 / 2.404825557695773,
+          // ≈ 6.2079
+          18.071063967910924 / 2.404825557695773,
+          // ≈ 7.5124
+          21.21163662987926 / 2.404825557695773,
+          // ≈ 8.8167
+          24.352471530749302 / 2.404825557695773,
+          // ≈ 10.1211
+          27.493479132040253 / 2.404825557695773,
+          // ≈ 11.4254
+          30.634606468431976 / 2.404825557695773,
+          // ≈ 12.7298
+          33.77582021357357 / 2.404825557695773,
+          // ≈ 14.0340
+          36.91709835366401 / 2.404825557695773
+          // ≈ 15.3384
+        ],
+        labels: ["1", "5.52/2.40", "8.65/2.40", "11.79/2.40", "14.93/2.40", "18.07/2.40", "21.21/2.40", "24.35/2.40", "27.49/2.40", "30.63/2.40", "33.78/2.40", "36.92/2.40"],
+        labelPrecision: 3
+      },
+      // 4
+      {
+        name: "4. Gamelan Slendro (Common Approximation)",
+        description: 'A conservative Slendro approximation \u2014 Slendro tunings vary widely between ensembles and islands. This is a plausible normalized Slendro-like series (useful as a starting point). See tuning variability and research: <a href="https://eamusic.dartmouth.edu/~larry/misc_writings/out_of_print/slendro_balungan.pdf">Javanese Slendro analyses</a> and a detailed study: <a href="https://www.31edo.com/slendrogamelan.pdf">Stearns \u2014 Slendro analysis</a>.',
+        // decimals converted to rational approximations where practical
+        ratios: [
+          1 / 1,
+          61 / 50,
+          // 1.22
+          37 / 25,
+          // 1.48
+          44 / 25,
+          // 1.76
+          41 / 20,
+          // 2.05
+          61 / 25,
+          // 2.44
+          74 / 25,
+          // 2.96
+          88 / 25,
+          // 3.52
+          41 / 10,
+          // 4.10
+          122 / 25,
+          // 4.88
+          148 / 25,
+          // 5.92
+          176 / 25
+          // 7.04
+        ],
+        labels: ["1/1", "61/50", "37/25", "44/25", "41/20", "61/25", "74/25", "88/25", "41/10", "122/25", "148/25", "176/25"],
+        labelPrecision: 2
+      },
+      // 4b
+      {
+        name: "4b. Slendro \u2014 Adventurous Variant (Exploratory)",
+        description: "A more adventurous Slendro-inspired variant that shifts a few degrees towards septimal/7-limit alignments (useful for exotic spectral palettes). This is deliberately non-standard; treat it as a creative tuning palette rather than an ethnographic map.",
+        ratios: [
+          1 / 1,
+          8 / 7,
+          7 / 5,
+          12 / 7,
+          9 / 5,
+          16 / 7,
+          21 / 8,
+          7 / 2,
+          9 / 2,
+          11 / 2,
+          13 / 2,
+          15 / 2
+        ],
+        labels: ["1/1", "8/7", "7/5", "12/7", "9/5", "16/7", "21/8", "7/2", "9/2", "11/2", "13/2", "15/2"],
+        labelPrecision: 3
+      },
+      // 5
+      {
+        name: "5. Gamelan Pelog (Common Approximation)",
+        description: 'A conservative Pelog approximation (Pelog also varies a lot by ensemble). This is a practical Pelog-like set for synthesis; it compresses Pelog\u2019s characteristic unequal steps into a usable spectral array. See overview and sample tunings: <a href="https://tuning.ableton.com/sundanese-gamelan/">Ableton \u2014 Gamelan tuning intro</a>.',
+        ratios: [
+          1 / 1,
+          53 / 50,
+          // 1.06
+          5 / 4,
+          // 1.25
+          4 / 3,
+          // 1.333...
+          3 / 2,
+          // 1.5
+          83 / 50,
+          // 1.66
+          89 / 50,
+          // 1.78
+          2 / 1,
+          53 / 25,
+          // 2.12
+          5 / 2,
+          133 / 50,
+          // 2.66
+          3 / 1
+        ],
+        labels: ["1/1", "53/50", "5/4", "4/3", "3/2", "83/50", "89/50", "2/1", "53/25", "5/2", "133/50", "3/1"],
+        labelPrecision: 2
+      },
+      // 5b
+      {
+        name: "5b. Pelog \u2014 Adventurous Variant (Exploratory)",
+        description: "A more adventurous Pelog variant that includes stronger septimal and odd-limit colors \u2014 useful when you want Pelog-ish contours but with richer microtonal tension.",
+        ratios: [
+          1 / 1,
+          25 / 24,
+          9 / 8,
+          6 / 5,
+          7 / 6,
+          11 / 8,
+          9 / 7,
+          3 / 2,
+          7 / 4,
+          8 / 5,
+          9 / 5,
+          2 / 1
+        ],
+        labels: ["1/1", "25/24", "9/8", "6/5", "7/6", "11/8", "9/7", "3/2", "7/4", "8/5", "9/5", "2/1"],
+        labelPrecision: 3
+      },
+      // 6
+      {
+        name: "6. Bohlen\u2013Pierce (13-EDT of the Tritave)",
+        description: 'Equal-tempered Bohlen\u2013Pierce: 13 equal divisions of the tritave (3:1) \u2014 the most common practical realization of BP. Each step = 3^(1/13) above the previous. Useful when you want the distinctive BP non-octave (tritave) periodicity. See the Bohlen\u2013Pierce overview: <a href="https://en.wikipedia.org/wiki/Bohlen%E2%80%93Pierce_scale">Bohlen\u2013Pierce (Wikipedia)</a>.',
+        // 13-EDT entries; note natural length is 13 steps per tritave; here we list the first 13 (including 1)
+        ratios: [
+          1 / 1,
+          Math.pow(3, 1 / 13),
+          Math.pow(3, 2 / 13),
+          Math.pow(3, 3 / 13),
+          Math.pow(3, 4 / 13),
+          Math.pow(3, 5 / 13),
+          Math.pow(3, 6 / 13),
+          Math.pow(3, 7 / 13),
+          Math.pow(3, 8 / 13),
+          Math.pow(3, 9 / 13),
+          Math.pow(3, 10 / 13),
+          Math.pow(3, 11 / 13),
+          Math.pow(3, 12 / 13)
+        ],
+        labels: ["1/1", "3^(1/13)", "3^(2/13)", "3^(3/13)", "3^(4/13)", "3^(5/13)", "3^(6/13)", "3^(7/13)", "3^(8/13)", "3^(9/13)", "3^(10/13)", "3^(11/13)"],
+        labelPrecision: 4
+      },
+      // 6b
+      {
+        name: "6b. Bohlen\u2013Pierce (Representative Just Intonation set)",
+        description: 'A commonly-cited Bohlen\u2013Pierce just-intonation palette assembled from small-ratio JI intervals historically associated with BP discussions (normalized to 1). This is an illustrative JI BP set \u2014 there are multiple JI realizations in the literature. See the JI vs. ET BP table: <a href="https://en.wikipedia.org/wiki/Bohlen%E2%80%93Pierce_scale#Intervals_and_scale_diagrams">BP intervals (Wikipedia)</a>.',
+        ratios: [
+          1 / 1,
+          27 / 25,
+          25 / 21,
+          9 / 7,
+          7 / 5,
+          75 / 49,
+          5 / 3,
+          9 / 5,
+          49 / 25,
+          15 / 7,
+          7 / 3,
+          63 / 25
+        ],
+        labels: ["1/1", "27/25", "25/21", "9/7", "7/5", "75/49", "5/3", "9/5", "49/25", "15/7", "7/3", "63/25"],
+        labelPrecision: 3
+      },
+      // 7
+      {
+        name: "7. Standardized Lydian Root Set (Just-intonation oriented)",
+        description: 'A compact, standardized Lydian root set expressed in just-intonation ratios. This keeps the Lydian #4 character while using small-integer ratios for musical stability \u2014 useful when you want a Lydian-centered just palette (informed by George Russell\u02BCs idea of the Lydian center; see the Lydian Chromatic Concept: <a href="https://georgerussell.com/lydian-chromatic-concept">George Russell \u2014 Lydian Chromatic Concept</a>).',
+        ratios: [
+          1 / 1,
+          9 / 8,
+          5 / 4,
+          45 / 32,
+          3 / 2,
+          8 / 5,
+          15 / 8,
+          2 / 1,
+          9 / 4,
+          5 / 2,
+          15 / 4,
+          4 / 1
+        ],
+        labels: ["1/1", "9/8", "5/4", "45/32", "3/2", "8/5", "15/8", "2/1", "9/4", "5/2", "15/4", "4/1"],
+        labelPrecision: 3
+      },
+      // 8
+      {
+        name: "8. Fractional Series (n/4 Multiples)",
+        description: "A deliberately inharmonic fractional series using n/4 multipliers (1, 1.25, 1.5, ...). Very metallic and clanging \u2014 excellent for bell-like additive synthesis with strong inharmonic beating.",
+        ratios: [1 / 1, 5 / 4, 3 / 2, 7 / 4, 2 / 1, 9 / 4, 5 / 2, 11 / 4, 3 / 1, 13 / 4, 7 / 2, 15 / 4],
+        labels: ["1/1", "5/4", "3/2", "7/4", "2/1", "9/4", "5/2", "11/4", "3/1", "13/4", "7/2", "15/4"],
+        labelPrecision: 2
+      },
+      // Harry Partch sets
+      {
+        name: "HP-A. Harry Partch \u2014 43-Tone Scale (overview subset)",
+        description: `Harry Partch\u02BCs 43-tone scale (per octave) is a systematic 11-limit-based just-intonation framework Partch used for much of his instrument design and composition. This entry provides a practical 12-value subset sampled from Partch's larger lattice. See: <a href="https://en.wikipedia.org/wiki/Harry_Partch%27s_43-tone_scale">Harry Partch\u02BCs 43-tone scale (Wikipedia)</a>.`,
+        ratios: [
+          1 / 1,
+          12 / 11,
+          11 / 10,
+          10 / 9,
+          9 / 8,
+          8 / 7,
+          7 / 6,
+          6 / 5,
+          11 / 9,
+          5 / 4,
+          14 / 11,
+          9 / 7
+        ],
+        labels: ["1/1", "12/11", "11/10", "10/9", "9/8", "8/7", "7/6", "6/5", "11/9", "5/4", "14/11", "9/7"],
+        labelPrecision: 4
+      },
+      {
+        name: "HP-B. Harry Partch \u2014 11-Limit Tonality Diamond (subset)",
+        description: 'A focused 11-limit tonality diamond subset (useful Partchian palette). This selection expresses Partch\u02BCs hierarchy of consonance-to-dissonance in small integer ratios; use as a microtonal palette or for Partch-inspired composition. Reference: <a href="https://en.wikipedia.org/wiki/Harry_Partch%27s_43-tone_scale">Partch \u2014 43-tone & 11-limit ideas</a>.',
+        ratios: [
+          1 / 1,
+          16 / 15,
+          9 / 8,
+          6 / 5,
+          5 / 4,
+          4 / 3,
+          7 / 5,
+          3 / 2,
+          8 / 5,
+          5 / 3,
+          9 / 5,
+          2 / 1
+        ],
+        labels: ["1/1", "16/15", "9/8", "6/5", "5/4", "4/3", "7/5", "3/2", "8/5", "5/3", "9/5", "2/1"],
+        labelPrecision: 4
+      },
+      {
+        name: "HP-C. Harry Partch \u2014 Practical Instrument Subset (for keyboard/percussion)",
+        description: "A small practical subset inspired by the subsets Partch used on instruments (Chromelodeon, Adapted Guitar, etc.) \u2014 chosen for playability while retaining Partch's just-intonation character. See Partch instrument descriptions: <a href='https://en.wikipedia.org/wiki/Harry_Partch%27s_43-tone_scale'>Partch overview</a>.",
+        ratios: [1 / 1, 9 / 8, 6 / 5, 5 / 4, 4 / 3, 3 / 2, 8 / 5, 5 / 3, 9 / 5, 15 / 8, 2 / 1, 9 / 4],
+        labels: ["1/1", "9/8", "6/5", "5/4", "4/3", "3/2", "8/5", "5/3", "9/5", "15/8", "2/1", "9/4"],
+        labelPrecision: 4
+      },
+      {
+        name: "OD-1. Hammond \u2014 Standard 9-drawbar (Manual) (Drawbars / Stops)",
+        description: "Canonical Hammond single-manual drawbar mapping (left\u2192right): 16', 5 1/3', 8', 4', 2 2/3', 2', 1 3/5', 1 1/3', 1' \u2014 each represents a harmonic/aliquot of the fundamental. These are the classic additive palette used on B-3 / tonewheel organs. See Hammond drawbar docs for details.",
+        // natural count: 9 drawbars. Ratios expressed as small-integer fractions.
+        ratios: [1 / 2, 3 / 2, 1 / 1, 2 / 1, 3 / 1, 4 / 1, 5 / 1, 6 / 1, 8 / 1],
+        labels: ["1/2", "3/2", "1/1", "2/1", "3/1", "4/1", "5/1", "6/1", "8/1"],
+        labelPrecision: 3,
+        notes: "Hammond drawbars intentionally sample selected harmonics (sub-octave through high partials); the 7th harmonic is omitted in the classic tonewheel mapping."
+      },
+      {
+        name: "OD-1b. Hammond \u2014 Archaic / Mechanical Variant (Detuned Drawbars)",
+        description: "Same drawbar targets as the standard Hammond set, but each partial includes a small progressive detune to model mechanical imperfections and tonewheel wear \u2014 useful to emulate slow beating and organic instability.",
+        // 9 ratios with small multiplicative detune factors; expressed as explicit math expressions
+        ratios: [
+          1 / 2 * (1 + 0 / 1e3),
+          3 / 2 * (1 + 8 / 1e4),
+          1 / 1 * (1 + 3 / 1e4),
+          2 / 1 * (1 + 6 / 1e4),
+          3 / 1 * (1 - 7 / 1e4),
+          4 / 1 * (1 + 10 / 1e4),
+          5 / 1 * (1 + 15 / 1e4),
+          6 / 1 * (1 - 5 / 1e4),
+          8 / 1 * (1 + 20 / 1e4)
+        ],
+        labels: [
+          "1/2*1.00",
+          "3/2*1.00",
+          "1/1*1.00",
+          "2/1*1.00",
+          "3/1*0.99",
+          "4/1*1.00",
+          "5/1*1.00",
+          "6/1*1.00",
+          "8/1*1.00"
+        ],
+        labelPrecision: 5,
+        notes: "Detune multipliers expressed as small fractional offsets (e.g. 8/10000 \u2248 0.8\u2030). These are artistic suggestions \u2014 increase offsets for stronger beating."
+      },
+      {
+        name: "OD-2. Pipe Organ \u2014 Principal / Foundation Chorus (Stops)",
+        description: "Common principal stops (footages) used in organ choruses: 16', 8', 4', 2', 1' \u2014 octave-power ranks; each rank doubles/halves frequency by powers of two. Good base palette for a church/archaic organ sound.",
+        ratios: [1 / 2, 1 / 1, 2 / 1, 4 / 1, 8 / 1],
+        labels: ["1/2", "1/1", "2/1", "4/1", "8/1"],
+        labelPrecision: 3,
+        notes: "These are octave-related ranks (powers of two). Combine with mixture/mutation stops to build classic organ choruses."
+      },
+      {
+        name: "OD-3. Baroque Cornet / Mixture \u2014 Mutation (Aliquot) Stops",
+        description: "Typical cornet/mixture elements: mutation stops that speak at non-octave partials (3rd, 5th, 6th, etc.). Mutations color the principal chorus and are essential to many historical organ timbres.",
+        ratios: [3 / 1, 5 / 1, 6 / 1, 3 / 1, 8 / 1],
+        labels: [
+          "3/1 Naz",
+          // Nazard
+          "5/1 Tie",
+          // Tierce
+          "6/1 Lar",
+          // Larigot
+          "3/1 Naz",
+          "8/1 Mix"
+          // upper mixture harmonic
+        ],
+        labelPrecision: 3,
+        notes: "Mixtures vary by builder; the labels give common mutation names (Nazard, Tierce, Larigot). Mix design determines exact harmonic set."
+      }
+    ];
+    MIDI_NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+    DEFAULT_FUNDAMENTAL = 130.81;
+    DEFAULT_MIDI_NOTE = 48;
+    DEFAULT_OCTAVE = 3;
+    BASE_OCTAVE_MIDI = 48;
+    WAVETABLE_SIZE = 4096;
+    NUM_HARMONICS = 12;
+    DEFAULT_MASTER_GAIN = 0.3;
+    DEFAULT_MASTER_SLEW = 0.01;
+    VISUAL_HARMONIC_TERMS = 12;
+    CANVAS_HEIGHT_RATIOS = {
+      RADIAL: 0.75,
+      OSCILLOSCOPE: 0.25
+    };
+    HARMONIC_COLORS = [
+      "#10b981",
+      "#fcd34d",
+      "#3b82f6",
+      "#ef4444",
+      "#a855f7",
+      "#f97316",
+      "#22c55e",
+      "#ec4899",
+      "#84cc16",
+      "#eab308",
+      "#7c3aed",
+      "#6d28d9"
+    ];
+    DRAWBAR_STYLES = [
+      "white",
+      "brown",
+      "white",
+      "white",
+      "brown",
+      "black",
+      "brown",
+      "white",
+      "black",
+      "blue",
+      "red",
+      "black",
+      "white",
+      "brown",
+      "black",
+      "blue"
+    ];
+    AppState = {
+      // Routing mode for audio export
+      audioRoutingMode: "mono",
+      // Audio properties
+      masterGainValue: DEFAULT_MASTER_GAIN,
+      masterSlewValue: DEFAULT_MASTER_SLEW,
+      fundamentalFrequency: DEFAULT_FUNDAMENTAL,
+      currentMidiNote: DEFAULT_MIDI_NOTE,
+      currentOctave: DEFAULT_OCTAVE,
+      isPlaying: false,
+      // Spectral properties
+      currentSystem: spectralSystems[0],
+      harmonicAmplitudes: (() => {
+        const amplitudes = Array(NUM_HARMONICS).fill(0);
+        amplitudes[0] = 1;
+        return amplitudes;
+      })(),
+      isSubharmonic: false,
+      currentWaveform: "sine",
+      // Visualization properties
+      visualizationFrequency: 5.25,
+      spreadFactor: 0.2,
+      // Custom waveforms
+      customWaveCount: 0,
+      // Audio context references (initialized later)
+      audioContext: null,
+      compressor: null,
+      masterGain: null,
+      oscillators: [],
+      blWaveforms: {},
+      // Band-limited waveforms
+      // P5 instance reference
+      p5Instance: null
+    };
+  }
+});
+
+// js/momentum-smoother.js
+var MomentumSmoother, momentumSmoother;
+var init_momentum_smoother = __esm({
+  "js/momentum-smoother.js"() {
+    MomentumSmoother = class {
+      constructor() {
+        this.params = /* @__PURE__ */ new Map();
+        this.isRunning = false;
+        this.frame = null;
+        this.dt = 1 / 60;
+      }
+      /**
+       * Debounce utility for handling rapid-fire external events (e.g. MIDI)
+       * @param {string} key - Unique debounce key
+       * @param {number} delay - Time in ms to wait after last call
+       * @param {Function} fn - Function to invoke when stable
+       */
+      debounce(key, delay, fn) {
+        if (!this._debouncers) this._debouncers = /* @__PURE__ */ new Map();
+        if (this._debouncers.has(key)) {
+          clearTimeout(this._debouncers.get(key));
+        }
+        const t = setTimeout(() => {
+          this._debouncers.delete(key);
+          fn();
+        }, delay);
+        this._debouncers.set(key, t);
+      }
+      /**
+       * Create/update a smoother target.
+       * IMPORTANT: callback is only set on creation — never overwritten.
+       */
+      smoothTo(key, value, callback, smoothness = 0.75) {
+        let p = this.params.get(key);
+        if (!p) {
+          p = {
+            current: value,
+            target: value,
+            pendingTarget: null,
+            // coalesces multiple updates
+            callback,
+            smoothness: Math.min(Math.max(smoothness, 0.01), 0.99999),
+            active: true
+          };
+          this.params.set(key, p);
+        } else {
+          p.pendingTarget = value;
+          p.smoothness = Math.min(Math.max(smoothness, 0.01), 0.99999);
+          p.active = true;
+        }
+        if (!this.isRunning) this.start();
+      }
+      /**
+       * Immediate hard-set, bypassing smoothing.
+       */
+      setImmediate(key, value) {
+        const p = this.params.get(key);
+        if (!p) return;
+        p.current = value;
+        p.target = value;
+        p.pendingTarget = null;
+        p.active = false;
+        p.callback(value);
+      }
+      start() {
+        if (this.isRunning) return;
+        this.isRunning = true;
+        this.tick();
+      }
+      tick() {
+        let activeCount = 0;
+        for (const [key, p] of this.params) {
+          if (p.pendingTarget !== null) {
+            p.target = p.pendingTarget;
+            p.pendingTarget = null;
+          }
+          if (!p.active) continue;
+          const diff = p.target - p.current;
+          if (Math.abs(diff) < 1e-5) {
+            p.current = p.target;
+            p.callback(p.current);
+            p.active = false;
+            continue;
+          }
+          const s = p.smoothness;
+          const smoothingFactor = Math.pow(s, this.dt * 60);
+          p.current = p.current * smoothingFactor + p.target * (1 - smoothingFactor);
+          p.callback(p.current);
+          activeCount++;
+        }
+        if (activeCount > 0) {
+          this.frame = requestAnimationFrame(() => this.tick());
+        } else {
+          this.isRunning = false;
+          this.frame = null;
+        }
+      }
+      remove(key) {
+        this.params.delete(key);
+      }
+      clear() {
+        this.params.clear();
+        if (this.frame) cancelAnimationFrame(this.frame);
+        this.isRunning = false;
+        this.frame = null;
+      }
+      getCurrentValue(key) {
+        const p = this.params.get(key);
+        return p ? p.current : null;
+      }
+    };
+    momentumSmoother = new MomentumSmoother();
+  }
+});
+
+// js/domUtils.js
+function getElement(id) {
+  const el = document.getElementById(id);
+  if (!el) console.warn(`Element with id '${id}' not found`);
+  return el;
+}
+function updateText(id, text, html = false) {
+  const el = getElement(id);
+  if (el) {
+    if (html) {
+      el.innerHTML = text;
+    } else {
+      el.textContent = text;
+    }
+  }
+}
+function updateValue(id, value) {
+  const el = getElement(id);
+  if (el) el.value = value;
+}
+function setupEventListener(id, event, handler) {
+  const el = getElement(id);
+  if (el) el.addEventListener(event, handler);
+}
+function showStatus(message, type = "info") {
+  const statusBox = getElement("status-message");
+  if (!statusBox) return;
+  statusBox.textContent = message;
+  statusBox.classList.remove("hidden", "error", "success", "warning", "info");
+  statusBox.classList.add(type);
+  setTimeout(() => {
+    statusBox.classList.add("hidden");
+  }, 4e3);
+}
+var init_domUtils = __esm({
+  "js/domUtils.js"() {
+  }
+});
+
+// js/modules/base/BaseComponent.js
+var BaseComponent;
+var init_BaseComponent = __esm({
+  "js/modules/base/BaseComponent.js"() {
+    BaseComponent = class {
+      /**
+          * @param {HTMLElement|string} target - Element or query selector.
+          */
+      constructor(target) {
+        if (typeof target === "string") {
+          this.el = document.querySelector(target);
+          this.selector = target;
+        } else {
+          this.el = target;
+        }
+        if (!this.el) {
+          throw new Error(`BaseComponent: Target element "${target}" not found.`);
+        }
+        this._boundEvents = [];
+      }
+      /**
+       * Bind an event handler and automatically track it for cleanup.
+       * @param {HTMLElement} el
+       * @param {string} evt
+       * @param {Function} handler
+       */
+      bindEvent(el, evt, handler) {
+        if (!el) return;
+        el.addEventListener(evt, handler);
+        this._boundEvents.push({ el, evt, handler });
+      }
+      /**
+       * Remove all events previously bound via bindEvent().
+       */
+      unbindAll() {
+        for (const { el, evt, handler } of this._boundEvents) {
+          el.removeEventListener(evt, handler);
+        }
+        this._boundEvents.length = 0;
+      }
+      /**
+       * Called automatically before every render and when a controller tears
+       * down a component. Subclasses can override for additional cleanup.
+       */
+      teardown() {
+        this.unbindAll();
+      }
+      /**
+       * Optional helper to update text or HTML content.
+       * @param {HTMLElement} el
+       * @param {string} content
+       * @param {object} options
+       * @param {boolean} options.asHTML
+       */
+      updateContent(el, content = "", { asHTML = false } = {}) {
+        if (!el) return;
+        if (asHTML) el.innerHTML = content;
+        else el.textContent = content;
+      }
+      /**
+       * Subclasses MUST implement:
+       *    render(props)
+       *
+       * Should update DOM inside this.el. Call teardown() before rewriting DOM
+       * if render() replaces or regenerates child elements.
+       *
+       * Subclasses MAY optionally implement:
+       *    bindRenderedEvents()
+       *    teardown()
+       */
+      render(_props) {
+        throw new Error("render() must be implemented in subclass");
+      }
+      /**
+       * q(selector)
+       * -----------------------------------------------------------------------------
+       * Convenience wrapper for querySelector(), scoped to this component's root.
+       *
+       * @param {string} selector  CSS selector
+       * @return {Element|null}
+       */
+      q(selector) {
+        return this.el.querySelector(selector);
+      }
+      /**
+       * qAll(selector)
+       * -----------------------------------------------------------------------------
+       * querySelectorAll(), returned as a normal Array instead of a NodeList.
+       *
+       * @param {string} selector  CSS selector
+       * @return {Array<Element>}
+       */
+      qAll(selector) {
+        return Array.from(this.el.querySelectorAll(selector));
+      }
+    };
+  }
+});
+
+// js/modules/drawbars/DrawbarsComponent.js
+var DRAWBAR_SLIDER_SELECTOR, DrawbarsComponent;
+var init_DrawbarsComponent = __esm({
+  "js/modules/drawbars/DrawbarsComponent.js"() {
+    init_config();
+    init_BaseComponent();
+    DRAWBAR_SLIDER_SELECTOR = ".drawbar-slider";
+    DrawbarsComponent = class extends BaseComponent {
+      constructor(elementId) {
+        super(elementId);
+        this.sliders = [];
+      }
+      render(props = {}) {
+        this.el.innerHTML = "";
+        this.sliders = [];
+        this.setupDrawbars();
+        this.updateDrawbarLabels(props.isSubharmonic);
+      }
+      /**
+       * Called by BaseComponent AFTER render().
+       */
+      bindRenderedEvents() {
+        this.sliders = this.qAll(DRAWBAR_SLIDER_SELECTOR);
+        this.sliders.forEach((slider) => {
+          this.bindEvent(slider, "input", (e) => this.handleDrawbarChange(e));
+        });
+      }
+      setupDrawbars() {
+        const numPartials = AppState.currentSystem.ratios.length;
+        if (!Array.isArray(AppState.harmonicAmplitudes) || AppState.harmonicAmplitudes.length !== numPartials) {
+          AppState.harmonicAmplitudes = Array(numPartials).fill(0);
+          AppState.harmonicAmplitudes[0] = 1;
+        }
+        for (let i = 0; i < numPartials; i++) {
+          const value = AppState.harmonicAmplitudes[i];
+          this.el.appendChild(this.createDrawbar(i, value));
+        }
+      }
+      updateDrawbarLabels(isSubharmonic) {
+        const labels = isSubharmonic && AppState.currentSystem.subharmonicLabels ? AppState.currentSystem.subharmonicLabels : AppState.currentSystem.labels;
+        labels.forEach((txt, idx) => {
+          const el = this.q(`#drawbar-label-${idx}`);
+          this.updateContent(el, txt);
+        });
+      }
+      createDrawbar(index, value) {
+        const styleClass = DRAWBAR_STYLES[index] || "white";
+        const wrapper = document.createElement("div");
+        wrapper.className = `drawbar ${styleClass}`;
+        const label = document.createElement("span");
+        label.className = "drawbar-label";
+        label.id = `drawbar-label-${index}`;
+        this.updateContent(label, AppState.currentSystem.labels[index] || "");
+        const track = document.createElement("div");
+        track.className = "drawbar-track";
+        const slider = document.createElement("input");
+        slider.type = "range";
+        slider.className = "drawbar-slider";
+        slider.min = "0";
+        slider.max = "1";
+        slider.step = "0.01";
+        slider.value = value;
+        slider.dataset.index = index;
+        const wrap = document.createElement("div");
+        wrap.className = "drawbar-input-wrapper";
+        wrap.append(track, slider);
+        wrapper.append(label, wrap);
+        return wrapper;
+      }
+      updateSingleDrawbar(index, value) {
+        if (this.sliders[index]) {
+          this.sliders[index].value = value;
+        }
+      }
+      handleDrawbarChange(e) {
+        const index = Number(e.target.dataset.index);
+        const value = Number(e.target.value);
+        this.onChange?.(index, value);
+        e.target.setAttribute("aria-valuenow", value);
+      }
+      setValue(index, value) {
+        if (this.sliders[index]) {
+          this.sliders[index].value = value;
+        }
+      }
+    };
+  }
+});
+
+// js/dsp/DFT.js
+var DFT;
+var init_DFT = __esm({
+  "js/dsp/DFT.js"() {
+    DFT = class {
+      /**
+       * Performs a Discrete Fourier Transform on time-domain samples
+       * @param {Float32Array} timeDomainSamples - Input time-domain samples
+       * @param {number} maxHarmonics - Maximum number of harmonics to analyze
+       * @returns {Object} Object with real and imaginary coefficient arrays
+       */
+      static transform(timeDomainSamples, maxHarmonics = 128) {
+        const N = timeDomainSamples.length;
+        const numHarmonics = Math.min(maxHarmonics, Math.floor(N / 2));
+        const real = new Float32Array(numHarmonics + 1).fill(0);
+        const imag = new Float32Array(numHarmonics + 1).fill(0);
+        real[0] = 0;
+        for (let k = 1; k <= numHarmonics; k++) {
+          let realSum = 0;
+          let imagSum = 0;
+          for (let n = 0; n < N; n++) {
+            const angle = 2 * Math.PI * k * n / N;
+            realSum += timeDomainSamples[n] * Math.cos(angle);
+            imagSum -= timeDomainSamples[n] * Math.sin(angle);
+          }
+          real[k] = 2 * realSum / N;
+          imag[k] = 2 * imagSum / N;
+        }
+        return { real, imag };
+      }
+      /**
+       * Performs an Inverse Discrete Fourier Transform to reconstruct time-domain samples
+       * @param {Float32Array} real - Real coefficients
+       * @param {Float32Array} imag - Imaginary coefficients  
+       * @param {number} sampleCount - Number of output samples
+       * @returns {Float32Array} Reconstructed time-domain samples
+       */
+      static inverseTransform(real, imag, sampleCount = 512) {
+        const samples = new Float32Array(sampleCount);
+        for (let n = 0; n < sampleCount; n++) {
+          const theta = n / sampleCount * 2 * Math.PI;
+          let sum = 0;
+          for (let k = 1; k < real.length && k < imag.length; k++) {
+            sum += real[k] * Math.cos(k * theta) + imag[k] * Math.sin(k * theta);
+          }
+          samples[n] = sum;
+        }
+        return samples;
+      }
+      /**
+       * Extracts magnitude spectrum from DFT coefficients
+       * @param {Float32Array} real - Real coefficients
+       * @param {Float32Array} imag - Imaginary coefficients
+       * @returns {Float32Array} Magnitude spectrum
+       */
+      static getMagnitudeSpectrum(real, imag) {
+        const magnitude = new Float32Array(Math.min(real.length, imag.length));
+        for (let k = 0; k < magnitude.length; k++) {
+          magnitude[k] = Math.sqrt(real[k] * real[k] + imag[k] * imag[k]);
+        }
+        return magnitude;
+      }
+      /**
+       * Extracts phase spectrum from DFT coefficients
+       * @param {Float32Array} real - Real coefficients
+       * @param {Float32Array} imag - Imaginary coefficients
+       * @returns {Float32Array} Phase spectrum in radians
+       */
+      static getPhaseSpectrum(real, imag) {
+        const phase = new Float32Array(Math.min(real.length, imag.length));
+        for (let k = 0; k < phase.length; k++) {
+          phase[k] = Math.atan2(imag[k], real[k]);
+        }
+        return phase;
+      }
+    };
+  }
+});
+
+// js/dsp/WaveformGenerator.js
+var WaveformGenerator;
+var init_WaveformGenerator = __esm({
+  "js/dsp/WaveformGenerator.js"() {
+    WaveformGenerator = class _WaveformGenerator {
+      /**
+       * Creates a band-limited PeriodicWave for use with Web Audio API
+       * @param {AudioContext} context - Web Audio context
+       * @param {string} type - Waveform type ('square', 'sawtooth', 'triangle')
+       * @param {number} maxHarmonics - Maximum number of harmonics to include
+       * @returns {PeriodicWave} Generated periodic wave
+       */
+      static createBandLimitedWaveform(context, type, maxHarmonics = 1024) {
+        const real = new Float32Array(maxHarmonics + 1);
+        const imag = new Float32Array(maxHarmonics + 1);
+        const coefficients = _WaveformGenerator.getFourierCoefficients(type, maxHarmonics);
+        for (let n = 1; n <= maxHarmonics; n++) {
+          imag[n] = coefficients[n] || 0;
+        }
+        return context.createPeriodicWave(real, imag, { disableNormalization: false });
+      }
+      /**
+       * Calculates Fourier coefficients for standard waveforms
+       * @param {string} type - Waveform type
+       * @param {number} maxHarmonics - Maximum harmonics to calculate
+       * @returns {Array} Array of Fourier coefficients
+       */
+      static getFourierCoefficients(type, maxHarmonics) {
+        const coefficients = new Array(maxHarmonics + 1).fill(0);
+        for (let n = 1; n <= maxHarmonics; n++) {
+          let amplitude = 0;
+          let sign = 1;
+          switch (type) {
+            case "square":
+              if (n % 2 !== 0) {
+                amplitude = 4 / (Math.PI * n);
+              }
+              break;
+            case "sawtooth":
+              amplitude = 2 / (Math.PI * n);
+              sign = n % 2 === 0 ? -1 : 1;
+              break;
+            case "triangle":
+              if (n % 2 !== 0) {
+                amplitude = 8 / (Math.PI * Math.PI * n * n);
+                const k = (n - 1) / 2;
+                sign = k % 2 === 0 ? 1 : -1;
+              }
+              break;
+            default:
+              throw new Error(`Unsupported waveform type: ${type}`);
+          }
+          coefficients[n] = amplitude * sign;
+        }
+        return coefficients;
+      }
+      /**
+       * Generates time-domain samples for standard waveforms
+       * @param {string} type - Waveform type
+       * @param {number} sampleCount - Number of samples to generate
+       * @param {number} harmonics - Number of harmonics to include
+       * @returns {Float32Array} Time-domain samples
+       */
+      static generateTimeDomainSamples(type, sampleCount = 1024, harmonics = 64) {
+        const samples = new Float32Array(sampleCount);
+        const coefficients = _WaveformGenerator.getFourierCoefficients(type, harmonics);
+        for (let i = 0; i < sampleCount; i++) {
+          const theta = i / sampleCount * 2 * Math.PI;
+          let sum = 0;
+          for (let n = 1; n <= harmonics; n++) {
+            if (coefficients[n] !== 0) {
+              sum += coefficients[n] * Math.sin(n * theta);
+            }
+          }
+          samples[i] = sum * 0.7;
+        }
+        return samples;
+      }
+      /**
+       * Creates a custom waveform from Fourier coefficients
+       * @param {AudioContext} context - Web Audio context
+       * @param {Float32Array} real - Real Fourier coefficients
+       * @param {Float32Array} imag - Imaginary Fourier coefficients
+       * @returns {PeriodicWave} Custom periodic wave
+       */
+      static createCustomWaveform(context, real, imag) {
+        return context.createPeriodicWave(real, imag, { disableNormalization: false });
+      }
+    };
+  }
+});
+
+// js/dsp/WAVExporter.js
+var WAVExporter;
+var init_WAVExporter = __esm({
+  "js/dsp/WAVExporter.js"() {
+    WAVExporter = class _WAVExporter {
+      /**
+       * Exports audio buffer data as a downloadable WAV file
+       * @param {Float32Array} buffers - Audio buffer to export
+       * @param {number} sampleRate - Sample rate for the WAV file
+       * @param {string} filename - Filename for the download
+       * @param {number} numCycles - Number of cycles to repeat the buffer
+       */
+      static exportAsWAV(buffers, sampleRate, filename, numCycles = 1) {
+        if (!Array.isArray(buffers) || buffers.length === 0) {
+          throw new Error("WAV export failed: expected an array of channel buffers.");
+        }
+        const numChannels = buffers.length;
+        const length = buffers[0].length;
+        for (let ch = 0; ch < numChannels; ch++) {
+          if (!(buffers[ch] instanceof Float32Array)) {
+            throw new Error(`Channel ${ch} is not a Float32Array.`);
+          }
+          if (buffers[ch].length !== length) {
+            throw new Error(`Channel ${ch} length mismatch.`);
+          }
+        }
+        const repeated = buffers.map(
+          (chBuf) => _WAVExporter.repeatBuffer(chBuf, numCycles)
+        );
+        const wavData = _WAVExporter.createWAVBufferMulti(repeated, sampleRate);
+        _WAVExporter.downloadFile(wavData, filename);
+      }
+      /**
+       * Repeats a buffer for the specified number of cycles
+       * @param {Float32Array} buffer - Original buffer
+       * @param {number} numCycles - Number of cycles to repeat
+       * @returns {Float32Array} Extended buffer
+       */
+      static repeatBuffer(buffer, numCycles) {
+        const cycleLength = buffer.length;
+        const totalLength = cycleLength * numCycles;
+        const fullBuffer = new Float32Array(totalLength);
+        for (let i = 0; i < totalLength; i++) {
+          fullBuffer[i] = buffer[i % cycleLength];
+        }
+        return fullBuffer;
+      }
+      static createWAVBufferMulti(channelBuffers, sampleRate) {
+        const numChannels = channelBuffers.length;
+        const numFrames = channelBuffers[0].length;
+        const bytesPerSample = 2;
+        const blockAlign = numChannels * bytesPerSample;
+        const byteRate = sampleRate * blockAlign;
+        const dataSize = numFrames * blockAlign;
+        const buffer = new ArrayBuffer(44 + dataSize);
+        const view = new DataView(buffer);
+        let offset = 0;
+        _WAVExporter.writeString(view, offset, "RIFF");
+        offset += 4;
+        view.setUint32(offset, 36 + dataSize, true);
+        offset += 4;
+        _WAVExporter.writeString(view, offset, "WAVE");
+        offset += 4;
+        _WAVExporter.writeString(view, offset, "fmt ");
+        offset += 4;
+        view.setUint32(offset, 16, true);
+        offset += 4;
+        view.setUint16(offset, 1, true);
+        offset += 2;
+        view.setUint16(offset, numChannels, true);
+        offset += 2;
+        view.setUint32(offset, sampleRate, true);
+        offset += 4;
+        view.setUint32(offset, byteRate, true);
+        offset += 4;
+        view.setUint16(offset, blockAlign, true);
+        offset += 2;
+        view.setUint16(offset, bytesPerSample * 8, true);
+        offset += 2;
+        _WAVExporter.writeString(view, offset, "data");
+        offset += 4;
+        view.setUint32(offset, dataSize, true);
+        offset += 4;
+        for (let i = 0; i < numFrames; i++) {
+          for (let ch = 0; ch < numChannels; ch++) {
+            const sample = Math.max(-1, Math.min(1, channelBuffers[ch][i]));
+            view.setInt16(offset, sample * 32767, true);
+            offset += 2;
+          }
+        }
+        return buffer;
+      }
+      /**
+       * Writes a string to a DataView at the specified offset
+       * @param {DataView} view - DataView to write to
+       * @param {number} offset - Byte offset to start writing
+       * @param {string} string - String to write
+       */
+      static writeString(view, offset, string) {
+        for (let i = 0; i < string.length; i++) {
+          view.setUint8(offset + i, string.charCodeAt(i));
+        }
+      }
+      /**
+       * Downloads a file buffer as a blob
+       * @param {DataView} arrayBuffer - File data as DataView
+       * @param {string} filename - Filename for the download
+       */
+      static downloadFile(arrayBuffer, filename) {
+        const blob = new Blob([arrayBuffer], { type: "audio/wav" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = filename;
+        link.style.display = "none";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        setTimeout(() => URL.revokeObjectURL(url), 100);
+      }
+    };
+  }
+});
+
+// js/dsp/WavetableManager.js
+var WavetableManager;
+var init_WavetableManager = __esm({
+  "js/dsp/WavetableManager.js"() {
+    init_DFT();
+    init_WaveformGenerator();
+    WavetableManager = class {
+      constructor() {
+        this.waveforms = /* @__PURE__ */ new Map();
+        this.coefficients = /* @__PURE__ */ new Map();
+        this.periodMultipliers = /* @__PURE__ */ new Map();
+        this.count = 0;
+      }
+      /**
+       * Adds a new custom waveform from time-domain samples with period multiplier support.
+       * 
+       * WORKFLOW:
+       * 1. Validates input samples for non-empty data
+       * 2. Performs DFT to extract frequency-domain coefficients
+       * 3. Creates Web Audio PeriodicWave object for synthesis
+       * 4. Stores waveform, coefficients, and period multiplier with unique key
+       * 
+       * PERIOD MULTIPLIER INTEGRATION:
+       * The period multiplier is crucial metadata that indicates how many fundamental
+       * periods are packed into the wavetable buffer. This enables the frequency
+       * correction system to compensate for the packed periods during playback.
+       * 
+       * UNIQUE KEY GENERATION:
+       * Uses timestamp-based keys (custom_<timestamp>) to ensure uniqueness across
+       * multiple waveform creation sessions without conflicts.
+       * 
+       * @param {Float32Array} samples - Time-domain samples (typically 2048 points)
+       * @param {AudioContext} context - Web Audio context for PeriodicWave creation
+       * @param {number} maxHarmonics - Maximum harmonics for DFT analysis (default: 128)
+       * @param {number} periodMultiplier - Number of periods in the wavetable (default: 1)
+       * @returns {string} Unique key for accessing the stored waveform
+       */
+      addFromSamples(samples, context, maxHarmonics = 128, periodMultiplier = 1) {
+        if (samples.length === 0) {
+          throw new Error("Cannot add empty waveform data.");
+        }
+        let max = 0;
+        for (let i = 0; i < samples.length; i++) {
+          if (Math.abs(samples[i]) > max) max = Math.abs(samples[i]);
+        }
+        let normSamples = samples;
+        if (max > 0 && max !== 1) {
+          normSamples = new Float32Array(samples.length);
+          for (let i = 0; i < samples.length; i++) {
+            normSamples[i] = samples[i] / max;
+          }
+        }
+        const { real, imag } = DFT.transform(normSamples, maxHarmonics);
+        const periodicWave = WaveformGenerator.createCustomWaveform(context, real, imag);
+        this.count++;
+        const key = `custom_${Date.now()}_${this.count}`;
+        this.waveforms.set(key, periodicWave);
+        this.coefficients.set(key, { real, imag });
+        this.periodMultipliers.set(key, periodMultiplier);
+        return key;
+      }
+      /**
+       * Adds a new custom waveform from Fourier coefficients
+       * @param {Float32Array} real - Real coefficients
+       * @param {Float32Array} imag - Imaginary coefficients
+       * @param {AudioContext} context - Web Audio context
+       * @returns {string} Unique key for the new waveform
+       */
+      addFromCoefficients(real, imag, context) {
+        const periodicWave = WaveformGenerator.createCustomWaveform(context, real, imag);
+        this.count++;
+        const key = `custom_${this.count}`;
+        this.waveforms.set(key, periodicWave);
+        this.coefficients.set(key, {
+          real: new Float32Array(real),
+          imag: new Float32Array(imag)
+        });
+        return key;
+      }
+      /**
+       * Gets a stored PeriodicWave
+       * @param {string} key - Waveform key
+       * @returns {PeriodicWave|null} The PeriodicWave or null if not found
+       */
+      getWaveform(key) {
+        return this.waveforms.get(key) || null;
+      }
+      /**
+       * Gets stored Fourier coefficients
+       * @param {string} key - Waveform key
+       * @returns {Object|null} Object with real and imag arrays, or null if not found
+       */
+      getCoefficients(key) {
+        return this.coefficients.get(key) || null;
+      }
+      /**
+       * Retrieves the period multiplier for a stored waveform.
+       * 
+       * CRITICAL FUNCTION:
+       * This method enables the frequency correction system by providing the period
+       * multiplier value needed to calculate the correct playback frequency.
+       * 
+       * USAGE CONTEXT:
+       * Called by getFrequencyCorrection() in audio.js to determine how much to
+       * scale the frequency when using custom waveforms with multiple periods.
+       * 
+       * FALLBACK BEHAVIOR:
+       * Returns 1 for unknown keys, ensuring that missing or standard waveforms
+       * don't cause frequency correction issues.
+       * 
+       * @param {string} key - Waveform key (e.g., 'custom_1732189423456_1')
+       * @returns {number} Period multiplier (1 if not found or for standard waveforms)
+       */
+      getPeriodMultiplier(key) {
+        return this.periodMultipliers.get(key) || 1;
+      }
+      /**
+       * Reconstructs time-domain samples from stored coefficients
+       * @param {string} key - Waveform key
+       * @param {number} sampleCount - Number of samples to generate
+       * @returns {Float32Array|null} Time-domain samples or null if not found
+       */
+      reconstructSamples(key, sampleCount = 512) {
+        const coeffs = this.coefficients.get(key);
+        if (!coeffs) return null;
+        return DFT.inverseTransform(coeffs.real, coeffs.imag, sampleCount);
+      }
+      /**
+       * Gets all stored waveform keys
+       * @returns {Array<string>} Array of waveform keys
+       */
+      getAllKeys() {
+        return Array.from(this.waveforms.keys());
+      }
+      /**
+       * Removes a stored waveform
+       * @param {string} key - Waveform key to remove
+       * @returns {boolean} True if removed, false if not found
+       */
+      remove(key) {
+        const hadWaveform = this.waveforms.delete(key);
+        const hadCoefficients = this.coefficients.delete(key);
+        return hadWaveform && hadCoefficients;
+      }
+      /**
+       * Clears all stored waveforms
+       */
+      clear() {
+        this.waveforms.clear();
+        this.coefficients.clear();
+        this.count = 0;
+      }
+      /**
+       * Gets the current count of stored waveforms
+       * @returns {number} Number of stored waveforms
+       */
+      getCount() {
+        return this.waveforms.size;
+      }
+      /**
+       * Exports waveform data for serialization
+       * @param {string} key - Waveform key
+       * @returns {Object|null} Serializable waveform data or null if not found
+       */
+      exportData(key) {
+        const coeffs = this.coefficients.get(key);
+        if (!coeffs) return null;
+        return {
+          key,
+          real: Array.from(coeffs.real),
+          imag: Array.from(coeffs.imag),
+          timestamp: Date.now()
+        };
+      }
+      /**
+       * Imports waveform data from serialization
+       * @param {Object} data - Serialized waveform data
+       * @param {AudioContext} context - Web Audio context
+       * @returns {string} The imported waveform key
+       */
+      importData(data, context) {
+        const real = new Float32Array(data.real);
+        const imag = new Float32Array(data.imag);
+        return this.addFromCoefficients(real, imag, context);
+      }
+    };
+  }
+});
+
+// js/dsp/AudioEngine.js
+var AudioEngine;
+var init_AudioEngine = __esm({
+  "js/dsp/AudioEngine.js"() {
+    init_WaveformGenerator();
+    AudioEngine = class {
+      constructor() {
+        this.context = null;
+        this.masterGain = null;
+        this.compressor = null;
+        this.oscillators = /* @__PURE__ */ new Map();
+        this.isInitialized = false;
+        this.standardWaveforms = /* @__PURE__ */ new Map();
+      }
+      /**
+       * Initializes the audio engine for oscillator-based synthesis
+       * @param {number} masterGainValue - Initial master gain value
+       * @param {Object} options - Configuration options (for compatibility)
+       */
+      async initialize(masterGainValue = 0.5) {
+        if (this.isInitialized) return;
+        this.context = new (window.AudioContext || window.webkitAudioContext)();
+        this.setupAudioGraph(masterGainValue);
+        this.generateStandardWaveforms();
+        this.isInitialized = true;
+        if (this.context.state === "suspended") {
+          await this.context.resume();
+        }
+      }
+      /**
+       * Resume the audio context if suspended
+       */
+      async resume() {
+        if (this.context && this.context.state === "suspended") {
+          await this.context.resume();
+        }
+      }
+      /**
+       * Sets up the main audio processing graph
+       * @param {number} masterGainValue - Initial master gain value
+       */
+      setupAudioGraph(masterGainValue) {
+        this.compressor = this.context.createDynamicsCompressor();
+        this.compressor.threshold.setValueAtTime(-24, this.context.currentTime);
+        this.compressor.ratio.setValueAtTime(6, this.context.currentTime);
+        this.compressor.attack.setValueAtTime(0.01, this.context.currentTime);
+        this.compressor.release.setValueAtTime(0.2, this.context.currentTime);
+        this.masterGain = this.context.createGain();
+        this.masterGain.gain.setValueAtTime(masterGainValue, this.context.currentTime);
+        this.masterGain.maxGain = 1;
+        this.limiter = this.context.createDynamicsCompressor();
+        this.limiter.threshold.setValueAtTime(-6, this.context.currentTime);
+        this.limiter.ratio.setValueAtTime(6, this.context.currentTime);
+        this.limiter.attack.setValueAtTime(5e-3, this.context.currentTime);
+        this.limiter.release.setValueAtTime(0.15, this.context.currentTime);
+        this.compressor.connect(this.masterGain);
+        this.masterGain.connect(this.limiter);
+        this.limiter.connect(this.context.destination);
+      }
+      /**
+       * Generates standard band-limited waveforms
+       */
+      generateStandardWaveforms() {
+        const types = ["square", "sawtooth", "triangle"];
+        for (const type of types) {
+          const periodicWave = WaveformGenerator.createBandLimitedWaveform(this.context, type, 128);
+          this.standardWaveforms.set(type, periodicWave);
+        }
+      }
+      /**
+       * Get a standard waveform PeriodicWave object
+       * @param {string} waveformType - Type of waveform ('square', 'sawtooth', 'triangle')
+       * @returns {PeriodicWave|null} The PeriodicWave object or null if not found
+       */
+      getStandardWaveform(waveformType) {
+        return this.standardWaveforms.get(waveformType) || null;
+      }
+      /**
+       * Create an oscillator with the specified parameters
+       * @param {number} frequency - Oscillator frequency
+       * @param {string|PeriodicWave} waveform - Waveform type or PeriodicWave
+       * @param {number} gain - Oscillator gain (0-1)
+       * @param {Object} options - { pan, channel } for stereo/multichannel
+       * @returns {Object} Object containing oscillator, gain node, and (optional) panner
+       */
+      createOscillator(frequency, waveform, gain = 1, options = {}) {
+        if (!this.isInitialized) {
+          throw new Error("AudioEngine must be initialized before creating oscillators");
+        }
+        const oscillator = this.context.createOscillator();
+        const gainNode = this.context.createGain();
+        oscillator.frequency.setValueAtTime(frequency, this.context.currentTime);
+        if (typeof waveform === "string") {
+          if (waveform === "sine") {
+            oscillator.type = "sine";
+          } else if (this.standardWaveforms.has(waveform)) {
+            oscillator.setPeriodicWave(this.standardWaveforms.get(waveform));
+          } else {
+            throw new Error(`Unknown waveform type: ${waveform}`);
+          }
+        } else if (waveform instanceof PeriodicWave) {
+          oscillator.setPeriodicWave(waveform);
+        } else {
+          throw new Error("Waveform must be a string or PeriodicWave");
+        }
+        gainNode.gain.setValueAtTime(gain, this.context.currentTime);
+        const panner = this.context.createStereoPanner();
+        panner.pan.setValueAtTime(options.pan ?? 0, this.context.currentTime);
+        oscillator.connect(gainNode);
+        gainNode.connect(panner);
+        panner.connect(this.compressor);
+        return { oscillator, gainNode, panner };
+      }
+      // No setRoutingMode needed
+      /**
+       * Add an oscillator to the managed oscillators map
+       * @param {string} key - Unique key for the oscillator
+       * @param {Object} oscData - Object containing oscillator and gain nodes
+       */
+      addOscillator(key, oscData) {
+        oscData.oscillator.start(this.context.currentTime);
+        this.oscillators.set(key, oscData);
+      }
+      /**
+       * Update oscillator frequency with smooth transitions
+       * @param {string} key - Oscillator key
+       * @param {number} frequency - New frequency
+       * @param {number} rampTime - Ramp time in seconds
+       */
+      updateOscillatorFrequency(key, frequency, rampTime = 0.02) {
+        const oscData = this.oscillators.get(key);
+        if (oscData && oscData.oscillator) {
+          const now = this.context.currentTime;
+          oscData.oscillator.frequency.setTargetAtTime(frequency, now, rampTime / 3);
+        }
+      }
+      /**
+       * Update oscillator gain with smooth transitions
+       * @param {string} key - Oscillator key
+       * @param {number} gain - New gain value
+       * @param {number} rampTime - Ramp time in seconds
+       */
+      updateOscillatorGain(key, gain, rampTime = 0.02) {
+        const oscData = this.oscillators.get(key);
+        if (oscData && oscData.gainNode) {
+          const now = this.context.currentTime;
+          oscData.gainNode.gain.setTargetAtTime(gain, now, rampTime / 3);
+        }
+      }
+      /**
+       * Update master gain
+       * @param {number} gain - New master gain value
+       * @param {number} rampTime - Ramp time in seconds
+       */
+      updateMasterGain(gain, rampTime = 0.02) {
+        if (this.masterGain) {
+          const now = this.context.currentTime;
+          this.masterGain.gain.setTargetAtTime(gain, now, rampTime / 3);
+        }
+      }
+      /**
+       * Stop all oscillators
+       */
+      stopAllOscillators() {
+        const now = this.context.currentTime;
+        for (const oscData of this.oscillators.values()) {
+          if (oscData.oscillator) {
+            try {
+              oscData.oscillator.stop(now + 0.01);
+            } catch {
+            }
+          }
+        }
+        this.oscillators.clear();
+      }
+      /**
+       * Get the audio context
+       */
+      getContext() {
+        return this.context;
+      }
+    };
+  }
+});
+
+// js/dsp/index.js
+var init_dsp = __esm({
+  "js/dsp/index.js"() {
+    init_DFT();
+    init_WaveformGenerator();
+    init_WAVExporter();
+    init_WavetableManager();
+    init_AudioEngine();
+  }
+});
+
+// js/audio.js
+var audio_exports = {};
+__export(audio_exports, {
+  addWaveformToAudio: () => addWaveformToAudio,
+  exportAsWAV: () => exportAsWAV,
+  getAudioEngine: () => getAudioEngine,
+  getWaveValue: () => getWaveValue,
+  getWavetableManager: () => getWavetableManager,
+  initAudio: () => initAudio,
+  precomputeWaveTable: () => precomputeWaveTable,
+  precomputeWavetableFromCoefficients: () => precomputeWavetableFromCoefficients,
+  restartAudio: () => restartAudio,
+  sampleCurrentWaveform: () => sampleCurrentWaveform,
+  setDownloadRoutingMode: () => setDownloadRoutingMode,
+  startTone: () => startTone,
+  stopTone: () => stopTone,
+  updateAudioProperties: () => updateAudioProperties
+});
+function setDownloadRoutingMode(mode) {
+  AppState.downloadRoutingMode = mode;
+}
+function getAudioEngine() {
+  return audioEngine;
+}
+function getWavetableManager() {
+  return wavetableManager;
+}
+async function initAudio() {
+  if (!audioEngine) {
+    audioEngine = new AudioEngine();
+    wavetableManager = new WavetableManager();
+    await audioEngine.initialize(AppState.masterGainValue);
+    AppState.audioContext = audioEngine.getContext();
+    AppState.compressor = audioEngine.compressor;
+    AppState.masterGain = audioEngine.masterGain;
+    AppState.blWaveforms = AppState.blWaveforms || {};
+    AppState.blWaveforms.square = audioEngine.getStandardWaveform("square");
+    AppState.blWaveforms.sawtooth = audioEngine.getStandardWaveform("sawtooth");
+    AppState.blWaveforms.triangle = audioEngine.getStandardWaveform("triangle");
+  }
+  await audioEngine.resume();
+}
+function resolveWaveform(waveformName) {
+  if (!waveformName) {
+    return "sine";
+  }
+  if (waveformName.startsWith("custom_")) {
+    const customWave = wavetableManager.getWaveform(waveformName);
+    return customWave || "sine";
+  }
+  return waveformName;
+}
+function getFrequencyCorrection(waveformName) {
+  if (!waveformName || !waveformName.startsWith("custom_")) {
+    return 1;
+  }
+  let periodMultiplier = 1;
+  if (wavetableManager) {
+    periodMultiplier = wavetableManager.getPeriodMultiplier(waveformName);
+  } else if (AppState.customWavePeriodMultipliers) {
+    periodMultiplier = AppState.customWavePeriodMultipliers[waveformName] || 1;
+  }
+  return 1 / periodMultiplier;
+}
+async function startTone() {
+  await initAudio();
+  if (AppState.isPlaying) return;
+  try {
+    await startToneWithOscillators();
+    updateAppState({ isPlaying: true });
+  } catch (error) {
+    console.error("Failed to start synthesis:", error);
+    throw error;
+  }
+}
+async function startToneWithOscillators() {
+  AppState.oscillators = [];
+  const panArray = AppState.oscillatorPans || [];
+  const numPartials = AppState.currentSystem.ratios.length;
+  for (let i = 0; i < AppState.harmonicAmplitudes.length; i++) {
+    if (i < numPartials) {
+      const ratio = AppState.currentSystem.ratios[i];
+      const amplitude = AppState.harmonicAmplitudes[i] || 0;
+      if (ratio > 0) {
+        const frequency = calculateFrequency(ratio);
+        const gain = amplitude * AppState.masterGainValue;
+        const waveform = resolveWaveform(AppState.currentWaveform);
+        const frequencyCorrection = getFrequencyCorrection(AppState.currentWaveform);
+        const correctedFrequency = frequency * frequencyCorrection;
+        let panValue = i === 0 ? 0 : panArray[i] ?? (i % 2 === 0 ? -0.8 : 0.8);
+        let oscOptions = { pan: panValue };
+        try {
+          const oscData = audioEngine.createOscillator(correctedFrequency, waveform, gain, oscOptions);
+          const oscKey = `harmonic_${i}`;
+          audioEngine.addOscillator(oscKey, oscData);
+          while (AppState.oscillators.length <= i) {
+            AppState.oscillators.push(null);
+          }
+          AppState.oscillators[i] = { key: oscKey, ratio };
+        } catch (error) {
+          console.error(`Failed to create oscillator ${i}:`, error);
+          AppState.oscillators[i] = null;
+        }
+      } else {
+        AppState.oscillators[i] = null;
+      }
+    } else {
+      AppState.harmonicAmplitudes[i] = 0;
+      AppState.oscillators[i] = null;
+    }
+  }
+}
+function stopTone() {
+  if (!AppState.isPlaying || !audioEngine) return;
+  audioEngine.stopAllOscillators();
+  updateAppState({
+    oscillators: [],
+    isPlaying: false
+  });
+}
+function updateAudioProperties() {
+  if (!AppState.isPlaying || !audioEngine) return;
+  const rampTime = AppState.masterSlewValue;
+  updateAudioPropertiesOscillators(rampTime);
+}
+function updateAudioPropertiesOscillators(rampTime) {
+  audioEngine.updateMasterGain(AppState.masterGainValue, rampTime);
+  AppState.oscillators.forEach((node, i) => {
+    if (node && node.key) {
+      const ratio = AppState.currentSystem.ratios[i];
+      const baseFreq = calculateFrequency(ratio);
+      const frequencyCorrection = getFrequencyCorrection(AppState.currentWaveform);
+      const newFreq = baseFreq * frequencyCorrection;
+      const amplitude = AppState.harmonicAmplitudes[i] || 0;
+      let newGain = amplitude * AppState.masterGainValue;
+      if (!isFinite(newFreq) || isNaN(newFreq)) {
+        newGain = 0;
+      } else {
+        audioEngine.updateOscillatorFrequency(node.key, newFreq, rampTime);
+      }
+      audioEngine.updateOscillatorGain(node.key, newGain, rampTime);
+    }
+  });
+}
+function restartAudio() {
+  if (AppState.isPlaying) {
+    stopTone();
+    setTimeout(startTone, 50);
+  }
+}
+async function sampleCurrentWaveform(routingMode = "mono", isSubharmonic = false) {
+  await initAudio();
+  const numOsc = AppState.harmonicAmplitudes.length;
+  const tableSize = WAVETABLE_SIZE;
+  if (!AppState.currentSystem || !AppState.currentSystem.ratios) {
+    console.error("Spectral system missing");
+    return { buffer: new Float32Array(0), periodMultiplier: 1 };
+  }
+  const activeRatios = [];
+  for (let h = 0; h < numOsc; h++) {
+    if (AppState.harmonicAmplitudes[h] > 1e-3) {
+      activeRatios.push(AppState.currentSystem.ratios[h]);
+    }
+  }
+  const periodMultiplier = calculateOptimalPeriod(activeRatios, isSubharmonic);
+  const totalPeriodLen = 2 * Math.PI * periodMultiplier;
+  const customCoeffs = AppState.customWaveCoefficients?.[AppState.currentWaveform];
+  const oscBuffers = Array(numOsc).fill(null).map(() => new Float32Array(tableSize));
+  for (let h = 0; h < numOsc; h++) {
+    const amp = AppState.harmonicAmplitudes[h];
+    if (amp <= 1e-3) continue;
+    const ratio = AppState.currentSystem.ratios[h];
+    const buf = oscBuffers[h];
+    for (let i = 0; i < tableSize; i++) {
+      const theta = i / (tableSize - 1) * totalPeriodLen;
+      const harmonic = isSubharmonic ? 1 / ratio * theta : ratio * theta;
+      buf[i] = getWaveValue(AppState.currentWaveform, harmonic, customCoeffs) * amp;
+    }
+    let maxA = 0;
+    for (let i = 0; i < tableSize; i++) maxA = Math.max(maxA, Math.abs(buf[i]));
+    if (maxA > 0) {
+      const n = 1 / maxA;
+      for (let i = 0; i < tableSize; i++) buf[i] *= n;
+    }
+  }
+  switch (routingMode) {
+    //------------------------------------------------------------------
+    // MONO — sum all oscillators
+    //------------------------------------------------------------------
+    case "mono": {
+      const mono = new Float32Array(tableSize);
+      for (let h = 0; h < numOsc; h++) {
+        const b = oscBuffers[h];
+        if (!b) continue;
+        for (let i = 0; i < tableSize; i++) mono[i] += b[i];
+      }
+      let maxA = 0;
+      for (let i = 0; i < tableSize; i++) maxA = Math.max(maxA, Math.abs(mono[i]));
+      if (maxA > 0) {
+        const n = 1 / maxA;
+        for (let i = 0; i < tableSize; i++) mono[i] *= n;
+      }
+      return { buffer: mono, periodMultiplier };
+    }
+    //------------------------------------------------------------------
+    // STEREO — use AppState.oscillatorPans for equal-power panning
+    //------------------------------------------------------------------
+    case "stereo": {
+      const L = new Float32Array(tableSize);
+      const R = new Float32Array(tableSize);
+      for (let h = 0; h < numOsc; h++) {
+        const b = oscBuffers[h];
+        if (!b) continue;
+        const pan = AppState.oscillatorPans?.[h] ?? 0;
+        const p = (pan + 1) * 0.5;
+        const gainL = Math.cos(p * Math.PI * 0.5);
+        const gainR = Math.sin(p * Math.PI * 0.5);
+        for (let i = 0; i < tableSize; i++) {
+          const v = b[i];
+          L[i] += v * gainL;
+          R[i] += v * gainR;
+        }
+      }
+      let maxA = 0;
+      for (let i = 0; i < tableSize; i++) {
+        maxA = Math.max(maxA, Math.abs(L[i]), Math.abs(R[i]));
+      }
+      if (maxA > 0) {
+        const n = 1 / maxA;
+        for (let i = 0; i < tableSize; i++) {
+          L[i] *= n;
+          R[i] *= n;
+        }
+      }
+      return { buffers: [L, R], periodMultiplier };
+    }
+    //------------------------------------------------------------------
+    // MULTICHANNEL — each oscillator isolated
+    //------------------------------------------------------------------
+    case "multichannel": {
+      const numChannels = 12;
+      const channels = [];
+      for (let ch = 0; ch < numChannels; ch++) {
+        channels[ch] = oscBuffers[ch] ?? new Float32Array(tableSize);
+      }
+      for (let ch = 0; ch < numChannels; ch++) {
+        const c = channels[ch];
+        let maxA = 0;
+        for (let i = 0; i < tableSize; i++) {
+          maxA = Math.max(maxA, Math.abs(c[i]));
+        }
+        if (maxA > 0) {
+          const n = 1 / maxA;
+          for (let i = 0; i < tableSize; i++) c[i] *= n;
+        }
+      }
+      return { buffers: channels, periodMultiplier };
+    }
+    //------------------------------------------------------------------
+    // fallback = mono
+    //------------------------------------------------------------------
+    default:
+      console.warn(`Unknown routingMode ${routingMode}, defaulting to mono`);
+      return sampleCurrentWaveform("mono", isSubharmonic);
+  }
+}
+function calculateOptimalPeriod(ratios, isSubharmonic) {
+  if (ratios.length === 0) return 1;
+  const bestPeriods = ratios.map((ratio) => {
+    let bestPeriod = 1;
+    let smallestError = Infinity;
+    for (let period = 1; period <= 20; period++) {
+      let cycles;
+      if (isSubharmonic) {
+        cycles = 1 / ratio * period;
+      } else {
+        cycles = ratio * period;
+      }
+      const fractionalPart = Math.abs(cycles - Math.round(cycles));
+      if (fractionalPart < smallestError) {
+        smallestError = fractionalPart;
+        bestPeriod = period;
+      }
+      if (fractionalPart < 1e-3) break;
+    }
+    console.log(`Ratio ${ratio}: best period ${bestPeriod} gives ${ratio * bestPeriod} cycles (error: ${smallestError})`);
+    return bestPeriod;
+  });
+  const lcm2 = bestPeriods.reduce((acc, period) => {
+    const gcd2 = (a, b) => b === 0 ? a : gcd2(b, a % b);
+    return acc * period / gcd2(acc, period);
+  }, 1);
+  return Math.min(lcm2, 20);
+}
+function exportAsWAV(data, numCycles = 1) {
+  if (!AppState.audioContext) {
+    showStatus("Error: Audio system not initialized. Please click 'Start Tone' first.", "error");
+    return;
+  }
+  if (!data) {
+    showStatus("WAV Export Failed: No waveform data passed.", "error");
+    return;
+  }
+  const periodMultiplier = data.periodMultiplier || 1;
+  let channelBuffers;
+  if (data.buffers && Array.isArray(data.buffers)) {
+    channelBuffers = data.buffers;
+  } else if (data.buffer) {
+    channelBuffers = [data.buffer];
+  } else {
+    showStatus("WAV Export Failed: Invalid waveform data structure.", "error");
+    return;
+  }
+  if (channelBuffers.length === 0 || channelBuffers[0].length === 0) {
+    showStatus("WAV Export Failed: Cannot export empty waveform data.", "error");
+    return;
+  }
+  const baseSampleRate = AppState.audioContext.sampleRate;
+  const correctedSampleRate = baseSampleRate / periodMultiplier;
+  console.log(
+    `WAV Export: channels=${channelBuffers.length}, period multiplier=${periodMultiplier}, sampleRate=${correctedSampleRate}`
+  );
+  const parts = generateFilenameParts();
+  const filename = [
+    parts.noteLetter,
+    parts.waveform,
+    parts.systemName,
+    parts.levels,
+    parts.subharmonicFlag
+  ].filter(Boolean).join("-") + ".wav";
+  try {
+    WAVExporter.exportAsWAV(channelBuffers, correctedSampleRate, filename, numCycles);
+    showStatus(`Wavetable exported as ${filename} (${correctedSampleRate}Hz)!`, "success");
+  } catch (error) {
+    showStatus(`WAV Export Failed: ${error.message}`, "error");
+  }
+}
+function getWaveValue(type, theta, customCoeffs) {
+  if (type.startsWith("custom")) {
+    let table = wavetableCache[type];
+    if (!table) {
+      if (!customCoeffs) return Math.sin(theta);
+      table = wavetableCache[type] = precomputeWavetableFromCoefficients(customCoeffs, 512);
+    }
+    const normalized = theta % (2 * Math.PI) / (2 * Math.PI);
+    const index = normalized * (table.length - 1);
+    const i0 = index | 0;
+    const i1 = (i0 + 1) % table.length;
+    const frac = index - i0;
+    return table[i0] * (1 - frac) + table[i1] * frac;
+  }
+  switch (type) {
+    case "sine":
+      return Math.sin(theta);
+    case "square": {
+      let sum = 0;
+      const terms = 16;
+      for (let n = 1; n < terms * 2; n += 2) sum += 1 / n * Math.sin(theta * n);
+      return sum * (4 / Math.PI) * 0.7;
+    }
+    case "sawtooth": {
+      let sum = 0;
+      const terms = 16;
+      for (let n = 1; n <= terms; n++) sum += 1 / n * Math.sin(theta * n);
+      return sum * (2 / Math.PI) * 0.7;
+    }
+    case "triangle": {
+      let sum = 0;
+      const terms = 16;
+      for (let n = 1; n < terms * 2; n += 2) {
+        const sign = (n - 1) / 2 % 2 === 0 ? 1 : -1;
+        sum += sign / (n * n) * Math.sin(theta * n);
+      }
+      return sum * (8 / (Math.PI * Math.PI)) * 0.7;
+    }
+    default:
+      return Math.sin(theta);
+  }
+}
+async function addWaveformToAudio(buffer, periodMultiplier, AppState2) {
+  await initAudio();
+  const waveKey = getWavetableManager().addFromSamples(
+    buffer,
+    AppState2.audioContext,
+    128,
+    periodMultiplier
+  );
+  const coefficients = getWavetableManager().getCoefficients(waveKey);
+  wavetableCache[waveKey] = precomputeWavetableFromCoefficients(coefficients);
+  const periodicWave = getWavetableManager().getWaveform(waveKey);
+  return { waveKey, coefficients, periodicWave };
+}
+function precomputeWaveTable(input, tableSize = 512) {
+  let table = new Float32Array(tableSize);
+  if (input instanceof Float32Array) {
+    const src = input;
+    const step = (src.length - 1) / (tableSize - 1);
+    for (let i = 0; i < tableSize; i++) {
+      const idx = i * step;
+      const i0 = Math.floor(idx);
+      const i1 = Math.min(i0 + 1, src.length - 1);
+      const f = idx - i0;
+      table[i] = src[i0] * (1 - f) + src[i1] * f;
+    }
+    return table;
+  }
+  if (input.real && input.imag) {
+    const real = input.real;
+    const imag = input.imag;
+    const harmonics = Math.min(real.length, imag.length);
+    for (let i = 0; i < tableSize; i++) {
+      const theta = i / tableSize * Math.PI * 2;
+      let sum = 0;
+      for (let k = 1; k < harmonics; k++) {
+        sum += real[k] * Math.cos(k * theta) + imag[k] * Math.sin(k * theta);
+      }
+      table[i] = sum;
+    }
+    return table;
+  }
+  console.error("precomputeUnifiedWaveTable: invalid input", input);
+  return new Float32Array(tableSize);
+}
+function precomputeWavetableFromCoefficients(coeffs, tableSize = 512) {
+  const table = new Float32Array(tableSize);
+  let maxAmp = 0;
+  for (let i = 0; i < tableSize; i++) {
+    const t = i / tableSize * 2 * Math.PI;
+    let sum = 0;
+    for (let k = 1; k < coeffs.real.length && k < coeffs.imag.length; k++) {
+      sum += coeffs.real[k] * Math.cos(k * t) + coeffs.imag[k] * Math.sin(k * t);
+    }
+    table[i] = sum;
+    if (Math.abs(sum) > maxAmp) maxAmp = Math.abs(sum);
+  }
+  if (maxAmp > 0) {
+    const scale = 1 / maxAmp;
+    for (let i = 0; i < tableSize; i++) {
+      table[i] *= scale;
+    }
+  }
+  return table;
+}
+var audioEngine, wavetableManager, wavetableCache;
+var init_audio = __esm({
+  "js/audio.js"() {
+    init_config();
+    init_utils();
+    init_dsp();
+    init_domUtils();
+    audioEngine = null;
+    wavetableManager = null;
+    wavetableCache = {};
+  }
+});
+
+// js/utils.js
+function midiToNoteName(midi) {
+  const octave = Math.floor(midi / 12) - 1;
+  const noteIndex = midi % 12;
+  return MIDI_NOTE_NAMES[noteIndex] + octave;
+}
+function gainToHex(gain) {
+  const level = Math.round(gain * 15);
+  return level.toString(16).toUpperCase();
+}
+function generateOvertoneString() {
+  return AppState.harmonicAmplitudes.slice(0, 12).map(gainToHex).join("");
+}
+function generateFilenameParts() {
+  const noteLetter = midiToNoteName(AppState.currentMidiNote).replace("#", "s");
+  const waveform = AppState.currentWaveform.toUpperCase().replace("_", "-");
+  const systemName = AppState.currentSystem.name.split(".")[1].trim().replace(/[^a-zA-Z0-9_]/g, "");
+  const levels = generateOvertoneString();
+  const subharmonicFlag = AppState.isSubharmonic ? "subharmonic" : "";
+  return {
+    noteLetter,
+    waveform,
+    systemName,
+    levels,
+    subharmonicFlag
+  };
+}
+function calculateFrequency(ratio) {
+  if (AppState.isSubharmonic) {
+    return ratio === 0 ? 0 : AppState.fundamentalFrequency / ratio;
+  } else {
+    return AppState.fundamentalFrequency * ratio;
+  }
+}
+function smoothUpdateHarmonicAmplitude(index, value, immediate = false) {
+  const key = `harmonic_${index}`;
+  if (immediate) {
+    momentumSmoother.setImmediate(key, value);
+    AppState.harmonicAmplitudes[index] = value;
+    updateAudioProperties();
+    return;
+  }
+  momentumSmoother.smoothTo(
+    key,
+    value,
+    (smoothedValue) => {
+      AppState.harmonicAmplitudes[index] = smoothedValue;
+      updateAudioProperties();
+    },
+    0.8
+  );
+}
+function smoothUpdateMasterGain(value) {
+  momentumSmoother.smoothTo(
+    "master_gain",
+    value,
+    async (smoothedValue) => {
+      AppState.masterGainValue = smoothedValue;
+      const { updateAudioProperties: updateAudioProperties2 } = await Promise.resolve().then(() => (init_audio(), audio_exports));
+      updateAudioProperties2();
+    },
+    0.8
+    // Slightly more smoothing for master gain
+  );
+}
+function smoothUpdateSystem(systemIndex, onComplete = null) {
+  pendingSystemIndex = systemIndex;
+  momentumSmoother.debounce("systemChange", 35, async () => {
+    const idx = pendingSystemIndex;
+    if (idx === null) return;
+    const { setCurrentSystem: setCurrentSystem2 } = await Promise.resolve().then(() => (init_config(), config_exports));
+    const { updateAudioProperties: updateAudioProperties2 } = await Promise.resolve().then(() => (init_audio(), audio_exports));
+    setCurrentSystem2(idx);
+    if (AppState.isPlaying) {
+      updateAudioProperties2();
+    }
+    if (onComplete) onComplete();
+    pendingSystemIndex = null;
+  });
+}
+var pendingSystemIndex;
+var init_utils = __esm({
+  "js/utils.js"() {
+    init_config();
+    init_momentum_smoother();
+    init_momentum_smoother();
+    init_audio();
+    pendingSystemIndex = null;
+  }
+});
+
+// js/events.js
+var DRAWBAR_CHANGE, DRAWBARS_RANDOMIZED, DRAWBARS_RESET, SPECTRAL_SYSTEM_CHANGED, SUBHARMONIC_TOGGLED, ROUTING_MODE_CHANGED;
+var init_events = __esm({
+  "js/events.js"() {
+    DRAWBAR_CHANGE = "drawbar-change";
+    DRAWBARS_RANDOMIZED = "drawbars-randomized";
+    DRAWBARS_RESET = "drawbars-reset";
+    SPECTRAL_SYSTEM_CHANGED = "spectral-system-changed";
+    SUBHARMONIC_TOGGLED = "subharmonic-toggled";
+    ROUTING_MODE_CHANGED = "routing-mode-changed";
+  }
+});
+
+// js/modules/drawbars/drawbarsActions.js
+var DrawbarsActions;
+var init_drawbarsActions = __esm({
+  "js/modules/drawbars/drawbarsActions.js"() {
+    init_config();
+    init_utils();
+    init_events();
+    DrawbarsActions = {
+      setDrawbar(index, value) {
+        const amps = AppState.harmonicAmplitudes;
+        if (amps && amps.length > index) {
+          if (amps[index] !== value) {
+            amps[index] = value;
+            updateAppState({ harmonicAmplitudes: amps });
+            smoothUpdateHarmonicAmplitude(index, value);
+            document.dispatchEvent(
+              new CustomEvent(DRAWBAR_CHANGE, {
+                detail: { index, value }
+              })
+            );
+          }
+        }
+      },
+      randomize() {
+        const newAmps = AppState.harmonicAmplitudes.map((_, i) => {
+          return i === 0 ? 0.5 + Math.random() * 0.5 : Math.random();
+        });
+        updateAppState({ harmonicAmplitudes: newAmps });
+        newAmps.forEach((value, i) => {
+          smoothUpdateHarmonicAmplitude(i, value);
+        });
+        document.dispatchEvent(new Event(DRAWBARS_RANDOMIZED));
+      },
+      reset() {
+        const oldAmps = AppState.harmonicAmplitudes || [];
+        const newAmps = oldAmps.map((_, i) => i === 0 ? 1 : 0);
+        updateAppState({ harmonicAmplitudes: newAmps });
+        newAmps.forEach((v, i) => {
+          smoothUpdateHarmonicAmplitude(i, v, true);
+        });
+        document.dispatchEvent(new Event(DRAWBARS_RESET));
+      }
+    };
+  }
+});
+
+// js/modules/base/BaseController.js
+var BaseController;
+var init_BaseController = __esm({
+  "js/modules/base/BaseController.js"() {
+    BaseController = class {
+      constructor(selector) {
+        if (typeof this.createComponent !== "function") {
+          throw new Error("Subclass must implement createComponent(selector)");
+        }
+        this.selector = selector;
+        this.component = this.createComponent(selector);
+        if (!this.component) {
+          throw new Error("createComponent() must return a component instance");
+        }
+      }
+      /**
+       * Initialize controller lifecycle. Call this once after construction.
+       */
+      init() {
+        this.bindComponentEvents();
+        this.bindExternalEvents();
+        this.update();
+      }
+      /**
+       * Subclasses MUST implement this to return props derived from app state.
+       */
+      getProps() {
+        throw new Error("Subclass must implement getProps()");
+      }
+      /**
+       * Re-render the component with fresh props.
+       * Safe to call any time state changes.
+       */
+      update() {
+        const props = this.getProps();
+        if (this.component.teardown) this.component.teardown();
+        this.component.render(props);
+        if (typeof this.component.bindRenderedEvents === "function") {
+          this.component.bindRenderedEvents();
+        }
+        return props;
+      }
+      /**
+       * Subclasses MAY override this to wire component-level events, e.g.:
+       *   this.component.onChange = (value) => {...}
+       * 
+       *   TODO: consider instead passing in functions as props to the render method
+       */
+      bindComponentEvents() {
+      }
+      /**
+       * Subclasses MAY override this to bind global events (ex: document listeners)
+       * TODO: need to add cleanup for events bound here. 
+       * almost always calls this.update() so it could be streamlined
+       */
+      bindExternalEvents() {
+      }
+      /**
+       * Optional destruction (future-proofing)
+       */
+      destroy() {
+        if (this.component.teardown) {
+          this.component.teardown();
+        }
+      }
+    };
+  }
+});
+
+// js/modules/drawbars/drawbarsController.js
+var RESET_DRAWBARS_BUTTON_ID, RANDOMIZE_DRAWBARS_BUTTON_ID, DrawbarsController;
+var init_drawbarsController = __esm({
+  "js/modules/drawbars/drawbarsController.js"() {
+    init_DrawbarsComponent();
+    init_drawbarsActions();
+    init_events();
+    init_BaseController();
+    init_config();
+    RESET_DRAWBARS_BUTTON_ID = "reset-drawbars-button";
+    RANDOMIZE_DRAWBARS_BUTTON_ID = "randomize-drawbars-button";
+    DrawbarsController = class extends BaseController {
+      createComponent(selector) {
+        return new DrawbarsComponent(selector);
+      }
+      /**
+       * Wire Component → Actions
+       */
+      bindComponentEvents() {
+        this.component.onChange = (index, value) => {
+          DrawbarsActions.setDrawbar(index, value);
+        };
+      }
+      updateDrawbar({ index, value }) {
+        this.component.updateSingleDrawbar(index, value);
+      }
+      reset() {
+        DrawbarsActions.reset();
+      }
+      randomize() {
+        DrawbarsActions.randomize();
+      }
+      /**
+       * DOM / Global events
+       */
+      bindExternalEvents() {
+        document.addEventListener(DRAWBAR_CHANGE, (event) => this.updateDrawbar(event.detail));
+        document.addEventListener(DRAWBARS_RANDOMIZED, () => this.update());
+        document.addEventListener(DRAWBARS_RESET, () => this.update());
+        document.addEventListener(SPECTRAL_SYSTEM_CHANGED, () => this.update());
+        document.addEventListener(SUBHARMONIC_TOGGLED, () => this.update());
+        document.getElementById(RESET_DRAWBARS_BUTTON_ID)?.addEventListener("click", () => {
+          this.reset();
+        });
+        document.getElementById(RANDOMIZE_DRAWBARS_BUTTON_ID)?.addEventListener("click", () => {
+          this.randomize();
+        });
+      }
+      getProps() {
+        return {
+          isSubharmonic: AppState.isSubharmonic
+        };
+      }
+      // no update() override — BaseController handles render + bindRenderedEvents
+    };
+  }
+});
+
+// js/modules/spectralSystem/spectralSystemActions.js
+var SpectralSystemActions;
+var init_spectralSystemActions = __esm({
+  "js/modules/spectralSystem/spectralSystemActions.js"() {
+    init_audio();
+    init_config();
+    init_events();
+    init_utils();
+    SpectralSystemActions = {
+      toggleSubharmonic() {
+        const isSubharmonic = !AppState.isSubharmonic;
+        updateAppState({ isSubharmonic });
+        document.dispatchEvent(new CustomEvent(SUBHARMONIC_TOGGLED, { detail: { isSubharmonic } }));
+      },
+      setSystem(index) {
+        updateAppState({ currentSystem: spectralSystems[index] });
+        const numPartials = AppState.currentSystem.ratios.length;
+        const oldAmps = AppState.harmonicAmplitudes || [];
+        const newAmps = [];
+        for (let i = 0; i < numPartials; i++) {
+          newAmps[i] = typeof oldAmps[i] === "number" ? oldAmps[i] : i === 0 ? 1 : 0;
+        }
+        for (let i = oldAmps.length; i < numPartials; i++) {
+          newAmps[i] = i === 0 ? 1 : 0;
+        }
+        AppState.harmonicAmplitudes = newAmps;
+        smoothUpdateSystem(index);
+        document.dispatchEvent(new CustomEvent(SPECTRAL_SYSTEM_CHANGED, {
+          detail: { index, system: AppState.currentSystem }
+        }));
+      },
+      // TODO could move this to an audio actions file
+      updateAudio() {
+        updateAudioProperties();
+      }
+    };
+  }
+});
+
+// js/modules/spectralSystem/SpectralSystemComponent.js
+var RATIO_SYSTEM_SELECT_ID, SpectralSystemComponent;
+var init_SpectralSystemComponent = __esm({
+  "js/modules/spectralSystem/SpectralSystemComponent.js"() {
+    init_BaseComponent();
+    RATIO_SYSTEM_SELECT_ID = "#ratio-system-select";
+    SpectralSystemComponent = class extends BaseComponent {
+      // Store reference to the click handler for proper removal
+      _subharmonicToggleHandler = null;
+      constructor(elementId) {
+        super(elementId);
+        this.onChange = null;
+        this.onSubharmonicToggle = null;
+      }
+      /**
+       * Main render cycle: receives fresh props from BaseController.
+       */
+      render({ systems, currentSystem, isSubharmonic }) {
+        const selectEl = this.q("#ratio-system-select");
+        const descriptionEl = this.q("#system-description");
+        if (!selectEl) return;
+        while (selectEl.firstChild) {
+          selectEl.removeChild(selectEl.firstChild);
+        }
+        systems.forEach((system, index) => {
+          const option = document.createElement("option");
+          option.textContent = system.name;
+          option.value = index;
+          if (system === currentSystem) option.selected = true;
+          selectEl.appendChild(option);
+        });
+        this.updateContent(descriptionEl, currentSystem?.description || "", {
+          asHTML: true
+        });
+        this.renderSubharmonicToggle({ isSubharmonic });
+      }
+      updateSelector({ currentSystem, systems }) {
+        const selectEl = this.q("#ratio-system-select");
+        if (!selectEl) return;
+        const index = systems.findIndex((s) => s === currentSystem);
+        if (index >= 0) selectEl.value = index;
+      }
+      /**
+       * Bind interactive events once: BaseComponent guarantees
+       * bindComponentEvents() runs only after construction.
+       */
+      bindComponentEvents() {
+        const selectEl = this.q(RATIO_SYSTEM_SELECT_ID);
+        if (!selectEl) return;
+        if (this._selectChangeHandler) {
+          selectEl.removeEventListener("change", this._selectChangeHandler);
+        }
+        this._selectChangeHandler = (e) => {
+          const systemIndex = parseInt(e.target.value);
+          console.log("[SpectralSystemComponent] Dropdown changed:", systemIndex);
+          this.onChange?.(systemIndex);
+          e.target.setAttribute("aria-valuenow", systemIndex);
+        };
+        selectEl.addEventListener("change", this._selectChangeHandler);
+      }
+      /**
+       * Called by both render() and by SUBHARMONIC_TOGGLED external event.
+       * It updates the UI state of the toggle without re-rendering the whole component.
+       */
+      renderSubharmonicToggle({ isSubharmonic }) {
+        const subharmonicToggle = this.q("#subharmonic-toggle");
+        if (!subharmonicToggle) return;
+        subharmonicToggle.classList.toggle("active", isSubharmonic);
+        subharmonicToggle.setAttribute("aria-checked", isSubharmonic);
+        if (this._subharmonicToggleHandler) {
+          subharmonicToggle.removeEventListener("click", this._subharmonicToggleHandler);
+        }
+        this._subharmonicToggleHandler = (e) => {
+          this.onSubharmonicToggle?.();
+        };
+        subharmonicToggle.addEventListener("click", this._subharmonicToggleHandler);
+      }
+    };
+  }
+});
+
+// js/modules/spectralSystem/spectralSystemController.js
+var SpectralSystemController;
+var init_spectralSystemController = __esm({
+  "js/modules/spectralSystem/spectralSystemController.js"() {
+    init_BaseController();
+    init_spectralSystemActions();
+    init_SpectralSystemComponent();
+    init_config();
+    init_events();
+    SpectralSystemController = class extends BaseController {
+      init() {
+        super.init();
+        this.component.bindComponentEvents();
+      }
+      update() {
+        const props = super.update();
+        this.component.updateSelector(props);
+      }
+      /**
+       * Instantiate the component.
+       * BaseComponent will validate the target selector internally.
+       */
+      createComponent(selector) {
+        return new SpectralSystemComponent(selector);
+      }
+      /**
+       * Always provide fresh props for each render cycle.
+       * The BaseController.update() method will call this before
+       * every component.render(props).
+       */
+      getProps() {
+        return {
+          systems: spectralSystems,
+          currentSystem: AppState.currentSystem,
+          isSubharmonic: AppState.isSubharmonic
+        };
+      }
+      /**
+       * Connect component → actions.
+       * The component uses event callbacks instead of touching global state.
+       */
+      bindComponentEvents() {
+        this.component.onChange = (systemIndex) => {
+          SpectralSystemActions.setSystem(systemIndex);
+        };
+        this.component.onSubharmonicToggle = () => {
+          SpectralSystemActions.toggleSubharmonic();
+        };
+        if (typeof this.component.bindComponentEvents === "function") {
+          this.component.bindComponentEvents();
+        }
+      }
+      /**
+       * Listen for external/global events and refresh the UI.
+       */
+      bindExternalEvents() {
+        document.addEventListener(SPECTRAL_SYSTEM_CHANGED, () => {
+          this.update();
+        });
+        document.addEventListener(SUBHARMONIC_TOGGLED, () => {
+          if (typeof this.component.renderSubharmonicToggle === "function") {
+            this.component.renderSubharmonicToggle({
+              isSubharmonic: AppState.isSubharmonic
+            });
+          }
+          this.update();
+          SpectralSystemActions.updateAudio();
+        });
+      }
+    };
+  }
+});
+
+// js/modules/waveform/WaveformComponent.js
+function lcm(a, b) {
+  return a * b / gcd(a, b);
+}
+function gcd(a, b) {
+  return b === 0 ? a : gcd(b, a % b);
+}
+function lcmArray(arr) {
+  return arr.reduce((a, b) => lcm(a, b), 1);
+}
+function createWaveformSketch(component) {
+  return function(p) {
+    component._waveformP5 = p;
+    p.setup = function() {
+      const container = component.el;
+      const width = container?.clientWidth || 400;
+      const height = 150;
+      p.createCanvas(width, height).parent(container);
+      p.noLoop();
+    };
+    p.windowResized = function() {
+      const container = component.el;
+      const width = container?.clientWidth || 400;
+      const height = 150;
+      p.resizeCanvas(width, height);
+      p.redraw();
+    };
+    p.draw = function() {
+      const props = component.props;
+      if (!props?.p5Instance || !props.harmonicAmplitudes?.length) return;
+      const width = p.width;
+      const height = p.height;
+      const ampScale = height * 0.4;
+      p.background("#0d131f");
+      p.stroke("#374151");
+      p.strokeWeight(1);
+      p.line(0, height / 2, width, height / 2);
+      p.stroke("#10b981");
+      p.strokeWeight(2);
+      p.noFill();
+      p.beginShape();
+      if (props.mode === "single") {
+        for (let x = 0; x < width; x++) {
+          const theta = p.map(x, 0, width, 0, p.TWO_PI * 2);
+          const ratio = props.currentSystem.ratios[0];
+          const wave = getWaveValue2(
+            props.currentWaveform,
+            ratio * theta,
+            props.customWaveCoefficients?.[props.currentWaveform]
+          );
+          const y = height / 2 - wave * ampScale;
+          p.vertex(x, y);
+        }
+      } else {
+        let fullPeriodMultiplier = 2;
+        if (props.isSubharmonic) {
+          const denominators = props.currentSystem.ratios.map((r, h) => props.harmonicAmplitudes[h] > 1e-3 ? Math.round(r) : null).filter(Boolean);
+          if (denominators.length > 0) {
+            fullPeriodMultiplier = lcmArray(denominators);
+            fullPeriodMultiplier = Math.min(fullPeriodMultiplier, 32);
+          }
+        }
+        const thetaScale = p.TWO_PI * fullPeriodMultiplier / width;
+        for (let x = 0; x < width; x++) {
+          const theta = x * thetaScale;
+          let sum = 0;
+          let totalAmp = 0;
+          for (let h = 0; h < props.harmonicAmplitudes.length; h++) {
+            const amp = props.harmonicAmplitudes[h] || 0;
+            if (amp > 1e-3) {
+              const ratio = props.currentSystem.ratios[h];
+              const harmonicPhase = props.isSubharmonic ? theta / ratio : ratio * theta;
+              sum += getWaveValue2(
+                props.currentWaveform,
+                harmonicPhase,
+                component.props.customWaveCoefficients?.[props.currentWaveform]
+              ) * amp;
+              totalAmp += amp;
+            }
+          }
+          const y = height / 2 - sum / (totalAmp || 1) * ampScale;
+          p.vertex(x, y);
+        }
+      }
+      p.endShape();
+    };
+  };
+}
+var WaveformComponent;
+var init_WaveformComponent = __esm({
+  "js/modules/waveform/WaveformComponent.js"() {
+    init_BaseComponent();
+    init_tonewheelActions();
+    WaveformComponent = class extends BaseComponent {
+      constructor(elementId) {
+        super(elementId);
+        this._waveformP5 = null;
+        this.props = {};
+      }
+      /**
+       * Render waveform with new props
+       * @param {object} props - Includes p5Instance, currentWaveform, harmonicAmplitudes, currentSystem
+       */
+      render(props) {
+        this.props = props;
+        this.teardown();
+        if (!props.p5Instance) {
+          requestAnimationFrame(() => this.render(props));
+          return;
+        }
+        const sketch = createWaveformSketch(this);
+        this._waveformP5 = new p5(sketch, this.el);
+      }
+      /**
+       * Clean up p5 instance and any other resources
+       */
+      teardown() {
+        if (this._waveformP5?.remove) {
+          this._waveformP5.remove();
+          this._waveformP5 = null;
+        }
+        super.teardown?.();
+      }
+    };
+  }
+});
+
+// js/modules/tonewheel/tonewheelActions.js
+function createVisualizationSketch() {
+  return function(p) {
+    AppState.p5Instance = p;
+    p.setSpreadFactor = function(value) {
+      spreadFactor = value;
+    };
+    p.getSpreadFactor = function() {
+      return spreadFactor;
+    };
+    p.setup = function() {
+      const container = document.getElementById("tonewheel-canvas");
+      let w = container ? container.clientWidth : 800;
+      let h = w;
+      if (w === 0) {
+        w = window.innerWidth < 640 ? 320 : 800;
+        h = w;
+        console.warn("Canvas container width was 0, using fallback width:", w);
+      }
+      p.createCanvas(w, h).parent(container ? "tonewheel-canvas" : "body");
+      p.angleMode(p.RADIANS);
+      updateDimensions();
+    };
+    function updateDimensions() {
+      const radialHeight = p.height * CANVAS_HEIGHT_RATIOS.RADIAL;
+      maxAmplitudeRadial = p.min(p.width, radialHeight) * (1 - baseRadiusRatio) * 0.45;
+      baseRadius = p.min(p.width, radialHeight) * baseRadiusRatio;
+    }
+    p.updateDimensions = updateDimensions;
+    p.customWaveTables = {};
+    p.precomputeCustomWaveTable = function(coeffs) {
+      const tableSize = 512;
+      const table = new Float32Array(tableSize);
+      for (let i = 0; i < tableSize; i++) {
+        const theta = i / tableSize * p.TWO_PI;
+        let sum = 0;
+        for (let k = 1; k < coeffs.real.length && k < coeffs.imag.length; k++) {
+          sum += coeffs.real[k] * p.cos(k * theta) + coeffs.imag[k] * p.sin(k * theta);
+        }
+        table[i] = sum;
+      }
+      return table;
+    };
+    p.clearCustomWaveCache = function() {
+      p.customWaveTables = {};
+    };
+    function computeHarmonicLaneRadii({ harmonicAmplitudes, baseRadius: baseRadius2, maxLaneHeight }) {
+      const activeHarmonics = harmonicAmplitudes.map((amp, idx) => ({ amp, idx })).filter((h) => h.amp > 0);
+      const num = activeHarmonics.length;
+      const radii = new Array(harmonicAmplitudes.length);
+      const laneSpacing = maxLaneHeight / num;
+      let currentRadius = baseRadius2;
+      for (let i = 0; i < num; i++) {
+        const hIdx = activeHarmonics[i].idx;
+        radii[hIdx] = currentRadius;
+        currentRadius += laneSpacing;
+      }
+      return radii;
+    }
+    function drawRadialDisplay() {
+      p.push();
+      p.translate(p.width / 2, p.height / 2);
+      p.noFill();
+      p.stroke("#374151");
+      p.ellipse(0, 0, baseRadius * 2, baseRadius * 2);
+      const points = 360;
+      const rotationSpeed = AppState.visualizationFrequency * p.TWO_PI / 60;
+      const currentAngle = p.frameCount * rotationSpeed;
+      drawIndividualPartials(points, currentAngle);
+      p.pop();
+    }
+    function drawIndividualPartials(points, currentAngle) {
+      const type = AppState.currentWaveform;
+      const numHarmonics = AppState.harmonicAmplitudes.length;
+      const laneRadii = computeHarmonicLaneRadii({
+        harmonicAmplitudes: AppState.harmonicAmplitudes,
+        baseRadius,
+        maxLaneHeight: maxAmplitudeRadial
+      });
+      let fullPeriodMultiplier = 1;
+      if (AppState.isSubharmonic) {
+        const denominators = AppState.currentSystem.ratios.map((r, h) => AppState.harmonicAmplitudes[h] > 1e-3 ? Math.round(r) : null).filter(Boolean);
+        if (denominators.length > 0) {
+          fullPeriodMultiplier = lcmArray(denominators);
+          fullPeriodMultiplier = Math.min(fullPeriodMultiplier, 32);
+        }
+      }
+      const thetaScale = p.TWO_PI * fullPeriodMultiplier / points;
+      for (let h = 0; h < numHarmonics; h++) {
+        const amp = AppState.harmonicAmplitudes[h];
+        if (amp <= 1e-3) continue;
+        const ratio = AppState.currentSystem.ratios[h];
+        const ringRadius = laneRadii[h];
+        const MAX_RING_MOD = 0.45;
+        const visualAmp = MAX_RING_MOD * (maxAmplitudeRadial / numHarmonics) * spreadFactor * amp;
+        p.stroke(p.color(HARMONIC_COLORS[h] + "99"));
+        p.strokeWeight(2);
+        p.noFill();
+        p.beginShape();
+        for (let i = 0; i < points; i++) {
+          const theta = i * thetaScale;
+          const harmonicPhase = AppState.isSubharmonic ? theta / ratio : theta * ratio;
+          const waveValue = getWaveValue2(type, harmonicPhase, AppState.customWaveCoefficients?.[type]);
+          const rotatedTheta = theta + currentAngle;
+          const r = ringRadius + waveValue * visualAmp;
+          const x = r * p.cos(rotatedTheta);
+          const y = r * p.sin(rotatedTheta);
+          p.vertex(x, y);
+        }
+        p.endShape(p.CLOSE);
+      }
+    }
+    p.draw = function() {
+      p.clear();
+      updateDimensions();
+      drawRadialDisplay();
+    };
+    p.windowResized = function() {
+      const container = document.getElementById("tonewheel-canvas");
+      let w = container ? container.clientWidth : 800;
+      let h = w;
+      if (w === 0) {
+        w = window.innerWidth < 640 ? 320 : 800;
+        h = w;
+      }
+      p.resizeCanvas(w, h);
+      updateDimensions();
+    };
+  };
+}
+function getWaveValue2(type, theta, customCoeffs) {
+  if (type && type.startsWith("custom")) {
+    const key = type;
+    if (!waveformTables.has(key) && customCoeffs) {
+      waveformTables.set(key, precomputeWaveTable(customCoeffs, TABLE_SIZE));
+    }
+    const table = waveformTables.get(key);
+    if (!table) return Math.sin(theta);
+    const normalizedTheta = theta % (2 * Math.PI) / (2 * Math.PI);
+    const index = normalizedTheta * (table.length - 1);
+    const low = Math.floor(index);
+    const high = Math.ceil(index);
+    const frac = index - low;
+    return low === high ? table[low] : table[low] * (1 - frac) + table[high] * frac;
+  }
+  switch (type) {
+    case "sine":
+      return Math.sin(theta);
+    case "square": {
+      let sum = 0;
+      const terms = 16;
+      for (let n = 1; n < terms * 2; n += 2) sum += 1 / n * Math.sin(theta * n);
+      return sum * (4 / Math.PI) * 0.7;
+    }
+    case "sawtooth": {
+      let sum = 0;
+      const terms = 16;
+      for (let n = 1; n <= terms; n++) sum += 1 / n * Math.sin(theta * n);
+      return sum * (2 / Math.PI) * 0.7;
+    }
+    case "triangle": {
+      let sum = 0;
+      const terms = 16;
+      for (let n = 1; n < terms * 2; n += 2) {
+        const sign = (n - 1) / 2 % 2 === 0 ? 1 : -1;
+        sum += sign / (n * n) * Math.sin(theta * n);
+      }
+      return sum * (8 / (Math.PI * Math.PI)) * 0.7;
+    }
+    default:
+      return Math.sin(theta);
+  }
+}
+var spreadFactor, baseRadius, maxAmplitudeRadial, baseRadiusRatio, TonewheelActions, waveformTables, TABLE_SIZE;
+var init_tonewheelActions = __esm({
+  "js/modules/tonewheel/tonewheelActions.js"() {
+    init_config();
+    init_audio();
+    init_WaveformComponent();
+    spreadFactor = 1;
+    baseRadiusRatio = 0.08;
+    TonewheelActions = {
+      initVisualization() {
+        if (p5) {
+          const sketch = createVisualizationSketch();
+          return new p5(sketch, "tonewheel-canvas");
+        }
+        return null;
+      },
+      setVisualizationFrequency(freq) {
+        updateAppState({ visualizationFrequency: freq });
+      },
+      setSpreadFactor(value) {
+        if (AppState.p5Instance && AppState.p5Instance.setSpreadFactor) {
+          AppState.p5Instance.setSpreadFactor(value);
+        }
+      },
+      getSpreadFactor() {
+        if (AppState.p5Instance && AppState.p5Instance.getSpreadFactor) {
+          return AppState.p5Instance.getSpreadFactor();
+        }
+        return 0.2;
+      },
+      clearCustomWaveCache() {
+        if (AppState.p5Instance && AppState.p5Instance.clearCustomWaveCache) {
+          AppState.p5Instance.clearCustomWaveCache();
+        }
+      }
+    };
+    waveformTables = /* @__PURE__ */ new Map();
+    TABLE_SIZE = 512;
+  }
+});
+
+// js/modules/waveform/waveformActions.js
+function handleWaveformChange(e) {
+  const currentWaveform = e.target.value;
+  updateAppState({ currentWaveform });
+  document.dispatchEvent(new CustomEvent(CURRENT_WAVEFORM_CHANGED, {
+    detail: { currentWaveform }
+  }));
+  if (AppState.isPlaying) {
+    restartAudio();
+  }
+}
+function handleAddToWaveforms(routingMode, isSubharmonic) {
+  sampleCurrentWaveform(routingMode, isSubharmonic).then((sampledData) => {
+    const buffer = sampledData.buffer || sampledData;
+    if (buffer.length > 0) {
+      addToWaveforms(sampledData);
+    }
+  }).catch((error) => {
+    console.error("Failed to sample waveform for adding:", error);
+    showStatus("Failed to sample waveform for adding", "error");
+  });
+}
+async function addToWaveforms(sampledData) {
+  const buffer = sampledData.buffer || sampledData;
+  const periodMultiplier = sampledData.periodMultiplier || 1;
+  if (buffer.length === 0) {
+    showStatus("Warning: Cannot add empty waveform data.", "warning");
+    return;
+  }
+  try {
+    const { waveKey, coefficients, periodicWave } = await addWaveformToAudio(buffer, periodMultiplier, AppState);
+    const customWaveIndex = addWaveformToState(
+      AppState,
+      waveKey,
+      coefficients,
+      periodicWave,
+      periodMultiplier
+    );
+    addWaveformToUI(AppState, waveKey, customWaveIndex);
+    document.dispatchEvent(new CustomEvent(CURRENT_WAVEFORM_CHANGED));
+  } catch (error) {
+    showStatus(`Failed to add waveform: ${error.message}`, "error");
+  }
+}
+function addWaveformToState(AppState2, waveKey, coefficients, periodicWave, periodMultiplier) {
+  AppState2.blWaveforms[waveKey] = periodicWave;
+  if (!AppState2.customWaveCoefficients) {
+    AppState2.customWaveCoefficients = {};
+  }
+  AppState2.customWaveCoefficients[waveKey] = coefficients;
+  AppState2.customWaveCount = (AppState2.customWaveCount || 0) + 1;
+  if (!AppState2.customWavePeriodMultipliers) {
+    AppState2.customWavePeriodMultipliers = {};
+  }
+  AppState2.customWavePeriodMultipliers[waveKey] = periodMultiplier;
+  TonewheelActions.clearCustomWaveCache();
+  return AppState2.customWaveCount;
+}
+function addWaveformToUI(AppState2, waveKey, customWaveIndex) {
+  const select = document.getElementById("waveform-select");
+  if (!select) return;
+  const parts = generateFilenameParts();
+  const optionName = `${parts.noteLetter}-${parts.waveform}-${parts.systemName}-${parts.levels}` + (parts.subharmonicFlag ? `-${parts.subharmonicFlag}` : "");
+  const option = document.createElement("option");
+  option.textContent = `Custom ${customWaveIndex}: ${optionName}`;
+  option.value = waveKey;
+  select.appendChild(option);
+  updateAppState({ currentWaveform: waveKey });
+  select.value = waveKey;
+  showStatus(
+    `Successfully added new waveform: Custom ${customWaveIndex}. Now synthesizing with it!`,
+    "success"
+  );
+  if (AppState2.isPlaying) {
+    restartAudio();
+  }
+}
+var CURRENT_WAVEFORM_CHANGED;
+var init_waveformActions = __esm({
+  "js/modules/waveform/waveformActions.js"() {
+    init_audio();
+    init_config();
+    init_domUtils();
+    init_utils();
+    init_tonewheelActions();
+    CURRENT_WAVEFORM_CHANGED = "currentWaveformChanged";
+  }
+});
+
+// js/modules/waveform/waveformController.js
+var WaveformController;
+var init_waveformController = __esm({
+  "js/modules/waveform/waveformController.js"() {
+    init_config();
+    init_events();
+    init_BaseController();
+    init_waveformActions();
+    init_WaveformComponent();
+    WaveformController = class extends BaseController {
+      constructor(selector, options = {}) {
+        super(selector);
+        this.mode = options.mode || "sum";
+      }
+      createComponent(selector) {
+        return new WaveformComponent(selector);
+      }
+      getProps() {
+        const { p5Instance, harmonicAmplitudes, currentSystem, currentWaveform, customWaveCoefficients, isSubharmonic } = AppState;
+        return {
+          p5Instance,
+          harmonicAmplitudes,
+          currentSystem,
+          currentWaveform,
+          customWaveCoefficients,
+          isSubharmonic,
+          mode: this.mode
+        };
+      }
+      bindExternalEvents() {
+        document.addEventListener(DRAWBARS_RESET, () => this.update());
+        document.addEventListener(SPECTRAL_SYSTEM_CHANGED, () => this.update());
+        document.addEventListener(SUBHARMONIC_TOGGLED, () => this.update());
+        document.addEventListener(DRAWBAR_CHANGE, () => this.update());
+        document.addEventListener(DRAWBARS_RANDOMIZED, () => this.update());
+        document.addEventListener(CURRENT_WAVEFORM_CHANGED, () => this.update());
+      }
+    };
+  }
+});
+
+// js/modules/downloadControl/DownloadControlComponent.js
+var DownloadControlComponent;
+var init_DownloadControlComponent = __esm({
+  "js/modules/downloadControl/DownloadControlComponent.js"() {
+    init_BaseComponent();
+    DownloadControlComponent = class extends BaseComponent {
+      constructor(selector) {
+        super(selector);
+        this.onRoutingChange = null;
+        this.onDownload = null;
+      }
+      render({ routingMode }) {
+        this.renderRoutingMode({ routingMode });
+      }
+      renderRoutingMode({ routingMode }) {
+        const select = document.getElementById("routing-mode-select");
+        if (select) {
+          select.value = routingMode;
+        }
+      }
+      bindRenderedEvents() {
+        const select = document.getElementById("routing-mode-select");
+        if (select) {
+          this.bindEvent(select, "change", (e) => {
+            this.onRoutingChange?.(e.target.value);
+          });
+        }
+        const downloadBtn = document.getElementById("export-wav-button");
+        if (downloadBtn) {
+          this.bindEvent(downloadBtn, "click", () => {
+            this.onDownload?.();
+          });
+        }
+        const addWaveBtn = document.getElementById("add-wave-button");
+        if (addWaveBtn) {
+          this.bindEvent(addWaveBtn, "click", () => {
+            this.onAddToWaveforms?.();
+          });
+        }
+      }
+      setRoutingMode(mode) {
+        const select = document.getElementById("routing-mode-select");
+        if (select) {
+          select.value = mode;
+        }
+      }
+    };
+  }
+});
+
+// js/modules/downloadControl/downloadControlActions.js
+var DownloadControlActions;
+var init_downloadControlActions = __esm({
+  "js/modules/downloadControl/downloadControlActions.js"() {
+    init_audio();
+    init_config();
+    init_domUtils();
+    init_events();
+    DownloadControlActions = {
+      setRoutingMode(mode) {
+        if (AppState.audioRoutingMode !== mode) {
+          updateAppState({ audioRoutingMode: mode });
+          document.dispatchEvent(new CustomEvent(ROUTING_MODE_CHANGED, { detail: { mode } }));
+        }
+      },
+      handleExportWAV(routingMode, isSubharmonic) {
+        sampleCurrentWaveform(routingMode, isSubharmonic).then((sampled) => {
+          exportAsWAV(sampled, 1);
+        }).catch((error) => {
+          console.error("Failed to sample waveform for export:", error);
+          showStatus("Failed to sample waveform for export", "error");
+        });
+      }
+    };
+  }
+});
+
+// js/modules/downloadControl/downloadControlController.js
+var DownloadControlController;
+var init_downloadControlController = __esm({
+  "js/modules/downloadControl/downloadControlController.js"() {
+    init_BaseController();
+    init_DownloadControlComponent();
+    init_downloadControlActions();
+    init_config();
+    init_events();
+    init_waveformActions();
+    DownloadControlController = class extends BaseController {
+      createComponent(selector) {
+        return new DownloadControlComponent(selector);
+      }
+      getProps() {
+        return {
+          routingMode: AppState.audioRoutingMode,
+          isSubharmonic: AppState.isSubharmonic
+        };
+      }
+      bindComponentEvents() {
+        this.component.onRoutingChange = (mode) => {
+          DownloadControlActions.setRoutingMode(mode);
+        };
+        this.component.onDownload = () => {
+          const { routingMode, isSubharmonic } = this.getProps();
+          DownloadControlActions.handleExportWAV(routingMode, isSubharmonic);
+        };
+        this.component.onAddToWaveforms = () => {
+          const { routingMode, isSubharmonic } = this.getProps();
+          handleAddToWaveforms(routingMode, isSubharmonic);
+        };
+      }
+      bindExternalEvents() {
+        document.addEventListener(ROUTING_MODE_CHANGED, () => this.update());
+      }
+    };
+  }
+});
+
+// js/HelpDialog.js
+var HelpDialog;
+var init_HelpDialog = __esm({
+  "js/HelpDialog.js"() {
+    HelpDialog = class {
+      static init() {
+        const helpBtn = document.getElementById("help-button");
+        const modal = document.getElementById("help-modal");
+        const closeBtn = document.getElementById("close-help-modal");
+        if (!helpBtn || !modal || !closeBtn) return;
+        helpBtn.addEventListener("click", () => {
+          modal.classList.remove("hidden");
+        });
+        closeBtn.addEventListener("click", () => {
+          modal.classList.add("hidden");
+        });
+        modal.addEventListener("click", (e) => {
+          if (e.target === modal) {
+            modal.classList.add("hidden");
+          }
+        });
+        document.addEventListener("keydown", (e) => {
+          if (!modal.classList.contains("hidden") && (e.code === "Escape" || e.code === "Enter")) {
+            modal.classList.add("hidden");
+          }
+        });
+      }
+    };
+  }
+});
+
+// js/UIStateManager.js
+var UIStateManager_exports = {};
+__export(UIStateManager_exports, {
+  UIStateManager: () => UIStateManager
+});
+var UIStateManager;
+var init_UIStateManager = __esm({
+  "js/UIStateManager.js"() {
+    init_config();
+    init_ui();
+    init_audio();
+    UIStateManager = class _UIStateManager {
+      // Get current AppState
+      static getState() {
+        return AppState;
+      }
+      // Set fundamental by MIDI note
+      static setFundamentalByMidi(midiNote) {
+        const midi = Math.min(127, midiNote);
+        const frequency = _UIStateManager.midiToFreq(midi);
+        const octave = Math.floor(midi / 12) - 1;
+        updateAppState({
+          currentMidiNote: midi,
+          fundamentalFrequency: frequency,
+          currentOctave: octave
+        });
+        updateFundamentalDisplay();
+        updateKeyboardUI();
+        updateAudioProperties();
+      }
+      // Set fundamental by frequency
+      static setFundamentalByFrequency(freq) {
+        const midi = Math.round(_UIStateManager.freqToMidi(freq));
+        _UIStateManager.setFundamentalByMidi(midi);
+      }
+      // Utility: MIDI <-> Frequency
+      static midiToFreq(midi) {
+        return 440 * Math.pow(2, (midi - 69) / 12);
+      }
+      static freqToMidi(freq) {
+        return 69 + 12 * Math.log2(freq / 440);
+      }
+    };
+  }
+});
+
+// js/KeyboardShortcuts.js
+var KeyboardShortcuts;
+var init_KeyboardShortcuts = __esm({
+  "js/KeyboardShortcuts.js"() {
+    init_drawbarsActions();
+    init_ui();
+    init_UIStateManager();
+    KeyboardShortcuts = class {
+      constructor() {
+        this.focusedDrawbar = null;
+      }
+      init() {
+        document.addEventListener("keydown", (e) => {
+          if (e.code === "Space") {
+            e.preventDefault();
+            handlePlayToggle();
+            return;
+          }
+          const qwertyKeys = ["KeyA", "KeyS", "KeyD", "KeyF", "KeyG", "KeyH", "KeyJ", "KeyK", "KeyL", "Semicolon", "Quote", "Backslash"];
+          const qwertyIndex = qwertyKeys.indexOf(e.code);
+          if (qwertyIndex !== -1) {
+            const state = UIStateManager.getState();
+            const baseMidi = ((state?.currentOctave ?? 3) + 1) * 12;
+            UIStateManager.setFundamentalByMidi(baseMidi + qwertyIndex);
+            return;
+          }
+          const drawbarKeys = [
+            "Digit1",
+            "Digit2",
+            "Digit3",
+            "Digit4",
+            "Digit5",
+            "Digit6",
+            "Digit7",
+            "Digit8",
+            "Digit9",
+            "Digit0",
+            "Minus",
+            "Equal"
+          ];
+          const drawbarIndex = drawbarKeys.indexOf(e.code);
+          if (drawbarIndex !== -1) {
+            const drawbars = document.querySelectorAll("#drawbars .drawbar-slider");
+            if (drawbars[drawbarIndex]) {
+              drawbars[drawbarIndex].focus();
+              this.focusedDrawbar = drawbars[drawbarIndex];
+            }
+            return;
+          }
+          if (this.focusedDrawbar) {
+            const drawbars = document.querySelectorAll("#drawbars .drawbar-slider");
+            const currentIndex = parseInt(this.focusedDrawbar.dataset.index);
+            if (e.code === "ArrowLeft" || e.code === "ArrowRight") {
+              e.preventDefault();
+              const delta = e.code === "ArrowLeft" ? -1 : 1;
+              const nextIndex = (currentIndex + delta + drawbars.length) % drawbars.length;
+              drawbars[nextIndex].focus();
+              this.focusedDrawbar = drawbars[nextIndex];
+              return;
+            }
+            if (e.shiftKey && (e.code === "ArrowUp" || e.code === "ArrowDown")) {
+              e.preventDefault();
+              const value = e.code === "ArrowUp" ? 1 : 0;
+              this.focusedDrawbar.value = value.toFixed(2);
+              DrawbarsActions.setDrawbar(currentIndex, value);
+              return;
+            }
+            if (e.code === "ArrowUp" || e.code === "ArrowDown") {
+              e.preventDefault();
+              const step = e.metaKey || e.ctrlKey ? 0.1 : 0.01;
+              const newValue = parseFloat(this.focusedDrawbar.value) + (e.code === "ArrowUp" ? step : -step);
+              const clamped = Math.max(0, Math.min(1, newValue));
+              this.focusedDrawbar.value = clamped.toFixed(2);
+              DrawbarsActions.setDrawbar(currentIndex, clamped);
+              return;
+            }
+          }
+          if (!this.focusedDrawbar && (e.ctrlKey || e.metaKey)) {
+            if (e.code === "ArrowUp") {
+              e.preventDefault();
+              window.changeOctave?.(1);
+            } else if (e.code === "ArrowDown") {
+              e.preventDefault();
+              window.changeOctave?.(-1);
+            }
+          }
+        });
+      }
+    };
+  }
+});
+
+// js/modules/atoms/slider/SliderComponent.js
+var SliderComponent;
+var init_SliderComponent = __esm({
+  "js/modules/atoms/slider/SliderComponent.js"() {
+    init_BaseComponent();
+    SliderComponent = class extends BaseComponent {
+      constructor(target) {
+        super(target);
+        this.input = null;
+        this.labelEl = null;
+      }
+      /**
+       * Render the slider UI
+       * @param {object} props - { min, max, step, value, label, onChange }
+       */
+      render(props = {}) {
+        this.teardown();
+        this.props = props;
+        this.el.innerHTML = "";
+        if (props.label) {
+          this.labelEl = document.createElement("label");
+          this.labelEl.textContent = props.label;
+          this.labelEl.className = "slider-label text-blue-300 text-xs md:text-sm font-medium mr-1";
+          this.el.appendChild(this.labelEl);
+        }
+        this.input = document.createElement("input");
+        this.input.type = "range";
+        this.input.min = props.min ?? 0;
+        this.input.max = props.max ?? 1;
+        this.input.step = props.step ?? 0.01;
+        this.input.value = props.value ?? 0;
+        this.input.className = "slider-input w-16 md:w-24 accent-blue-400 bg-transparent rounded h-1 mx-1";
+        this.el.appendChild(this.input);
+        this.valueDisplay = document.createElement("span");
+        this.valueDisplay.className = "slider-value text-blue-300 text-xs md:text-sm font-medium mr-1 min-w-12";
+        const formatValue = typeof props.formatValue === "function" ? props.formatValue : (v) => v;
+        const displayValue = props.value !== void 0 && props.value !== null ? parseFloat(props.value) : 0;
+        this.valueDisplay.textContent = formatValue(displayValue);
+        this.el.appendChild(this.valueDisplay);
+        if (typeof props.onChange === "function") {
+          this.bindEvent(this.input, "input", (e) => {
+            const inputValue = e.target.value ?? "";
+            const numValue = parseFloat(inputValue);
+            this.valueDisplay.textContent = formatValue(numValue);
+            props.onChange(numValue);
+          });
+        }
+      }
+      teardown() {
+        super.teardown();
+        this.input = null;
+        this.labelEl = null;
+        this.valueDisplay = null;
+      }
+    };
+  }
+});
+
+// js/modules/atoms/slider/sliderActions.js
+var SliderActions;
+var init_sliderActions = __esm({
+  "js/modules/atoms/slider/sliderActions.js"() {
+    SliderActions = {
+      clamp(value, min, max) {
+        return Math.max(min, Math.min(max, value));
+      }
+    };
+  }
+});
+
+// js/modules/atoms/slider/sliderController.js
+var SliderController;
+var init_sliderController = __esm({
+  "js/modules/atoms/slider/sliderController.js"() {
+    init_SliderComponent();
+    init_sliderActions();
+    SliderController = class {
+      constructor(selector, props = {}, onChange = null) {
+        this.component = new SliderComponent(selector);
+        this.props = props;
+        this.onChange = onChange;
+      }
+      init() {
+        this.render(this.props);
+      }
+      render(props = {}) {
+        this.props = props;
+        this.component.render({
+          ...props,
+          onChange: (value) => {
+            if (typeof this.onChange === "function") {
+              this.onChange(value);
+            }
+          }
+        });
+      }
+      setValue(value) {
+        const clamped = SliderActions.clamp(value, this.props.min, this.props.max);
+        this.render({ ...this.props, value: clamped });
+      }
+      teardown() {
+        this.component.teardown();
+      }
+    };
+  }
+});
+
+// js/modules/tonewheel/TonewheelComponent.js
+var TonewheelComponent;
+var init_TonewheelComponent = __esm({
+  "js/modules/tonewheel/TonewheelComponent.js"() {
+    init_BaseComponent();
+    TonewheelComponent = class extends BaseComponent {
+      constructor(selector) {
+        super(selector);
+        this.canvasId = "tonewheel-canvas";
+      }
+      render(props) {
+        let container = this.el;
+        if (!container) return;
+        const oldCanvas = container.querySelector("canvas");
+        if (oldCanvas) {
+          oldCanvas.remove();
+        }
+        if (this._p5Instance && this._p5Instance.remove) {
+          this._p5Instance.remove();
+          this._p5Instance = null;
+        }
+        const canvas = document.createElement("div");
+        canvas.id = this.canvasId;
+        container.appendChild(canvas);
+        if (props && props.p5Instance) {
+          this._p5Instance = props.p5Instance;
+          if (this._p5Instance.canvas && this._p5Instance.canvas.parentNode !== canvas) {
+            canvas.appendChild(this._p5Instance.canvas);
+          }
+        }
+      }
+      teardown() {
+        if (this._p5Instance && this._p5Instance.remove) {
+          this._p5Instance.remove();
+          this._p5Instance = null;
+        }
+        const canvas = this.el.querySelector(`#${this.canvasId}`);
+        if (canvas) {
+          canvas.remove();
+        }
+        super.teardown?.();
+      }
+    };
+  }
+});
+
+// js/modules/tonewheel/tonewheelController.js
+var spreadSliderController, vizFreqSliderController, TonewheelController;
+var init_tonewheelController = __esm({
+  "js/modules/tonewheel/tonewheelController.js"() {
+    init_config();
+    init_sliderController();
+    init_BaseController();
+    init_TonewheelComponent();
+    init_tonewheelActions();
+    TonewheelController = class extends BaseController {
+      init() {
+        super.init();
+        spreadSliderController = new SliderController("#spread-slider-root", {
+          min: 0,
+          max: 1,
+          step: 0.01,
+          value: AppState.spreadFactor ?? 0.2,
+          label: "Gain",
+          formatValue: (v) => `${(v * 100).toFixed(0)}%`
+        }, (value) => {
+          TonewheelActions.setSpreadFactor(value);
+        });
+        spreadSliderController.init();
+        vizFreqSliderController = new SliderController("#viz-freq-slider-root", {
+          min: 0.1,
+          max: 20,
+          step: 0.1,
+          value: AppState.visualizationFrequency ?? 1,
+          label: "Rate",
+          formatValue: (v) => `${v.toFixed(1)} Hz`
+        }, (value) => {
+          TonewheelActions.setVisualizationFrequency(value);
+        });
+        vizFreqSliderController.init();
+      }
+      createComponent(selector) {
+        return new TonewheelComponent(selector);
+      }
+      getProps() {
+        let p5Instance = null;
+        p5Instance = TonewheelActions.initVisualization();
+        return { p5Instance };
+      }
+      bindComponentEvents() {
+      }
+      bindExternalEvents() {
+      }
+    };
+  }
+});
+
+// js/modules/midi/midiInputRouter.js
+var MidiInputRouter;
+var init_midiInputRouter = __esm({
+  "js/modules/midi/midiInputRouter.js"() {
+    init_utils();
+    init_drawbarsActions();
+    MidiInputRouter = class {
+      constructor() {
+        this.lastCC = {};
+      }
+      async init() {
+        const midi = await navigator.requestMIDIAccess();
+        for (let input of midi.inputs.values()) {
+          input.onmidimessage = (msg) => this.route(msg);
+        }
+      }
+      route(msg) {
+        const [status, data1, data2] = msg.data;
+        const isCC = (status & 240) === 176;
+        if (isCC) return this.handleCC(data1, data2);
+        const isNoteOn = (status & 240) === 144 && data2 > 0;
+        const isNoteOff = (status & 240) === 128 || data2 === 0;
+        if (isNoteOn) return this.handleNoteOn(data1, data2);
+        if (isNoteOff) return this.handleNoteOff(data1);
+      }
+      handleCC(cc, val) {
+        const norm = val / 127;
+        switch (cc) {
+          case 7:
+            smoothUpdateMasterGain(norm);
+            break;
+          case 10:
+            break;
+          default:
+            break;
+        }
+        if (this.lastCC[cc] === val) return;
+        this.lastCC[cc] = val;
+        if (cc > 19 && cc < 32) {
+          DrawbarsActions.setDrawbar(cc - 20, norm);
+        }
+      }
+      handleNoteOn(note, vel) {
+      }
+      handleNoteOff(note) {
+      }
+    };
+  }
+});
+
+// js/ui.js
+function initUI() {
+  setupMainButtons();
+  setupControlSliders();
+  setupFundamentalControls();
+  setupKeyboard();
+  setupWaveformSelector();
+  setupDrawbars();
+  setupSpectralSystem();
+  setupWaveforms();
+  setupRoutingControl();
+  updateFundamentalDisplay();
+  updateKeyboardUI();
+  HelpDialog.init();
+  new KeyboardShortcuts().init();
+  setTimeout(() => {
+    new MidiInputRouter().init();
+  }, 2e3);
+}
+function setupDrawbars() {
+  drawbarsController = new DrawbarsController("#drawbars");
+  drawbarsController.init();
+}
+function setupSpectralSystem() {
+  spectralSystemController = new SpectralSystemController("#spectral-system-root");
+  spectralSystemController.init();
+  setupTonewheel();
+}
+function setupTonewheel() {
+  tonewheelController = new TonewheelController("#tonewheel-container");
+  tonewheelController.init();
+}
+function setupWaveforms() {
+  summedWaveformController = new WaveformController("#waveform-canvas-area");
+  summedWaveformController.init();
+  waveformController = new WaveformController("#current-waveform-canvas-area", { mode: "single" });
+  waveformController.init();
+}
+function setupRoutingControl() {
+  downloadControlController = new DownloadControlController("#routing-control-root");
+  downloadControlController.init();
+}
+function setupMainButtons() {
+  setupEventListener("play-toggle", "click", handlePlayToggle);
+}
+function setupControlSliders() {
+  masterGainSliderController = new SliderController("#master-gain-slider-root", {
+    min: 0,
+    max: 1,
+    step: 0.01,
+    value: AppState.masterGainValue,
+    label: "Gain",
+    formatValue: (v) => `${(v * 100).toFixed(0)}%`
+  }, (value) => {
+    smoothUpdateMasterGain(value);
+  });
+  masterGainSliderController.init();
+  masterSlewSliderController = new SliderController("#master-slew-slider-root", {
+    min: 0,
+    max: 10,
+    step: 0.01,
+    value: AppState.masterSlewValue,
+    label: "Slew",
+    formatValue: (v) => {
+      v = parseFloat(v);
+      let displayValue = (v * 1e3).toFixed(0);
+      let unit = "ms";
+      if (v > 1) {
+        displayValue = v.toFixed(2);
+        unit = "s";
+      }
+      return `${displayValue}${unit}`;
+    }
+  }, (value) => {
+    updateAppState({ masterSlewValue: value });
+  });
+  masterSlewSliderController.init();
+}
+async function handlePlayToggle() {
+  const toggle = document.getElementById("play-toggle");
+  const playLabel = document.getElementById("play-label");
+  if (AppState.isPlaying) {
+    stopTone();
+    toggle.classList.remove("active");
+    toggle.setAttribute("aria-checked", "false");
+    playLabel.textContent = "Play";
+  } else {
+    try {
+      await startTone();
+      toggle.classList.add("active");
+      toggle.setAttribute("aria-checked", "true");
+      playLabel.textContent = "Stop";
+    } catch (error) {
+      console.error("Failed to start tone:", error);
+      showStatus("Failed to start audio. Please check browser permissions.", "error");
+    }
+  }
+}
+function setupFundamentalControls() {
+  const fundamentalInput = document.getElementById("fundamental-input");
+  if (fundamentalInput) {
+    fundamentalInput.addEventListener("change", handleFundamentalChange);
+  }
+  setupEventListener("octave-down", "click", () => changeOctave(-1));
+  setupEventListener("octave-up", "click", () => changeOctave(1));
+}
+function handleFundamentalChange(e) {
+  let val = parseFloat(e.target.value);
+  if (isNaN(val) || val < 0.01 || val > 1e4) {
+    showStatus("Frequency must be between 0.01 Hz and 10000 Hz.", "error");
+    val = AppState.fundamentalFrequency;
+  }
+  Promise.resolve().then(() => (init_UIStateManager(), UIStateManager_exports)).then(({ UIStateManager: UIStateManager2 }) => {
+    UIStateManager2.setFundamentalByFrequency(val);
+    e.target.value = val.toFixed(2);
+  });
+}
+function changeOctave(direction) {
+  Promise.resolve().then(() => (init_UIStateManager(), UIStateManager_exports)).then(({ UIStateManager: UIStateManager2 }) => {
+    const state = UIStateManager2.getState();
+    const newMidiNote = state.currentMidiNote + direction * 12;
+    UIStateManager2.setFundamentalByMidi(newMidiNote);
+  });
+}
+function updateFundamentalDisplay() {
+  updateValue("fundamental-input", AppState.fundamentalFrequency.toFixed(2));
+  updateText("current-octave-display", `Octave ${AppState.currentOctave}`);
+}
+function setupKeyboard() {
+  const keyboard = document.getElementById("piano-keyboard");
+  if (!keyboard) return;
+  const notes = [
+    { name: "C", class: "white", index: 0 },
+    { name: "C#", class: "black", index: 1 },
+    { name: "D", class: "white", index: 2 },
+    { name: "D#", class: "black", index: 3 },
+    { name: "E", class: "white", index: 4 },
+    { name: "F", class: "white", index: 5 },
+    { name: "F#", class: "black", index: 6 },
+    { name: "G", class: "white", index: 7 },
+    { name: "G#", class: "black", index: 8 },
+    { name: "A", class: "white", index: 9 },
+    { name: "A#", class: "black", index: 10 },
+    { name: "B", class: "white", index: 11 }
+  ];
+  keyboard.innerHTML = "";
+  notes.forEach((note) => {
+    const key = document.createElement("div");
+    key.className = `key ${note.class}`;
+    key.textContent = note.name;
+    key.dataset.noteIndex = note.index;
+    key.addEventListener("click", () => handleKeyClick(note.index));
+    keyboard.appendChild(key);
+  });
+}
+function handleKeyClick(noteIndex) {
+  Promise.resolve().then(() => (init_UIStateManager(), UIStateManager_exports)).then(({ UIStateManager: UIStateManager2 }) => {
+    const state = UIStateManager2.getState();
+    const baseMidi = (state.currentOctave + 1) * 12;
+    const newMidi = baseMidi + noteIndex;
+    UIStateManager2.setFundamentalByMidi(newMidi);
+  });
+}
+function updateKeyboardUI() {
+  const keys = document.querySelectorAll(".key");
+  keys.forEach((key) => key.classList.remove("active"));
+  let noteIndex = AppState.currentMidiNote % 12;
+  if (noteIndex < 0) noteIndex += 12;
+  const selectedKey = document.querySelector(`.key[data-note-index="${noteIndex}"]`);
+  if (selectedKey) {
+    selectedKey.classList.add("active");
+  }
+}
+function updateSystemDescription() {
+  updateText("system-description", AppState.currentSystem.description, true);
+}
+function setupWaveformSelector() {
+  const select = document.getElementById("waveform-select");
+  if (select) {
+    select.addEventListener("change", handleWaveformChange);
+  }
+}
+function updateUI() {
+  updateFundamentalDisplay();
+  updateKeyboardUI();
+  updateSystemDescription();
+  const playButton = document.getElementById("play-button");
+  if (playButton) {
+    playButton.textContent = AppState.isPlaying ? "Stop Tone" : "Start Tone";
+    playButton.classList.toggle("playing", AppState.isPlaying);
+  }
+  updateValue("waveform-select", AppState.currentWaveform);
+}
+var drawbarsController, spectralSystemController, waveformController, summedWaveformController, downloadControlController, tonewheelController, masterGainSliderController, masterSlewSliderController;
+var init_ui = __esm({
+  "js/ui.js"() {
+    init_config();
+    init_domUtils();
+    init_drawbarsController();
+    init_spectralSystemController();
+    init_waveformController();
+    init_waveformActions();
+    init_downloadControlController();
+    init_HelpDialog();
+    init_KeyboardShortcuts();
+    init_tonewheelController();
+    init_audio();
+    init_utils();
+    init_sliderController();
+    init_midiInputRouter();
+  }
+});
+
+// js/app.js
+init_config();
+init_momentum_smoother();
+init_ui();
+init_domUtils();
+
+// js/modules/favicon/faviconService.js
+var FaviconService = class {
+  constructor() {
+    this.interval = null;
+    this.faviconId = "dynamic-favicon";
+  }
+  start() {
+    if (this.interval) return;
+    this.updateFavicon();
+    this.interval = setInterval(() => this.updateFavicon(), 100);
+  }
+  stop() {
+    if (this.interval) {
+      clearInterval(this.interval);
+      this.interval = null;
+    }
+  }
+  updateFavicon() {
+    const container = document.getElementById("tonewheel-container");
+    if (!container) return;
+    const canvas = container.querySelector("canvas");
+    if (!canvas) return;
+    try {
+      const size = 128;
+      const offscreen = document.createElement("canvas");
+      offscreen.width = size;
+      offscreen.height = size;
+      const ctx = offscreen.getContext("2d");
+      const srcW = canvas.width;
+      const srcH = canvas.height;
+      const cropX = srcW * 0.25;
+      const cropY = srcH * 0.25;
+      const cropW = srcW * 0.5;
+      const cropH = srcH * 0.5;
+      ctx.drawImage(canvas, cropX, cropY, cropW, cropH, 0, 0, size, size);
+      const imageData = ctx.getImageData(0, 0, size, size);
+      this.increaseBrightness(imageData.data, 128);
+      this.increaseContrast(imageData.data, 8);
+      ctx.putImageData(imageData, 0, 0);
+      const url = offscreen.toDataURL("image/png");
+      this.setFavicon(url);
+    } catch (e) {
+    }
+  }
+  // Increase brightness by adding to each RGB channel
+  increaseBrightness(data, amount = 128) {
+    for (let i = 0; i < data.length; i += 4) {
+      for (let c = 0; c < 3; c++) {
+        data[i + c] = Math.max(0, Math.min(255, data[i + c] + amount));
+      }
+    }
+  }
+  increaseContrast(data, factor = 1.2) {
+    const avgLuminance = 128;
+    for (let i = 0; i < data.length; i += 4) {
+      for (let c = 0; c < 3; c++) {
+        data[i + c] = Math.max(0, Math.min(255, avgLuminance + factor * (data[i + c] - avgLuminance)));
+      }
+    }
+  }
+  setFavicon(dataUrl) {
+    let link = document.getElementById(this.faviconId);
+    if (!link) {
+      link = document.createElement("link");
+      link.id = this.faviconId;
+      link.rel = "icon";
+      document.head.appendChild(link);
+    }
+    link.type = "image/png";
+    link.href = dataUrl;
+  }
+};
+var faviconService = new FaviconService();
+if (typeof window !== "undefined") {
+  window.addEventListener("DOMContentLoaded", () => faviconService.start());
+}
+
+// js/app.js
+init_audio();
+function initApp() {
+  try {
+    initUI();
+    faviconService.start();
+    updateUI();
+  } catch (error) {
+    console.error("Failed to initialize application:", error);
+    showStatus("Failed to initialize application. Please refresh the page.", "error");
+  }
+}
+function setupErrorHandling() {
+  window.addEventListener("error", (e) => {
+    console.error("Application error:", e.error);
+    showStatus("An unexpected error occurred. Please check the console.", "error");
+  });
+  window.addEventListener("unhandledrejection", (e) => {
+    console.error("Unhandled promise rejection:", e.reason);
+    showStatus("A promise was rejected. Please check the console.", "error");
+  });
+}
+function cleanup() {
+  try {
+    momentumSmoother.clear();
+    if (AppState.isPlaying && AppState.audioContext) {
+      AppState.oscillators.forEach((node) => {
+        if (node.osc) {
+          node.osc.stop();
+          node.osc.disconnect();
+          node.gainNode.disconnect();
+        }
+      });
+    }
+    if (AppState.audioContext && AppState.audioContext.state !== "closed") {
+      AppState.audioContext.close();
+    }
+    console.log("Application cleaned up successfully");
+  } catch (error) {
+    console.error("Error during cleanup:", error);
+  }
+}
+function setupCleanup() {
+  window.addEventListener("beforeunload", cleanup);
+  window.addEventListener("pagehide", cleanup);
+}
+function checkCompatibility() {
+  const issues = [];
+  if (!window.AudioContext && !window.webkitAudioContext) {
+    issues.push("Web Audio API not supported");
+  }
+  if (!window.Promise) {
+    issues.push("ES6 Promises not supported");
+  }
+  if (issues.length > 0) {
+    const message = `Browser compatibility issues: ${issues.join(", ")}. Please use a modern browser.`;
+    showStatus(message, "error");
+    console.error(message);
+    return false;
+  }
+  if (!navigator.requestMIDIAccess) {
+    const message = "Web MIDI API not supported in this browser. MIDI functionality will be disabled.";
+    showStatus(message, "warning");
+    console.warn(message);
+  }
+  return true;
+}
+function startup() {
+  setupErrorHandling();
+  if (!checkCompatibility()) {
+    return;
+  }
+  setupCleanup();
+  initApp();
+}
+window.TWIG = {
+  // State access
+  getState: () => AppState,
+  getAudioCtx: () => getAudioEngine().getContext(),
+  // Module access (for debugging)
+  updateUI,
+  // Utility functions
+  showStatus,
+  // Manual cleanup
+  cleanup
+};
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", startup);
+} else {
+  startup();
+}
