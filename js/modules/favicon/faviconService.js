@@ -74,6 +74,13 @@ export class FaviconService {
     }
 
     setFavicon(dataUrl) {
+        // Remove all favicon <link> elements except the dynamic one
+        const links = document.querySelectorAll('link[rel~="icon"]');
+        links.forEach(l => {
+            if (l.id !== this.faviconId) {
+                l.parentNode.removeChild(l);
+            }
+        });
         let link = document.getElementById(this.faviconId);
         if (!link) {
             link = document.createElement('link');
