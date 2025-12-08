@@ -1,7 +1,19 @@
 // WaveformComponent.js
 import BaseComponent from "../base/BaseComponent.js";
-import { getWaveValue, TonewheelActions } from "../tonewheel/tonewheelActions.js";
+import { getWaveValue } from "../tonewheel/tonewheelActions.js";
 
+
+function lcm(a, b) {
+    return (a * b) / gcd(a, b);
+}
+
+function gcd(a, b) {
+    return b === 0 ? a : gcd(b, a % b);
+}
+
+function lcmArray(arr) {
+    return arr.reduce((a, b) => lcm(a, b), 1);
+}
 
 /**
  * Create a reusable p5 sketch for waveform drawing
@@ -62,24 +74,50 @@ function createWaveformSketch(component) {
                 }
             } else {
                 // Summed waveform
-                for (let x = 0; x < width; x++) {
-                    const theta = p.map(x, 0, width, 0, p.TWO_PI * 2);
-                    let sum = 0;
-                    let maxAmp = 0;
-                    for (let h = 0; h < props.harmonicAmplitudes.length; h++) {
-                        const ratio = props.currentSystem.ratios[h];
-                        const amp = props.harmonicAmplitudes[h] || 0;
-                        const harmonicPhase = ratio * theta;
-                        sum += getWaveValue(
-                            props.currentWaveform,
-                            harmonicPhase,
-                            component.props.customWaveCoefficients?.[props.currentWaveform]
-                        ) * amp;
-                        maxAmp += amp;
+                // Determine full period multiplier for phase continuity
+                let fullPeriodMultiplier = 2; // default: show 2 periods in harmonic mode
+
+                if (props.isSubharmonic) {
+                    // Compute denominators from harmonic ratios
+                    const denominators = props.currentSystem.ratios
+                        .map((r, h) => props.harmonicAmplitudes[h] > 0.001 ? Math.round(r) : null)
+                        .filter(Boolean);
+
+                    if (denominators.length > 0) {
+                        fullPeriodMultiplier = lcmArray(denominators);
+                        // Cap multiplier to avoid exploding canvas size
+                        fullPeriodMultiplier = Math.min(fullPeriodMultiplier, 32);
                     }
-                    const y = height / 2 - (sum / (maxAmp || 1)) * ampScale;
+
+                }
+
+                // Precompute theta mapping for canvas width
+                const thetaScale = (p.TWO_PI * fullPeriodMultiplier) / width;
+
+                for (let x = 0; x < width; x++) {
+                    const theta = x * thetaScale;
+                    let sum = 0;
+                    let totalAmp = 0;
+
+                    for (let h = 0; h < props.harmonicAmplitudes.length; h++) {
+                        const amp = props.harmonicAmplitudes[h] || 0;
+                        if (amp > 0.001) {
+                            const ratio = props.currentSystem.ratios[h];
+                            // Use division for subharmonics, multiplication for normal harmonics
+                            const harmonicPhase = props.isSubharmonic ? theta / ratio : ratio * theta;
+                            sum += getWaveValue(
+                                props.currentWaveform,
+                                harmonicPhase,
+                                component.props.customWaveCoefficients?.[props.currentWaveform]
+                            ) * amp;
+                            totalAmp += amp;
+                        }
+                    }
+
+                    const y = height / 2 - (sum / (totalAmp || 1)) * ampScale;
                     p.vertex(x, y);
                 }
+
             }
 
             p.endShape();
@@ -115,7 +153,7 @@ export default class WaveformComponent extends BaseComponent {
         const sketch = createWaveformSketch(this);
 
         // Use this.el as the parent container for the canvas
-        this._waveformP5 = new window.p5(sketch, this.el);
+        this._waveformP5 = new p5(sketch, this.el);
     }
 
     /**
