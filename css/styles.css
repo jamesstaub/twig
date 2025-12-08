@@ -703,6 +703,7 @@ border: 1px solid rgb(71 85 105);
     font-weight: 500;
     text-align: center;
     height: 20px;
+    padding: 1rem 0;
     margin-bottom: 5px;
     color: var(--color-text-drawbar);
 }
@@ -857,6 +858,14 @@ border: 1px solid rgb(71 85 105);
 /* ================================
    RESPONSIVE BREAKPOINTS
    ================================ */
+@media (max-width: 500px) {
+    .logo {
+        right: 0;
+    }
+    .logo p {
+        transform: rotate(90deg);
+    }
+}
 
 @media (max-width: 639px) {
     .control-card {
@@ -867,6 +876,7 @@ border: 1px solid rgb(71 85 105);
     .drawbar-container {
         justify-content: flex-start;
         padding-left: 1.5rem;
+        padding-bottom: 4rem;
         scroll-padding-left: 1.5rem;
         -webkit-overflow-scrolling: touch;
         scrollbar-width: none;
@@ -880,3 +890,4 @@ border: 1px solid rgb(71 85 105);
         gap: 0.75rem;
     }
 }
+

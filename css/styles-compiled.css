@@ -253,14 +253,8 @@
   .mx-1 {
     margin-inline: calc(var(--spacing) * 1);
   }
-  .mt-2 {
-    margin-top: calc(var(--spacing) * 2);
-  }
   .mr-1 {
     margin-right: calc(var(--spacing) * 1);
-  }
-  .mb-2 {
-    margin-bottom: calc(var(--spacing) * 2);
   }
   .ml-2 {
     margin-left: calc(var(--spacing) * 2);
@@ -304,17 +298,11 @@
   .min-w-12 {
     min-width: calc(var(--spacing) * 12);
   }
-  .min-w-\[24rem\] {
-    min-width: 24rem;
-  }
   .flex-1 {
     flex: 1;
   }
   .flex-grow {
     flex-grow: 1;
-  }
-  .basis-1 {
-    flex-basis: calc(var(--spacing) * 1);
   }
   .basis-1\/3 {
     flex-basis: calc(1/3 * 100%);
@@ -330,6 +318,9 @@
   }
   .flex-row {
     flex-direction: row;
+  }
+  .flex-nowrap {
+    flex-wrap: nowrap;
   }
   .flex-wrap {
     flex-wrap: wrap;
@@ -384,17 +375,11 @@
   .border-slate-500 {
     border-color: var(--color-slate-500);
   }
-  .bg-slate-800 {
-    background-color: var(--color-slate-800);
-  }
   .bg-slate-800\/60 {
     background-color: color-mix(in srgb, oklch(27.9% 0.041 260.031) 60%, transparent);
     @supports (color: color-mix(in lab, red, red)) {
       background-color: color-mix(in oklab, var(--color-slate-800) 60%, transparent);
     }
-  }
-  .bg-slate-900 {
-    background-color: var(--color-slate-900);
   }
   .bg-slate-900\/70 {
     background-color: color-mix(in srgb, oklch(20.8% 0.042 265.755) 70%, transparent);
@@ -431,9 +416,6 @@
   }
   .pr-22 {
     padding-right: calc(var(--spacing) * 22);
-  }
-  .text-center {
-    text-align: center;
   }
   .text-lg {
     font-size: var(--text-lg);
@@ -562,6 +544,11 @@
   .md\:max-w-sm {
     @media (width >= 768px) {
       max-width: var(--container-sm);
+    }
+  }
+  .md\:min-w-\[24rem\] {
+    @media (width >= 768px) {
+      min-width: 24rem;
     }
   }
   .md\:flex-row {
@@ -1168,6 +1155,7 @@ canvas {
   font-weight: 500;
   text-align: center;
   height: 20px;
+  padding: 1rem 0;
   margin-bottom: 5px;
   color: var(--color-text-drawbar);
 }
@@ -1279,6 +1267,14 @@ canvas {
 .mb-2 {
   margin-bottom: 0.5rem;
 }
+@media (max-width: 500px) {
+  .logo {
+    right: 0;
+  }
+  .logo p {
+    transform: rotate(90deg);
+  }
+}
 @media (max-width: 639px) {
   .control-card {
     margin: 1rem;
@@ -1287,6 +1283,7 @@ canvas {
   .drawbar-container {
     justify-content: flex-start;
     padding-left: 1.5rem;
+    padding-bottom: 4rem;
     scroll-padding-left: 1.5rem;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;

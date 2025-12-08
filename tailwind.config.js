@@ -14,6 +14,9 @@ module.exports = {
   ],
   theme: {
     extend: {
+      screens: {
+        'xs': '480px'
+      },
       colors: {
         'deep-blue': '#0d131f',
         'navy': '#1a2332',
