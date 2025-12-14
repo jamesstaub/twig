@@ -4,6 +4,7 @@ import { BaseController } from "../base/BaseController";
 import { FundamentalActions } from "./fundamentalActions";
 import { FundamentalComponent } from "./fundamentalComponent.js";
 
+
 export class FundamentalController extends BaseController {
     createComponent(selector) {
         return new FundamentalComponent(selector);

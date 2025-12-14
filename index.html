@@ -48,6 +48,9 @@
                         aria-label="Play/Stop control">
                     </div>
                 </div>
+                <!-- MIDI Mapping Button -->
+                <button id="open-midi-mapping-btn" class="action-btn ml-2"
+                    aria-label="Open MIDI Mapping Modal">MIDI</button>
             </div>
 
             <div
@@ -62,6 +65,9 @@
             <p class="text-lg font-semibold text-slate-200">twig</p>
         </div>
     </nav>
+
+    <!-- Modal Root (for generic modal, always present, only one open at a time) -->
+    <div id="modal-root"></div>
 
     <div class="flex">
         <div class="m-auto">

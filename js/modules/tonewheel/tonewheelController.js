@@ -3,7 +3,7 @@
  */
 
 import { AppState } from "../../config.js";
-import { SliderController } from "../atoms/slider/sliderController.js";
+import { SliderController } from "../generic/slider/sliderController.js";
 import { BaseController } from "../base/BaseController.js";
 import { TonewheelComponent } from "./TonewheelComponent.js";
 import { TonewheelActions } from "./tonewheelActions.js";

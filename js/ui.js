@@ -17,9 +17,12 @@ import { TonewheelController } from './modules/tonewheel/tonewheelController.js'
 import { startTone, stopTone } from './audio.js';
 import { smoothUpdateMasterGain } from './utils.js';
 
-import { SliderController } from './modules/atoms/slider/sliderController.js';
+import { SliderController } from './modules/generic/slider/sliderController.js';
 import { MidiInputRouter } from './modules/midi/midiInputRouter.js';
 import { FundamentalController } from './modules/fundamental/fundamentalController.js';
+import { ModalController } from './modules/generic/modal/modalController.js';
+import MidiMappingModalComponent from './modules/generic/modal/MidiMappingModalComponent.js';
+import { openModal, closeModal } from './modules/generic/modal/modalActions.js';
 // ================================
 // INITIALIZATION
 // ================================
@@ -32,14 +35,39 @@ let summedWaveformController;
 let downloadControlController;
 let tonewheelController;
 
+
 let masterGainSliderController;
 let masterSlewSliderController;
+
+let midiMappingModalController;
 
 
 
 export function initUI() {
     setupMainButtons();
     setupControlSliders();
+
+    setupMidiMappingModal();
+    function setupMidiMappingModal() {
+        // Construct the controller for the MIDI Mapping modal
+        midiMappingModalController = new ModalController('#modal-root', {
+            content: null, // will be set on open
+            onClose: () => closeModal()
+        });
+
+        // Attach event to open button
+        document.addEventListener('DOMContentLoaded', () => {
+            const btn = document.getElementById('open-midi-mapping-btn');
+            if (btn) {
+                btn.addEventListener('click', () => {
+                    // Create the modal content (component instance)
+                    const modalContent = new MidiMappingModalComponent(document.createElement('div'));
+                    modalContent.render({ onClose: () => closeModal() });
+                    openModal(modalContent, {});
+                });
+            }
+        });
+    }
 
 
     setupWaveformSelector();
