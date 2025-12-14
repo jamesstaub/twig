@@ -6,3 +6,4 @@ export const SPECTRAL_SYSTEM_CHANGED = 'spectral-system-changed';
 export const SUBHARMONIC_TOGGLED = 'subharmonic-toggled';
 export const ADD_CUSTOM_WAVEFORM = 'add-custom-waveform';
 export const ROUTING_MODE_CHANGED = 'routing-mode-changed';
+export const FUNDAMENTAL_CHANGED = 'fundamental-changed';

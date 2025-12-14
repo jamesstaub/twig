@@ -19,6 +19,7 @@ import { smoothUpdateMasterGain } from './utils.js';
 
 import { SliderController } from './modules/atoms/slider/sliderController.js';
 import { MidiInputRouter } from './modules/midi/midiInputRouter.js';
+import { FundamentalController } from './modules/fundamental/fundamentalController.js';
 // ================================
 // INITIALIZATION
 // ================================
@@ -39,8 +40,7 @@ let masterSlewSliderController;
 export function initUI() {
     setupMainButtons();
     setupControlSliders();
-    setupFundamentalControls();
-    setupKeyboard();
+
 
     setupWaveformSelector();
 
@@ -49,10 +49,8 @@ export function initUI() {
     setupSpectralSystem()
     setupWaveforms();
     setupRoutingControl();
+    setupFundamental();
 
-    // Set initial UI values
-    updateFundamentalDisplay();
-    updateKeyboardUI();
 
     // Initialize help and keyboard shortcuts
     HelpDialog.init();
@@ -92,6 +90,11 @@ function setupWaveforms() {
 function setupRoutingControl() {
     downloadControlController = new DownloadControlController("#routing-control-root");
     downloadControlController.init();
+}
+
+function setupFundamental() {
+    const fundamentalController = new FundamentalController("#fundamental-control-root");
+    fundamentalController.init();
 }
 
 // ================================
@@ -167,118 +170,6 @@ export async function handlePlayToggle() {
 }
 
 
-
-
-// ================================
-// FUNDAMENTAL FREQUENCY CONTROLS
-// ================================
-
-function setupFundamentalControls() {
-    // Frequency input
-    const fundamentalInput = document.getElementById('fundamental-input');
-    if (fundamentalInput) {
-        fundamentalInput.addEventListener('change', handleFundamentalChange);
-    }
-
-    // Octave controls
-    setupEventListener('octave-down', 'click', () => changeOctave(-1));
-    setupEventListener('octave-up', 'click', () => changeOctave(1));
-}
-
-// TODO move this to a FundamentalFrequencyComponent
-// clean separate the action from the DOM event to allow for midi binding etc
-function handleFundamentalChange(e) {
-    let val = parseFloat(e.target.value);
-    // Allow very low frequencies (down to 0.01 Hz)
-    if (isNaN(val) || val < 0.01 || val > 10000) {
-        showStatus("Frequency must be between 0.01 Hz and 10000 Hz.", 'error');
-        val = AppState.fundamentalFrequency; // Revert to current value
-    }
-    import('./UIStateManager.js').then(({ UIStateManager }) => {
-        UIStateManager.setFundamentalByFrequency(val);
-        e.target.value = val.toFixed(2);
-    });
-}
-
-function changeOctave(direction) {
-
-    import('./UIStateManager.js').then(({ UIStateManager }) => {
-        const state = UIStateManager.getState();
-        const newMidiNote = state.currentMidiNote + (direction * 12);
-        UIStateManager.setFundamentalByMidi(newMidiNote);
-    });
-}
-
-
-
-export function updateFundamentalDisplay() {
-    updateValue('fundamental-input', AppState.fundamentalFrequency.toFixed(2));
-    updateText('current-octave-display', `Octave ${AppState.currentOctave}`);
-}
-
-// ================================
-// KEYBOARD INTERFACE
-// ================================
-
-function setupKeyboard() {
-    const keyboard = document.getElementById('piano-keyboard');
-    if (!keyboard) return;
-
-    // Define the 12 chromatic notes
-    const notes = [
-        { name: 'C', class: 'white', index: 0 },
-        { name: 'C#', class: 'black', index: 1 },
-        { name: 'D', class: 'white', index: 2 },
-        { name: 'D#', class: 'black', index: 3 },
-        { name: 'E', class: 'white', index: 4 },
-        { name: 'F', class: 'white', index: 5 },
-        { name: 'F#', class: 'black', index: 6 },
-        { name: 'G', class: 'white', index: 7 },
-        { name: 'G#', class: 'black', index: 8 },
-        { name: 'A', class: 'white', index: 9 },
-        { name: 'A#', class: 'black', index: 10 },
-        { name: 'B', class: 'white', index: 11 },
-    ];
-
-    keyboard.innerHTML = ''; // Clear existing keys
-
-    notes.forEach(note => {
-        const key = document.createElement('div');
-        key.className = `key ${note.class}`;
-        key.textContent = note.name;
-        key.dataset.noteIndex = note.index;
-        key.addEventListener('click', () => handleKeyClick(note.index));
-        keyboard.appendChild(key);
-    });
-}
-
-function handleKeyClick(noteIndex) {
-    // noteIndex is 0 (C) through 11 (B)
-    import('./UIStateManager.js').then(({ UIStateManager }) => {
-        const state = UIStateManager.getState();
-        const baseMidi = (state.currentOctave + 1) * 12;
-        const newMidi = baseMidi + noteIndex;
-        UIStateManager.setFundamentalByMidi(newMidi);
-    });
-}
-
-export function updateKeyboardUI() {
-    const keys = document.querySelectorAll('.key');
-    keys.forEach(key => key.classList.remove('active'));
-
-    // Calculate the index (0-11) of the selected note within the current octave
-    let noteIndex = AppState.currentMidiNote % 12;
-    if (noteIndex < 0) noteIndex += 12;
-    const selectedKey = document.querySelector(`.key[data-note-index="${noteIndex}"]`);
-
-    if (selectedKey) {
-        selectedKey.classList.add('active');
-    }
-}
-
-
-
-
 export function updateSystemDescription() {
     updateText('system-description', AppState.currentSystem.description, true);
 }
@@ -302,9 +193,6 @@ function setupWaveformSelector() {
  * TODO: remove this and use individual components
  */
 export function updateUI() {
-    updateFundamentalDisplay();
-    updateKeyboardUI();
-
 
     updateSystemDescription();
 

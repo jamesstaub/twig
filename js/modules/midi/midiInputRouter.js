@@ -1,5 +1,6 @@
 import { smoothUpdateMasterGain } from "../../utils.js";
 import { DrawbarsActions } from "../drawbars/drawbarsActions.js";
+import { FundamentalActions } from "../fundamental/fundamentalActions.js";
 
 
 export class MidiInputRouter {
@@ -47,8 +48,8 @@ export class MidiInputRouter {
         }
     }
 
-    handleNoteOn(note, vel) {
-        // AudioActions.noteOn(note, vel / 127);
+    handleNoteOn(note) {
+        FundamentalActions.setFundamentalByMidi(note);
     }
 
     handleNoteOff(note) {

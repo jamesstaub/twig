@@ -1,11 +1,12 @@
 // KeyboardShortcuts.js
 // Handles all keyboard event mapping, calls DrawbarActions methods
 
+import { AppState } from './config.js';
 import { DrawbarsActions } from './modules/drawbars/drawbarsActions.js';
+import { FundamentalActions } from './modules/fundamental/fundamentalActions.js';
 import { handlePlayToggle } from './ui.js';
 
-import { UIStateManager } from './UIStateManager.js';
-
+// BUG: the arrow keybindings for the current get stuck when focus is on a difernt drawbar (if you use tab instead of the number keys)
 export class KeyboardShortcuts {
     constructor() {
         this.focusedDrawbar = null;
@@ -21,19 +22,18 @@ export class KeyboardShortcuts {
             }
 
             // QWERTY row: Fundamental note selection
-            const qwertyKeys = ['KeyA','KeyS','KeyD','KeyF','KeyG','KeyH','KeyJ','KeyK','KeyL','Semicolon','Quote','Backslash'];
+            const qwertyKeys = ['KeyA', 'KeyS', 'KeyD', 'KeyF', 'KeyG', 'KeyH', 'KeyJ', 'KeyK', 'KeyL', 'Semicolon', 'Quote', 'Backslash'];
             const qwertyIndex = qwertyKeys.indexOf(e.code);
             if (qwertyIndex !== -1) {
-                const state = UIStateManager.getState();
-                const baseMidi = ((state?.currentOctave ?? 3) + 1) * 12;
-                UIStateManager.setFundamentalByMidi(baseMidi + qwertyIndex);
+                const baseMidi = ((AppState?.currentOctave ?? 3) + 1) * 12;
+                FundamentalActions.setFundamentalByMidi(baseMidi + qwertyIndex);
                 return;
             }
 
             // Number row: Drawbar focus
             const drawbarKeys = [
-                'Digit1','Digit2','Digit3','Digit4','Digit5','Digit6',
-                'Digit7','Digit8','Digit9','Digit0','Minus','Equal'
+                'Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5', 'Digit6',
+                'Digit7', 'Digit8', 'Digit9', 'Digit0', 'Minus', 'Equal'
             ];
             const drawbarIndex = drawbarKeys.indexOf(e.code);
             if (drawbarIndex !== -1) {
