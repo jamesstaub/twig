@@ -1,12 +1,21 @@
+
 import { smoothUpdateMasterGain } from "../../utils.js";
 import { DrawbarsActions } from "../drawbars/drawbarsActions.js";
 import { FundamentalActions } from "../fundamental/fundamentalActions.js";
+import { midiConfig } from "../../config.js";
+import { onMidiConfigChange } from "./midiConfigActions.js";
 
 
 export class MidiInputRouter {
+
     constructor() {
         this.lastCC = {};
+        this._currentConfig = { ...midiConfig };
+        onMidiConfigChange((newConfig) => {
+            this._currentConfig = { ...newConfig };
+        });
     }
+
 
     async init() {
         const midi = await navigator.requestMIDIAccess();
@@ -15,8 +24,13 @@ export class MidiInputRouter {
         }
     }
 
+
     route(msg) {
         const [status, data1, data2] = msg.data;
+        const channel = (status & 0x0F) + 1; // MIDI channels are 1-16
+
+        // Only respond to configured input channel
+        if (channel !== this._currentConfig.inputChannel) return;
 
         const isCC = (status & 0xF0) === 0xB0;
         if (isCC) return this.handleCC(data1, data2);
@@ -29,22 +43,19 @@ export class MidiInputRouter {
 
     handleCC(cc, val) {
         const norm = val / 127;
-        switch (cc) {
-            case 7:
-                smoothUpdateMasterGain(norm);
-                break;
-            case 10:
-                break;
-            default:
-                break;
+        // Master Gain (CC7)
+        if (cc === 7) {
+            smoothUpdateMasterGain(norm);
         }
 
         // throttle flood of CC changes
         if (this.lastCC[cc] === val) return;
         this.lastCC[cc] = val;
-        // Drawbar CCs 20 - 31
-        if (cc > 19 && cc < 32) {
-            DrawbarsActions.setDrawbar(cc - 20, norm);
+
+        // Drawbar CCs from current config
+        const drawbarIdx = this._currentConfig.drawbarsCC.indexOf(cc);
+        if (drawbarIdx !== -1) {
+            DrawbarsActions.setDrawbar(drawbarIdx, norm);
         }
     }
 

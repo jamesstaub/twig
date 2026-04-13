@@ -49,12 +49,13 @@ export default class BaseComponent {
      * @param {HTMLElement} el
      * @param {string} evt
      * @param {Function} handler
+     * @param {AddEventListenerOptions} [options]
      */
-    bindEvent(el, evt, handler) {
+    bindEvent(el, evt, handler, options) {
         if (!el) return;
 
-        el.addEventListener(evt, handler);
-        this._boundEvents.push({ el, evt, handler });
+        el.addEventListener(evt, handler, options);
+        this._boundEvents.push({ el, evt, handler, options });
     }
 
 
@@ -62,8 +63,8 @@ export default class BaseComponent {
      * Remove all events previously bound via bindEvent().
      */
     unbindAll() {
-        for (const { el, evt, handler } of this._boundEvents) {
-            el.removeEventListener(evt, handler);
+        for (const { el, evt, handler, options } of this._boundEvents) {
+            el.removeEventListener(evt, handler, options);
         }
         this._boundEvents.length = 0;
     }

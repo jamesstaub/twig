@@ -4,7 +4,7 @@
 import { AppState } from './config.js';
 import { DrawbarsActions } from './modules/drawbars/drawbarsActions.js';
 import { FundamentalActions } from './modules/fundamental/fundamentalActions.js';
-import { handlePlayToggle } from './ui.js';
+import { PlayToggleActions } from './modules/playToggle/playToggleActions.js';
 
 // BUG: the arrow keybindings for the current get stuck when focus is on a difernt drawbar (if you use tab instead of the number keys)
 export class KeyboardShortcuts {
@@ -17,7 +17,7 @@ export class KeyboardShortcuts {
             // Space bar to toggle play/stop
             if (e.code === 'Space') {
                 e.preventDefault();
-                handlePlayToggle();
+                PlayToggleActions.toggle();
                 return;
             }
 

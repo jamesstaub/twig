@@ -38,8 +38,8 @@ export class FundamentalComponent extends BaseComponent {
         // Frequency input
         const fundamentalInput = document.getElementById('fundamental-input');
         if (fundamentalInput) {
-            this.bindEvent(fundamentalInput, "input", (e, i) => {
-                this.onChangeInput(i);
+            this.bindEvent(fundamentalInput, "input", (e) => {
+                this.onChangeInput?.(e.target.value);
             });
         }
 

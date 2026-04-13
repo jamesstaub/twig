@@ -2,7 +2,7 @@ import { updateAudioProperties } from "../../audio.js";
 import { FUNDAMENTAL_CHANGED } from "../../events.js";
 import { BaseController } from "../base/BaseController";
 import { FundamentalActions } from "./fundamentalActions";
-import { FundamentalComponent } from "./fundamentalComponent.js";
+import { FundamentalComponent } from "./FundamentalComponent.js";
 
 
 export class FundamentalController extends BaseController {

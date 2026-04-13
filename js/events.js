@@ -7,3 +7,4 @@ export const SUBHARMONIC_TOGGLED = 'subharmonic-toggled';
 export const ADD_CUSTOM_WAVEFORM = 'add-custom-waveform';
 export const ROUTING_MODE_CHANGED = 'routing-mode-changed';
 export const FUNDAMENTAL_CHANGED = 'fundamental-changed';
+export const PLAY_STATE_CHANGED = 'play-state-changed';

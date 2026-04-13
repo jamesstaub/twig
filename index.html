@@ -42,7 +42,7 @@
             class="flex flex-nowrap gap-3 xs:px-2 px-8 py-[1rem] justify-center md:justify-between h-[8rem] md:h-[6rem]">
             <div class="navbar-section flex basis-auto">
                 <!-- Play/Stop Toggle -->
-                <div class="play-toggle-container flex-grow">
+                <div class="play-toggle-container flex-grow flex-wrap items-center">
                     <span id="play-label" class="toggle-label w-8 active">Play</span>
                     <div id="play-toggle" class="toggle-switch" role="switch" aria-checked="false"
                         aria-label="Play/Stop control">
@@ -215,31 +215,6 @@
                                 <div id="viz-freq-slider-root" class="flex items-center gap-2 w-full"></div>
                             </div>
                         </div>
-                        <script type="module">
-                            // Tonewheel overlay controls show/hide logic
-                            const tonewheelContainer = document.getElementById('tonewheel-container');
-                            const vizControls = document.getElementById('tonewheel-viz-controls');
-                            let fadeTimeout;
-                            function showVizControls() {
-                                vizControls.classList.remove('opacity-0', 'pointer-events-none');
-                                vizControls.classList.add('opacity-100', 'pointer-events-auto');
-                                clearTimeout(fadeTimeout);
-                                fadeTimeout = setTimeout(hideVizControls, 3000);
-                            }
-                            function hideVizControls() {
-                                vizControls.classList.remove('opacity-100', 'pointer-events-auto');
-                                vizControls.classList.add('opacity-0', 'pointer-events-none');
-                            }
-                            tonewheelContainer.addEventListener('mouseenter', showVizControls);
-                            tonewheelContainer.addEventListener('mousemove', showVizControls);
-                            tonewheelContainer.addEventListener('touchstart', showVizControls);
-                            vizControls.addEventListener('mouseenter', showVizControls);
-                            vizControls.addEventListener('mousemove', showVizControls);
-                            vizControls.addEventListener('touchstart', showVizControls);
-                            // Hide on mouseleave
-                            tonewheelContainer.addEventListener('mouseleave', hideVizControls);
-                            vizControls.addEventListener('mouseleave', hideVizControls);
-                        </script>
                     </div>
 
 

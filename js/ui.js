@@ -4,25 +4,23 @@
  */
 
 import { AppState, updateAppState } from './config.js';
-import { updateText, updateValue, setupEventListener, showStatus } from './domUtils.js';
+import { updateText, updateValue } from './domUtils.js';
 import { DrawbarsController } from './modules/drawbars/drawbarsController.js';
 import { SpectralSystemController } from './modules/spectralSystem/spectralSystemController.js';
 import { WaveformController } from './modules/waveform/waveformController.js';
-import { handleWaveformChange } from './modules/waveform/waveformActions.js';
 import { DownloadControlController } from './modules/downloadControl/downloadControlController.js';
-// import { updateFundamentalDisplay, updateKeyboardUI, updateSystemDescription } from './ui.js';
 import { HelpDialog } from './HelpDialog.js';
 import { KeyboardShortcuts } from './KeyboardShortcuts.js';
 import { TonewheelController } from './modules/tonewheel/tonewheelController.js';
-import { startTone, stopTone } from './audio.js';
 import { smoothUpdateMasterGain } from './utils.js';
-
 import { SliderController } from './modules/generic/slider/sliderController.js';
 import { MidiInputRouter } from './modules/midi/midiInputRouter.js';
 import { FundamentalController } from './modules/fundamental/fundamentalController.js';
 import { ModalController } from './modules/generic/modal/modalController.js';
 import MidiMappingModalComponent from './modules/generic/modal/MidiMappingModalComponent.js';
 import { openModal, closeModal } from './modules/generic/modal/modalActions.js';
+import { PlayToggleController } from './modules/playToggle/playToggleController.js';
+import { WaveformSelectorController } from './modules/waveformSelector/waveformSelectorController.js';
 // ================================
 // INITIALIZATION
 // ================================
@@ -55,18 +53,15 @@ export function initUI() {
             onClose: () => closeModal()
         });
 
-        // Attach event to open button
-        document.addEventListener('DOMContentLoaded', () => {
-            const btn = document.getElementById('open-midi-mapping-btn');
-            if (btn) {
-                btn.addEventListener('click', () => {
-                    // Create the modal content (component instance)
-                    const modalContent = new MidiMappingModalComponent(document.createElement('div'));
-                    modalContent.render({ onClose: () => closeModal() });
-                    openModal(modalContent, {});
-                });
-            }
-        });
+        // Attach event to open button (DOM is already ready when initUI() runs)
+        const btn = document.getElementById('open-midi-mapping-btn');
+        if (btn) {
+            btn.addEventListener('click', () => {
+                const modalContent = new MidiMappingModalComponent(document.createElement('div'));
+                modalContent.render({ onClose: () => closeModal() });
+                openModal(modalContent, {});
+            });
+        }
     }
 
 
@@ -130,9 +125,8 @@ function setupFundamental() {
 // ================================
 
 function setupMainButtons() {
-    // Play/Stop toggle (new navbar toggle)
-    setupEventListener('play-toggle', 'click', handlePlayToggle);
-
+    const playToggleController = new PlayToggleController('.play-toggle-container');
+    playToggleController.init();
 }
 
 function setupControlSliders() {
@@ -175,28 +169,6 @@ function setupControlSliders() {
 }
 
 
-export async function handlePlayToggle() {
-    const toggle = document.getElementById('play-toggle');
-    const playLabel = document.getElementById('play-label');
-
-    if (AppState.isPlaying) {
-        stopTone();
-        toggle.classList.remove('active');
-        toggle.setAttribute('aria-checked', 'false');
-        playLabel.textContent = "Play";
-    } else {
-        try {
-            await startTone();
-            toggle.classList.add('active');
-            toggle.setAttribute('aria-checked', 'true');
-            playLabel.textContent = "Stop";
-        } catch (error) {
-            console.error('Failed to start tone:', error);
-            showStatus('Failed to start audio. Please check browser permissions.', 'error');
-        }
-    }
-}
-
 
 export function updateSystemDescription() {
     updateText('system-description', AppState.currentSystem.description, true);
@@ -209,10 +181,8 @@ export function updateSystemDescription() {
 // ================================
 
 function setupWaveformSelector() {
-    const select = document.getElementById('waveform-select');
-    if (select) {
-        select.addEventListener('change', handleWaveformChange)
-    }
+    const waveformSelectorController = new WaveformSelectorController('#waveform-select');
+    waveformSelectorController.init();
 }
 
 

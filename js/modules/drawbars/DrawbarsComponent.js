@@ -25,8 +25,43 @@ export class DrawbarsComponent extends BaseComponent {
         this.sliders = this.qAll(DRAWBAR_SLIDER_SELECTOR);
 
         this.sliders.forEach(slider => {
+            // Mouse / keyboard: use native range input event
             this.bindEvent(slider, "input", (e) => this.handleDrawbarChange(e));
-            // CSS touch-action handles scroll prevention; no need for JS preventDefault
+
+            // Touch: custom vertical-drag handler.
+            //
+            // The slider is rotated -90deg in CSS so it renders vertically, but
+            // the browser's native touch tracking uses the element's pre-rotation
+            // coordinate space — meaning only a fraction of finger movement
+            // registers. We bypass that entirely by:
+            //   1. Attaching listeners to the wrapper (the visual 140×25px area)
+            //      whose getBoundingClientRect() is already in screen coordinates.
+            //   2. Mapping touchY directly to value (top = max, bottom = min).
+            //   3. Calling preventDefault() to block container scroll.
+            const wrapper = slider.parentElement; // .drawbar-input-wrapper
+
+            let dragStartY = 0;
+            let dragStartValue = 0;
+
+            this.bindEvent(wrapper, "touchstart", (e) => {
+                e.preventDefault();
+                dragStartY = e.touches[0].clientY;
+                dragStartValue = parseFloat(slider.value);
+            }, { passive: false });
+
+            this.bindEvent(wrapper, "touchmove", (e) => {
+                e.preventDefault();
+                const rect = wrapper.getBoundingClientRect();
+                const touchY = e.touches[0].clientY;
+                // Clamp touch within wrapper bounds, then map to [0, 1].
+                // Top of wrapper = max (1), bottom = min (0).
+                const clampedY = Math.max(rect.top, Math.min(rect.bottom, touchY));
+                const newValue = 1 - (clampedY - rect.top) / rect.height;
+                slider.value = newValue;
+                slider.setAttribute("aria-valuenow", newValue);
+                const index = Number(slider.dataset.index);
+                this.onChange?.(index, newValue);
+            }, { passive: false });
         });
     }
 
@@ -62,6 +97,9 @@ export class DrawbarsComponent extends BaseComponent {
 
         const wrapper = document.createElement("div");
         wrapper.className = `drawbar ${styleClass}`;
+        // Disable browser touch handling for the entire drawbar column (label
+        // area included) so our custom touch handler gets every gesture.
+        wrapper.style.touchAction = 'pan-x';
 
         const label = document.createElement("span");
         label.className = "drawbar-label";
@@ -79,6 +117,9 @@ export class DrawbarsComponent extends BaseComponent {
         slider.step = "0.01";
         slider.value = value;
         slider.dataset.index = index;
+        // Override CSS touch-action: pan-x so the browser doesn't intercept
+        // the gesture before our touchstart fires.
+        slider.style.touchAction = 'pan-x';
 
         const wrap = document.createElement("div");
         wrap.className = "drawbar-input-wrapper";

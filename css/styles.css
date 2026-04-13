@@ -663,7 +663,6 @@ canvas {
 .play-toggle-container {
 display: flex;
 align-items: center;
-gap: 0.75rem;
 padding: 0.5rem 1rem;
 background-color: rgb(30 41 59 / 0.5);
 border-radius: 0.5rem;

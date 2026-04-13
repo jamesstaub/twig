@@ -1,3 +1,11 @@
+// ================================
+// MIDI CONFIGURATION
+// ================================
+
+export const midiConfig = {
+    inputChannel: 1, // MIDI channel 1 by default (1-16)
+    drawbarsCC: [20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31], // Default CCs for 12 drawbars
+};
 /**
  * CONFIGURATION MODULE
  * Contains spectral systems, constants, and application state
