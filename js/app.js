@@ -10,13 +10,39 @@ import { initUI, updateUI } from './ui.js';
 import { showStatus } from './domUtils.js';
 import { faviconService } from './modules/favicon/faviconService.js';
 import { getAudioEngine } from './audio.js';
+import { oscClient, oscEnabled } from './modules/osc/oscClient.js';
 
+
+/**
+ * EMBED MODE (Max4Live / jweb)
+ * The jweb object in a Max4Live device gives us ~170px of height, so the app
+ * collapses into a single horizontal row (see "EMBED MODE" in styles.css).
+ * Detected from viewport height, or forced with ?embed=1 / disabled with ?embed=0.
+ */
+const EMBED_MAX_HEIGHT = 220;
+
+function updateEmbedMode() {
+    const embedParam = new URLSearchParams(window.location.search).get('embed');
+    let embed;
+    if (embedParam !== null) {
+        embed = embedParam !== '0' && embedParam !== 'false';
+    } else {
+        embed = window.innerHeight > 0 && window.innerHeight <= EMBED_MAX_HEIGHT;
+    }
+    document.body.classList.toggle('embed', embed);
+}
 
 /**
  * Main application initialization function
  */
-function initApp() {
+async function initApp() {
     try {
+        // Apply state pushed to the bridge (Live's plugin parameters)
+        // BEFORE the UI renders, so the first paint shows that state
+        if (oscEnabled()) {
+            await oscClient.bootstrap();
+        }
+
         // Initialize UI components
         initUI();
         faviconService.start();
@@ -135,6 +161,10 @@ function startup() {
     // Setup cleanup handlers
     setupCleanup();
 
+    // Apply embed (Max4Live) layout before components measure their containers
+    updateEmbedMode();
+    window.addEventListener('resize', updateEmbedMode);
+
     // Initialize the application
     initApp();
 }
@@ -149,6 +179,7 @@ window.TWIG = {
     getState: () => AppState,
 
     getAudioCtx: () => getAudioEngine().getContext(),
+    getAudioEngine: () => getAudioEngine(),
 
     // Module access (for debugging)
     updateUI,

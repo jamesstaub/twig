@@ -15,319 +15,215 @@ export const midiConfig = {
 // SPECTRAL SYSTEMS CONFIGURATION
 // ================================
 
-/**
- * 
- * 
- * https://lawrencephelps.com/Documents/Articles/compoundstops.shtml
- */
+// Default partial range for generated systems. Every system below passes its
+// range explicitly, so any system can use arbitrary partials — e.g.
+// harmonicSeries(8, 19) starts the series on the 8th harmonic.
+export const DEFAULT_PARTIAL_START = 1;
+export const DEFAULT_PARTIAL_END = 12;
 
+const PHI = (1 + Math.sqrt(5)) / 2;
+
+function range(start, end, step = 1) {
+    const out = [];
+    for (let v = start; v <= end + 1e-9; v += step) out.push(v);
+    return out;
+}
+
+/**
+ * Integer harmonic series over an arbitrary range of partials.
+ * normalize divides by the first partial so the series is rooted at 1/1
+ * (e.g. harmonicSeries(8, 22, { normalize: true }) for an otonality on 8).
+ */
+function harmonicSeries(start = DEFAULT_PARTIAL_START, end = DEFAULT_PARTIAL_END, { step = 1, normalize = false } = {}) {
+    return range(start, end, step).map(n => (normalize ? n / start : n));
+}
+
+/**
+ * Sethares stretched/compressed spectrum: partial n falls at n^log2(A), so the
+ * pseudo-octave lands on A instead of 2. A = 2 gives the harmonic series;
+ * 2.1 is Sethares' classic stretched timbre, 1.9 its compressed mirror.
+ */
+function stretchedSpectrum(A, start = DEFAULT_PARTIAL_START, end = DEFAULT_PARTIAL_END) {
+    const exp = Math.log2(A);
+    return range(start, end).map(n => Math.pow(n, exp));
+}
+
+/**
+ * Stiff string (piano) inharmonicity: f_n = n * sqrt(1 + B*n^2), normalized to
+ * the first partial. Real pianos measure B ≈ 0.0001–0.001 in the midrange.
+ */
+function stiffString(B, start = DEFAULT_PARTIAL_START, end = DEFAULT_PARTIAL_END) {
+    const f = (n) => n * Math.sqrt(1 + B * n * n);
+    return range(start, end).map(n => f(n) / f(start));
+}
+
+/**
+ * Transverse modes of a free-free bar (glockenspiel, gamelan saron):
+ * frequencies ∝ (kL)^2 with the exact first five roots of cos(kL)·cosh(kL)=1,
+ * then the asymptote kL ≈ (2n+1)π/2. Ratios: 1, 2.76, 5.40, 8.93, 13.34…
+ */
+function freeBar(count = 8) {
+    const kL = [4.7300408, 7.8532046, 10.9956078, 14.1371655, 17.2787597];
+    while (kL.length < count) kL.push((2 * (kL.length + 1) + 1) * Math.PI / 2);
+    return kL.slice(0, count).map(x => Math.pow(x / kL[0], 2));
+}
+
+/** Geometric spectrum: 1, x, x^2, … x^(count-1). */
+function powersOf(x, count) {
+    return range(0, count - 1).map(k => Math.pow(x, k));
+}
+
+/**
+ * Combination (sum) tones m·a + n·b of two generators — the spectralist
+ * ring-modulation technique. Deduped, sorted, first `count` values from 1/1.
+ */
+function combinationTones(a, b, count = 12, maxCoeff = 6) {
+    const seen = [];
+    for (let m = 0; m <= maxCoeff; m++) {
+        for (let n = 0; n <= maxCoeff; n++) {
+            if (m === 0 && n === 0) continue;
+            const v = m * a + n * b;
+            if (v < 1 - 1e-6) continue;
+            if (!seen.some(u => Math.abs(u - v) < 1e-6)) seen.push(v);
+        }
+    }
+    return seen.sort((x, y) => x - y).slice(0, count);
+}
+
+/** k equal divisions of the tritave (3/1). */
+function edt(divisions, count) {
+    return range(0, count - 1).map(k => Math.pow(3, k / divisions));
+}
+
+function decimalLabels(ratios, digits = 2) {
+    return ratios.map(r => r.toFixed(digits).replace(/\.?0+$/, ''));
+}
+
+const HARMONIC_SERIES_DEFAULT = harmonicSeries(DEFAULT_PARTIAL_START, DEFAULT_PARTIAL_END);
+const ODD_HARMONICS = harmonicSeries(1, 23, { step: 2 });
+const STRETCHED_21 = stretchedSpectrum(2.1);
+const COMPRESSED_19 = stretchedSpectrum(1.9);
+const STIFF_STRING = stiffString(0.001);
+const FREE_BAR = freeBar(8);
+const BONANG = [1, 1.52, 3.46, 3.92];
+const CHURCH_BELL = [1 / 2, 1 / 1, 6 / 5, 3 / 2, 2 / 1, 5 / 2, 3 / 1, 4 / 1];
+const GOLDEN = powersOf(PHI, 8);
+const RING_MOD_SQRT2 = combinationTones(1, Math.SQRT2, 12);
+const OTONALITY_PARTIALS = [8, 9, 10, 11, 12, 14, 15, 16, 18, 20, 21, 22];
+const OTONALITY = OTONALITY_PARTIALS.map(n => n / 8);
+const BP_13EDT = edt(13, 13);
 
 export const spectralSystems = [
-    // 1
     {
-        name: "1. Harmonic Overtone Series (Integer)",
+        name: "Harmonic Series",
         description:
-            'Classic harmonic series (exact integer partials). Use for natural, consonant spectra (e.g. voiced instruments, organ-like timbres). See the harmonic-series background: <a href="https://en.wikipedia.org/wiki/Harmonic_series_(music)">Wikipedia — Harmonic series</a>.',
-        // exact integer partials expressed as math
-        ratios: [1 / 1, 2 / 1, 3 / 1, 4 / 1, 5 / 1, 6 / 1, 7 / 1, 8 / 1, 9 / 1, 10 / 1, 11 / 1, 12 / 1],
-        labels: ["1:1", "2:1", "3:1", "4:1", "5:1", "6:1", "7:1", "8:1", "9:1", "10:1", "11:1", "12:1"],
-        labelPrecision: 1
-    },
-
-    // 2
-    {
-        name: "2. Spectral Progressive Detuned Harmonics (Microtonal)",
-        description:
-            'Progressive microtonal detuning of the integer harmonic series. Detuning increases with partial index to produce time-varying beating and spectral shimmer (useful for spectral / ambient textures). This is an intentional synthesis choice rather than a canonical acoustic law.',
-        // progressive detune with explicit fractional offsets
-        ratios: [
-            1 / 1,
-            2 + 1 / 100,         // 2 + 0.01
-            3 + 2 / 100,         // 3.02
-            4 + 3 / 100,         // 4.03
-            5 + 4 / 100,         // 5.04
-            6 + 5 / 100,         // 6.05
-            7 + 6 / 100,         // 7.06
-            8 + 8 / 100,         // 8.08
-            9 + 10 / 100,        // 9.10
-            10 + 12 / 100,       // 10.12
-            11 + 14 / 100,       // 11.14
-            12 + 16 / 100        // 12.16
-        ],
-        labels: ["1/1", "201/100", "151/50", "403/100", "126/25", "121/20", "353/50", "202/25", "91/10", "253/25", "557/50", "304/25"],
-        labelPrecision: 2
-    },
-
-    // 3
-    {
-        name: "3. Inharmonic Membrane / Plate Modes (Bessel-root based)",
-        description:
-            'Modal ratios derived from the first zeros of Bessel-type modal functions — a physically informed inharmonic series used to synthesize metallic / bell / plate timbres. This is a simplified circular-membrane / plate approximation (modal zeros of Bessel functions scale the modal frequencies). For background, see the math of Bessel roots and plate/modal modeling: <a href="https://en.wikipedia.org/wiki/Bessel_function">Bessel functions</a> and a modal-plate overview: <a href="https://courses.cs.washington.edu/courses/cse481i/20wi/pdfs/G-waveguides.pdf">modal plate notes (UW)</a>.',
-        // first several J0 zeros used as numeric literals; ratios normalized to first root
-        ratios: [
-            1 / 1,
-            5.520078110286311 / 2.404825557695773,   // ≈ 2.2949
-            8.653727912911013 / 2.404825557695773,   // ≈ 3.5994
-            11.791534439014281 / 2.404825557695773,  // ≈ 4.9037
-            14.930917708487787 / 2.404825557695773,  // ≈ 6.2079
-            18.071063967910923 / 2.404825557695773,  // ≈ 7.5124
-            21.21163662987926 / 2.404825557695773,  // ≈ 8.8167
-            24.352471530749302 / 2.404825557695773,  // ≈ 10.1211
-            27.493479132040254 / 2.404825557695773,  // ≈ 11.4254
-            30.634606468431975 / 2.404825557695773,  // ≈ 12.7298
-            33.77582021357357 / 2.404825557695773,  // ≈ 14.0340
-            36.91709835366401 / 2.404825557695773   // ≈ 15.3384
-        ],
-        labels: ["1", "5.52/2.40", "8.65/2.40", "11.79/2.40", "14.93/2.40", "18.07/2.40", "21.21/2.40", "24.35/2.40", "27.49/2.40", "30.63/2.40", "33.78/2.40", "36.92/2.40"],
-        labelPrecision: 3
-    },
-
-    // 4
-    {
-        name: "4. Gamelan Slendro (Common Approximation)",
-        description:
-            'A conservative Slendro approximation — Slendro tunings vary widely between ensembles and islands. This is a plausible normalized Slendro-like series (useful as a starting point). See tuning variability and research: <a href="https://eamusic.dartmouth.edu/~larry/misc_writings/out_of_print/slendro_balungan.pdf">Javanese Slendro analyses</a> and a detailed study: <a href="https://www.31edo.com/slendrogamelan.pdf">Stearns — Slendro analysis</a>.',
-        // decimals converted to rational approximations where practical
-        ratios: [
-            1 / 1,
-            61 / 50,   // 1.22
-            37 / 25,   // 1.48
-            44 / 25,   // 1.76
-            41 / 20,   // 2.05
-            61 / 25,   // 2.44
-            74 / 25,   // 2.96
-            88 / 25,   // 3.52
-            41 / 10,   // 4.10
-            122 / 25,  // 4.88
-            148 / 25,  // 5.92
-            176 / 25   // 7.04
-        ],
-        labels: ["1/1", "61/50", "37/25", "44/25", "41/20", "61/25", "74/25", "88/25", "41/10", "122/25", "148/25", "176/25"],
-        labelPrecision: 2
-    },
-
-    // 4b
-    {
-        name: "4b. Slendro — Adventurous Variant (Exploratory)",
-        description:
-            'A more adventurous Slendro-inspired variant that shifts a few degrees towards septimal/7-limit alignments (useful for exotic spectral palettes). This is deliberately non-standard; treat it as a creative tuning palette rather than an ethnographic map.',
-        ratios: [
-            1 / 1,
-            8 / 7,
-            7 / 5,
-            12 / 7,
-            9 / 5,
-            16 / 7,
-            21 / 8,
-            7 / 2,
-            9 / 2,
-            11 / 2,
-            13 / 2,
-            15 / 2
-        ],
-        labels: ["1/1", "8/7", "7/5", "12/7", "9/5", "16/7", "21/8", "7/2", "9/2", "11/2", "13/2", "15/2"],
-        labelPrecision: 3
-    },
-
-    // 5
-    {
-        name: "5. Gamelan Pelog (Common Approximation)",
-        description:
-            'A conservative Pelog approximation (Pelog also varies a lot by ensemble). This is a practical Pelog-like set for synthesis; it compresses Pelog’s characteristic unequal steps into a usable spectral array. See overview and sample tunings: <a href="https://tuning.ableton.com/sundanese-gamelan/">Ableton — Gamelan tuning intro</a>.',
-        ratios: [
-            1 / 1,
-            53 / 50,   // 1.06
-            5 / 4,     // 1.25
-            4 / 3,     // 1.333...
-            3 / 2,     // 1.5
-            83 / 50,   // 1.66
-            89 / 50,   // 1.78
-            2 / 1,
-            53 / 25,   // 2.12
-            5 / 2,
-            133 / 50,  // 2.66
-            3 / 1
-        ],
-        labels: ["1/1", "53/50", "5/4", "4/3", "3/2", "83/50", "89/50", "2/1", "53/25", "5/2", "133/50", "3/1"],
-        labelPrecision: 2
-    },
-
-    // 5b
-    {
-        name: "5b. Pelog — Adventurous Variant (Exploratory)",
-        description:
-            'A more adventurous Pelog variant that includes stronger septimal and odd-limit colors — useful when you want Pelog-ish contours but with richer microtonal tension.',
-        ratios: [
-            1 / 1,
-            25 / 24,
-            9 / 8,
-            6 / 5,
-            7 / 6,
-            11 / 8,
-            9 / 7,
-            3 / 2,
-            7 / 4,
-            8 / 5,
-            9 / 5,
-            2 / 1
-        ],
-        labels: ["1/1", "25/24", "9/8", "6/5", "7/6", "11/8", "9/7", "3/2", "7/4", "8/5", "9/5", "2/1"],
-        labelPrecision: 3
-    },
-
-    // 6
-    {
-        name: "6. Bohlen–Pierce (13-EDT of the Tritave)",
-        description:
-            'Equal-tempered Bohlen–Pierce: 13 equal divisions of the tritave (3:1) — the most common practical realization of BP. Each step = 3^(1/13) above the previous. Useful when you want the distinctive BP non-octave (tritave) periodicity. See the Bohlen–Pierce overview: <a href="https://en.wikipedia.org/wiki/Bohlen%E2%80%93Pierce_scale">Bohlen–Pierce (Wikipedia)</a>.',
-        // 13-EDT entries; note natural length is 13 steps per tritave; here we list the first 13 (including 1)
-        ratios: [
-            1 / 1,
-            Math.pow(3, 1 / 13),
-            Math.pow(3, 2 / 13),
-            Math.pow(3, 3 / 13),
-            Math.pow(3, 4 / 13),
-            Math.pow(3, 5 / 13),
-            Math.pow(3, 6 / 13),
-            Math.pow(3, 7 / 13),
-            Math.pow(3, 8 / 13),
-            Math.pow(3, 9 / 13),
-            Math.pow(3, 10 / 13),
-            Math.pow(3, 11 / 13),
-            Math.pow(3, 12 / 13)
-        ],
-        labels: ["1/1", "3^(1/13)", "3^(2/13)", "3^(3/13)", "3^(4/13)", "3^(5/13)", "3^(6/13)", "3^(7/13)", "3^(8/13)", "3^(9/13)", "3^(10/13)", "3^(11/13)"],
-        labelPrecision: 4
-    },
-
-    // 6b
-    {
-        name: "6b. Bohlen–Pierce (Representative Just Intonation set)",
-        description:
-            'A commonly-cited Bohlen–Pierce just-intonation palette assembled from small-ratio JI intervals historically associated with BP discussions (normalized to 1). This is an illustrative JI BP set — there are multiple JI realizations in the literature. See the JI vs. ET BP table: <a href="https://en.wikipedia.org/wiki/Bohlen%E2%80%93Pierce_scale#Intervals_and_scale_diagrams">BP intervals (Wikipedia)</a>.',
-        ratios: [
-            1 / 1,
-            27 / 25,
-            25 / 21,
-            9 / 7,
-            7 / 5,
-            75 / 49,
-            5 / 3,
-            9 / 5,
-            49 / 25,
-            15 / 7,
-            7 / 3,
-            63 / 25
-        ],
-        labels: ["1/1", "27/25", "25/21", "9/7", "7/5", "75/49", "5/3", "9/5", "49/25", "15/7", "7/3", "63/25"],
-        labelPrecision: 3
-    },
-
-    // 7
-    {
-        name: "7. Standardized Lydian Root Set (Just-intonation oriented)",
-        description:
-            'A compact, standardized Lydian root set expressed in just-intonation ratios. This keeps the Lydian #4 character while using small-integer ratios for musical stability — useful when you want a Lydian-centered just palette (informed by George Russellʼs idea of the Lydian center; see the Lydian Chromatic Concept: <a href="https://georgerussell.com/lydian-chromatic-concept">George Russell — Lydian Chromatic Concept</a>).',
-        ratios: [
-            1 / 1,
-            9 / 8,
-            5 / 4,
-            45 / 32,
-            3 / 2,
-            8 / 5,
-            15 / 8,
-            2 / 1,
-            9 / 4,
-            5 / 2,
-            15 / 4,
-            4 / 1
-        ],
-        labels: ["1/1", "9/8", "5/4", "45/32", "3/2", "8/5", "15/8", "2/1", "9/4", "5/2", "15/4", "4/1"],
-        labelPrecision: 3
-    },
-
-    // 8
-    {
-        name: "8. Fractional Series (n/4 Multiples)",
-        description:
-            'A deliberately inharmonic fractional series using n/4 multipliers (1, 1.25, 1.5, ...). Very metallic and clanging — excellent for bell-like additive synthesis with strong inharmonic beating.',
-        ratios: [1 / 1, 5 / 4, 3 / 2, 7 / 4, 2 / 1, 9 / 4, 5 / 2, 11 / 4, 3 / 1, 13 / 4, 7 / 2, 15 / 4],
-        labels: ["1/1", "5/4", "3/2", "7/4", "2/1", "9/4", "5/2", "11/4", "3/1", "13/4", "7/2", "15/4"],
-        labelPrecision: 2
-    },
-
-    // Harry Partch sets
-    {
-        name: "HP-A. Harry Partch — 43-Tone Scale (overview subset)",
-        description:
-            'Harry Partchʼs 43-tone scale (per octave) is a systematic 11-limit-based just-intonation framework Partch used for much of his instrument design and composition. This entry provides a practical 12-value subset sampled from Partch\'s larger lattice. See: <a href="https://en.wikipedia.org/wiki/Harry_Partch%27s_43-tone_scale">Harry Partchʼs 43-tone scale (Wikipedia)</a>.',
-        ratios: [
-            1 / 1,
-            12 / 11,
-            11 / 10,
-            10 / 9,
-            9 / 8,
-            8 / 7,
-            7 / 6,
-            6 / 5,
-            11 / 9,
-            5 / 4,
-            14 / 11,
-            9 / 7
-        ],
-        labels: ["1/1", "12/11", "11/10", "10/9", "9/8", "8/7", "7/6", "6/5", "11/9", "5/4", "14/11", "9/7"],
-        labelPrecision: 4
+            '<b>Canonical.</b> Exact integer partials — the spectrum of bowed, blown, and sung tones, and the reference point for every other system here. See <a href="https://en.wikipedia.org/wiki/Harmonic_series_(music)">Harmonic series (Wikipedia)</a>.',
+        ratios: HARMONIC_SERIES_DEFAULT,
+        labels: HARMONIC_SERIES_DEFAULT.map(n => `${n}:1`)
     },
 
     {
-        name: "HP-B. Harry Partch — 11-Limit Tonality Diamond (subset)",
+        name: "Odd Harmonics",
         description:
-            'A focused 11-limit tonality diamond subset (useful Partchian palette). This selection expresses Partchʼs hierarchy of consonance-to-dissonance in small integer ratios; use as a microtonal palette or for Partch-inspired composition. Reference: <a href="https://en.wikipedia.org/wiki/Harry_Partch%27s_43-tone_scale">Partch — 43-tone & 11-limit ideas</a>.',
-        ratios: [
-            1 / 1,
-            16 / 15,
-            9 / 8,
-            6 / 5,
-            5 / 4,
-            4 / 3,
-            7 / 5,
-            3 / 2,
-            8 / 5,
-            5 / 3,
-            9 / 5,
-            2 / 1
-        ],
-        labels: ["1/1", "16/15", "9/8", "6/5", "5/4", "4/3", "7/5", "3/2", "8/5", "5/3", "9/5", "2/1"],
-        labelPrecision: 4
+            '<b>Canonical.</b> Odd partials only (1, 3, 5, …) — the clarinet / closed-pipe / square-wave family. Also the natural companion timbre for the Bohlen–Pierce system below, which was derived from odd partials of the tritave.',
+        ratios: ODD_HARMONICS,
+        labels: ODD_HARMONICS.map(n => `${n}:1`)
     },
 
     {
-        name: "HP-C. Harry Partch — Practical Instrument Subset (for keyboard/percussion)",
+        name: "Stretched Spectrum (Sethares, A = 2.1)",
         description:
-            "A small practical subset inspired by the subsets Partch used on instruments (Chromelodeon, Adapted Guitar, etc.) — chosen for playability while retaining Partch's just-intonation character. See Partch instrument descriptions: <a href='https://en.wikipedia.org/wiki/Harry_Partch%27s_43-tone_scale'>Partch overview</a>.",
-        ratios: [1 / 1, 9 / 8, 6 / 5, 5 / 4, 4 / 3, 3 / 2, 8 / 5, 5 / 3, 9 / 5, 15 / 8, 2 / 1, 9 / 4],
-        labels: ["1/1", "9/8", "6/5", "5/4", "4/3", "3/2", "8/5", "5/3", "9/5", "15/8", "2/1", "9/4"],
-        labelPrecision: 4
+            '<b>Designed, research-based.</b> Partial n falls at n<sup>log₂ 2.1</sup>, so the pseudo-octave is 2.1 — true octaves beat while the stretched octave stays pure. From Sethares’ <i>Tuning, Timbre, Spectrum, Scale</i>: a spectrum and the scale at its dissonance minima define each other. See <a href="https://sethares.engr.wisc.edu/consemi.html">Relating Tuning and Timbre</a> and <a href="https://en.xen.wiki/w/Xentimbre">xentimbre</a>.',
+        ratios: STRETCHED_21,
+        labels: decimalLabels(STRETCHED_21)
     },
 
+    {
+        name: "Compressed Spectrum (Sethares, A = 1.9)",
+        description:
+            '<b>Designed, research-based.</b> The mirror of the stretched spectrum: partial n at n<sup>log₂ 1.9</sup>, pseudo-octave 1.9. Darker and more clustered than harmonic; its natural scale is compressed the same way.',
+        ratios: COMPRESSED_19,
+        labels: decimalLabels(COMPRESSED_19)
+    },
 
     {
-        name: "OD-1. Hammond — Standard 9-drawbar (Manual) (Drawbars / Stops)",
+        name: "Stiff String (Piano Inharmonicity)",
         description:
-            "Canonical Hammond single-manual drawbar mapping (left→right): 16', 5 1/3', 8', 4', 2 2/3', 2', 1 3/5', 1 1/3', 1' — each represents a harmonic/aliquot of the fundamental. These are the classic additive palette used on B-3 / tonewheel organs. See Hammond drawbar docs for details.",
-        // natural count: 9 drawbars. Ratios expressed as small-integer fractions.
+            '<b>Physical model.</b> f<sub>n</sub> = n·√(1 + Bn²): string stiffness sharpens upper partials progressively — the reason pianos are stretch-tuned. B = 0.001 here sits at the audible top of real midrange pianos; raise B in config.js for exaggerated bell-piano hybrids.',
+        ratios: STIFF_STRING,
+        labels: decimalLabels(STIFF_STRING, 3)
+    },
+
+    {
+        name: "Free Bar (Glockenspiel / Saron)",
+        description:
+            '<b>Physical model.</b> Transverse modes of a free metal bar: 1, 2.76, 5.40, 8.93, 13.34… — the true metallic-clang spectrum of glockenspiels, chimes, and gamelan saron-family bars. Per Sethares, this is the timbre family from which slendro-like tunings emerge.',
+        ratios: FREE_BAR,
+        labels: decimalLabels(FREE_BAR)
+    },
+
+    {
+        name: "Gamelan Bonang (Measured)",
+        description:
+            '<b>Measured.</b> Sethares’ field measurement of a bonang gong: partials at 1, 1.52, 3.46, 3.92. The slendro scale falls out of this spectrum’s dissonance minima. See <a href="https://searchingfornewsound.blogspot.com/2022/05/gamelan-tuning-and-instrumental-spectra.html">gamelan tuning &amp; instrumental spectra</a>.',
+        ratios: BONANG,
+        labels: decimalLabels(BONANG)
+    },
+
+    {
+        name: "Church Bell (Minor-Third Bell)",
+        description:
+            '<b>Measured, idealized profile.</b> The harmonically tuned bell: hum ½, prime 1, tierce 6/5, quint 3/2, nominal 2, then upper partials to the octave nominal. The minor-third tierce is what makes a bell sound like a bell. See <a href="https://www.hibberts.co.uk/basic-principles-of-bell-tuning/">Hibberts — bell tuning</a>.',
+        ratios: CHURCH_BELL,
+        labels: ["hum", "prime", "tierce", "quint", "nom.", "deciem", "s.quint", "oct.nom"]
+    },
+
+    {
+        name: "Golden Ratio (Chowning, Stria)",
+        description:
+            '<b>Designed, historical.</b> Partials at powers of φ ≈ 1.618 — the spectrum of Chowning’s <i>Stria</i> (1977). Self-reinforcing: the difference between adjacent partials is itself a partial (φ<sup>n+1</sup> − φ<sup>n</sup> = φ<sup>n−1</sup>), so intermodulation stays inside the spectrum. See <a href="https://geometrycode.com/golden-ratio-and-sound-john-chowning-synthesis/">Chowning and the golden ratio</a>.',
+        ratios: GOLDEN,
+        labels: GOLDEN.map((_, k) => (k === 0 ? "1" : `φ^${k}`))
+    },
+
+    {
+        name: "Ring-Mod Spectrum (1 × √2)",
+        description:
+            '<b>Designed, spectralist technique.</b> Sum tones m + n·√2 of two generators a tritone apart — the ring-modulation / combination-tone spectra Grisey and Murail built harmony from (cf. <a href="https://en.wikipedia.org/wiki/Partiels">Partiels</a>). Inharmonic but internally coherent.',
+        ratios: RING_MOD_SQRT2,
+        labels: decimalLabels(RING_MOD_SQRT2)
+    },
+
+    {
+        name: "Otonality on 8 (Partch, 11-limit)",
+        description:
+            '<b>Historical, Partch.</b> Harmonics 8–22 (11-limit products only) rooted on the 8th partial — Partch’s otonality, the overtone half of his tonality diamond. Flip the Subharmonic toggle for the utonality mirror: that duality <i>is</i> the diamond. See <a href="https://en.wikipedia.org/wiki/Otonality_and_utonality">Otonality and utonality</a>.',
+        ratios: OTONALITY,
+        labels: OTONALITY_PARTIALS.map(n => `${n}/8`)
+    },
+
+    {
+        name: "Bohlen–Pierce (13-EDT)",
+        description:
+            '<b>Designed, scale-as-spectrum.</b> 13 equal divisions of the tritave (3:1), each step 3<sup>1/13</sup>. Strictly a scale used as a spectrum — BP was derived from odd partials 3:5:7, so try it with the Odd Harmonics character in mind. See <a href="https://en.wikipedia.org/wiki/Bohlen%E2%80%93Pierce_scale">Bohlen–Pierce (Wikipedia)</a>.',
+        ratios: BP_13EDT,
+        labels: BP_13EDT.map((_, k) => (k === 0 ? "1/1" : `3^(${k}/13)`))
+    },
+
+    {
+        name: "Hammond — Standard 9 Drawbars",
+        description:
+            "<b>Historical.</b> Canonical Hammond single-manual drawbar mapping (left→right): 16', 5 1/3', 8', 4', 2 2/3', 2', 1 3/5', 1 1/3', 1' — each a harmonic/aliquot of the fundamental. The classic additive palette of B-3 / tonewheel organs.",
         ratios: [1 / 2, 3 / 2, 1 / 1, 2 / 1, 3 / 1, 4 / 1, 5 / 1, 6 / 1, 8 / 1],
         labels: ["1/2", "3/2", "1/1", "2/1", "3/1", "4/1", "5/1", "6/1", "8/1"],
-        labelPrecision: 3,
         notes:
             "Hammond drawbars intentionally sample selected harmonics (sub-octave through high partials); the 7th harmonic is omitted in the classic tonewheel mapping."
     },
 
     {
-        name: "OD-1b. Hammond — Archaic / Mechanical Variant (Detuned Drawbars)",
+        name: "Hammond — Worn Tonewheels (Detuned)",
         description:
-            "Same drawbar targets as the standard Hammond set, but each partial includes a small progressive detune to model mechanical imperfections and tonewheel wear — useful to emulate slow beating and organic instability.",
-        // 9 ratios with small multiplicative detune factors; expressed as explicit math expressions
+            "<b>Designed.</b> The standard Hammond drawbar set with small progressive detunes modeling mechanical imperfection and tonewheel wear — slow beating and organic instability.",
         ratios: [
             (1 / 2) * (1 + 0 / 1000),
             (3 / 2) * (1 + 8 / 10000),
@@ -339,48 +235,25 @@ export const spectralSystems = [
             (6 / 1) * (1 - 5 / 10000),
             (8 / 1) * (1 + 20 / 10000)
         ],
-        labels: [
-            "1/2*1.00",
-            "3/2*1.00",
-            "1/1*1.00",
-            "2/1*1.00",
-            "3/1*0.99",
-            "4/1*1.00",
-            "5/1*1.00",
-            "6/1*1.00",
-            "8/1*1.00"
-        ],
-        labelPrecision: 5,
+        labels: ["1/2", "3/2", "1/1", "2/1", "3/1", "4/1", "5/1", "6/1", "8/1"],
         notes:
-            "Detune multipliers expressed as small fractional offsets (e.g. 8/10000 ≈ 0.8‰). These are artistic suggestions — increase offsets for stronger beating."
+            "Detune multipliers are small fractional offsets (e.g. 8/10000 ≈ 0.8‰). Artistic suggestions — increase offsets for stronger beating."
     },
 
     {
-        name: "OD-2. Pipe Organ — Principal / Foundation Chorus (Stops)",
+        name: "Pipe Organ — Principal Chorus",
         description:
-            "Common principal stops (footages) used in organ choruses: 16', 8', 4', 2', 1' — octave-power ranks; each rank doubles/halves frequency by powers of two. Good base palette for a church/archaic organ sound.",
+            "<b>Historical.</b> Common principal stops (footages) of an organ chorus: 16', 8', 4', 2', 1' — octave-related ranks in powers of two. Base palette for a church-organ sound; add the Cornet mutations below for color.",
         ratios: [1 / 2, 1 / 1, 2 / 1, 4 / 1, 8 / 1],
-        labels: ["1/2", "1/1", "2/1", "4/1", "8/1"],
-        labelPrecision: 3,
-        notes:
-            "These are octave-related ranks (powers of two). Combine with mixture/mutation stops to build classic organ choruses."
+        labels: ["1/2", "1/1", "2/1", "4/1", "8/1"]
     },
 
     {
-        name: "OD-3. Baroque Cornet / Mixture — Mutation (Aliquot) Stops",
+        name: "Cornet V (Baroque Mutations)",
         description:
-            "Typical cornet/mixture elements: mutation stops that speak at non-octave partials (3rd, 5th, 6th, etc.). Mutations color the principal chorus and are essential to many historical organ timbres.",
-        ratios: [3 / 1, 5 / 1, 6 / 1, 3 / 1, 8 / 1],
-        labels: [
-            "3/1 Naz",   // Nazard
-            "5/1 Tie",   // Tierce
-            "6/1 Lar",   // Larigot
-            "3/1 Naz",
-            "8/1 Mix"    // upper mixture harmonic
-        ],
-        labelPrecision: 3,
-        notes:
-            "Mixtures vary by builder; the labels give common mutation names (Nazard, Tierce, Larigot). Mix design determines exact harmonic set."
+            "<b>Historical.</b> The classic five-rank Cornet: 8′ + 4′ + 2⅔′ (Nazard) + 2′ + 1⅗′ (Tierce) — literally harmonics 1–5 of the 8′ fundamental. Mutation stops speaking at non-octave partials are essential to historical organ color.",
+        ratios: [1, 2, 3, 4, 5],
+        labels: ["8′", "4′", "2⅔′", "2′", "1⅗′"]
     },
 
 ]; // end export
@@ -398,7 +271,8 @@ export const DEFAULT_OCTAVE = 3;
 export const BASE_OCTAVE_MIDI = 48; // MIDI for C3
 
 export const WAVETABLE_SIZE = 4096; // Standard size for a PeriodicWave table
-export const NUM_HARMONICS = 12;
+// Partial count of the default system; systems may have more or fewer
+export const NUM_HARMONICS = spectralSystems[0].ratios.length;
 export const DEFAULT_MASTER_GAIN = 0.3;
 export const DEFAULT_MASTER_SLEW = 0.01; // seconds
 
@@ -444,7 +318,7 @@ export const AppState = {
         return amplitudes;
     })(),
     isSubharmonic: false,
-    currentWaveform: 'sine',
+    currentWaveform: 'square',
 
     // Visualization properties
     visualizationFrequency: 5.25,

@@ -4,6 +4,7 @@
  */
 
 import { MIDI_NOTE_NAMES, AppState } from './config.js';
+import { MASTER_GAIN_CHANGED } from './events.js';
 import { momentumSmoother } from './momentum-smoother.js';
 
 // ================================
@@ -68,7 +69,7 @@ function generateOvertoneString() {
 export function generateFilenameParts() {
     const noteLetter = midiToNoteName(AppState.currentMidiNote).replace('#', 's');
     const waveform = AppState.currentWaveform.toUpperCase().replace('_', '-');
-    const systemName = AppState.currentSystem.name.split('.')[1].trim().replace(/[^a-zA-Z0-9_]/g, '');
+    const systemName = AppState.currentSystem.name.replace(/[^a-zA-Z0-9_]/g, '');
     const levels = generateOvertoneString();
     const subharmonicFlag = AppState.isSubharmonic ? 'subharmonic' : '';
 
@@ -143,33 +144,23 @@ export function mapRange(value, start1, stop1, start2, stop2) {
 
 // Re-export for convenience
 export { momentumSmoother } from './momentum-smoother.js';
-import { updateAudioProperties } from './audio.js';
+import { updateAudioProperties, updateHarmonicAmplitude } from './audio.js';
 
 /**
- * Smooth harmonic amplitude update with momentum (immediate response, no debouncing)
+ * Harmonic amplitude update — applied to the audio graph immediately.
+ *
+ * No requestAnimationFrame smoothing here: rAF is throttled or suspended in
+ * embedded webviews (jweb in Max4Live), which made MIDI CC control laggy and
+ * eventually unresponsive. WebAudio's setTargetAtTime (scaled by the master
+ * Slew control) smooths on the audio thread instead — sample-accurate and
+ * independent of rendering.
  * @param {number} index - Harmonic index
  * @param {number} value - New amplitude value
+ * @param {boolean} immediate - Use a minimal ramp instead of the master slew
  */
 export function smoothUpdateHarmonicAmplitude(index, value, immediate = false) {
-    const key = `harmonic_${index}`;
-
-    if (immediate) {
-        momentumSmoother.setImmediate(key, value);
-        AppState.harmonicAmplitudes[index] = value;
-        updateAudioProperties();
-        return;
-    }
-
-    // Normal smoothing path
-    momentumSmoother.smoothTo(
-        key,
-        value,
-        (smoothedValue) => {
-            AppState.harmonicAmplitudes[index] = smoothedValue;
-            updateAudioProperties();
-        },
-        0.8
-    );
+    AppState.harmonicAmplitudes[index] = value;
+    updateHarmonicAmplitude(index, immediate ? 0.005 : undefined);
 }
 
 /**
@@ -177,19 +168,14 @@ export function smoothUpdateHarmonicAmplitude(index, value, immediate = false) {
  * @param {number} value - New gain value
  */
 
-// TODO: move this to a component action. it should also fire an event
-// so midi controllers can update the slider ui
 export function smoothUpdateMasterGain(value) {
-    momentumSmoother.smoothTo(
-        'master_gain',
-        value,
-        async (smoothedValue) => {
-            AppState.masterGainValue = smoothedValue;
-            const { updateAudioProperties } = await import('./audio.js');
-            updateAudioProperties();
-        },
-        0.8 // Slightly more smoothing for master gain
-    );
+    // Applied directly for the same reason as smoothUpdateHarmonicAmplitude:
+    // rAF-based smoothing stalls in embedded webviews; the audio-thread slew
+    // ramp in updateAudioProperties handles smoothing. Master gain needs the
+    // full update because per-oscillator gains incorporate it.
+    AppState.masterGainValue = value;
+    updateAudioProperties();
+    document.dispatchEvent(new CustomEvent(MASTER_GAIN_CHANGED, { detail: { value } }));
 }
 
 /**

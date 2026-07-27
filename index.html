@@ -69,22 +69,28 @@
     <!-- Modal Root (for generic modal, always present, only one open at a time) -->
     <div id="modal-root"></div>
 
-    <div class="flex">
-        <div class="m-auto">
+    <div class="flex embed-flatten">
+        <div class="m-auto embed-flatten">
             <!-- Main Controls -->
-            <div class="control-card">
-                <div class="control-row flex flex-row gap-4 flex-wrap">
+            <div class="control-card embed-flatten">
+                <div class="control-row flex flex-row gap-4 flex-wrap embed-flatten">
                     <!-- Waveform Selector -->
-                    <div class="labeled-control md:w-1/2 lg:w-1/2 w-full">
+                    <div id="oscillator-control-root" class="labeled-control md:w-1/2 lg:w-1/2 w-full">
                         <label for="waveform-select">
                             Oscillator
                         </label>
-                        <select id="waveform-select" class="control-select">
-                            <option value="sine">Sine</option>
-                            <option value="square">Square</option>
-                            <option value="triangle">Triangle</option>
-                            <option value="sawtooth">Sawtooth</option>
-                        </select>
+                        <div class="select-stepper">
+                            <button type="button" class="action-btn select-step-btn" data-target="waveform-select"
+                                data-step="-1" aria-label="Previous oscillator">&lt;</button>
+                            <select id="waveform-select" class="control-select">
+                                <option value="sine">Sine</option>
+                                <option value="square">Square</option>
+                                <option value="triangle">Triangle</option>
+                                <option value="sawtooth">Sawtooth</option>
+                            </select>
+                            <button type="button" class="action-btn select-step-btn" data-target="waveform-select"
+                                data-step="1" aria-label="Next oscillator">&gt;</button>
+                        </div>
                         <div id="current-waveform-canvas-area" class="flex-1">
                             <!-- P5 canvas injected here -->
                         </div>
@@ -121,34 +127,41 @@
                 </div>
             </div>
 
-            <div class="control-card">
-                <div class="control-row flex flex-wrap gap-4">
-                    <div class="w-full xl:grid xl:grid-cols-2 xl:gap-6 flex flex-col md:flex-row md:gap-4 gap-4">
+            <div class="control-card embed-flatten">
+                <div class="control-row flex flex-wrap gap-4 embed-flatten">
+                    <div class="w-full xl:grid xl:grid-cols-2 xl:gap-6 flex flex-col md:flex-row md:gap-4 gap-4 embed-flatten">
                         <!-- Overtone System (title + select) -->
                         <div id="spectral-system-root"
                             class="system-selector labeled-control flex flex-col gap-2 xl:col-span-1 w-full p-2 md:min-w-[24rem]">
                             <label for="ratio-system-select" class="text-[1.125rem] font-bold text-[#c7d2fe]">
                                 Overtone System
                             </label>
-                            <select id="ratio-system-select" class="control-select">
-                                <!-- Options will be populated by JavaScript -->
-                            </select>
+                            <div class="select-stepper">
+                                <button type="button" class="action-btn select-step-btn" data-target="ratio-system-select"
+                                    data-step="-1" aria-label="Previous overtone system">&lt;</button>
+                                <select id="ratio-system-select" class="control-select">
+                                    <!-- Options will be populated by JavaScript -->
+                                </select>
+                                <button type="button" class="action-btn select-step-btn" data-target="ratio-system-select"
+                                    data-step="1" aria-label="Next overtone system">&gt;</button>
+                            </div>
                             <div id="system-description" class="system-description text-sm text-gray-400 py-2"></div>
                             <!-- Overtone controls for md/lg screens -->
                             <div class="flex flex-col gap-2 md:mt-4">
                                 <div
                                     class="subharmonic-toggle-container flex items-center justify-start gap-4 pt-2 border-t border-[#4b5563]">
-                                    <span class="toggle-label overtone">Overtone (Multiply)</span>
+                                    <span class="toggle-label overtone">Overtone (Multiply)
+                                        <small class="toggle-sublabel">otonality</small></span>
                                     <div id="subharmonic-toggle" class="toggle-switch" role="switch"
                                         aria-checked="false" aria-label="Subharmonic/Overtone control"></div>
-                                    <span id="subharmonic-label" class="toggle-label inactive">Subharmonic
-                                        (Divide)</span>
+                                    <span id="subharmonic-label" class="toggle-label inactive">Subharmonic (Divide)
+                                        <small class="toggle-sublabel">utonality</small></span>
                                 </div>
                             </div>
                         </div>
 
                         <!-- Waveform + controls -->
-                        <div class="labeled-control">
+                        <div id="result-control-root" class="labeled-control">
                             <label>
                                 Result
                             </label>
@@ -183,10 +196,10 @@
                         </div>
                     </div>
                 </div>
-                <div class="control-row grid grid-cols-1 lg:grid-cols-4 gap-4">
+                <div class="control-row grid grid-cols-1 lg:grid-cols-4 gap-4 embed-flatten">
 
                     <!-- Drawbars -->
-                    <div class="labeled-control max-w-[55rem] col-span-3">
+                    <div id="drawbars-control-root" class="labeled-control max-w-[55rem] col-span-3">
                         <span>
                             Drawbars
                         </span>
@@ -228,7 +241,7 @@
     <div id="status-message" class="status-message hidden"></div>
 
     <!-- Application Modules -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
+    <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script> -->
     <script type="module" src="dist/app.js"></script>
 </body>
 

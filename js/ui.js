@@ -4,6 +4,7 @@
  */
 
 import { AppState, updateAppState } from './config.js';
+import { MASTER_SLEW_CHANGED } from './events.js';
 import { updateText, updateValue } from './domUtils.js';
 import { DrawbarsController } from './modules/drawbars/drawbarsController.js';
 import { SpectralSystemController } from './modules/spectralSystem/spectralSystemController.js';
@@ -21,6 +22,7 @@ import MidiMappingModalComponent from './modules/generic/modal/MidiMappingModalC
 import { openModal, closeModal } from './modules/generic/modal/modalActions.js';
 import { PlayToggleController } from './modules/playToggle/playToggleController.js';
 import { WaveformSelectorController } from './modules/waveformSelector/waveformSelectorController.js';
+import { oscClient, oscEnabled } from './modules/osc/oscClient.js';
 // ================================
 // INITIALIZATION
 // ================================
@@ -66,6 +68,7 @@ export function initUI() {
 
 
     setupWaveformSelector();
+    setupSelectSteppers();
 
 
     setupDrawbars()
@@ -78,6 +81,13 @@ export function initUI() {
     // Initialize help and keyboard shortcuts
     HelpDialog.init();
     new KeyboardShortcuts().init();
+
+    // OSC over WebSocket: the remote-control path for jweb/Max4Live, where
+    // Web MIDI delivery is starved while the view is hidden (?osc=0 disables).
+    // The shared instance was already bootstrapped with cached state by app.js.
+    if (oscEnabled()) {
+        oscClient.init();
+    }
 
     setTimeout(() => {
         // if midi is firing while the components are still rendering it breaks the p5 sketch :-/
@@ -162,6 +172,7 @@ function setupControlSliders() {
         }
     }, (value) => {
         updateAppState({ masterSlewValue: value });
+        document.dispatchEvent(new CustomEvent(MASTER_SLEW_CHANGED, { detail: { value } }));
     });
     masterSlewSliderController.init();
 
@@ -183,6 +194,23 @@ export function updateSystemDescription() {
 function setupWaveformSelector() {
     const waveformSelectorController = new WaveformSelectorController('#waveform-select');
     waveformSelectorController.init();
+}
+
+/**
+ * Next/previous buttons flanking select menus. Native dropdowns don't open
+ * inside Max's jweb object, so these are the only way to switch options there.
+ */
+function setupSelectSteppers() {
+    document.querySelectorAll('.select-step-btn').forEach((btn) => {
+        btn.addEventListener('click', () => {
+            const select = document.getElementById(btn.dataset.target);
+            if (!select || select.options.length === 0) return;
+            const step = parseInt(btn.dataset.step, 10) || 1;
+            const count = select.options.length;
+            select.selectedIndex = (select.selectedIndex + step + count) % count;
+            select.dispatchEvent(new Event('change', { bubbles: true }));
+        });
+    });
 }
 
 

@@ -1,7 +1,29 @@
 import { AppState, DRAWBAR_STYLES } from "../../config.js";
 import BaseComponent from "../base/BaseComponent.js";
+import { calculateFrequency } from "../../utils.js";
+import { DrawbarsActions } from "./drawbarsActions.js";
+import { showStatus } from "../../domUtils.js";
 
 const DRAWBAR_SLIDER_SELECTOR = ".drawbar-slider";
+
+async function copyFrequency(freq) {
+    const text = freq.toFixed(4).replace(/\.?0+$/, '');
+    try {
+        await navigator.clipboard.writeText(text);
+        showStatus(`Copied ${text} Hz`, 'success');
+    } catch {
+        // Clipboard API unavailable (insecure context / embedded webview)
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        const ok = document.execCommand('copy');
+        ta.remove();
+        showStatus(ok ? `Copied ${text} Hz` : 'Copy failed', ok ? 'success' : 'error');
+    }
+}
 
 export class DrawbarsComponent extends BaseComponent {
 
@@ -23,6 +45,14 @@ export class DrawbarsComponent extends BaseComponent {
      */
     bindRenderedEvents() {
         this.sliders = this.qAll(DRAWBAR_SLIDER_SELECTOR);
+
+        // Right-click on any drawbar: frequency context menu
+        this.bindEvent(this.el, "contextmenu", (e) => {
+            const drawbar = e.target.closest(".drawbar");
+            if (!drawbar || drawbar.dataset.index === undefined) return;
+            e.preventDefault();
+            this.showContextMenu(Number(drawbar.dataset.index), e.clientX, e.clientY);
+        });
 
         this.sliders.forEach(slider => {
             // Mouse / keyboard: use native range input event
@@ -97,6 +127,7 @@ export class DrawbarsComponent extends BaseComponent {
 
         const wrapper = document.createElement("div");
         wrapper.className = `drawbar ${styleClass}`;
+        wrapper.dataset.index = index;
         // Disable browser touch handling for the entire drawbar column (label
         // area included) so our custom touch handler gets every gesture.
         wrapper.style.touchAction = 'pan-x';
@@ -149,5 +180,71 @@ export class DrawbarsComponent extends BaseComponent {
         if (this.sliders[index]) {
             this.sliders[index].value = value;
         }
+    }
+
+    showContextMenu(index, x, y) {
+        this.closeContextMenu();
+
+        const ratio = AppState.currentSystem.ratios[index];
+        if (!(ratio > 0)) return;
+        const freq = calculateFrequency(ratio);
+        const freqLabel = `${freq.toFixed(freq >= 100 ? 2 : 3)} Hz`;
+
+        const menu = document.createElement("div");
+        menu.className = "drawbar-context-menu";
+
+        const addItem = (label, action) => {
+            const btn = document.createElement("button");
+            btn.type = "button";
+            btn.className = "drawbar-context-menu-item";
+            btn.textContent = label;
+            btn.addEventListener("click", () => {
+                this.closeContextMenu();
+                action();
+            });
+            menu.appendChild(btn);
+        };
+
+        addItem(`Copy frequency (${freqLabel})`, () => copyFrequency(freq));
+        addItem("Set as fundamental", () => DrawbarsActions.setDrawbarAsFundamental(index));
+
+        // Body-attached + fixed so the drawbar strip's overflow can't clip it
+        document.body.appendChild(menu);
+        const rect = menu.getBoundingClientRect();
+        menu.style.left = `${Math.max(0, Math.min(x, window.innerWidth - rect.width - 4))}px`;
+        menu.style.top = `${Math.max(0, Math.min(y, window.innerHeight - rect.height - 4))}px`;
+
+        this._contextMenu = menu;
+        this._menuDismiss = (e) => {
+            if (!menu.contains(e.target)) this.closeContextMenu();
+        };
+        this._menuEsc = (e) => {
+            if (e.key === "Escape") this.closeContextMenu();
+        };
+        // Defer so the opening right-click doesn't immediately dismiss
+        setTimeout(() => {
+            document.addEventListener("mousedown", this._menuDismiss);
+            document.addEventListener("keydown", this._menuEsc);
+        }, 0);
+    }
+
+    closeContextMenu() {
+        if (this._contextMenu) {
+            this._contextMenu.remove();
+            this._contextMenu = null;
+        }
+        if (this._menuDismiss) {
+            document.removeEventListener("mousedown", this._menuDismiss);
+            this._menuDismiss = null;
+        }
+        if (this._menuEsc) {
+            document.removeEventListener("keydown", this._menuEsc);
+            this._menuEsc = null;
+        }
+    }
+
+    teardown() {
+        this.closeContextMenu();
+        super.teardown();
     }
 }

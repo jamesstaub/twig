@@ -50,6 +50,25 @@ export const FundamentalActions = {
         }
     },
 
+    /**
+     * Set the fundamental to an exact frequency without quantizing to the
+     * nearest MIDI note — used by "set as fundamental" on a drawbar, where
+     * microtonal partials must land exactly. The nearest MIDI note is still
+     * stored for keyboard/octave display.
+     */
+    setFundamentalExact(freq) {
+        if (!isFinite(freq) || freq < 0.001 || freq > 10000) return;
+        const midi = Math.min(127, Math.round(freqToMidi(freq)));
+
+        updateAppState({
+            currentMidiNote: midi,
+            fundamentalFrequency: freq,
+            currentOctave: Math.floor(midi / 12) - 1
+        });
+
+        document.dispatchEvent(new CustomEvent(FUNDAMENTAL_CHANGED));
+    },
+
     setFundamentalByMidi(midiNote) {
         const midi = Math.min(127, midiNote); // Clamp upper bound
         const frequency = midiToFreq(midi);

@@ -1,6 +1,8 @@
 import { AppState, updateAppState } from "../../config.js";
-import { smoothUpdateHarmonicAmplitude } from "../../utils.js";
+import { calculateFrequency, smoothUpdateHarmonicAmplitude } from "../../utils.js";
 import { DRAWBAR_CHANGE, DRAWBARS_RANDOMIZED, DRAWBARS_RESET } from "../../events.js";
+import { FundamentalActions } from "../fundamental/fundamentalActions.js";
+import { SpectralSystemActions } from "../spectralSystem/spectralSystemActions.js";
 
 /**
  * ACTIONS MODULE
@@ -83,6 +85,19 @@ export const DrawbarsActions = {
                 );
             }
         }
+    },
+
+    /**
+     * Promote drawbar `index` (0-based) to be the fundamental: set the
+     * exact partial frequency (no MIDI quantization) and flip the
+     * overtone/subharmonic mode so the previous spectrum mirrors around
+     * the promoted partial. Out-of-range indices are a silent no-op.
+     */
+    setDrawbarAsFundamental(index) {
+        const ratio = AppState.currentSystem.ratios[index];
+        if (!(ratio > 0)) return;
+        FundamentalActions.setFundamentalExact(calculateFrequency(ratio));
+        SpectralSystemActions.toggleSubharmonic();
     },
 
     randomize() {

@@ -189,38 +189,44 @@ export async function startTone() {
 }
 
 /**
+ * Create, start, and register the oscillator for partial `i` at `gain`.
+ * Used at tone start and when a system switch adds partials mid-playback.
+ */
+function createHarmonicOscillator(i, ratio, gain) {
+    const frequency = calculateFrequency(ratio);
+    const waveform = resolveWaveform(AppState.currentWaveform);
+    const frequencyCorrection = getFrequencyCorrection(AppState.currentWaveform);
+    const correctedFrequency = frequency * frequencyCorrection;
+
+    // Stereo panning for playback
+    const panArray = AppState.oscillatorPans || [];
+    const panValue = i === 0 ? 0 : (panArray[i] ?? (i % 2 === 0 ? -0.8 : 0.8));
+
+    const oscData = audioEngine.createOscillator(correctedFrequency, waveform, gain, { pan: panValue });
+    const oscKey = `harmonic_${i}`;
+    audioEngine.addOscillator(oscKey, oscData);
+    while (AppState.oscillators.length <= i) {
+        AppState.oscillators.push(null);
+    }
+    AppState.oscillators[i] = { key: oscKey, ratio: ratio };
+    return AppState.oscillators[i];
+}
+
+/**
  * Individual oscillator-based synthesis with period multiplier frequency correction
  */
 async function startToneWithOscillators() {
     // Clear any existing oscillators
     AppState.oscillators = [];
 
-    // Always stereo playback: each oscillator gets a stereo panner
-    const panArray = AppState.oscillatorPans || [];
     const numPartials = AppState.currentSystem.ratios.length;
     for (let i = 0; i < AppState.harmonicAmplitudes.length; i++) {
         if (i < numPartials) {
             const ratio = AppState.currentSystem.ratios[i];
             const amplitude = AppState.harmonicAmplitudes[i] || 0;
             if (ratio > 0) {
-                const frequency = calculateFrequency(ratio);
-                const gain = amplitude * AppState.masterGainValue;
-                const waveform = resolveWaveform(AppState.currentWaveform);
-                const frequencyCorrection = getFrequencyCorrection(AppState.currentWaveform);
-                const correctedFrequency = frequency * frequencyCorrection;
-
-                // Stereo panning for playback
-                let panValue = i === 0 ? 0 : (panArray[i] ?? (i % 2 === 0 ? -0.8 : 0.8));
-                let oscOptions = { pan: panValue };
-
                 try {
-                    const oscData = audioEngine.createOscillator(correctedFrequency, waveform, gain, oscOptions);
-                    const oscKey = `harmonic_${i}`;
-                    audioEngine.addOscillator(oscKey, oscData);
-                    while (AppState.oscillators.length <= i) {
-                        AppState.oscillators.push(null);
-                    }
-                    AppState.oscillators[i] = { key: oscKey, ratio: ratio };
+                    createHarmonicOscillator(i, ratio, amplitude * AppState.masterGainValue);
                 } catch (error) {
                     console.error(`Failed to create oscillator ${i}:`, error);
                     AppState.oscillators[i] = null;
@@ -253,6 +259,25 @@ export function stopTone() {
 }
 
 /**
+ * Update a single harmonic's gain node directly — the low-latency path for
+ * drawbar moves (UI or MIDI CC). Smoothing happens on the audio thread via
+ * setTargetAtTime, so this has no dependency on requestAnimationFrame.
+ */
+export function updateHarmonicAmplitude(index, rampTime = AppState.masterSlewValue) {
+    if (!AppState.isPlaying || !audioEngine) return;
+
+    const node = AppState.oscillators[index];
+    if (node && node.key) {
+        const amplitude = AppState.harmonicAmplitudes[index] || 0;
+        audioEngine.updateOscillatorGain(node.key, amplitude * AppState.masterGainValue, rampTime);
+    } else {
+        // No oscillator behind this index (system switched mid-playback) —
+        // fall back to a full sync, which creates it
+        updateAudioProperties();
+    }
+}
+
+/**
  * Updates synthesis parameters in real-time with period multiplier frequency correction
  */
 export function updateAudioProperties() {
@@ -269,25 +294,51 @@ function updateAudioPropertiesOscillators(rampTime) {
     // Update Master Gain
     audioEngine.updateMasterGain(AppState.masterGainValue, rampTime);
 
-    // Update existing oscillators (gain and frequency)
-    AppState.oscillators.forEach((node, i) => {
-        if (node && node.key) {
-            const ratio = AppState.currentSystem.ratios[i];
-            const baseFreq = calculateFrequency(ratio);
-            const frequencyCorrection = getFrequencyCorrection(AppState.currentWaveform);
-            const newFreq = baseFreq * frequencyCorrection;
-            const amplitude = AppState.harmonicAmplitudes[i] || 0;
-            let newGain = amplitude * AppState.masterGainValue;
+    // Sync the oscillator bank with the current system: systems can have
+    // different partial counts, so a switch mid-playback may add partials
+    // (create their oscillators) or drop them (mute, keep for reuse).
+    const numPartials = AppState.currentSystem.ratios.length;
+    const count = Math.max(numPartials, AppState.oscillators.length);
 
-            // Prevent non-finite frequency values
-            if (!isFinite(newFreq) || isNaN(newFreq)) {
-                newGain = 0;
-            } else {
-                audioEngine.updateOscillatorFrequency(node.key, newFreq, rampTime);
+    for (let i = 0; i < count; i++) {
+        let node = AppState.oscillators[i];
+
+        if (i >= numPartials) {
+            // Partial absent from the current system
+            if (node && node.key) {
+                audioEngine.updateOscillatorGain(node.key, 0, rampTime);
             }
-            audioEngine.updateOscillatorGain(node.key, newGain, rampTime);
+            continue;
         }
-    });
+
+        const ratio = AppState.currentSystem.ratios[i];
+        const amplitude = AppState.harmonicAmplitudes[i] || 0;
+        let newGain = amplitude * AppState.masterGainValue;
+
+        if (!node || !node.key) {
+            if (!(ratio > 0)) continue;
+            try {
+                // Create silent; the gain ramp below fades it in
+                node = createHarmonicOscillator(i, ratio, 0);
+            } catch (error) {
+                console.error(`Failed to create oscillator ${i}:`, error);
+                continue;
+            }
+        }
+
+        node.ratio = ratio;
+        const baseFreq = calculateFrequency(ratio);
+        const frequencyCorrection = getFrequencyCorrection(AppState.currentWaveform);
+        const newFreq = baseFreq * frequencyCorrection;
+
+        // Prevent non-finite frequency values
+        if (!isFinite(newFreq) || isNaN(newFreq)) {
+            newGain = 0;
+        } else {
+            audioEngine.updateOscillatorFrequency(node.key, newFreq, rampTime);
+        }
+        audioEngine.updateOscillatorGain(node.key, newGain, rampTime);
+    }
 }
 
 /**

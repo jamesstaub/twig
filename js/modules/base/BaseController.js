@@ -69,9 +69,26 @@ export class BaseController {
 
 
     /**
+     * Coalesced update: any number of calls within one frame produce a
+     * single render on the next animation frame. Use for events that can
+     * arrive in floods (drawbar streams from OSC/MIDI) where re-rendering
+     * per event would saturate the main thread. Audio must NOT wait on
+     * this — it renders visuals only, and rAF may be throttled or stopped
+     * entirely while the page is hidden (background tab, occluded jweb).
+     */
+    scheduleUpdate() {
+        if (this._updatePending) return;
+        this._updatePending = true;
+        requestAnimationFrame(() => {
+            this._updatePending = false;
+            this.update();
+        });
+    }
+
+    /**
      * Subclasses MAY override this to wire component-level events, e.g.:
      *   this.component.onChange = (value) => {...}
-     * 
+     *
      *   TODO: consider instead passing in functions as props to the render method
      */
     bindComponentEvents() { }

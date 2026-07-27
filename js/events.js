@@ -8,3 +8,5 @@ export const ADD_CUSTOM_WAVEFORM = 'add-custom-waveform';
 export const ROUTING_MODE_CHANGED = 'routing-mode-changed';
 export const FUNDAMENTAL_CHANGED = 'fundamental-changed';
 export const PLAY_STATE_CHANGED = 'play-state-changed';
+export const MASTER_GAIN_CHANGED = 'master-gain-changed';
+export const MASTER_SLEW_CHANGED = 'master-slew-changed';

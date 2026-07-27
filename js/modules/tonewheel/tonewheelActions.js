@@ -1,6 +1,7 @@
 import { AppState, CANVAS_HEIGHT_RATIOS, HARMONIC_COLORS, updateAppState } from '../../config.js';
 import { precomputeWaveTable } from '../../audio.js';
 import { lcmArray } from '../waveform/WaveformComponent.js';
+import p5 from 'p5';
 
 let spreadFactor = 1;
 let baseRadius;
@@ -163,7 +164,7 @@ function createVisualizationSketch() {
                 const MAX_RING_MOD = 0.45;
                 const visualAmp = MAX_RING_MOD * (maxAmplitudeRadial / numHarmonics) * spreadFactor * amp;
 
-                p.stroke(p.color(HARMONIC_COLORS[h] + '99'));
+                p.stroke(p.color(HARMONIC_COLORS[h % HARMONIC_COLORS.length] + '99'));
                 p.strokeWeight(2);
                 p.noFill();
                 p.beginShape();

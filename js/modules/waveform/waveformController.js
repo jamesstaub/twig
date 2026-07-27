@@ -29,12 +29,14 @@ export class WaveformController extends BaseController {
     }
 
     bindExternalEvents() {
-        document.addEventListener(DRAWBARS_RESET, () => this.update());
-        document.addEventListener(SPECTRAL_SYSTEM_CHANGED, () => this.update());
-        document.addEventListener(SUBHARMONIC_TOGGLED, () => this.update());
-        document.addEventListener(DRAWBAR_CHANGE, () => this.update());
-        document.addEventListener(DRAWBARS_RANDOMIZED, () => this.update());
-        document.addEventListener(CURRENT_WAVEFORM_CHANGED, () => this.update());
-
+        // scheduleUpdate coalesces to one canvas redraw per frame — these
+        // events arrive in floods during OSC/MIDI drawbar streams, and a
+        // synchronous p5 redraw per event saturates the main thread
+        document.addEventListener(DRAWBARS_RESET, () => this.scheduleUpdate());
+        document.addEventListener(SPECTRAL_SYSTEM_CHANGED, () => this.scheduleUpdate());
+        document.addEventListener(SUBHARMONIC_TOGGLED, () => this.scheduleUpdate());
+        document.addEventListener(DRAWBAR_CHANGE, () => this.scheduleUpdate());
+        document.addEventListener(DRAWBARS_RANDOMIZED, () => this.scheduleUpdate());
+        document.addEventListener(CURRENT_WAVEFORM_CHANGED, () => this.scheduleUpdate());
     }
 }

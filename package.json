@@ -2,22 +2,23 @@
   "name": "twig",
   "version": "1.0.0",
   "description": "Web-based harmonic series explorer",
-  "main": "server.cjs",
+  "main": "server.js",
   "type": "module",
   "scripts": {
     "build:css:start": "npx @tailwindcss/cli -i ./css/styles.css -o ./css/styles-compiled.css --watch",
     "build:css:prod": "npx @tailwindcss/cli -i ./css/styles.css -o ./css/styles-compiled.css --minify",
-    "start": "node server.cjs",
+    "start": "node server.js",
     "dev": "npm-run-all --parallel css:watch js:watch node-server",
     "css:watch": "npx @tailwindcss/cli -i ./css/styles.css -o ./css/styles-compiled.css --watch",
     "js:watch": "esbuild js/app.js --bundle --outfile=dist/app.js --format=esm --watch",
     "build": "npm-run-all css:prod js:build",
     "css:prod": "npx @tailwindcss/cli -i ./css/styles.css -o ./css/styles-compiled.css --minify",
     "js:build": "node build.js",
-    "node-server": "node server.cjs"
+    "node-server": "node server.js"
   },
   "dependencies": {
-    "express": "^4.21.2"
+    "express": "^4.21.2",
+    "ws": "^8.21.1"
   },
   "keywords": [
     "audio",

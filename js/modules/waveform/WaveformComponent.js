@@ -1,7 +1,7 @@
 // WaveformComponent.js
 import BaseComponent from "../base/BaseComponent.js";
 import { getWaveValue } from "../tonewheel/tonewheelActions.js";
-
+import p5 from "p5";
 
 function lcm(a, b) {
     return (a * b) / gcd(a, b);
@@ -143,27 +143,38 @@ export default class WaveformComponent extends BaseComponent {
     render(props) {
         this.props = props;
 
-        // Always teardown before render to ensure only one canvas exists
-        this.teardown();
-
         if (!props.p5Instance) {
             requestAnimationFrame(() => this.render(props));
             return;
         }
-        const sketch = createWaveformSketch(this);
 
-        // Use this.el as the parent container for the canvas
-        this._waveformP5 = new p5(sketch, this.el);
+        if (!this._waveformP5) {
+            // Create the sketch and its canvas exactly once
+            const sketch = createWaveformSketch(this);
+            this._waveformP5 = new p5(sketch, this.el);
+        } else {
+            // The sketch reads component.props at draw time — repaint only.
+            // (Recreating the p5 instance per update leaks canvas contexts
+            // and collapses under OSC/MIDI drawbar streams.)
+            this._waveformP5.redraw();
+        }
     }
 
     /**
-     * Clean up p5 instance and any other resources
+     * Unbind tracked events; the p5 instance survives updates.
      */
     teardown() {
+        super.teardown?.();
+    }
+
+    /**
+     * Full cleanup — only for actually discarding the component.
+     */
+    destroy() {
         if (this._waveformP5?.remove) {
             this._waveformP5.remove();
             this._waveformP5 = null;
         }
-        super.teardown?.();
+        this.teardown();
     }
 }
