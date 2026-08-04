@@ -81,7 +81,7 @@
                         </label>
                         <div class="select-stepper">
                             <button type="button" class="action-btn select-step-btn" data-target="waveform-select"
-                                data-step="-1" aria-label="Previous oscillator">&lt;</button>
+                                data-step="-1" aria-label="Previous oscillator">&lt;-</button>
                             <select id="waveform-select" class="control-select">
                                 <option value="sine">Sine</option>
                                 <option value="square">Square</option>
@@ -89,7 +89,7 @@
                                 <option value="sawtooth">Sawtooth</option>
                             </select>
                             <button type="button" class="action-btn select-step-btn" data-target="waveform-select"
-                                data-step="1" aria-label="Next oscillator">&gt;</button>
+                                data-step="1" aria-label="Next oscillator">-&gt;</button>
                         </div>
                         <div id="current-waveform-canvas-area" class="flex-1">
                             <!-- P5 canvas injected here -->
@@ -138,12 +138,12 @@
                             </label>
                             <div class="select-stepper">
                                 <button type="button" class="action-btn select-step-btn" data-target="ratio-system-select"
-                                    data-step="-1" aria-label="Previous overtone system">&lt;</button>
+                                    data-step="-1" aria-label="Previous overtone system">&lt;-</button>
                                 <select id="ratio-system-select" class="control-select">
                                     <!-- Options will be populated by JavaScript -->
                                 </select>
                                 <button type="button" class="action-btn select-step-btn" data-target="ratio-system-select"
-                                    data-step="1" aria-label="Next overtone system">&gt;</button>
+                                    data-step="1" aria-label="Next overtone system">-&gt;</button>
                             </div>
                             <div id="system-description" class="system-description text-sm text-gray-400 py-2"></div>
                             <!-- Overtone controls for md/lg screens -->

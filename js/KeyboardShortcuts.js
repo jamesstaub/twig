@@ -14,6 +14,19 @@ export class KeyboardShortcuts {
 
     init() {
         document.addEventListener('keydown', (e) => {
+            // Never hijack typing: when an editable field has focus (text or
+            // number inputs, selects, textareas), keystrokes belong to it.
+            // Range inputs are excluded — drawbar arrow navigation needs them.
+            const t = e.target;
+            if (t && (
+                (t.tagName === 'INPUT' && t.type !== 'range') ||
+                t.tagName === 'TEXTAREA' ||
+                t.tagName === 'SELECT' ||
+                t.isContentEditable
+            )) {
+                return;
+            }
+
             // Space bar to toggle play/stop
             if (e.code === 'Space') {
                 e.preventDefault();

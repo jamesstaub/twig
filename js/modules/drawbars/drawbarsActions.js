@@ -3,6 +3,7 @@ import { calculateFrequency, smoothUpdateHarmonicAmplitude } from "../../utils.j
 import { DRAWBAR_CHANGE, DRAWBARS_RANDOMIZED, DRAWBARS_RESET } from "../../events.js";
 import { FundamentalActions } from "../fundamental/fundamentalActions.js";
 import { SpectralSystemActions } from "../spectralSystem/spectralSystemActions.js";
+import { OvertoneSignalActions } from "../overtoneSignal/overtoneSignalActions.js";
 
 /**
  * ACTIONS MODULE
@@ -127,6 +128,14 @@ export const DrawbarsActions = {
         newAmps.forEach((v, i) => {
             smoothUpdateHarmonicAmplitude(i, v, true);
         });
+
+        // Also reset each overtone's signal chain: gate off, filter zeroed
+        // (multiplier 0 opens it, Q 0). Pan is intentionally left untouched.
+        // Via the actions layer so running voices and Live params both update.
+        for (let i = 0; i < AppState.currentSystem.ratios.length; i++) {
+            OvertoneSignalActions.setGate(i, { mode: 0, x: 1, y: 1, seq: [] });
+            OvertoneSignalActions.setFilter(i, { multiplier: 0, q: 0 });
+        }
 
         document.dispatchEvent(new Event(DRAWBARS_RESET));
     }

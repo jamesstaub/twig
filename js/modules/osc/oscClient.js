@@ -20,6 +20,23 @@
  *   /twig/play [i 0|1]            playback on/off
  *   /twig/reset                   reset drawbars
  *   /twig/randomize               randomize drawbars
+ *   /twig/gate/<n> [mode x y]     per-overtone cycle gate (n=0 → all):
+ *                                 mode 0/off, 1/alternating (x on, y off),
+ *                                 2/euclidean (x pulses in y), 3/probability
+ *                                 (x percent), 4/sequence (args: one "10110"
+ *                                 string or a list of 0/1 values). Runs in an
+ *                                 AudioWorklet — sample-accurate even when
+ *                                 the page is hidden.
+ *   /twig/pan/<n> [-1..1]         per-overtone stereo pan (n=0 → all);
+ *                                 defaults: fundamental centered, overtones
+ *                                 alternating R/L at ±0.8
+ *   /twig/filter/<n> [mult q?]    per-overtone lowpass (n=0 → all). mult is
+ *                                 a 1-based partial index into the current
+ *                                 overtone system applied to the voice's
+ *                                 audible base (lowest multiple of its pitch
+ *                                 clearing 20 Hz) — an overtone series
+ *                                 within the overtone series. Tracks
+ *                                 fundamental glides. mult <= 0 opens.
  *
  * Instance targeting (optional, shared-server setups only): insert an id
  * segment after /twig — /twig/<id>/drawbar/3 — matching this page's
@@ -33,6 +50,8 @@
  */
 
 import { AppState, updateAppState } from "../../config.js";
+import { updateHarmonicGate, updateHarmonicFilter, updateHarmonicPan } from "../../audio.js";
+import { getVoicePan } from "../../utils.js";
 import { DrawbarsActions } from "../drawbars/drawbarsActions.js";
 import { SpectralSystemActions } from "../spectralSystem/spectralSystemActions.js";
 import { FundamentalActions } from "../fundamental/fundamentalActions.js";
@@ -48,14 +67,31 @@ import {
     FUNDAMENTAL_CHANGED,
     PLAY_STATE_CHANGED,
     MASTER_GAIN_CHANGED,
-    MASTER_SLEW_CHANGED
+    MASTER_SLEW_CHANGED,
+    OVERTONE_SIGNAL_CHANGED
 } from "../../events.js";
 
 const COMMANDS = new Set([
     'drawbar', 'drawbars', 'gain', 'slew', 'note', 'freq',
     'system', 'waveform', 'subharmonic', 'play', 'reset', 'randomize',
-    'setdrawbarfundamental'
+    'setdrawbarfundamental', 'gate', 'filter', 'pan'
 ]);
+
+const GATE_MODES = {
+    off: 0, 0: 0,
+    alt: 1, alternating: 1, 1: 1,
+    euclid: 2, euclidean: 2, 2: 2,
+    prob: 3, probability: 3, 3: 3,
+    seq: 4, sequence: 4, 4: 4,
+};
+
+/** Parse a gate sequence: one "10110" string or a list of 0/1 numbers. */
+function parseGateSeq(parts) {
+    if (parts.length === 1 && typeof parts[0] === 'string') {
+        return parts[0].split('').filter((c) => c === '0' || c === '1').map(Number);
+    }
+    return parts.map((v) => (Number(v) > 0.5 ? 1 : 0));
+}
 
 const RETRY_MIN_MS = 1000;
 const RETRY_MAX_MS = 15000;
@@ -240,6 +276,59 @@ export class OscClient {
                     PlayToggleActions.toggle();
                 }
                 break;
+            case 'gate': {
+                // /twig/gate/<n> [mode, x, y] or /twig/gate [n, mode, x, y]
+                // n 1-based; n = 0 applies to all partials. mode accepts
+                // 0-3 or off|alternating|euclidean|probability. For
+                // probability, x = percent 0-100, y unused.
+                const [n, rest] = perVoiceArgs(sub, args);
+                const mode = GATE_MODES[rest[0]];
+                if (n === null || mode === undefined) break;
+                const config = mode === 4
+                    ? { mode, seq: parseGateSeq(rest.slice(1)) }
+                    : {
+                        mode,
+                        x: Math.max(0, Number(rest[1]) || 0),
+                        y: Math.max(0, Number(rest[2]) || 0),
+                    };
+                this.forVoices(n, (i) => {
+                    AppState.oscillatorGates[i] = { ...config };
+                    updateHarmonicGate(i);
+                });
+                break;
+            }
+            case 'filter': {
+                // /twig/filter/<n> [multiplier, q?] or /twig/filter [n, multiplier, q?]
+                // n 1-based; n = 0 applies to all. The multiplier is a
+                // 1-based partial index into the current overtone system,
+                // applied to the voice's audible base — indexes past the
+                // system's partial count clamp to its last ratio.
+                // multiplier <= 0 opens the filter.
+                const [n, rest] = perVoiceArgs(sub, args);
+                if (n === null || rest[0] === undefined) break;
+                const multiplier = Math.round(Number(rest[0]));
+                const q = rest[1] !== undefined ? Math.min(48, Math.max(0.0001, Number(rest[1]))) : undefined;
+                this.forVoices(n, (i) => {
+                    AppState.oscillatorFilters[i] = {
+                        multiplier: multiplier > 0 ? multiplier : 0,
+                        ...(q !== undefined ? { q } : {}),
+                    };
+                    updateHarmonicFilter(i);
+                });
+                break;
+            }
+            case 'pan': {
+                // /twig/pan/<n> [-1..1] or /twig/pan [n, v]; n = 0 → all
+                const [n, rest] = perVoiceArgs(sub, args);
+                if (n === null || rest[0] === undefined) break;
+                const v = Math.max(-1, Math.min(1, Number(rest[0]) || 0));
+                this.forVoices(n, (i) => {
+                    if (!Array.isArray(AppState.oscillatorPans)) AppState.oscillatorPans = [];
+                    AppState.oscillatorPans[i] = v;
+                    updateHarmonicPan(i);
+                });
+                break;
+            }
             case 'setdrawbarfundamental': {
                 // 1-based like the drawbar messages; out of range is a no-op
                 const n = Math.round(args[0]);
@@ -252,6 +341,20 @@ export class OscClient {
             case 'randomize':
                 DrawbarsActions.randomize();
                 break;
+        }
+    }
+
+    /**
+     * Run `fn` for the voice(s) a 1-based selector addresses: n = 0 → every
+     * partial of the current system; otherwise the one partial, silently
+     * ignored when out of range.
+     */
+    forVoices(n, fn) {
+        const count = AppState.currentSystem.ratios.length;
+        if (n === 0) {
+            for (let i = 0; i < count; i++) fn(i);
+        } else if (n >= 1 && n <= count) {
+            fn(n - 1);
         }
     }
 
@@ -298,6 +401,23 @@ export class OscClient {
         document.addEventListener(MASTER_SLEW_CHANGED, () => {
             this.emit('slew', [AppState.masterSlewValue]);
         });
+        // Per-overtone signal chain edited in the app (modal UI) → Live params
+        document.addEventListener(OVERTONE_SIGNAL_CHANGED, (e) => {
+            const { index, kind } = e.detail || {};
+            if (index === undefined) return;
+            const n = index + 1;
+            if (kind === 'gate') {
+                const g = AppState.oscillatorGates[index] || { mode: 0 };
+                this.emit(`gate/${n}`, g.mode === 4
+                    ? [4, (g.seq || []).join('')]
+                    : [g.mode ?? 0, g.x ?? 1, g.y ?? 1]);
+            } else if (kind === 'filter') {
+                const f = AppState.oscillatorFilters[index] || {};
+                this.emit(`filter/${n}`, [f.multiplier ?? 0, f.q ?? 0.707]);
+            } else if (kind === 'pan') {
+                this.emit(`pan/${n}`, [getVoicePan(index)]);
+            }
+        });
         document.addEventListener(PLAY_STATE_CHANGED, () => {
             if (this._pendingInboundPlay === AppState.isPlaying) {
                 this._pendingInboundPlay = null; // inbound application — no echo
@@ -339,6 +459,16 @@ export class OscClient {
 
 function clamp01(v) {
     return Math.min(1, Math.max(0, Number(v) || 0));
+}
+
+/** Split "/twig/<cmd>/<n> [args]" vs "/twig/<cmd> [n, ...args]" forms. */
+function perVoiceArgs(sub, args) {
+    if (sub !== undefined) {
+        const n = parseInt(sub, 10);
+        return [Number.isFinite(n) ? n : null, args];
+    }
+    const n = Math.round(args[0]);
+    return [Number.isFinite(n) ? n : null, args.slice(1)];
 }
 
 /** Shared instance: app.js bootstraps it, ui.js connects it. */

@@ -55,9 +55,10 @@ const log = (msg) => (Max ? Max.post(msg) : console.log(msg));
 // tracks upstream app gestures, so a jweb reload restores the latest state.
 const STATE_ORDER = [
     'system', 'waveform', 'subharmonic', 'note', 'freq',
-    'gain', 'slew', 'drawbars', 'drawbar', 'play'
+    'gain', 'slew', 'drawbars', 'drawbar', 'gate', 'filter', 'pan', 'play'
 ];
-const TRANSIENT_COMMANDS = new Set(['reset', 'randomize']);
+const PER_INDEX_COMMANDS = new Set(['drawbar', 'gate', 'filter', 'pan']);
+const TRANSIENT_COMMANDS = new Set(['reset', 'randomize', 'setdrawbarfundamental']);
 const stateCache = new Map(); // cache key → {address, args}
 
 function cacheStateMessage(msg) {
@@ -72,9 +73,22 @@ function cacheStateMessage(msg) {
             if (key.startsWith('drawbar/')) stateCache.delete(key);
         }
         stateCache.set('drawbars', msg);
-    } else if (cmd === 'drawbar') {
+    } else if (PER_INDEX_COMMANDS.has(cmd)) {
+        // Keyed per voice index: drawbar/3, gate/2 … index 0 means "all
+        // voices" and supersedes earlier per-voice entries. Delete before
+        // set so replay order follows message order (Map.set on an existing
+        // key would keep its old position).
         const index = parts[2] ?? msg.args?.[0];
-        if (index !== undefined) stateCache.set(`drawbar/${index}`, msg);
+        if (index === undefined) return;
+        const key = `${cmd}/${index}`;
+        if (Number(index) === 0) {
+            for (const k of [...stateCache.keys()]) {
+                if (k.startsWith(`${cmd}/`)) stateCache.delete(k);
+            }
+        } else {
+            stateCache.delete(key);
+        }
+        stateCache.set(key, msg);
     } else if (cmd === 'note' || cmd === 'freq') {
         // Both set the fundamental — keep only the most recent
         stateCache.delete(cmd === 'note' ? 'freq' : 'note');
@@ -157,7 +171,7 @@ if (Max) {
     const APP_COMMANDS = [
         'drawbar', 'drawbars', 'gain', 'slew', 'note', 'freq',
         'system', 'waveform', 'subharmonic', 'play', 'reset', 'randomize',
-        'setdrawbarfundamental'
+        'setdrawbarfundamental', 'gate', 'filter', 'pan'
     ];
     for (const cmd of APP_COMMANDS) {
         Max.addHandler(cmd, (...args) => {

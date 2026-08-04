@@ -91,6 +91,17 @@ export function generateFilenameParts() {
  * @param {number} ratio - The harmonic ratio
  * @returns {number} Calculated frequency in Hz
  */
+/**
+ * Stereo position for a voice: user-set value if present, else the default
+ * layout — fundamental centered, overtones alternating right/left.
+ */
+export function getVoicePan(index) {
+    const pans = AppState.oscillatorPans || [];
+    const stored = pans[index];
+    if (typeof stored === 'number') return stored;
+    return index === 0 ? 0 : (index % 2 === 0 ? -0.8 : 0.8);
+}
+
 export function calculateFrequency(ratio) {
     if (AppState.isSubharmonic) {
         return ratio === 0 ? 0 : AppState.fundamentalFrequency / ratio;

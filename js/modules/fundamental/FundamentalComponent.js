@@ -35,10 +35,11 @@ export class FundamentalComponent extends BaseComponent {
     }
 
     bindRenderedEvents() {
-        // Frequency input
+        // Frequency input — commit on change (Enter/blur), not per keystroke:
+        // each commit triggers a display rewrite that would clobber typing
         const fundamentalInput = document.getElementById('fundamental-input');
         if (fundamentalInput) {
-            this.bindEvent(fundamentalInput, "input", (e) => {
+            this.bindEvent(fundamentalInput, "change", (e) => {
                 this.onChangeInput?.(e.target.value);
             });
         }

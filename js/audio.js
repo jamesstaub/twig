@@ -42,7 +42,7 @@
  */
 
 import { AppState, updateAppState, WAVETABLE_SIZE } from './config.js';
-import { calculateFrequency, generateFilenameParts } from './utils.js';
+import { calculateFrequency, generateFilenameParts, getVoicePan } from './utils.js';
 
 import { AudioEngine, WavetableManager, WAVExporter } from './dsp/index.js';
 import { showStatus } from './domUtils.js';
@@ -198,11 +198,14 @@ function createHarmonicOscillator(i, ratio, gain) {
     const frequencyCorrection = getFrequencyCorrection(AppState.currentWaveform);
     const correctedFrequency = frequency * frequencyCorrection;
 
-    // Stereo panning for playback
-    const panArray = AppState.oscillatorPans || [];
-    const panValue = i === 0 ? 0 : (panArray[i] ?? (i % 2 === 0 ? -0.8 : 0.8));
-
-    const oscData = audioEngine.createOscillator(correctedFrequency, waveform, gain, { pan: panValue });
+    const oscData = audioEngine.createOscillator(correctedFrequency, waveform, gain, {
+        pan: getVoicePan(i),
+        gate: AppState.oscillatorGates[i],
+        filter: {
+            cutoff: harmonicFilterCutoff(i, frequency),
+            q: AppState.oscillatorFilters[i]?.q,
+        },
+    });
     const oscKey = `harmonic_${i}`;
     audioEngine.addOscillator(oscKey, oscData);
     while (AppState.oscillators.length <= i) {
@@ -277,6 +280,90 @@ export function updateHarmonicAmplitude(index, rampTime = AppState.masterSlewVal
     }
 }
 
+const MIN_AUDIBLE_HZ = 20;
+
+/**
+ * Cutoff for a voice's lowpass — an overtone series within the overtone
+ * series: the multiplier is a 1-based partial index into the CURRENT
+ * system's ratio table, applied to the voice's audible base frequency
+ * (the lowest integer multiple of the voice's own pitch that clears 20 Hz;
+ * an already-audible voice is its own base).
+ *
+ * So on the Harmonic Series a 12 Hz voice gives 24, 48, 72 … Hz for
+ * partials 1, 2, 3 — but on a stretched or inharmonic system the cutoffs
+ * land on THAT system's partials instead. Indexes beyond the system's
+ * partial count clamp to its last ratio. The series always multiplies
+ * upward, regardless of the subharmonic toggle — a lowpass below the
+ * voice would just mute it. No multiplier set (or <= 0) → filter open.
+ */
+export const MAX_FILTER_PARTIALS = 24;
+
+/**
+ * Ratio of the `step`-th filter partial (1-based) under the current system.
+ * Steps beyond the system's ratio table continue the series geometrically
+ * from its last interval — exact for equal-division systems (BP), and a
+ * musically consistent extrapolation for tabulated ones.
+ */
+export function filterPartialRatio(step) {
+    const ratios = AppState.currentSystem.ratios;
+    const count = ratios.length;
+    const clamped = Math.min(MAX_FILTER_PARTIALS, Math.max(1, Math.round(step)));
+    if (clamped <= count) return Math.abs(ratios[clamped - 1]) || 1;
+    const last = Math.abs(ratios[count - 1]) || 1;
+    const prev = count > 1 ? Math.abs(ratios[count - 2]) || 1 : 1;
+    const interval = last > prev && prev > 0 ? last / prev : 2;
+    return last * Math.pow(interval, clamped - count);
+}
+
+export function harmonicFilterCutoff(index, frequency) {
+    const multiplier = AppState.oscillatorFilters[index]?.multiplier;
+    if (!(multiplier > 0) || !(frequency > 0)) return 20000;
+    const base = frequency * Math.max(1, Math.ceil(MIN_AUDIBLE_HZ / frequency));
+    return Math.min(20000, Math.max(10, base * filterPartialRatio(multiplier)));
+}
+
+/**
+ * Apply the cycle-gate config for one harmonic to its running voice.
+ * State-only when not playing — configs land at the next tone start.
+ */
+export function updateHarmonicGate(index) {
+    if (!AppState.isPlaying || !audioEngine) return;
+    const node = AppState.oscillators[index];
+    if (node && node.key) {
+        audioEngine.updateOscillatorGate(node.key, AppState.oscillatorGates[index] || { mode: 0 });
+    }
+}
+
+/**
+ * Apply the stereo pan for one harmonic to its running voice.
+ */
+export function updateHarmonicPan(index) {
+    if (!AppState.isPlaying || !audioEngine) return;
+    const node = AppState.oscillators[index];
+    if (node && node.key) {
+        audioEngine.updateOscillatorPan(node.key, getVoicePan(index), AppState.masterSlewValue);
+    }
+}
+
+/**
+ * Apply the lowpass config for one harmonic to its running voice.
+ */
+export function updateHarmonicFilter(index) {
+    if (!AppState.isPlaying || !audioEngine) return;
+    const node = AppState.oscillators[index];
+    if (node && node.key) {
+        const frequency = calculateFrequency(AppState.currentSystem.ratios[index]);
+        audioEngine.updateOscillatorFilter(
+            node.key,
+            {
+                cutoff: harmonicFilterCutoff(index, frequency),
+                q: AppState.oscillatorFilters[index]?.q,
+            },
+            AppState.masterSlewValue
+        );
+    }
+}
+
 /**
  * Updates synthesis parameters in real-time with period multiplier frequency correction
  */
@@ -336,6 +423,13 @@ function updateAudioPropertiesOscillators(rampTime) {
             newGain = 0;
         } else {
             audioEngine.updateOscillatorFrequency(node.key, newFreq, rampTime);
+            // The lowpass cutoff is relative to the voice's pitch — retarget
+            // it so filters track fundamental glides and system changes
+            audioEngine.updateOscillatorFilter(
+                node.key,
+                { cutoff: harmonicFilterCutoff(i, baseFreq) },
+                rampTime
+            );
         }
         audioEngine.updateOscillatorGain(node.key, newGain, rampTime);
     }

@@ -320,6 +320,13 @@ export const AppState = {
     isSubharmonic: false,
     currentWaveform: 'square',
 
+    // Per-overtone cycle gates and lowpass filters, sparse objects keyed by
+    // partial index. Gate: { mode: 0 off | 1 alternating | 2 euclidean |
+    // 3 probability, x, y }. Filter: { multiplier (1-based partial index into
+    // the current system, applied to the voice's audible base; <= 0 open), q }.
+    oscillatorGates: {},
+    oscillatorFilters: {},
+
     // Visualization properties
     visualizationFrequency: 5.25,
     spreadFactor: 0.2,

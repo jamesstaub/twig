@@ -3,6 +3,8 @@ import BaseComponent from "../base/BaseComponent.js";
 import { calculateFrequency } from "../../utils.js";
 import { DrawbarsActions } from "./drawbarsActions.js";
 import { showStatus } from "../../domUtils.js";
+import OvertoneSignalModalComponent from "../generic/modal/OvertoneSignalModalComponent.js";
+import { openModal, closeModal } from "../generic/modal/modalActions.js";
 
 const DRAWBAR_SLIDER_SELECTOR = ".drawbar-slider";
 
@@ -205,8 +207,12 @@ export class DrawbarsComponent extends BaseComponent {
             menu.appendChild(btn);
         };
 
-        addItem(`Copy frequency (${freqLabel})`, () => copyFrequency(freq));
-        addItem("Set as fundamental", () => DrawbarsActions.setDrawbarAsFundamental(index));
+        addItem(`Copy Frequency (${freqLabel})`, () => copyFrequency(freq));
+        addItem("Set as Fundamental", () => DrawbarsActions.setDrawbarAsFundamental(index));
+        addItem("Overtone Settings", () => {
+            const modal = new OvertoneSignalModalComponent(document.createElement('div'));
+            openModal(modal, { index, onClose: () => closeModal() });
+        });
 
         // Body-attached + fixed so the drawbar strip's overflow can't clip it
         document.body.appendChild(menu);

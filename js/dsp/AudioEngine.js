@@ -28,6 +28,16 @@ export class AudioEngine {
         if (this.isInitialized) return;
         this.context = new (window.AudioContext || window.webkitAudioContext)();
 
+        // Per-voice cycle-gate worklet (rhythmic gating of overtones).
+        // Served unbundled — the worklet global scope can't import modules.
+        this.gateWorkletReady = false;
+        try {
+            await this.context.audioWorklet.addModule('js/dsp/worklets/gate-processor.js');
+            this.gateWorkletReady = true;
+        } catch (err) {
+            console.warn('[audio] gate worklet unavailable — voices run ungated:', err);
+        }
+
         // Create audio graph
         this.setupAudioGraph(masterGainValue);
 
@@ -142,14 +152,78 @@ export class AudioEngine {
         // Set gain
         gainNode.gain.setValueAtTime(gain, this.context.currentTime);
 
+        // Per-voice cycle gate (rhythmic muting) — created for every voice
+        // so gating can be enabled mid-playback without rewiring
+        let gateNode = null;
+        if (this.gateWorkletReady) {
+            gateNode = new AudioWorkletNode(this.context, 'overtone-gate');
+            gateNode.parameters.get('frequency').setValueAtTime(frequency, this.context.currentTime);
+            this.applyGateParams(gateNode, options.gate);
+        }
+
+        // Per-voice lowpass after the gate
+        const filterNode = this.context.createBiquadFilter();
+        filterNode.type = 'lowpass';
+        filterNode.frequency.setValueAtTime(options.filter?.cutoff > 0 ? options.filter.cutoff : 20000, this.context.currentTime);
+        filterNode.Q.setValueAtTime(options.filter?.q ?? 0.707, this.context.currentTime);
+
         // Always stereo: use StereoPannerNode per oscillator
         const panner = this.context.createStereoPanner();
         panner.pan.setValueAtTime(options.pan ?? 0, this.context.currentTime);
+
+        // osc → gain → [gate] → lowpass → pan → bus
         oscillator.connect(gainNode);
-        gainNode.connect(panner);
+        if (gateNode) {
+            gainNode.connect(gateNode);
+            gateNode.connect(filterNode);
+        } else {
+            gainNode.connect(filterNode);
+        }
+        filterNode.connect(panner);
         panner.connect(this.compressor);
 
-        return { oscillator, gainNode, panner };
+        return { oscillator, gainNode, gateNode, filterNode, panner };
+    }
+
+    /** Set the cycle-gate parameters on a gate worklet node. */
+    applyGateParams(gateNode, gate = {}) {
+        const now = this.context.currentTime;
+        gateNode.parameters.get('mode').setValueAtTime(gate.mode ?? 0, now);
+        gateNode.parameters.get('x').setValueAtTime(gate.x ?? 1, now);
+        gateNode.parameters.get('y').setValueAtTime(gate.y ?? 1, now);
+        if (gate.seq !== undefined) {
+            // Arbitrary 0/1 patterns can't travel as AudioParams
+            gateNode.port.postMessage({ type: 'sequence', steps: gate.seq });
+        }
+    }
+
+    /** Update the cycle gate of a running voice. */
+    updateOscillatorGate(key, gate) {
+        const oscData = this.oscillators.get(key);
+        if (oscData && oscData.gateNode) {
+            this.applyGateParams(oscData.gateNode, gate);
+        }
+    }
+
+    /** Update the stereo pan of a running voice. */
+    updateOscillatorPan(key, pan, rampTime = 0.02) {
+        const oscData = this.oscillators.get(key);
+        if (oscData && oscData.panner) {
+            oscData.panner.pan.setTargetAtTime(pan, this.context.currentTime, rampTime / 3);
+        }
+    }
+
+    /** Update the lowpass of a running voice; cutoff sweeps use the slew ramp. */
+    updateOscillatorFilter(key, filter, rampTime = 0.02) {
+        const oscData = this.oscillators.get(key);
+        if (oscData && oscData.filterNode) {
+            const now = this.context.currentTime;
+            const cutoff = filter.cutoff > 0 ? filter.cutoff : 20000;
+            oscData.filterNode.frequency.setTargetAtTime(cutoff, now, rampTime / 3);
+            if (filter.q !== undefined) {
+                oscData.filterNode.Q.setTargetAtTime(filter.q, now, rampTime / 3);
+            }
+        }
     }
     // No setRoutingMode needed
 
@@ -177,6 +251,10 @@ export class AudioEngine {
         if (oscData && oscData.oscillator) {
             const now = this.context.currentTime;
             oscData.oscillator.frequency.setTargetAtTime(frequency, now, rampTime / 3);
+            // Keep the cycle gate's clock in step with the oscillator
+            if (oscData.gateNode) {
+                oscData.gateNode.parameters.get('frequency').setTargetAtTime(frequency, now, rampTime / 3);
+            }
         }
     }
 
@@ -221,6 +299,14 @@ export class AudioEngine {
                 } catch {
                     // Oscillator may already be stopped
                 }
+            }
+            // Worklet processors are kept alive while process() returns true —
+            // tell them to die, then unhook the chain so it can be collected
+            if (oscData.gateNode) {
+                oscData.gateNode.port.postMessage('stop');
+            }
+            for (const node of [oscData.gainNode, oscData.gateNode, oscData.filterNode, oscData.panner]) {
+                try { node?.disconnect(); } catch { /* already disconnected */ }
             }
         }
 
