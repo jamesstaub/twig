@@ -1,4 +1,5 @@
-import { AppState, DRAWBAR_STYLES } from "../../config.js";
+import { AppState } from "../../config.js";
+import { harmonicColor } from "../../theme.js";
 import BaseComponent from "../base/BaseComponent.js";
 import { calculateFrequency } from "../../utils.js";
 import { DrawbarsActions } from "./drawbarsActions.js";
@@ -125,11 +126,11 @@ export class DrawbarsComponent extends BaseComponent {
     }
 
     createDrawbar(index, value) {
-        const styleClass = DRAWBAR_STYLES[index] || "white";
-
         const wrapper = document.createElement("div");
-        wrapper.className = `drawbar ${styleClass}`;
+        wrapper.className = "drawbar";
         wrapper.dataset.index = index;
+        // Color the drawbar like its partial's ring in the p5 tonewheel
+        wrapper.style.setProperty("--drawbar-color", harmonicColor(index));
         // Disable browser touch handling for the entire drawbar column (label
         // area included) so our custom touch handler gets every gesture.
         wrapper.style.touchAction = 'pan-x';

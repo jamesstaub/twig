@@ -283,18 +283,6 @@ export const CANVAS_HEIGHT_RATIOS = {
     OSCILLOSCOPE: 0.25
 };
 
-export const HARMONIC_COLORS = [
-    '#10b981', '#fcd34d', '#3b82f6', '#ef4444',
-    '#a855f7', '#f97316', '#22c55e', '#ec4899',
-    '#84cc16', '#eab308', '#7c3aed', '#6d28d9'
-];
-
-export const DRAWBAR_STYLES = [
-    'white', 'brown', 'white', 'white', 'brown', 'black',
-    'brown', 'white', 'black', 'blue', 'red', 'black',
-    'white', 'brown', 'black', 'blue'
-];
-
 // ================================
 // APPLICATION STATE
 // ================================

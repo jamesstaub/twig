@@ -10,7 +10,6 @@ import { DrawbarsController } from './modules/drawbars/drawbarsController.js';
 import { SpectralSystemController } from './modules/spectralSystem/spectralSystemController.js';
 import { WaveformController } from './modules/waveform/waveformController.js';
 import { DownloadControlController } from './modules/downloadControl/downloadControlController.js';
-import { HelpDialog } from './HelpDialog.js';
 import { KeyboardShortcuts } from './KeyboardShortcuts.js';
 import { TonewheelController } from './modules/tonewheel/tonewheelController.js';
 import { smoothUpdateMasterGain } from './utils.js';
@@ -78,8 +77,7 @@ export function initUI() {
     setupFundamental();
 
 
-    // Initialize help and keyboard shortcuts
-    HelpDialog.init();
+    // Initialize keyboard shortcuts
     new KeyboardShortcuts().init();
 
     // OSC over WebSocket: the remote-control path for jweb/Max4Live, where
@@ -222,15 +220,6 @@ export function updateUI() {
 
     updateSystemDescription();
 
-    // Update play button state
-    const playButton = document.getElementById('play-button');
-    if (playButton) {
-        playButton.textContent = AppState.isPlaying ? "Stop Tone" : "Start Tone";
-        playButton.classList.toggle('playing', AppState.isPlaying);
-    }
-
     // Update waveform selector
     updateValue('waveform-select', AppState.currentWaveform);
-
-
 }

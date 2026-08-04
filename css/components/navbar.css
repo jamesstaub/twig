@@ -1,0 +1,38 @@
+/* Fixed top navbar (becomes a left column in embed mode — see embed.css). */
+
+.navbar {
+    background: linear-gradient(to bottom right, var(--surface-navbar-from), var(--surface-navbar-to));
+    border-bottom: 2px solid var(--border-strong);
+    display: flex;
+    align-items: center;
+    z-index: 1000;
+    box-shadow: 0 10px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+}
+
+.navbar-control-group {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    background-color: color-mix(in srgb, var(--surface-deep) 80%, transparent);
+    border-radius: 0.5rem;
+    border: 1px solid var(--border-subtle);
+    min-width: 180px;
+}
+
+.play-toggle-container {
+    display: flex;
+    align-items: center;
+    padding: 0.5rem 1rem;
+    background-color: color-mix(in srgb, var(--surface-panel) 50%, transparent);
+    border-radius: 0.5rem;
+    border: 1px solid var(--border-strong);
+}
+
+@media (max-width: 500px) {
+    .logo {
+        right: 0;
+    }
+    .logo p {
+        transform: rotate(90deg);
+    }
+}

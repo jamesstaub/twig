@@ -1,0 +1,140 @@
+/* Per-overtone signal chain editor (gate / filter / pan). */
+
+/* Fixed footprint: the dialog must not resize as gate modes swap their
+   parameter fields in and out */
+.signal-modal {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    width: 42rem;
+    max-width: 100%;
+}
+
+.signal-copy-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.signal-copy-label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    white-space: nowrap;
+}
+
+.signal-copy-select {
+    width: auto;
+    flex: 0 1 16rem;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.85rem;
+}
+
+.signal-modal-title {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--text-label);
+}
+
+.signal-modal-sections {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    align-items: stretch;
+    min-height: 16rem;
+}
+
+.signal-section {
+    /* Equal thirds regardless of content, so swapping gate params never
+       reflows the neighboring sections */
+    flex: 1 1 0;
+    min-width: 10rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 0.75rem;
+    background-color: var(--surface-raised);
+    border-radius: 0.5rem;
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.signal-section-title {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--text-label);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.signal-gate-params {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.signal-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+}
+
+.signal-field input[type="number"] {
+    width: 5em;
+}
+
+.signal-seq-input {
+    background-color: var(--surface-app);
+    color: var(--text-primary);
+    border: 1px solid var(--border-default);
+    border-radius: 0.25rem;
+    padding: 0.25rem 0.5rem;
+    font-family: monospace;
+    letter-spacing: 0.2em;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.signal-slider-row {
+    display: flex;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+.signal-vslider {
+    width: 5.5rem;
+    max-width: 100%;
+}
+
+/* Two-line value readout (system label + frequency). Labels vary wildly in
+   length ("3:1", "3^(11/13)", "oct.nom") — wrap anywhere rather than clip,
+   and reserve two lines so toggling values never reflows the section. */
+.signal-vslider-value {
+    font-size: 0.7rem;
+    line-height: 1.25;
+    color: var(--text-accent);
+    text-align: center;
+    white-space: pre-line;
+    overflow-wrap: anywhere;
+    max-width: 100%;
+    min-height: 2.5em;
+}
+
+.signal-pan-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+}
+
+.signal-pan-edge {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--text-secondary);
+}
+
+.signal-pan-slider {
+    flex: 1;
+    accent-color: var(--accent-primary);
+}

@@ -1,6 +1,7 @@
 // WaveformComponent.js
 import BaseComponent from "../base/BaseComponent.js";
 import { getWaveValue } from "../tonewheel/tonewheelActions.js";
+import { themeColor } from "../../theme.js";
 import p5 from "p5";
 
 function lcm(a, b) {
@@ -48,12 +49,12 @@ function createWaveformSketch(component) {
             const height = p.height;
             const ampScale = height * 0.4;
 
-            p.background("#0d131f");
-            p.stroke("#374151");
+            p.background(themeColor("--viz-bg"));
+            p.stroke(themeColor("--viz-grid"));
             p.strokeWeight(1);
             p.line(0, height / 2, width, height / 2);
 
-            p.stroke("#10b981");
+            p.stroke(themeColor("--viz-trace"));
             p.strokeWeight(2);
             p.noFill();
             p.beginShape();

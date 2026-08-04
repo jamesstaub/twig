@@ -1,0 +1,44 @@
+/* p5 canvas containers (tonewheel, waveform previews). The colors drawn
+   inside the canvases come from theme.css via js/theme.js. */
+
+/* Ensure p5 waveform canvas never exceeds container width */
+#waveform-canvas-area canvas, #current-waveform-canvas-area canvas {
+    width: 100% !important;
+    max-width: 100%;
+    box-sizing: border-box;
+    display: block;
+}
+
+#tonewheel-container {
+    flex: 1 1 0%;
+    position: relative;
+    min-width: 0;
+    width: 100%;
+    max-width: 100%;
+    overflow: hidden;
+    display: flex;
+    align-items: stretch;
+    justify-content: stretch;
+}
+
+canvas {
+    border: 1px solid var(--viz-grid);
+    border-radius: 0.5rem;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+    background-color: var(--viz-bg);
+    width: 100% !important;
+    max-width: 100% !important;
+    height: calc(100% - .5rem) !important;
+    min-height: 120px;
+    object-fit: contain;
+}
+
+/* Responsive canvas layout - mobile/tablet only */
+@media (max-width: 768px) {
+    #tonewheel-container {
+        flex: none;
+        max-width: none;
+        min-width: 300px;
+        width: 100%;
+    }
+}

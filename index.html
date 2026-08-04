@@ -35,11 +35,11 @@
     <link rel="stylesheet" href="dist/styles-compiled.css">
 </head>
 
-<body class="app-container pt-[8rem] md:pt-[6rem]">
+<body class="app-container pt-(--navbar-height-tall) md:pt-(--navbar-height)">
     <!-- Fixed Top Navbar -->
     <nav class="navbar top-0 left-0 right-0 fixed pr-22">
         <div
-            class="flex flex-nowrap gap-3 xs:px-2 px-8 py-[1rem] justify-center md:justify-between h-[8rem] md:h-[6rem]">
+            class="flex flex-nowrap gap-3 px-8 py-4 justify-center md:justify-between h-(--navbar-height-tall) md:h-(--navbar-height)">
             <div class="navbar-section flex basis-auto">
                 <!-- Play/Stop Toggle -->
                 <div class="play-toggle-container flex-grow flex-wrap items-center">
@@ -62,7 +62,7 @@
         </div>
 
         <div class="navbar-section logo absolute right-8">
-            <p class="text-lg font-semibold text-slate-200">twig</p>
+            <p class="text-lg font-semibold text-(--text-title)">twig</p>
         </div>
     </nav>
 
@@ -133,7 +133,7 @@
                         <!-- Overtone System (title + select) -->
                         <div id="spectral-system-root"
                             class="system-selector labeled-control flex flex-col gap-2 xl:col-span-1 w-full p-2 md:min-w-[24rem]">
-                            <label for="ratio-system-select" class="text-[1.125rem] font-bold text-[#c7d2fe]">
+                            <label for="ratio-system-select">
                                 Overtone System
                             </label>
                             <div class="select-stepper">
@@ -145,11 +145,11 @@
                                 <button type="button" class="action-btn select-step-btn" data-target="ratio-system-select"
                                     data-step="1" aria-label="Next overtone system">-&gt;</button>
                             </div>
-                            <div id="system-description" class="system-description text-sm text-gray-400 py-2"></div>
+                            <div id="system-description" class="system-description text-xs/5 text-gray-400 py-2"></div>
                             <!-- Overtone controls for md/lg screens -->
                             <div class="flex flex-col gap-2 md:mt-4">
                                 <div
-                                    class="subharmonic-toggle-container flex items-center justify-start gap-4 pt-2 border-t border-[#4b5563]">
+                                    class="subharmonic-toggle-container flex items-center justify-start gap-4 pt-2">
                                     <span class="toggle-label overtone">Overtone (Multiply)
                                         <small class="toggle-sublabel">otonality</small></span>
                                     <div id="subharmonic-toggle" class="toggle-switch" role="switch"
@@ -172,13 +172,12 @@
                                 </div>
                                 <div class="flex items-stretch justify-end gap-4">
                                     <button id="add-wave-button" type="button" role="button"
-                                        class="action-btn mx-1 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
+                                        class="action-btn focus-ring mx-1"
                                         aria-label="Reset drawbars">Create Oscillator</button>
 
-                                    <div id="routing-control-root"
-                                        class="download-group flex items-center gap-2 px-4 py-2 rounded border border-slate-500 bg-slate-800/60">
+                                    <div id="routing-control-root" class="download-group">
                                         <button id="export-wav-button" type="button" role="button"
-                                            class="action-btn mx-1 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
+                                            class="action-btn focus-ring mx-1"
                                             aria-label="Download wav">Download</button>
                                         <div id="routing-mode-group"
                                             class="routing-mode-group flex items-center gap-2 ml-2">
@@ -208,10 +207,10 @@
                         </div>
                         <div class="flex justify-center">
                             <button id="reset-drawbars-button" type="button" role="button"
-                                class="action-btn mx-1 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
+                                class="action-btn focus-ring mx-1"
                                 aria-label="Reset drawbars">Reset</button>
                             <button id="randomize-drawbars-button" type="button" role="button"
-                                class="action-btn mx-1 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
+                                class="action-btn focus-ring mx-1"
                                 aria-label="Randomize drawbars">Randomize</button>
 
                         </div>
@@ -223,7 +222,7 @@
                         <div class="controls-overlay">
                             <!-- Responsive Visualization Overlay Controls -->
                             <div id="tonewheel-viz-controls"
-                                class="absolute top-2 right-2 md:top-4 md:right-4 z-10 bg-slate-900/70 rounded-xl p-2 md:p-3 shadow-lg flex flex-col gap-2 items-end w-auto max-w-xs md:max-w-sm opacity-0 pointer-events-none transition-opacity duration-500">
+                                class="absolute top-2 right-2 md:top-4 md:right-4 z-10 bg-(--surface-deep)/70 rounded-xl p-2 md:p-3 shadow-lg flex flex-col gap-2 items-end w-auto max-w-xs md:max-w-sm opacity-0 pointer-events-none transition-opacity duration-500">
                                 <div id="spread-slider-root" class="flex items-center gap-2 w-full"></div>
                                 <div id="viz-freq-slider-root" class="flex items-center gap-2 w-full"></div>
                             </div>

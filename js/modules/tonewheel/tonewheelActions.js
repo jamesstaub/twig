@@ -1,4 +1,5 @@
-import { AppState, CANVAS_HEIGHT_RATIOS, HARMONIC_COLORS, updateAppState } from '../../config.js';
+import { AppState, CANVAS_HEIGHT_RATIOS, updateAppState } from '../../config.js';
+import { harmonicColor, themeColor } from '../../theme.js';
 import { precomputeWaveTable } from '../../audio.js';
 import { lcmArray } from '../waveform/WaveformComponent.js';
 import p5 from 'p5';
@@ -118,7 +119,7 @@ function createVisualizationSketch() {
             p.translate(p.width / 2, p.height / 2);
 
             p.noFill();
-            p.stroke('#374151');
+            p.stroke(themeColor('--viz-grid'));
             p.ellipse(0, 0, baseRadius * 2, baseRadius * 2);
 
             const points = 360;
@@ -164,7 +165,9 @@ function createVisualizationSketch() {
                 const MAX_RING_MOD = 0.45;
                 const visualAmp = MAX_RING_MOD * (maxAmplitudeRadial / numHarmonics) * spreadFactor * amp;
 
-                p.stroke(p.color(HARMONIC_COLORS[h % HARMONIC_COLORS.length] + '99'));
+                const ringColor = p.color(harmonicColor(h));
+                ringColor.setAlpha(153); // 0x99
+                p.stroke(ringColor);
                 p.strokeWeight(2);
                 p.noFill();
                 p.beginShape();
@@ -189,7 +192,7 @@ function createVisualizationSketch() {
 
         p.draw = function () {
             p.clear();
-            p.background('#111827');
+            p.background(themeColor('--viz-bg-tonewheel'));
             updateDimensions();
             drawRadialDisplay();
         };

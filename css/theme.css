@@ -1,0 +1,86 @@
+/* =====================================================================
+   DESIGN TOKENS — single source of truth for twig's look and feel.
+
+   Plain CSS custom properties so stylesheets and JS consume the same
+   values: p5 sketches read these via js/theme.js. To change the design
+   language, edit this file (and only this file) first.
+
+   Keep color values in 6-digit hex or rgb() — js/theme.js hands them
+   straight to p5.color().
+   ===================================================================== */
+
+:root {
+    /* ---- Surfaces ---- */
+    --surface-app: #1f2937;          /* page background, inputs, dark keys */
+    --surface-raised: #2b333e;       /* labeled controls, sections, menus */
+    --surface-card: #475569;         /* control cards */
+    --surface-panel: #1e293b;        /* translucent panels, button hover */
+    --surface-deep: #0f172a;         /* overlay scrims (alpha at usage) */
+    --surface-modal: #232b3a;
+    --surface-hover: #4b5563;        /* neutral hover fill */
+    --surface-navbar-from: #1e293b;  /* navbar gradient */
+    --surface-navbar-to: #334155;
+
+    /* ---- Visualizers (p5 canvases; read from JS via js/theme.js) ---- */
+    --viz-bg: #0d131f;               /* waveform canvas background */
+    --viz-bg-tonewheel: #111827;     /* tonewheel canvas background */
+    --viz-grid: #374151;             /* axis lines, canvas borders */
+    --viz-trace: #10b981;            /* waveform trace */
+
+    /* ---- Text ---- */
+    --text-primary: #f3f4f6;
+    --text-secondary: #cbd5e1;
+    --text-muted: #9ca3af;
+    --text-muted-warm: #a8a29e;
+    --text-title: #e2e8f0;
+    --text-accent: #60a5fa;
+    --text-label: #93c5fd;           /* control labels */
+    --text-label-strong: #c7d2fe;    /* section headline labels */
+
+    /* ---- Borders ---- */
+    --border-default: #4b5563;
+    --border-strong: #475569;        /* navbar edge */
+    --border-subtle: #334155;
+    --border-light: #64748b;
+
+    /* ---- Accents & status ---- */
+    --accent-primary: #3b82f6;       /* sliders, info, focus rings */
+    --accent-primary-strong: #2563eb;
+    --accent-positive: #10b981;      /* play/active states */
+    --accent-positive-strong: #059669;
+    --accent-negative: #ef4444;      /* stop/overtone states */
+    --accent-negative-soft: #f87171;
+    --accent-negative-strong: #dc2626;
+    --status-warning: #d97706;
+
+    /* ---- Piano keyboard ---- */
+    --key-white: #e0e0e0;
+    --key-black: #1f2937;
+
+    /* ---- Drawbars ----
+       Per-drawbar color comes from the harmonic palette below
+       (--drawbar-color, set per element); this is the label fallback. */
+    --drawbar-label: #d1d5db;
+
+    /* ---- Harmonic partial palette ----
+       One color per partial, cycled. Shared by the p5 tonewheel rings
+       (js/theme.js) and any UI that colors by partial. */
+
+      --harmonic-1: #12344d;
+      --harmonic-2: #1d4965;
+      --harmonic-3: #2a5f7d;
+      --harmonic-4: #397695;
+      --harmonic-5: #4a8ca8;
+      --harmonic-6: #63a2b2;
+      --harmonic-7: #7cb5a8;
+      --harmonic-8: #97c48f;
+      --harmonic-9: #b3ce7d;
+      --harmonic-10: #d0d06f;
+      --harmonic-11: #e3cf8d;
+      --harmonic-12: #efe6c8;
+   
+
+    /* ---- Layout ---- */
+    --navbar-height: 6rem;
+    --navbar-height-tall: 8rem;      /* stacked (narrow-viewport) navbar */
+}

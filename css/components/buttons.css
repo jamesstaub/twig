@@ -1,0 +1,35 @@
+/* Buttons. */
+
+.action-btn {
+    color: var(--text-label);
+    border: 1px solid var(--border-subtle);
+    border-radius: 4px;
+    padding: 2px 14px;
+    font-size: 0.95rem;
+    font-weight: 500;
+    transition: background 0.2s, color 0.2s;
+    cursor: pointer;
+}
+
+.action-btn:hover {
+    background: var(--surface-panel);
+    color: var(--text-accent);
+    border-color: var(--text-accent);
+}
+
+.btn-octave {
+    background-color: var(--surface-app);
+    color: var(--text-muted-warm);
+    padding: 0.5rem 1rem;
+    font-weight: 700;
+}
+
+.btn-octave:hover {
+    background-color: var(--surface-hover);
+    color: var(--key-white);
+}
+
+/* Keyboard-focus ring for primary action buttons. */
+.focus-ring {
+    @apply focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-(--accent-primary) focus-visible:ring-offset-2 focus-visible:ring-offset-(--surface-deep);
+}

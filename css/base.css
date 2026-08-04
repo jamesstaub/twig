@@ -1,0 +1,15 @@
+/* App-wide base styles. */
+
+/* Kill the two-finger back/forward navigation gesture: the embed layout and
+   drawbars scroll horizontally, so edge-overscroll would otherwise trigger
+   history navigation (fatal inside jweb — it navigates the plugin UI away) */
+html, body {
+    overscroll-behavior: none;
+}
+
+.app-container {
+    min-height: 100vh;
+    background-color: var(--surface-app);
+    color: var(--text-primary);
+    font-family: 'Inter', sans-serif;
+}

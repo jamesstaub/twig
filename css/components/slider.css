@@ -1,0 +1,17 @@
+/* Generic labeled slider (SliderComponent): navbar gain/slew, tonewheel
+   overlay spread/rate. */
+
+.slider-label,
+.slider-value {
+    @apply text-xs font-medium mr-1 md:text-sm;
+    color: var(--text-label);
+}
+
+.slider-value {
+    @apply min-w-12;
+}
+
+.slider-input {
+    @apply w-16 md:w-24 bg-transparent rounded h-1 mx-1;
+    accent-color: var(--text-accent);
+}

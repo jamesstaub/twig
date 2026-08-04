@@ -1,0 +1,57 @@
+/* One-octave piano keyboard. */
+
+.keyboard-container {
+    position: relative;
+    height: 100px;
+    display: flex;
+    justify-content: center;
+    margin: 10px 0;
+}
+
+.key {
+    position: relative;
+    height: 100px;
+    cursor: pointer;
+    border: 1px solid var(--surface-app);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.4);
+    transition: all 0.05s ease;
+    z-index: 1;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    padding-bottom: 5px;
+    font-size: 0.75rem;
+}
+
+.key.white {
+    background-color: var(--key-white);
+    width: 40px;
+    margin-right: -1px;
+    border-radius: 0 0 5px 5px;
+    color: var(--key-black);
+    z-index: 1;
+}
+
+.key.black {
+    background-color: var(--key-black);
+    width: 25px;
+    height: 60px;
+    margin-left: -12px;
+    margin-right: -12px;
+    z-index: 2;
+    color: var(--key-white);
+    padding-bottom: 3px;
+}
+
+.key.active {
+    box-shadow: 0 0 15px var(--accent-positive-strong);
+    transform: scale(0.98);
+}
+
+.key.white.active {
+    background-color: var(--accent-positive);
+}
+
+.key.black.active {
+    background-color: var(--accent-positive-strong);
+}

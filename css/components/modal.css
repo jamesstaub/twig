@@ -1,0 +1,93 @@
+/* Generic modal shell (ModalComponent). Covers the screen below the fixed
+   navbar; embed mode makes it full-screen instead (see embed.css). */
+
+#modal-root {
+    z-index: 2000;
+}
+
+.modal-overlay {
+    position: fixed;
+    top: var(--navbar-height);
+    left: 0;
+    width: 100vw;
+    height: calc(100vh - var(--navbar-height));
+    background: color-mix(in srgb, var(--surface-deep) 85%, transparent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+}
+
+/* The navbar stacks taller on narrow viewports */
+@media (max-width: 768px) {
+    .modal-overlay {
+        top: var(--navbar-height-tall);
+        height: calc(100vh - var(--navbar-height-tall));
+    }
+}
+
+.modal-dialog {
+    background: var(--surface-modal);
+    border-radius: 1rem;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    padding: 2rem 1.5rem 1.5rem 1.5rem;
+    max-width: 95vw;
+    min-width: 280px;
+    max-height: 90vh;
+    overflow-y: auto;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+}
+
+.modal-close-btn {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 2rem;
+    cursor: pointer;
+    z-index: 10;
+    line-height: 1;
+}
+
+/* Modal form inputs */
+.modal-dialog input[type="number"] {
+    background-color: var(--surface-app);
+    color: var(--text-primary);
+    border: 1px solid var(--border-default);
+    border-radius: 0.25rem;
+    padding: 0.125rem 0.25rem;
+    margin-left: 0.25rem;
+}
+
+/* ================================
+   MIDI MAPPING MODAL
+   ================================ */
+
+.midi-modal-title {
+    margin-bottom: 1rem;
+}
+
+.midi-section-label {
+    margin-top: 1em;
+}
+
+.midi-cc-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5em;
+}
+
+.midi-cc-item {
+    display: flex;
+    align-items: center;
+    gap: 0.2em;
+}
+
+.midi-num-input {
+    width: 3em;
+}

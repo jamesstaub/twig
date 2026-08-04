@@ -25,7 +25,7 @@ export default class MidiMappingModalComponent extends ModalComponent {
         // Title
         const title = document.createElement('h2');
         title.textContent = 'MIDI Mapping';
-        title.style.marginBottom = '1rem';
+        title.className = 'midi-modal-title';
         dialog.appendChild(title);
 
         // MIDI Channel input
@@ -36,7 +36,7 @@ export default class MidiMappingModalComponent extends ModalComponent {
         channelInput.min = 1;
         channelInput.max = 16;
         channelInput.value = midiConfig.inputChannel;
-        channelInput.style.width = '3em';
+        channelInput.className = 'midi-num-input';
         channelInput.addEventListener('change', (e) => {
             let val = parseInt(e.target.value, 10);
             if (val >= 1 && val <= 16) {
@@ -50,18 +50,14 @@ export default class MidiMappingModalComponent extends ModalComponent {
         // Drawbars CC inputs
         const drawbarsLabel = document.createElement('div');
         drawbarsLabel.textContent = 'Drawbars CC Mapping:';
-        drawbarsLabel.style.marginTop = '1em';
+        drawbarsLabel.className = 'midi-section-label';
         dialog.appendChild(drawbarsLabel);
 
         const drawbarsList = document.createElement('div');
-        drawbarsList.style.display = 'flex';
-        drawbarsList.style.flexWrap = 'wrap';
-        drawbarsList.style.gap = '0.5em';
+        drawbarsList.className = 'midi-cc-list';
         for (let i = 0; i < midiConfig.drawbarsCC.length; i++) {
             const ccWrap = document.createElement('div');
-            ccWrap.style.display = 'flex';
-            ccWrap.style.alignItems = 'center';
-            ccWrap.style.gap = '0.2em';
+            ccWrap.className = 'midi-cc-item';
             const label = document.createElement('label');
             label.textContent = `D${i + 1}`;
             const ccInput = document.createElement('input');
@@ -69,7 +65,7 @@ export default class MidiMappingModalComponent extends ModalComponent {
             ccInput.min = 0;
             ccInput.max = 127;
             ccInput.value = midiConfig.drawbarsCC[i];
-            ccInput.style.width = '3em';
+            ccInput.className = 'midi-num-input';
             ccInput.addEventListener('change', (e) => {
                 let val = parseInt(e.target.value, 10);
                 if (val >= 0 && val <= 127) {

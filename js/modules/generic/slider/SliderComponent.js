@@ -24,7 +24,7 @@ export default class SliderComponent extends BaseComponent {
         if (props.label) {
             this.labelEl = document.createElement("label");
             this.labelEl.textContent = props.label;
-            this.labelEl.className = "slider-label text-blue-300 text-xs md:text-sm font-medium mr-1";
+            this.labelEl.className = "slider-label";
             this.el.appendChild(this.labelEl);
         }
 
@@ -35,12 +35,12 @@ export default class SliderComponent extends BaseComponent {
         this.input.max = props.max ?? 1;
         this.input.step = props.step ?? 0.01;
         this.input.value = props.value ?? 0;
-        this.input.className = "slider-input w-16 md:w-24 accent-blue-400 bg-transparent rounded h-1 mx-1";
+        this.input.className = "slider-input";
         this.el.appendChild(this.input);
 
         // Value display (optional, for accessibility)
         this.valueDisplay = document.createElement("span");
-        this.valueDisplay.className = "slider-value text-blue-300 text-xs md:text-sm font-medium mr-1 min-w-12";
+        this.valueDisplay.className = "slider-value";
         const formatValue = typeof props.formatValue === "function" ? props.formatValue : (v) => v;
         // Always coerce to number for formatting
         const displayValue = props.value !== undefined && props.value !== null ? parseFloat(props.value) : 0;
