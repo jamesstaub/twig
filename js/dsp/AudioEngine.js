@@ -156,9 +156,15 @@ export class AudioEngine {
         // so gating can be enabled mid-playback without rewiring
         let gateNode = null;
         if (this.gateWorkletReady) {
-            gateNode = new AudioWorkletNode(this.context, 'overtone-gate');
+            // Output 0: gated audio; 1: cutoff CV (Hz delta); 2: resonance CV
+            gateNode = new AudioWorkletNode(this.context, 'overtone-gate', {
+                numberOfOutputs: 3,
+                outputChannelCount: [1, 1, 1],
+            });
             gateNode.parameters.get('frequency').setValueAtTime(frequency, this.context.currentTime);
             this.applyGateParams(gateNode, options.gate);
+            gateNode.parameters.get('pulseOut').setValueAtTime(options.pulseOut ? 1 : 0, this.context.currentTime);
+            this.applySequencerParams(gateNode, options.sequencer);
         }
 
         // Per-voice lowpass after the gate
@@ -175,7 +181,11 @@ export class AudioEngine {
         oscillator.connect(gainNode);
         if (gateNode) {
             gainNode.connect(gateNode);
-            gateNode.connect(filterNode);
+            gateNode.connect(filterNode, 0);
+            // Audio-rate modulation: CV outputs sum into the filter's
+            // AudioParams (the params keep holding the base values)
+            gateNode.connect(filterNode.frequency, 1);
+            gateNode.connect(filterNode.Q, 2);
         } else {
             gainNode.connect(filterNode);
         }
@@ -202,6 +212,37 @@ export class AudioEngine {
         const oscData = this.oscillators.get(key);
         if (oscData && oscData.gateNode) {
             this.applyGateParams(oscData.gateNode, gate);
+        }
+    }
+
+    /**
+     * Set sequencer shape/amounts/config on a gate worklet node.
+     * seq: { shape (0-5), amounts: {gain, freq, res}, table?, config? }
+     * config: { ratios: number[], baseStep } for the cutoff CV curve.
+     */
+    applySequencerParams(gateNode, seq) {
+        if (!seq) return;
+        const now = this.context.currentTime;
+        if (seq.shape !== undefined) gateNode.parameters.get('shape').setValueAtTime(seq.shape, now);
+        if (seq.stretch !== undefined) gateNode.parameters.get('stretch').setValueAtTime(seq.stretch, now);
+        if (seq.amounts) {
+            gateNode.parameters.get('amtGain').setValueAtTime(seq.amounts.gain ?? 1, now);
+            gateNode.parameters.get('amtFreq').setValueAtTime(seq.amounts.freq ?? 0, now);
+            gateNode.parameters.get('amtRes').setValueAtTime(seq.amounts.res ?? 0, now);
+        }
+        if (seq.table !== undefined) {
+            gateNode.port.postMessage({ type: 'shapetable', table: seq.table });
+        }
+        if (seq.config) {
+            gateNode.port.postMessage({ type: 'seqconfig', ratios: seq.config.ratios, baseStep: seq.config.baseStep });
+        }
+    }
+
+    /** Update the sequencer of a running voice. */
+    updateOscillatorSequencer(key, seq) {
+        const oscData = this.oscillators.get(key);
+        if (oscData && oscData.gateNode) {
+            this.applySequencerParams(oscData.gateNode, seq);
         }
     }
 
@@ -236,8 +277,26 @@ export class AudioEngine {
         // Start the oscillator
         oscData.oscillator.start(this.context.currentTime);
 
+        // Cycle pulses from the gate worklet → whoever registered onPulse
+        // (the pulse bus). Set up here so every voice reports under its key.
+        if (oscData.gateNode) {
+            oscData.gateNode.port.onmessage = (e) => {
+                if (e.data && e.data.type === 'pulse') {
+                    this.onPulse?.(key, e.data);
+                }
+            };
+        }
+
         // Store in oscillators map
         this.oscillators.set(key, oscData);
+    }
+
+    /** Enable/disable per-cycle pulse messages from a running voice. */
+    updateOscillatorPulse(key, enabled) {
+        const oscData = this.oscillators.get(key);
+        if (oscData && oscData.gateNode) {
+            oscData.gateNode.parameters.get('pulseOut').setValueAtTime(enabled ? 1 : 0, this.context.currentTime);
+        }
     }
 
     /**

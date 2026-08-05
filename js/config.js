@@ -5,6 +5,12 @@
 export const midiConfig = {
     inputChannel: 1, // MIDI channel 1 by default (1-16)
     drawbarsCC: [20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31], // Default CCs for 12 drawbars
+
+    // Pulse outputs: note per overtone (linear 1..N by default, reassignable
+    // in the MIDI modal) and global master switches for the two pulse paths
+    pulseNotes: Array.from({ length: 16 }, (_, i) => i + 1),
+    pulseMidiEnabled: true,
+    pulseOscEnabled: true,
 };
 /**
  * CONFIGURATION MODULE
@@ -314,6 +320,19 @@ export const AppState = {
     // the current system, applied to the voice's audible base; <= 0 open), q }.
     oscillatorGates: {},
     oscillatorFilters: {},
+
+    // Per-overtone pulse outputs, sparse objects keyed by partial index:
+    // { midi: bool, osc: bool }. Pulses fire once per oscillator cycle
+    // (audible-gate cycles only) while the voice is <= 50 Hz.
+    oscillatorPulseOuts: {},
+
+    // Per-overtone sequencer (1:1 with voices for now), sparse by index:
+    // { shape: waveform name (same options as the oscillator menu),
+    //   amounts: { gain: 0-1, freq: -1..1 (partial-index span), res: 0-1 } }
+    oscillatorSequencers: {},
+    // Which overtone (index) drives the MIDI clock output; null = none.
+    // Exclusive — at most one at a time.
+    midiClockVoice: null,
 
     // Visualization properties
     visualizationFrequency: 5.25,

@@ -91,3 +91,33 @@
 .midi-num-input {
     width: 3em;
 }
+
+/* MIDI modal: pulse output section */
+.midi-pulse-toggles {
+    display: flex;
+    gap: 1.5rem;
+    margin: 0.5rem 0;
+    flex-wrap: wrap;
+}
+
+.midi-pulse-toggle-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+.midi-pulse-toggle {
+    min-width: 38px;
+    height: 22px;
+}
+
+.midi-pulse-toggle::before {
+    width: 16px;
+    height: 16px;
+}
+
+.midi-pulse-toggle.active::before {
+    transform: translateX(16px);
+}

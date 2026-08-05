@@ -50,7 +50,8 @@
  */
 
 import { AppState, updateAppState } from "../../config.js";
-import { updateHarmonicGate, updateHarmonicFilter, updateHarmonicPan } from "../../audio.js";
+import { updateHarmonicGate, updateHarmonicFilter, updateHarmonicPan, updateHarmonicPulse } from "../../audio.js";
+import { OvertoneSignalActions } from "../overtoneSignal/overtoneSignalActions.js";
 import { getVoicePan } from "../../utils.js";
 import { DrawbarsActions } from "../drawbars/drawbarsActions.js";
 import { SpectralSystemActions } from "../spectralSystem/spectralSystemActions.js";
@@ -74,8 +75,12 @@ import {
 const COMMANDS = new Set([
     'drawbar', 'drawbars', 'gain', 'slew', 'note', 'freq',
     'system', 'waveform', 'subharmonic', 'play', 'reset', 'randomize',
-    'setdrawbarfundamental', 'gate', 'filter', 'pan'
+    'setdrawbarfundamental', 'gate', 'filter', 'pan',
+    'pulsemidi', 'pulseosc', 'midiclock',
+    'seqshape', 'seqgain', 'seqfreq', 'seqres', 'seqstretch'
 ]);
+
+const SEQ_AMOUNT_TARGETS = { seqgain: 'gain', seqfreq: 'freq', seqres: 'res' };
 
 const GATE_MODES = {
     off: 0, 0: 0,
@@ -329,6 +334,67 @@ export class OscClient {
                 });
                 break;
             }
+            case 'seqshape': {
+                // /twig/seqshape/<n> [name-or-index] — cycle contour, same
+                // options as the oscillator menu (index into it, or name)
+                const [n, rest] = perVoiceArgs(sub, args);
+                if (n === null || rest[0] === undefined) break;
+                const select = document.getElementById('waveform-select');
+                const options = select ? Array.from(select.options).map((o) => o.value) : [];
+                let name = null;
+                if (typeof rest[0] === 'string' && options.includes(rest[0])) {
+                    name = rest[0];
+                } else if (typeof rest[0] === 'number') {
+                    name = options[Math.round(rest[0])] ?? null;
+                }
+                if (name === null) break;
+                this.forVoices(n, (i) => OvertoneSignalActions.setSequencerShape(i, name));
+                break;
+            }
+            case 'seqstretch': {
+                // /twig/seqstretch/<n> [cycles 1/64 – 64] — shape period
+                const [n, rest] = perVoiceArgs(sub, args);
+                if (n === null || rest[0] === undefined) break;
+                this.forVoices(n, (i) => OvertoneSignalActions.setSequencerStretch(i, Number(rest[0]) || 1));
+                break;
+            }
+            case 'seqgain':
+            case 'seqfreq':
+            case 'seqres': {
+                // /twig/seq<target>/<n> [amount] — modulation depths
+                const [n, rest] = perVoiceArgs(sub, args);
+                if (n === null || rest[0] === undefined) break;
+                const target = SEQ_AMOUNT_TARGETS[command];
+                this.forVoices(n, (i) => OvertoneSignalActions.setSequencerAmount(i, target, Number(rest[0]) || 0));
+                break;
+            }
+            case 'pulsemidi':
+            case 'pulseosc': {
+                // /twig/pulsemidi/<n> [0|1] — per-voice pulse outputs
+                const [n, rest] = perVoiceArgs(sub, args);
+                if (n === null || rest[0] === undefined) break;
+                const flag = { [command === 'pulsemidi' ? 'midi' : 'osc']: Boolean(Number(rest[0])) };
+                this.forVoices(n, (i) => {
+                    AppState.oscillatorPulseOuts[i] = {
+                        midi: false, osc: false,
+                        ...AppState.oscillatorPulseOuts[i],
+                        ...flag,
+                    };
+                    updateHarmonicPulse(i);
+                });
+                break;
+            }
+            case 'midiclock': {
+                // /twig/midiclock [n] — 1-based voice as MIDI clock source;
+                // 0 clears. Exclusive by definition.
+                const n = Math.round(args[0]);
+                if (!Number.isFinite(n)) break;
+                const previous = AppState.midiClockVoice;
+                AppState.midiClockVoice = n >= 1 ? n - 1 : null;
+                if (previous !== null) updateHarmonicPulse(previous);
+                if (AppState.midiClockVoice !== null) updateHarmonicPulse(AppState.midiClockVoice);
+                break;
+            }
             case 'setdrawbarfundamental': {
                 // 1-based like the drawbar messages; out of range is a no-op
                 const n = Math.round(args[0]);
@@ -342,6 +408,19 @@ export class OscClient {
                 DrawbarsActions.randomize();
                 break;
         }
+    }
+
+    /** True while the bridge socket is open (drives modal availability labels). */
+    isConnected() {
+        return Boolean(this.ws && this.ws.readyState === WebSocket.OPEN);
+    }
+
+    /**
+     * Relay a voice pulse upstream: /twig/pulse/<n> [cycle, gateOn].
+     * Not part of the cached state — pulses are events, not settings.
+     */
+    emitPulse(index, pulse) {
+        this.emit(`pulse/${index + 1}`, [pulse.cycle, pulse.gateOn ? 1 : 0]);
     }
 
     /**
@@ -406,7 +485,20 @@ export class OscClient {
             const { index, kind } = e.detail || {};
             if (index === undefined) return;
             const n = index + 1;
-            if (kind === 'gate') {
+            if (kind === 'seq') {
+                const seq = OvertoneSignalActions.getSequencer(index);
+                this.emit(`seqshape/${n}`, [seq.shape]);
+                this.emit(`seqstretch/${n}`, [seq.stretch]);
+                this.emit(`seqgain/${n}`, [seq.amounts.gain]);
+                this.emit(`seqfreq/${n}`, [seq.amounts.freq]);
+                this.emit(`seqres/${n}`, [seq.amounts.res]);
+            } else if (kind === 'pulse') {
+                const out = AppState.oscillatorPulseOuts[index] || {};
+                this.emit(`pulsemidi/${n}`, [out.midi ? 1 : 0]);
+                this.emit(`pulseosc/${n}`, [out.osc ? 1 : 0]);
+            } else if (kind === 'clock') {
+                this.emit('midiclock', [AppState.midiClockVoice === null ? 0 : AppState.midiClockVoice + 1]);
+            } else if (kind === 'gate') {
                 const g = AppState.oscillatorGates[index] || { mode: 0 };
                 this.emit(`gate/${n}`, g.mode === 4
                     ? [4, (g.seq || []).join('')]

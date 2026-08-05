@@ -55,9 +55,15 @@ const log = (msg) => (Max ? Max.post(msg) : console.log(msg));
 // tracks upstream app gestures, so a jweb reload restores the latest state.
 const STATE_ORDER = [
     'system', 'waveform', 'subharmonic', 'note', 'freq',
-    'gain', 'slew', 'drawbars', 'drawbar', 'gate', 'filter', 'pan', 'play'
+    'gain', 'slew', 'drawbars', 'drawbar', 'gate', 'filter', 'pan',
+    'seqshape', 'seqgain', 'seqfreq', 'seqres', 'seqstretch',
+    'pulsemidi', 'pulseosc', 'midiclock', 'play'
 ];
-const PER_INDEX_COMMANDS = new Set(['drawbar', 'gate', 'filter', 'pan']);
+const PER_INDEX_COMMANDS = new Set([
+    'drawbar', 'gate', 'filter', 'pan',
+    'seqshape', 'seqgain', 'seqfreq', 'seqres', 'seqstretch',
+    'pulsemidi', 'pulseosc'
+]);
 const TRANSIENT_COMMANDS = new Set(['reset', 'randomize', 'setdrawbarfundamental']);
 const stateCache = new Map(); // cache key → {address, args}
 
@@ -171,7 +177,9 @@ if (Max) {
     const APP_COMMANDS = [
         'drawbar', 'drawbars', 'gain', 'slew', 'note', 'freq',
         'system', 'waveform', 'subharmonic', 'play', 'reset', 'randomize',
-        'setdrawbarfundamental', 'gate', 'filter', 'pan'
+        'setdrawbarfundamental', 'gate', 'filter', 'pan',
+        'seqshape', 'seqgain', 'seqfreq', 'seqres', 'seqstretch',
+        'pulsemidi', 'pulseosc', 'midiclock'
     ];
     for (const cmd of APP_COMMANDS) {
         Max.addHandler(cmd, (...args) => {

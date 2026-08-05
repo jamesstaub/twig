@@ -41,7 +41,7 @@
  * Refactored to use modular DSP classes with period multiplier support
  */
 
-import { AppState, updateAppState, WAVETABLE_SIZE } from './config.js';
+import { AppState, midiConfig, updateAppState, WAVETABLE_SIZE } from './config.js';
 import { calculateFrequency, generateFilenameParts, getVoicePan } from './utils.js';
 
 import { AudioEngine, WavetableManager, WAVExporter } from './dsp/index.js';
@@ -53,6 +53,14 @@ import { showStatus } from './domUtils.js';
 
 let audioEngine = null;
 let wavetableManager = null;
+
+// Pulse consumer (the pulse bus) — registered before the engine exists,
+// attached when initAudio constructs it
+let pulseHandler = null;
+export function setPulseHandler(fn) {
+    pulseHandler = fn;
+    if (audioEngine) audioEngine.onPulse = fn;
+}
 
 // Routing mode: 'mono', 'stereo', 'multichannel' (default: mono) for WAV export only
 export function setDownloadRoutingMode(mode) {
@@ -83,6 +91,9 @@ export async function initAudio() {
 
         // Initialize the audio engine with oscillator-only synthesis
         await audioEngine.initialize(AppState.masterGainValue);
+
+        // Voice cycle pulses → pulse bus
+        audioEngine.onPulse = pulseHandler;
 
         // Store references for compatibility
         AppState.audioContext = audioEngine.getContext();
@@ -205,6 +216,8 @@ function createHarmonicOscillator(i, ratio, gain) {
             cutoff: harmonicFilterCutoff(i, frequency),
             q: AppState.oscillatorFilters[i]?.q,
         },
+        pulseOut: harmonicPulseEnabled(i),
+        sequencer: harmonicSequencerPayload(i),
     });
     const oscKey = `harmonic_${i}`;
     audioEngine.addOscillator(oscKey, oscData);
@@ -322,6 +335,84 @@ export function harmonicFilterCutoff(index, frequency) {
     return Math.min(20000, Math.max(10, base * filterPartialRatio(multiplier)));
 }
 
+// Shape names → worklet shape indices (5 = custom table)
+const SHAPE_INDICES = { square: 0, sine: 1, triangle: 2, sawtooth: 3 };
+
+/**
+ * Resolve a sequencer config into the engine payload: shape index, amounts,
+ * custom 0-1 contour table when the shape is a custom waveform, and the
+ * cutoff-CV curve (extended ratio table + the filter's base partial index).
+ */
+function harmonicSequencerPayload(index) {
+    const seq = AppState.oscillatorSequencers[index] || {};
+    const shapeName = seq.shape || 'square';
+    let shape = SHAPE_INDICES[shapeName];
+    let table;
+    if (shape === undefined) {
+        // Custom waveform: bake its cycle into a min-max-normalized 0-1 table
+        shape = 5;
+        const coeffs = AppState.customWaveCoefficients?.[shapeName];
+        if (coeffs) {
+            const raw = precomputeWavetableFromCoefficients(coeffs, 512);
+            let min = Infinity, max = -Infinity;
+            for (const v of raw) { if (v < min) min = v; if (v > max) max = v; }
+            const span = max - min || 1;
+            table = Float32Array.from(raw, (v) => (v - min) / span);
+        } else {
+            shape = 0; // unknown custom name — fall back to the hard gate
+        }
+    }
+    return {
+        shape,
+        stretch: seq.stretch || 1,
+        amounts: { gain: 1, freq: 0, res: 0, ...seq.amounts },
+        ...(table !== undefined ? { table } : {}),
+        config: {
+            ratios: Array.from({ length: MAX_FILTER_PARTIALS }, (_, k) => filterPartialRatio(k + 1)),
+            baseStep: AppState.oscillatorFilters[index]?.multiplier || 0,
+        },
+    };
+}
+
+/**
+ * Apply the sequencer config for one harmonic to its running voice.
+ */
+export function updateHarmonicSequencer(index) {
+    if (!AppState.isPlaying || !audioEngine) return;
+    const node = AppState.oscillators[index];
+    if (node && node.key) {
+        audioEngine.updateOscillatorSequencer(node.key, harmonicSequencerPayload(index));
+    }
+}
+
+/** True when any pulse consumer (MIDI, OSC, clock) wants this voice's cycles. */
+export function harmonicPulseEnabled(index) {
+    const out = AppState.oscillatorPulseOuts[index];
+    return Boolean(
+        (out?.midi ?? midiConfig.pulseMidiEnabled) ||
+        (out?.osc ?? midiConfig.pulseOscEnabled) ||
+        AppState.midiClockVoice === index
+    );
+}
+
+/** Re-evaluate pulse emission for every voice (after a global toggle). */
+export function updateAllHarmonicPulses() {
+    for (let i = 0; i < AppState.currentSystem.ratios.length; i++) {
+        updateHarmonicPulse(i);
+    }
+}
+
+/**
+ * Apply the pulse-output enable for one harmonic to its running voice.
+ */
+export function updateHarmonicPulse(index) {
+    if (!AppState.isPlaying || !audioEngine) return;
+    const node = AppState.oscillators[index];
+    if (node && node.key) {
+        audioEngine.updateOscillatorPulse(node.key, harmonicPulseEnabled(index));
+    }
+}
+
 /**
  * Apply the cycle-gate config for one harmonic to its running voice.
  * State-only when not playing — configs land at the next tone start.
@@ -361,6 +452,8 @@ export function updateHarmonicFilter(index) {
             },
             AppState.masterSlewValue
         );
+        // The cutoff-CV curve is anchored on the filter's base step
+        updateHarmonicSequencer(index);
     }
 }
 
@@ -377,9 +470,16 @@ export function updateAudioProperties() {
 /**
  * Updates oscillator parameters with period multiplier frequency correction
  */
+let lastSeqConfigSystem = null;
+
 function updateAudioPropertiesOscillators(rampTime) {
     // Update Master Gain
     audioEngine.updateMasterGain(AppState.masterGainValue, rampTime);
+
+    // A system switch changes the sequencer's cutoff-CV ratio curve —
+    // push it to every voice once per switch (not per parameter tweak)
+    const seqCurveStale = AppState.currentSystem !== lastSeqConfigSystem;
+    lastSeqConfigSystem = AppState.currentSystem;
 
     // Sync the oscillator bank with the current system: systems can have
     // different partial counts, so a switch mid-playback may add partials
@@ -412,6 +512,8 @@ function updateAudioPropertiesOscillators(rampTime) {
                 continue;
             }
         }
+
+        if (seqCurveStale) updateHarmonicSequencer(i);
 
         node.ratio = ratio;
         const baseFreq = calculateFrequency(ratio);

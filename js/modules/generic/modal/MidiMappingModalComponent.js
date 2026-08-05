@@ -1,7 +1,12 @@
 
 import ModalComponent from './ModalComponent.js';
 import { midiConfig } from '../../../config.js';
-import { updateMidiInputChannel, updateMidiDrawbarCC } from '../../../modules/midi/midiConfigActions.js';
+import {
+    updateMidiInputChannel,
+    updateMidiDrawbarCC,
+    updatePulseNote,
+    setPulseOutputEnabled
+} from '../../../modules/midi/midiConfigActions.js';
 
 /**
  * MidiMappingModalComponent
@@ -77,6 +82,70 @@ export default class MidiMappingModalComponent extends ModalComponent {
             drawbarsList.appendChild(ccWrap);
         }
         dialog.appendChild(drawbarsList);
+
+        // --- MIDI Out: pulse outputs ---
+        const outLabel = document.createElement('div');
+        outLabel.textContent = 'Pulse Output:';
+        outLabel.className = 'midi-section-label';
+        dialog.appendChild(outLabel);
+
+        // Global master switches for the two pulse paths
+        const toggles = document.createElement('div');
+        toggles.className = 'midi-pulse-toggles';
+        const addToggle = (text, key, kind) => {
+            const row = document.createElement('div');
+            row.className = 'midi-pulse-toggle-row';
+            const toggle = document.createElement('div');
+            toggle.className = 'toggle-switch midi-pulse-toggle';
+            toggle.setAttribute('role', 'switch');
+            toggle.classList.toggle('active', Boolean(midiConfig[key]));
+            toggle.setAttribute('aria-checked', String(Boolean(midiConfig[key])));
+            toggle.setAttribute('aria-label', text);
+            this.bindEvent(toggle, 'click', () => {
+                const on = !toggle.classList.contains('active');
+                toggle.classList.toggle('active', on);
+                toggle.setAttribute('aria-checked', String(on));
+                setPulseOutputEnabled(kind, on);
+            });
+            const label = document.createElement('span');
+            label.textContent = text;
+            row.append(toggle, label);
+            toggles.appendChild(row);
+        };
+        addToggle('MIDI pulse out', 'pulseMidiEnabled', 'midi');
+        addToggle('OSC pulse out', 'pulseOscEnabled', 'osc');
+        dialog.appendChild(toggles);
+
+        // Per-overtone pulse note numbers (linear 1..N by default)
+        const notesLabel = document.createElement('div');
+        notesLabel.textContent = 'Pulse Note Mapping:';
+        notesLabel.className = 'midi-section-label';
+        dialog.appendChild(notesLabel);
+
+        const notesList = document.createElement('div');
+        notesList.className = 'midi-cc-list';
+        for (let i = 0; i < midiConfig.pulseNotes.length; i++) {
+            const noteWrap = document.createElement('div');
+            noteWrap.className = 'midi-cc-item';
+            const label = document.createElement('label');
+            label.textContent = `O${i + 1}`;
+            const noteInput = document.createElement('input');
+            noteInput.type = 'number';
+            noteInput.min = 0;
+            noteInput.max = 127;
+            noteInput.value = midiConfig.pulseNotes[i];
+            noteInput.className = 'midi-num-input';
+            noteInput.addEventListener('change', (e) => {
+                const val = parseInt(e.target.value, 10);
+                if (val >= 0 && val <= 127) {
+                    updatePulseNote(i, val);
+                }
+            });
+            label.appendChild(noteInput);
+            noteWrap.appendChild(label);
+            notesList.appendChild(noteWrap);
+        }
+        dialog.appendChild(notesList);
 
         // Close button
         const closeBtn = document.createElement('button');

@@ -1,5 +1,5 @@
-import { AppState } from "../../config.js";
-import { updateHarmonicGate, updateHarmonicFilter, updateHarmonicPan } from "../../audio.js";
+import { AppState, midiConfig } from "../../config.js";
+import { updateHarmonicGate, updateHarmonicFilter, updateHarmonicPan, updateHarmonicPulse, updateHarmonicSequencer } from "../../audio.js";
 import { getVoicePan } from "../../utils.js";
 import { OVERTONE_SIGNAL_CHANGED } from "../../events.js";
 
@@ -33,6 +33,78 @@ export const OvertoneSignalActions = {
         AppState.oscillatorFilters[index] = filter;
         updateHarmonicFilter(index);
         this._changed(index, 'filter');
+    },
+
+    getSequencer(index) {
+        const stored = AppState.oscillatorSequencers[index] || {};
+        return {
+            shape: stored.shape || 'square',
+            stretch: stored.stretch || 1,
+            amounts: { gain: 1, freq: 0, res: 0, ...stored.amounts },
+        };
+    },
+
+    /** Shape period in cycles (1/64 – 64, powers of two from the UI). */
+    setSequencerStretch(index, stretch) {
+        const seq = this.getSequencer(index);
+        AppState.oscillatorSequencers[index] = {
+            ...seq,
+            stretch: Math.max(1 / 64, Math.min(64, stretch)),
+        };
+        updateHarmonicSequencer(index);
+        this._changed(index, 'seq');
+    },
+
+    /** Set the cycle contour waveform (same names as the oscillator menu). */
+    setSequencerShape(index, shape) {
+        const seq = this.getSequencer(index);
+        AppState.oscillatorSequencers[index] = { ...seq, shape };
+        updateHarmonicSequencer(index);
+        this._changed(index, 'seq');
+    },
+
+    /** Set a modulation amount: target 'gain' | 'freq' | 'res'. */
+    setSequencerAmount(index, target, value) {
+        const seq = this.getSequencer(index);
+        const clamped = target === 'freq'
+            ? Math.max(-1, Math.min(1, value))
+            : Math.max(0, Math.min(1, value));
+        AppState.oscillatorSequencers[index] = {
+            ...seq,
+            amounts: { ...seq.amounts, [target]: clamped },
+        };
+        updateHarmonicSequencer(index);
+        this._changed(index, 'seq');
+    },
+
+    getPulseOut(index) {
+        // Voices without an explicit setting inherit the global defaults
+        // (both on); the global toggles bulk-overwrite per-voice values,
+        // so the two stay in sync
+        return {
+            midi: midiConfig.pulseMidiEnabled,
+            osc: midiConfig.pulseOscEnabled,
+            ...AppState.oscillatorPulseOuts[index],
+        };
+    },
+
+    /** Merge pulse-output flags for a voice: { midi?, osc? }. */
+    setPulseOut(index, flags) {
+        AppState.oscillatorPulseOuts[index] = { ...this.getPulseOut(index), ...flags };
+        updateHarmonicPulse(index);
+        this._changed(index, 'pulse');
+    },
+
+    /**
+     * Assign a voice as the MIDI clock source (exclusive), or clear with
+     * null. The previous clock voice's pulse enable is re-evaluated.
+     */
+    setMidiClockVoice(index) {
+        const previous = AppState.midiClockVoice;
+        AppState.midiClockVoice = index;
+        if (previous !== null && previous !== index) updateHarmonicPulse(previous);
+        if (index !== null) updateHarmonicPulse(index);
+        this._changed(index ?? previous ?? 0, 'clock');
     },
 
     setPan(index, pan) {

@@ -138,3 +138,139 @@
     flex: 1;
     accent-color: var(--accent-primary);
 }
+
+/* ---- Pulse outputs section ---- */
+
+/* Full-width row beneath the three columns */
+.signal-section-wide {
+    flex: 1 1 100%;
+}
+
+.signal-pulse-rows {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 2rem;
+}
+
+.signal-pulse-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.signal-pulse-row-disabled {
+    opacity: 0.45;
+    pointer-events: none;
+}
+
+/* Compact toggle for the pulse rows */
+.signal-pulse-toggle {
+    min-width: 38px;
+    height: 22px;
+}
+
+.signal-pulse-toggle::before {
+    width: 16px;
+    height: 16px;
+}
+
+.signal-pulse-toggle.active::before {
+    transform: translateX(16px);
+}
+
+.signal-pulse-label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    white-space: nowrap;
+}
+
+.signal-pulse-detail {
+    font-size: 0.7rem;
+    color: var(--text-accent);
+    font-family: monospace;
+}
+
+.signal-pulse-warning {
+    font-size: 0.7rem;
+    color: var(--status-warning);
+}
+
+/* ---- Sequence: shape + targets ---- */
+
+.signal-shape {
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+    margin-top: 0.5rem;
+}
+
+.signal-shape-preview {
+    width: 100%;
+    height: 44px;
+    border-radius: 0.25rem;
+}
+
+.signal-targets {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    margin-top: 0.5rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid var(--border-subtle);
+}
+
+.signal-targets-heading {
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: var(--text-label);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.signal-target-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.signal-target-label {
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+    width: 5em;
+    flex-shrink: 0;
+}
+
+.signal-target-slider {
+    flex: 1;
+    min-width: 0;
+    accent-color: var(--accent-primary);
+}
+
+.signal-target-value {
+    font-size: 0.7rem;
+    color: var(--text-accent);
+    min-width: 3em;
+    text-align: right;
+    font-family: monospace;
+}
+
+.signal-stretch-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+}
+
+.signal-stretch-btn {
+    padding: 0 0.5rem;
+    font-size: 0.75rem;
+}
+
+.signal-stretch-label {
+    font-size: 0.75rem;
+    color: var(--text-accent);
+    font-family: monospace;
+    min-width: 2.5em;
+    text-align: center;
+}

@@ -3,7 +3,7 @@
  * Contains UI event handlers, DOM manipulation, and interface logic
  */
 
-import { AppState, updateAppState } from './config.js';
+import { AppState, midiConfig, updateAppState } from './config.js';
 import { MASTER_SLEW_CHANGED } from './events.js';
 import { updateText, updateValue } from './domUtils.js';
 import { DrawbarsController } from './modules/drawbars/drawbarsController.js';
@@ -22,6 +22,9 @@ import { openModal, closeModal } from './modules/generic/modal/modalActions.js';
 import { PlayToggleController } from './modules/playToggle/playToggleController.js';
 import { WaveformSelectorController } from './modules/waveformSelector/waveformSelectorController.js';
 import { oscClient, oscEnabled } from './modules/osc/oscClient.js';
+import { pulseBus } from './modules/pulse/pulseBus.js';
+import { midiOutputRouter } from './modules/midi/midiOutputRouter.js';
+import { setPulseHandler } from './audio.js';
 // ================================
 // INITIALIZATION
 // ================================
@@ -87,10 +90,27 @@ export function initUI() {
         oscClient.init();
     }
 
+    setupPulseOutputs();
+
     setTimeout(() => {
         // if midi is firing while the components are still rendering it breaks the p5 sketch :-/
         new MidiInputRouter().init();
+        midiOutputRouter.init(); // no-op where Web MIDI is unavailable (jweb)
     }, 2000);
+}
+
+/**
+ * Voice cycle pulses (gate worklets) → pulse bus → MIDI / OSC / JS.
+ * OSC relay sends only audible (gate-open) cycles, matching what you hear.
+ */
+function setupPulseOutputs() {
+    setPulseHandler((key, pulse) => pulseBus.dispatch(key, pulse));
+    pulseBus.addSink((index, pulse) => {
+        const oscOn = AppState.oscillatorPulseOuts[index]?.osc ?? midiConfig.pulseOscEnabled;
+        if (oscOn && pulse.gateOn) {
+            oscClient.emitPulse(index, pulse);
+        }
+    });
 }
 
 function setupDrawbars() {

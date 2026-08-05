@@ -3,7 +3,133 @@ import { AppState } from '../../../config.js';
 import { calculateFrequency } from '../../../utils.js';
 import { harmonicFilterCutoff, MAX_FILTER_PARTIALS } from '../../../audio.js';
 import { OvertoneSignalActions } from '../../overtoneSignal/overtoneSignalActions.js';
+import { MidiOutputRouter, midiOutputRouter } from '../../midi/midiOutputRouter.js';
+import { oscClient } from '../../osc/oscClient.js';
 import { showStatus } from '../../../domUtils.js';
+import { themeColor } from '../../../theme.js';
+import { getWaveValue } from '../../tonewheel/tonewheelActions.js';
+
+const PULSE_MAX_HZ = 50; // mirrors the cap in gate-processor.js
+
+/**
+ * Unipolar (0-1) cycle contour for a shape name — mirrors shapeValue() in
+ * gate-processor.js. Custom waveforms are min-max normalized like the
+ * table the worklet receives.
+ */
+function shapeContour(shapeName, phase) {
+    switch (shapeName) {
+        case 'sine': return (1 - Math.cos(2 * Math.PI * phase)) / 2;
+        case 'triangle': return 1 - Math.abs(2 * phase - 1);
+        case 'sawtooth': return 1 - phase;
+        case 'square': return 1;
+        default: return null; // custom — sampled separately
+    }
+}
+
+/** Pattern activity for one cycle — mirrors gateForCycle in the worklet
+ *  (probability is depicted as all-active; randomness can't be drawn). */
+function previewPattern(gate, cycles) {
+    switch (gate.mode) {
+        case 1: {
+            const period = Math.max(1, Math.round(gate.x) + Math.round(gate.y));
+            return Array.from({ length: cycles }, (_, c) => (c % period) < Math.round(gate.x));
+        }
+        case 2: {
+            const steps = Math.max(1, Math.round(gate.y));
+            const pulses = Math.min(Math.round(gate.x), steps);
+            const pat = [];
+            let bucket = 0;
+            for (let i = 0; i < steps; i++) {
+                bucket += pulses;
+                if (bucket >= steps) { bucket -= steps; pat.push(true); } else pat.push(false);
+            }
+            return Array.from({ length: cycles }, (_, c) => pat[c % steps]);
+        }
+        case 4: {
+            const seq = gate.seq || [];
+            if (!seq.length) return Array.from({ length: cycles }, () => true);
+            return Array.from({ length: cycles }, (_, c) => seq[c % seq.length] > 0.5);
+        }
+        default: // off and probability
+            return Array.from({ length: cycles }, () => true);
+    }
+}
+
+/** Cycles the preview spans: the full pattern period and the full shape period. */
+function previewCycleCount(gate, stretch) {
+    let period = 1;
+    if (gate.mode === 1) period = Math.max(1, Math.round(gate.x) + Math.round(gate.y));
+    else if (gate.mode === 2) period = Math.max(1, Math.round(gate.y));
+    else if (gate.mode === 4) period = Math.max(1, (gate.seq || []).length || 1);
+    return Math.min(32, Math.max(period, Math.ceil(stretch), 1));
+}
+
+/**
+ * Draw the full sequence — pattern × shape × stretch — in the app's viz
+ * style, exactly the control signal the worklet produces (sans declick).
+ */
+function drawSequencePreview(canvas, index) {
+    const gate = OvertoneSignalActions.getGate(index);
+    const seq = OvertoneSignalActions.getSequencer(index);
+    const ctx = canvas.getContext('2d');
+    const { width: w, height: h } = canvas;
+    const pad = 4;
+
+    ctx.fillStyle = themeColor('--viz-bg');
+    ctx.fillRect(0, 0, w, h);
+
+    const cycles = previewCycleCount(gate, seq.stretch);
+    const active = previewPattern(gate, cycles);
+
+    // Cycle boundaries as faint gridlines
+    ctx.strokeStyle = themeColor('--viz-grid');
+    ctx.lineWidth = 1;
+    for (let c = 1; c < cycles; c++) {
+        const x = Math.round((c / cycles) * w) + 0.5;
+        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
+    }
+    ctx.strokeRect(0.5, 0.5, w - 1, h - 1);
+
+    // Custom shape: sample one period, min-max normalized like the worklet table
+    let table = null;
+    if (shapeContour(seq.shape, 0) === null) {
+        const coeffs = AppState.customWaveCoefficients?.[seq.shape];
+        if (coeffs) {
+            const raw = [];
+            for (let i = 0; i < 256; i++) {
+                raw.push(getWaveValue(seq.shape, (i / 256) * 2 * Math.PI, coeffs));
+            }
+            const min = Math.min(...raw);
+            const span = (Math.max(...raw) - min) || 1;
+            table = raw.map((v) => (v - min) / span);
+        }
+    }
+    const shapeAt = (phase) => {
+        if (table) {
+            const pos = phase * table.length;
+            const i0 = Math.floor(pos) % table.length;
+            const i1 = (i0 + 1) % table.length;
+            return table[i0] + (table[i1] - table[i0]) * (pos - i0);
+        }
+        return shapeContour(seq.shape, phase) ?? 1;
+    };
+
+    ctx.strokeStyle = themeColor('--viz-trace');
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    for (let i = 0; i <= w; i++) {
+        const t = (i / w) * cycles;
+        const c = Math.min(cycles - 1, Math.floor(t));
+        const phase = t - c;
+        const s = gate.mode === 0
+            ? 1
+            : (active[c] ? shapeAt(((c + phase) / seq.stretch) % 1) : 0);
+        const y = pad + (1 - s) * (h - 2 * pad);
+        if (i === 0) ctx.moveTo(i, y);
+        else ctx.lineTo(i, y);
+    }
+    ctx.stroke();
+}
 
 function formatHz(hz) {
     return hz >= 1000 ? `${(hz / 1000).toFixed(2)} kHz` : `${Math.round(hz)} Hz`;
@@ -59,7 +185,106 @@ export default class OvertoneSignalModalComponent extends ModalComponent {
         );
         root.appendChild(sections);
 
+        root.appendChild(this.buildPulseSection(index));
+
         return root;
+    }
+
+    // ---------------------------------------------------------------
+    // Pulse outputs (MIDI / OSC / clock)
+    // ---------------------------------------------------------------
+
+    buildPulseSection(index) {
+        const el = this.section('Pulse Out');
+        el.classList.add('signal-section-wide');
+
+        const voiceFreq = calculateFrequency(AppState.currentSystem.ratios[index]);
+        const rows = document.createElement('div');
+        rows.className = 'signal-pulse-rows';
+        el.appendChild(rows);
+
+        // One MIDI note-on/off blip per audible cycle
+        const note = MidiOutputRouter.noteForVoice(index);
+        const midiAvailable = midiOutputRouter.available;
+        rows.appendChild(this.pulseRow({
+            text: 'MIDI out',
+            detail: `note ${note} · ch 1${midiAvailable ? '' : ' · no output available'}`,
+            enabled: midiAvailable,
+            value: OvertoneSignalActions.getPulseOut(index).midi,
+            onToggle: (on) => OvertoneSignalActions.setPulseOut(index, { midi: on }),
+        }));
+
+        // One /twig/pulse message per audible cycle, into the Max patch
+        const oscAvailable = oscClient.isConnected();
+        rows.appendChild(this.pulseRow({
+            text: 'OSC out',
+            detail: oscAvailable ? `pulse ${index + 1} <cycle> <gate>` : 'bridge offline',
+            enabled: oscAvailable,
+            value: OvertoneSignalActions.getPulseOut(index).osc,
+            onToggle: (on) => OvertoneSignalActions.setPulseOut(index, { osc: on }),
+        }));
+
+        // Exclusive: one voice may drive the MIDI clock (24 ticks/cycle)
+        const clockDetail = () => {
+            const c = AppState.midiClockVoice;
+            if (c === index) return '24 ppq · this voice is the clock';
+            if (c !== null) return `currently overtone ${c + 1}`;
+            return '24 ticks per cycle';
+        };
+        const clockRow = this.pulseRow({
+            text: 'MIDI clock source',
+            detail: clockDetail(),
+            enabled: midiOutputRouter.available,
+            value: AppState.midiClockVoice === index,
+            onToggle: (on) => {
+                OvertoneSignalActions.setMidiClockVoice(on ? index : null);
+                if (!on) midiOutputRouter.stopClock();
+                clockRow.querySelector('.signal-pulse-detail').textContent = clockDetail();
+            },
+        });
+        rows.appendChild(clockRow);
+
+        if (voiceFreq > PULSE_MAX_HZ) {
+            const warn = document.createElement('div');
+            warn.className = 'signal-pulse-warning';
+            warn.textContent = `pulses pause above ${PULSE_MAX_HZ} Hz — this voice is at ${Math.round(voiceFreq)} Hz`;
+            el.appendChild(warn);
+        }
+
+        return el;
+    }
+
+    /** Row: [toggle] label — detail. Returns the row element. */
+    pulseRow({ text, detail, enabled, value, onToggle }) {
+        const row = document.createElement('div');
+        row.className = 'signal-pulse-row';
+        if (!enabled) row.classList.add('signal-pulse-row-disabled');
+
+        const toggle = document.createElement('div');
+        toggle.className = 'toggle-switch signal-pulse-toggle';
+        toggle.setAttribute('role', 'switch');
+        toggle.classList.toggle('active', Boolean(value));
+        toggle.setAttribute('aria-checked', String(Boolean(value)));
+        toggle.setAttribute('aria-label', text);
+        if (enabled) {
+            toggle.addEventListener('click', () => {
+                const on = !toggle.classList.contains('active');
+                toggle.classList.toggle('active', on);
+                toggle.setAttribute('aria-checked', String(on));
+                onToggle(on);
+            });
+        }
+
+        const label = document.createElement('span');
+        label.className = 'signal-pulse-label';
+        label.textContent = text;
+
+        const detailEl = document.createElement('span');
+        detailEl.className = 'signal-pulse-detail';
+        detailEl.textContent = detail;
+
+        row.append(toggle, label, detailEl);
+        return row;
     }
 
     /**
@@ -142,9 +367,12 @@ export default class OvertoneSignalModalComponent extends ModalComponent {
     // ---------------------------------------------------------------
 
     buildGateSection(index) {
-        const el = this.section('Gate');
+        const el = this.section('Sequence');
         const gate = OvertoneSignalActions.getGate(index);
-        const apply = () => OvertoneSignalActions.setGate(index, { ...gate });
+        const apply = () => {
+            OvertoneSignalActions.setGate(index, { ...gate });
+            this._redrawSeqPreview?.();
+        };
 
         const select = document.createElement('select');
         select.className = 'control-select';
@@ -211,7 +439,117 @@ export default class OvertoneSignalModalComponent extends ModalComponent {
         });
         renderParams();
 
+        el.appendChild(this.buildShapeControls(index));
+        el.appendChild(this.buildTargetControls(index));
+
         return el;
+    }
+
+    /** Cycle contour: waveform selector (same options as the oscillator menu) + preview. */
+    buildShapeControls(index) {
+        const wrap = document.createElement('div');
+        wrap.className = 'signal-shape';
+
+        const seq = OvertoneSignalActions.getSequencer(index);
+
+        const select = document.createElement('select');
+        select.className = 'control-select';
+        const source = document.getElementById('waveform-select');
+        const options = source ? Array.from(source.options) : [];
+        for (const opt of options) {
+            const o = document.createElement('option');
+            o.value = opt.value;
+            o.textContent = opt.textContent;
+            if (opt.value === seq.shape) o.selected = true;
+            select.appendChild(o);
+        }
+        wrap.appendChild(select);
+
+        const canvas = document.createElement('canvas');
+        canvas.className = 'signal-shape-preview';
+        canvas.width = 220;
+        canvas.height = 44;
+        wrap.appendChild(canvas);
+
+        // Redraw is shared: gate mode/param edits re-trigger it too
+        const draw = () => drawSequencePreview(canvas, index);
+        this._redrawSeqPreview = draw;
+
+        select.addEventListener('change', () => {
+            OvertoneSignalActions.setSequencerShape(index, select.value);
+            draw();
+        });
+
+        // Sequence length: stretch the shape over N cycles (powers of two).
+        // Lets a complex custom waveform modulate slowly instead of wobbling
+        // once per cycle.
+        const lenRow = document.createElement('div');
+        lenRow.className = 'signal-stretch-row';
+        const lenLabel = document.createElement('span');
+        lenLabel.className = 'signal-stretch-label';
+        const fmt = (v) => (v >= 1 ? `×${v}` : `÷${1 / v}`);
+        lenLabel.textContent = fmt(OvertoneSignalActions.getSequencer(index).stretch);
+        const mkBtn = (text, factor) => {
+            const b = document.createElement('button');
+            b.type = 'button';
+            b.className = 'action-btn signal-stretch-btn';
+            b.textContent = text;
+            b.addEventListener('click', () => {
+                const current = OvertoneSignalActions.getSequencer(index).stretch;
+                OvertoneSignalActions.setSequencerStretch(index, current * factor);
+                lenLabel.textContent = fmt(OvertoneSignalActions.getSequencer(index).stretch);
+                draw();
+            });
+            return b;
+        };
+        lenRow.append(mkBtn('÷2', 0.5), lenLabel, mkBtn('×2', 2));
+        wrap.appendChild(lenRow);
+
+        draw();
+        return wrap;
+    }
+
+    /** Modulation targets: amount sliders for gain / filter freq / resonance. */
+    buildTargetControls(index) {
+        const wrap = document.createElement('div');
+        wrap.className = 'signal-targets';
+
+        const heading = document.createElement('div');
+        heading.className = 'signal-targets-heading';
+        heading.textContent = 'Target';
+        wrap.appendChild(heading);
+
+        const seq = OvertoneSignalActions.getSequencer(index);
+        const addAmount = (target, labelText, min, max) => {
+            const row = document.createElement('label');
+            row.className = 'signal-target-row';
+            const label = document.createElement('span');
+            label.className = 'signal-target-label';
+            label.textContent = labelText;
+            const input = document.createElement('input');
+            input.type = 'range';
+            input.min = min;
+            input.max = max;
+            input.step = 0.01;
+            input.value = seq.amounts[target];
+            input.className = 'signal-target-slider';
+            const value = document.createElement('span');
+            value.className = 'signal-target-value';
+            value.textContent = (+seq.amounts[target]).toFixed(2);
+            input.addEventListener('input', () => {
+                const v = parseFloat(input.value);
+                OvertoneSignalActions.setSequencerAmount(index, target, v);
+                value.textContent = v.toFixed(2);
+            });
+            row.append(label, input, value);
+            wrap.appendChild(row);
+        };
+
+        addAmount('gain', 'gain', 0, 1);
+        addAmount('freq', 'filter freq', -1, 1);
+        addAmount('res', 'resonance', 0, 1);
+
+        return wrap;
     }
 
     // ---------------------------------------------------------------
