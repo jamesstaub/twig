@@ -37,6 +37,9 @@
  *                                 clearing 20 Hz) — an overtone series
  *                                 within the overtone series. Tracks
  *                                 fundamental glides. mult <= 0 opens.
+ *   /twig/drive/<n> [f 0-5]       per-overtone overdrive (tanh saturation)
+ *                                 before the filter (n=0 → all); 0 = clean,
+ *                                 1 = full saturation, 5 = hard clip
  *
  * Instance targeting (optional, shared-server setups only): insert an id
  * segment after /twig — /twig/<id>/drawbar/3 — matching this page's
@@ -51,7 +54,7 @@
 
 import { AppState, updateAppState } from "../../config.js";
 import { updateHarmonicPulse } from "../../audio.js";
-import { OvertoneSignalActions, Q_MAX } from "../overtoneSignal/overtoneSignalActions.js";
+import { OvertoneSignalActions, Q_MAX, DRIVE_MAX } from "../overtoneSignal/overtoneSignalActions.js";
 import { getVoicePan } from "../../utils.js";
 import { DrawbarsActions } from "../drawbars/drawbarsActions.js";
 import { SpectralSystemActions } from "../spectralSystem/spectralSystemActions.js";
@@ -75,7 +78,7 @@ import {
 const COMMANDS = new Set([
     'drawbar', 'drawbars', 'gain', 'slew', 'note', 'freq',
     'system', 'waveform', 'subharmonic', 'play', 'reset', 'randomize',
-    'setdrawbarfundamental', 'gate', 'filter', 'pan',
+    'setdrawbarfundamental', 'gate', 'filter', 'drive', 'pan',
     'pulsemidi', 'pulseosc', 'midiclock',
     'seqshape', 'seqgain', 'seqfreq', 'seqres', 'seqstretch'
 ]);
@@ -319,6 +322,14 @@ export class OscClient {
                 }));
                 break;
             }
+            case 'drive': {
+                // /twig/drive/<n> [0..5] or /twig/drive [n, v]; n = 0 → all
+                const [n, rest] = perVoiceArgs(sub, args);
+                if (n === null || rest[0] === undefined) break;
+                const v = Math.max(0, Math.min(DRIVE_MAX, Number(rest[0]) || 0));
+                this.forVoices(n, (i) => OvertoneSignalActions.setDrive(i, v));
+                break;
+            }
             case 'pan': {
                 // /twig/pan/<n> [-1..1] or /twig/pan [n, v]; n = 0 → all
                 const [n, rest] = perVoiceArgs(sub, args);
@@ -503,6 +514,8 @@ export class OscClient {
             } else if (kind === 'filter') {
                 const f = AppState.oscillatorFilters[index] || {};
                 this.emit(`filter/${n}`, [f.multiplier ?? 0, f.q ?? 0.707]);
+            } else if (kind === 'drive') {
+                this.emit(`drive/${n}`, [OvertoneSignalActions.getDrive(index)]);
             } else if (kind === 'pan') {
                 this.emit(`pan/${n}`, [getVoicePan(index)]);
             }

@@ -133,7 +133,10 @@ export default class MidiMappingModalComponent extends ModalComponent {
         title.className = 'midi-modal-title';
         dialog.appendChild(title);
 
-        // --- Input / Output setting cards side by side ---
+        // All sections share one flow container: on desktop the input/output
+        // cards sit side by side with the mapping tables wrapping to full-
+        // width rows beneath; the embed layout flows everything into a
+        // single horizontal band instead.
         const cards = document.createElement('div');
         cards.className = 'midi-sections-row';
 
@@ -155,17 +158,12 @@ export default class MidiMappingModalComponent extends ModalComponent {
             this.toggleRow('OSC pulse out', 'pulseOscEnabled', 'osc'),
         );
 
-        cards.append(input, output);
-        dialog.appendChild(cards);
-
-        // --- Mapping tables ---
         const ccSection = this.section('Drawbar CC Mapping', true);
         ccSection.appendChild(this.mappingTable(
             midiConfig.drawbarsCC.map((_, i) => `D${i + 1}`),
             midiConfig.drawbarsCC,
             updateMidiDrawbarCC,
         ));
-        dialog.appendChild(ccSection);
 
         const notesSection = this.section('Pulse Note Mapping', true);
         notesSection.appendChild(this.mappingTable(
@@ -173,7 +171,9 @@ export default class MidiMappingModalComponent extends ModalComponent {
             midiConfig.pulseNotes,
             updatePulseNote,
         ));
-        dialog.appendChild(notesSection);
+
+        cards.append(input, output, ccSection, notesSection);
+        dialog.appendChild(cards);
 
         const closeBtn = document.createElement('button');
         closeBtn.className = 'modal-close-btn';

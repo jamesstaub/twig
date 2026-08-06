@@ -25,13 +25,13 @@
 }
 
 .labeled-control label, .labeled-control span {
-    font-weight: 700;
+    font-weight: 500;
     color: var(--text-label);
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-bottom: 0.25rem;
-    font-size: 0.9rem;
+
 }
 
 /* The Overtone System headline label reads larger and lighter than the

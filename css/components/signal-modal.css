@@ -1,13 +1,21 @@
-/* Per-overtone signal chain editor (gate / filter / pan). */
+/* Per-overtone signal chain editor (gate / filter / drive / pan). */
 
-/* Fixed footprint: the dialog must not resize as gate modes swap their
-   parameter fields in and out */
 .signal-modal {
     display: flex;
     flex-direction: column;
     gap: 0.75rem;
-    width: 42rem;
+    width: 44rem;
     max-width: 100%;
+}
+
+/* Title left, "copy settings to" right — one chrome row instead of two */
+.signal-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    padding-right: 2rem; /* clear the close button */
 }
 
 .signal-copy-row {
@@ -39,14 +47,11 @@
 .signal-modal-sections {
     display: flex;
     flex-wrap: wrap;
-    gap: 1rem;
+    gap: 0.75rem;
     align-items: stretch;
-    min-height: 16rem;
 }
 
 .signal-section {
-    /* Equal thirds regardless of content, so swapping gate params never
-       reflows the neighboring sections */
     flex: 1 1 0;
     min-width: 10rem;
     display: flex;
@@ -56,6 +61,46 @@
     background-color: var(--surface-raised);
     border-radius: 0.5rem;
     box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+/* Section content below the title — a column on desktop; the embed layout
+   flows it into a row instead */
+.signal-section-body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    min-width: 0;
+}
+
+.signal-gate-mode {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+/* Filter + pan stacked: dials need little width, so together they take a
+   single column beside the sequence and pulse sections */
+.signal-side-col {
+    flex: 0 1 11rem;
+    min-width: 9rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.signal-side-col .signal-section {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+/* Narrow (mobile) wrap: filter + pan side by side across the full width
+   instead of a half-empty column */
+@media (max-width: 639px) {
+    .signal-side-col {
+        flex: 1 1 100%;
+        flex-direction: row;
+    }
 }
 
 .signal-section-title {
@@ -96,17 +141,6 @@
     box-sizing: border-box;
 }
 
-.signal-slider-row {
-    display: flex;
-    justify-content: center;
-    gap: 0.5rem;
-}
-
-.signal-vslider {
-    width: 5.5rem;
-    max-width: 100%;
-}
-
 /* Two-line value readout (system label + frequency). Labels vary wildly in
    length ("3:1", "3^(11/13)", "oct.nom") — wrap anywhere rather than clip,
    and reserve two lines so toggling values never reflows the section. */
@@ -121,35 +155,12 @@
     min-height: 2.5em;
 }
 
-.signal-pan-row {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    margin-top: 0.5rem;
-}
-
-.signal-pan-edge {
-    font-size: 0.75rem;
-    font-weight: 700;
-    color: var(--text-secondary);
-}
-
-.signal-pan-slider {
-    flex: 1;
-    accent-color: var(--accent-primary);
-}
-
 /* ---- Pulse outputs section ---- */
-
-/* Full-width row beneath the three columns */
-.signal-section-wide {
-    flex: 1 1 100%;
-}
 
 .signal-pulse-rows {
     display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem 2rem;
+    flex-direction: column;
+    gap: 0.5rem;
 }
 
 .signal-pulse-row {

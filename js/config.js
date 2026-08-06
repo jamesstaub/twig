@@ -328,6 +328,10 @@ export const AppState = {
     oscillatorGates: {},
     oscillatorFilters: {},
 
+    // Per-overtone overdrive before the filter, sparse by index: amount
+    // 0-5 (0 = clean bypass, 1 = full tanh saturation, up to 5 = hard clip).
+    oscillatorDrives: {},
+
     // Per-overtone pulse outputs, sparse objects keyed by partial index:
     // { midi: bool, osc: bool }. Pulses fire once per oscillator cycle
     // (audible-gate cycles only) while the voice is <= 50 Hz.

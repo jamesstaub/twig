@@ -2,7 +2,7 @@ import ModalComponent from './ModalComponent.js';
 import { AppState } from '../../../config.js';
 import { calculateFrequency, formatHz } from '../../../utils.js';
 import { harmonicFilterCutoff, MAX_FILTER_PARTIALS } from '../../../audio.js';
-import { OvertoneSignalActions, Q_MAX } from '../../overtoneSignal/overtoneSignalActions.js';
+import { OvertoneSignalActions, Q_MAX, DRIVE_MAX } from '../../overtoneSignal/overtoneSignalActions.js';
 import { Dial } from '../dial/Dial.js';
 import { MidiOutputRouter, midiOutputRouter } from '../../midi/midiOutputRouter.js';
 import { oscClient } from '../../osc/oscClient.js';
@@ -48,20 +48,22 @@ export default class OvertoneSignalModalComponent extends ModalComponent {
         const title = document.createElement('h2');
         title.className = 'signal-modal-title';
         title.textContent = `Overtone ${index + 1} — ${label} — ${freq.toFixed(freq >= 100 ? 2 : 3)} Hz`;
-        root.appendChild(title);
 
-        root.appendChild(this.buildCopyRow(index));
+        const header = document.createElement('div');
+        header.className = 'signal-modal-header';
+        header.append(title, this.buildCopyRow(index));
+        root.appendChild(header);
+
+        // Filter and pan are dial-sized now — stack them in one column so
+        // the sequence and pulse sections get the width instead
+        const side = document.createElement('div');
+        side.className = 'signal-side-col';
+        side.append(this.buildFilterSection(index), this.buildPanSection(index));
 
         const sections = document.createElement('div');
         sections.className = 'signal-modal-sections';
-        sections.append(
-            this.buildGateSection(index),
-            this.buildFilterSection(index),
-            this.buildPanSection(index)
-        );
+        sections.append(this.buildGateSection(index), side, this.buildPulseSection(index));
         root.appendChild(sections);
-
-        root.appendChild(this.buildPulseSection(index));
 
         return root;
     }
@@ -72,12 +74,11 @@ export default class OvertoneSignalModalComponent extends ModalComponent {
 
     buildPulseSection(index) {
         const el = this.section('Pulse Out');
-        el.classList.add('signal-section-wide');
 
         const voiceFreq = calculateFrequency(AppState.currentSystem.ratios[index]);
         const rows = document.createElement('div');
         rows.className = 'signal-pulse-rows';
-        el.appendChild(rows);
+        el.sectionBody.appendChild(rows);
 
         // One MIDI note-on/off blip per audible cycle
         const note = MidiOutputRouter.noteForVoice(index);
@@ -124,7 +125,7 @@ export default class OvertoneSignalModalComponent extends ModalComponent {
             const warn = document.createElement('div');
             warn.className = 'signal-pulse-warning';
             warn.textContent = `pulses pause above ${PULSE_MAX_HZ} Hz — this voice is at ${Math.round(voiceFreq)} Hz`;
-            el.appendChild(warn);
+            el.sectionBody.appendChild(warn);
         }
 
         return el;
@@ -220,21 +221,30 @@ export default class OvertoneSignalModalComponent extends ModalComponent {
     copySettingsTo(sourceIndex, targets) {
         const gate = OvertoneSignalActions.getGate(sourceIndex);
         const filter = OvertoneSignalActions.getFilter(sourceIndex);
+        const drive = OvertoneSignalActions.getDrive(sourceIndex);
         const pan = OvertoneSignalActions.getPan(sourceIndex);
         for (const t of targets) {
             OvertoneSignalActions.setGate(t, { ...gate, seq: [...(gate.seq || [])] });
             OvertoneSignalActions.setFilter(t, { ...filter });
+            OvertoneSignalActions.setDrive(t, drive);
             OvertoneSignalActions.setPan(t, pan);
         }
     }
 
+    /**
+     * Titled card. Content goes into `.sectionBody` — a column on desktop,
+     * flowed into a row by the embed layout (170px leaves no vertical room).
+     */
     section(titleText) {
         const el = document.createElement('section');
         el.className = 'signal-section';
         const h = document.createElement('h3');
         h.className = 'signal-section-title';
         h.textContent = titleText;
-        el.appendChild(h);
+        const body = document.createElement('div');
+        body.className = 'signal-section-body';
+        el.append(h, body);
+        el.sectionBody = body;
         return el;
     }
 
@@ -259,11 +269,16 @@ export default class OvertoneSignalModalComponent extends ModalComponent {
             if (opt.value === gate.mode) o.selected = true;
             select.appendChild(o);
         }
-        el.appendChild(select);
 
         const params = document.createElement('div');
         params.className = 'signal-gate-params';
-        el.appendChild(params);
+
+        // Mode select + its params as one flow unit, so the embed row
+        // layout keeps them together
+        const modeGroup = document.createElement('div');
+        modeGroup.className = 'signal-gate-mode';
+        modeGroup.append(select, params);
+        el.sectionBody.appendChild(modeGroup);
 
         const renderParams = () => {
             params.innerHTML = '';
@@ -315,8 +330,7 @@ export default class OvertoneSignalModalComponent extends ModalComponent {
         });
         renderParams();
 
-        el.appendChild(this.buildShapeControls(index));
-        el.appendChild(this.buildTargetControls(index));
+        el.sectionBody.append(this.buildShapeControls(index), this.buildTargetControls(index));
 
         return el;
     }
@@ -463,9 +477,18 @@ export default class OvertoneSignalModalComponent extends ModalComponent {
                 dial: { min: 0.1, max: Q_MAX, step: 0.05, value: filter.q },
                 text: () => `Q ${(+filter.q).toFixed(2)}`,
                 onChange: (v) => { filter.q = v; apply(); },
+            }),
+            this.dialColumn({
+                label: 'drive', color: '--accent-positive',
+                dial: { min: 0, max: DRIVE_MAX, step: 0.05, value: OvertoneSignalActions.getDrive(index) },
+                text: () => {
+                    const v = OvertoneSignalActions.getDrive(index);
+                    return v > 0 ? `${Math.round(v * 100)}%` : 'clean';
+                },
+                onChange: (v) => OvertoneSignalActions.setDrive(index, v),
             })
         );
-        el.appendChild(row);
+        el.sectionBody.appendChild(row);
         return el;
     }
 
@@ -521,7 +544,7 @@ export default class OvertoneSignalModalComponent extends ModalComponent {
                 OvertoneSignalActions.setPan(index, v);
             },
         }));
-        el.appendChild(row);
+        el.sectionBody.appendChild(row);
         return el;
     }
 }

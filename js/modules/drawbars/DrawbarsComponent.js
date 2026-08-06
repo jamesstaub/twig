@@ -4,7 +4,7 @@ import BaseComponent from "../base/BaseComponent.js";
 import { calculateFrequency, formatHz, getVoicePan } from "../../utils.js";
 import { getVoiceLevel, harmonicFilterCutoff, MAX_FILTER_PARTIALS } from "../../audio.js";
 import { DrawbarsActions } from "./drawbarsActions.js";
-import { OvertoneSignalActions, Q_MAX } from "../overtoneSignal/overtoneSignalActions.js";
+import { OvertoneSignalActions, Q_MAX, DRIVE_MAX } from "../overtoneSignal/overtoneSignalActions.js";
 import { Dial } from "../generic/dial/Dial.js";
 import { ValueTip } from "../generic/valueTip.js";
 import { drawSequencePreview, shapeIconDataURL } from "../overtoneSignal/sequencePreview.js";
@@ -57,7 +57,7 @@ export class DrawbarsComponent extends BaseComponent {
         super(elementId);
         this.sliders = [];
         this.view = "gain";
-        this._dials = { pan: [], res: [], x: [], y: [] };
+        this._dials = { pan: [], res: [], drive: [], x: [], y: [] };
         this._dots = [];
         this._dotLevels = [];
         this._meterRaf = null;
@@ -68,7 +68,7 @@ export class DrawbarsComponent extends BaseComponent {
     render(props = {}) {
         this.el.innerHTML = "";
         this.sliders = [];
-        this._dials = { pan: [], res: [], x: [], y: [] };
+        this._dials = { pan: [], res: [], drive: [], x: [], y: [] };
         this._dots = [];
         this._waveStrips = [];
         this._modeBtns = [];
@@ -175,6 +175,8 @@ export class DrawbarsComponent extends BaseComponent {
                 this.sliders[index].value = f.multiplier;
                 this.syncFill(this.sliders[index]);
             }
+        } else if (kind === "drive") {
+            this._dials.drive[index]?.setValue(OvertoneSignalActions.getDrive(index));
         } else if (kind === "gate" || kind === "seq") {
             const g = OvertoneSignalActions.getGate(index);
             this._dials.x[index]?.setValue(g.x);
@@ -236,6 +238,20 @@ export class DrawbarsComponent extends BaseComponent {
         const label = document.createElement("span");
         label.className = "drawbar-label";
         label.id = `drawbar-label-${index}`;
+
+        // TODO:
+        // create a function to convert math labels into HTML formulas like 3^(4/13) would render as
+        /**
+         *   <msup>
+                <mn>3</mn>
+                <mfrac>
+                <mn>4</mn>
+                <mn>13</mn>
+                </mfrac>
+            </msup>
+            </math>
+         */
+
         this.updateContent(label, AppState.currentSystem.labels[index] || "");
         wrapper.appendChild(label);
 
@@ -331,8 +347,11 @@ export class DrawbarsComponent extends BaseComponent {
 
     /** Show an interactive tip (preview + stretch) above a column control. */
     showSeqTip(el, label, text, index) {
+        // Same pinning as showSliderTip: the column's tip point, not the control
+        const bar = el.closest(".drawbar");
         const r = el.getBoundingClientRect();
-        ValueTip.show(text, r.left + r.width / 2, r.top, {
+        const point = bar ? this.columnTipPoint(bar) : { x: r.left + r.width / 2, y: r.top };
+        ValueTip.show(text, point.x, point.y, {
             label,
             interactive: true,
             autoHideMs: 1600,
@@ -374,11 +393,13 @@ export class DrawbarsComponent extends BaseComponent {
         const x = new Dial({
             min: 0, max: 32, step: 1, value: gate.x, label: "x",
             tipExtra,
+            tipAnchor: this.dialTipAnchor,
             onChange: (v) => OvertoneSignalActions.setGate(index, { ...OvertoneSignalActions.getGate(index), x: v }),
         });
         const y = new Dial({
             min: 0, max: 32, step: 1, value: gate.y, label: "y",
             tipExtra,
+            tipAnchor: this.dialTipAnchor,
             onChange: (v) => OvertoneSignalActions.setGate(index, { ...OvertoneSignalActions.getGate(index), y: v }),
         });
         this._dials.x[index] = x;
@@ -457,6 +478,7 @@ export class DrawbarsComponent extends BaseComponent {
             const pan = new Dial({
                 min: -1, max: 1, step: 0.01, value: getVoicePan(index), label: "pan",
                 format: (v) => (Math.abs(v) < 0.005 ? "C" : v < 0 ? `L${Math.round(-v * 100)}` : `R${Math.round(v * 100)}`),
+                tipAnchor: this.dialTipAnchor,
                 onChange: (v) => OvertoneSignalActions.setPan(index, v),
             });
             this._dials.pan[index] = pan;
@@ -468,8 +490,18 @@ export class DrawbarsComponent extends BaseComponent {
                 format: (v) => `Q ${v.toFixed(2)}`,
                 onChange: (v) => OvertoneSignalActions.setFilter(index, { ...OvertoneSignalActions.getFilter(index), q: v }),
             });
+            const drive = new Dial({
+                min: 0, max: DRIVE_MAX, step: 0.05, value: OvertoneSignalActions.getDrive(index), label: "drive",
+                color: "--accent-positive",
+                format: (v) => (v > 0 ? `${Math.round(v * 100)}%` : "clean"),
+                onChange: (v) => OvertoneSignalActions.setDrive(index, v),
+            });
             this._dials.res[index] = res;
-            aux.appendChild(res.el);
+            this._dials.drive[index] = drive;
+            const dials = document.createElement("div");
+            dials.className = "drawbar-aux-dials";
+            dials.append(res.el, drive.el);
+            aux.appendChild(dials);
         }
 
         return aux;
@@ -522,26 +554,46 @@ export class DrawbarsComponent extends BaseComponent {
         return `${label} · ${formatHz(harmonicFilterCutoff(index, voiceFreq))}`;
     }
 
-    /** Floating readout (parameter name over value) tracking the thumb. */
+    /**
+     * Floating readout (parameter name over value), pinned to one spot per
+     * column (see columnTipPoint) so it never covers the controls.
+     */
     showSliderTip(slider) {
-        const wrap = slider.closest(".drawbar-input-wrapper");
-        if (!wrap) return;
+        const bar = slider.closest(".drawbar");
+        if (!bar) return;
         const value = parseFloat(slider.value);
         const text = this.view === "filter"
             ? this.filterTipText(Number(slider.dataset.index), Math.round(value))
             : `${Math.round(value * 100)}%`;
-        const rect = wrap.getBoundingClientRect();
-        const min = parseFloat(slider.min) || 0;
-        const max = parseFloat(slider.max) || 1;
-        const t = (value - min) / (max - min || 1);
-        // Top edge of the thumb: its center travels through
-        // [thumb/2, height - thumb/2] with top of wrapper = max
-        const thumb = parseFloat(getComputedStyle(slider).getPropertyValue("--drawbar-thumb-length")) || 32;
-        const y = rect.top + (1 - t) * (rect.height - thumb);
-        ValueTip.show(text, rect.left + rect.width / 2, y, {
+        const point = this.columnTipPoint(bar);
+        ValueTip.show(text, point.x, point.y, {
             label: this.view === "filter" ? "cutoff" : "gain",
         });
     }
+
+    /**
+     * Where a column's pinned tip goes: centered, at the top of the column —
+     * except in the sequence view, where the controls sit vertically centered
+     * inside the fixed-height dial stack; there the tip hugs the topmost
+     * visible control instead of floating high above the empty space.
+     */
+    columnTipPoint(bar) {
+        const rect = bar.getBoundingClientRect();
+        let top = rect.top;
+        const stack = bar.querySelector(".drawbar-dial-stack");
+        if (stack) {
+            const items = stack.querySelectorAll(".seq-wave-icon, .seq-mode-btn, .mini-dial");
+            const tops = Array.from(items, (el) => el.getBoundingClientRect().top);
+            if (tops.length) top = Math.min(...tops);
+        }
+        return { x: rect.left + rect.width / 2, y: top };
+    }
+
+    /** Pins a dial's tip to its column's tip point (see columnTipPoint). */
+    dialTipAnchor = (dial) => {
+        const bar = dial.el.closest(".drawbar");
+        return bar ? this.columnTipPoint(bar) : null;
+    };
 
     setValue(index, value) {
         if (this.view === "gain" && this.sliders[index]) {

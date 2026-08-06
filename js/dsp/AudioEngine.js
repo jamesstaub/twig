@@ -167,6 +167,13 @@ export class AudioEngine {
             this.applySequencerParams(gateNode, options.sequencer);
         }
 
+        // Per-voice overdrive between gate and filter — created for every
+        // voice (null curve = clean passthrough) so drive can be enabled
+        // mid-playback without rewiring
+        const driveNode = this.context.createWaveShaper();
+        driveNode.oversample = '4x';
+        driveNode.curve = AudioEngine.driveCurve(options.drive);
+
         // Per-voice lowpass after the gate
         const filterNode = this.context.createBiquadFilter();
         filterNode.type = 'lowpass';
@@ -184,22 +191,23 @@ export class AudioEngine {
         const panner = this.context.createStereoPanner();
         panner.pan.setValueAtTime(options.pan ?? 0, this.context.currentTime);
 
-        // osc → gain → [gate] → lowpass → pan → bus
+        // osc → gain → [gate] → drive → lowpass → pan → bus
         oscillator.connect(gainNode);
         if (gateNode) {
             gainNode.connect(gateNode);
-            gateNode.connect(filterNode, 0);
+            gateNode.connect(driveNode, 0);
             // Audio-rate modulation: CV outputs sum into the filter's
             // AudioParams (the params keep holding the base values)
             gateNode.connect(filterNode.frequency, 1);
             gateNode.connect(filterNode.Q, 2);
         } else {
-            gainNode.connect(filterNode);
+            gainNode.connect(driveNode);
         }
+        driveNode.connect(filterNode);
         filterNode.connect(panner);
         panner.connect(this.compressor);
 
-        return { oscillator, gainNode, gateNode, filterNode, panner, meter };
+        return { oscillator, gainNode, gateNode, driveNode, filterNode, panner, meter };
     }
 
     /**
@@ -268,6 +276,31 @@ export class AudioEngine {
         const oscData = this.oscillators.get(key);
         if (oscData && oscData.gateNode) {
             this.applySequencerParams(oscData.gateNode, seq);
+        }
+    }
+
+    /**
+     * Normalized tanh saturation curve for a drive amount (0-5, where 1 is
+     * full saturation and higher amounts harden toward a clipper); null for
+     * amount 0, which makes the WaveShaper a clean passthrough.
+     */
+    static driveCurve(amount) {
+        if (!(amount > 0)) return null;
+        const k = 1 + amount * 29; // gentle warmth → hard clipping
+        const norm = Math.tanh(k);
+        const curve = new Float32Array(1024);
+        for (let i = 0; i < curve.length; i++) {
+            const x = (i / (curve.length - 1)) * 2 - 1;
+            curve[i] = Math.tanh(k * x) / norm;
+        }
+        return curve;
+    }
+
+    /** Update the overdrive amount (0-1) of a running voice. */
+    updateOscillatorDrive(key, amount) {
+        const oscData = this.oscillators.get(key);
+        if (oscData && oscData.driveNode) {
+            oscData.driveNode.curve = AudioEngine.driveCurve(amount);
         }
     }
 
@@ -389,7 +422,7 @@ export class AudioEngine {
             if (oscData.gateNode) {
                 oscData.gateNode.port.postMessage('stop');
             }
-            for (const node of [oscData.gainNode, oscData.gateNode, oscData.filterNode, oscData.panner, oscData.meter]) {
+            for (const node of [oscData.gainNode, oscData.gateNode, oscData.driveNode, oscData.filterNode, oscData.panner, oscData.meter]) {
                 try { node?.disconnect(); } catch { /* already disconnected */ }
             }
         }

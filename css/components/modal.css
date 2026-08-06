@@ -41,6 +41,36 @@
     align-items: stretch;
 }
 
+/* Thin themed scrollbars on modal scroll surfaces — the chunky system
+   default looks out of place on the dark UI */
+.modal-dialog,
+.midi-map-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-default) transparent;
+}
+
+.modal-dialog::-webkit-scrollbar,
+.midi-map-scroll::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+.modal-dialog::-webkit-scrollbar-track,
+.midi-map-scroll::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.modal-dialog::-webkit-scrollbar-thumb,
+.midi-map-scroll::-webkit-scrollbar-thumb {
+    background: var(--border-default);
+    border-radius: 4px;
+}
+
+.modal-dialog::-webkit-scrollbar-thumb:hover,
+.midi-map-scroll::-webkit-scrollbar-thumb:hover {
+    background: var(--border-light);
+}
+
 .modal-close-btn {
     position: absolute;
     top: 1rem;

@@ -26,6 +26,7 @@ export class Dial {
         format = null,
         onChange = null,
         tipExtra = null,
+        tipAnchor = null,
     } = {}) {
         this.min = min;
         this.max = max;
@@ -38,6 +39,7 @@ export class Dial {
         this.format = format;
         this.onChange = onChange;
         this.tipExtra = tipExtra; // () => HTMLElement embedded in the tip
+        this.tipAnchor = tipAnchor; // Element | (dial) => Element to pin the tip to
 
         this.el = document.createElement('div');
         this.el.className = 'mini-dial';
@@ -118,10 +120,21 @@ export class Dial {
         this.el.classList.toggle('mini-dial-disabled', this.disabled);
     }
 
-    /** Floating readout above the dial: control name over current value. */
+    /**
+     * Floating readout: control name over current value. Anchored above the
+     * dial itself, or wherever `tipAnchor` says — an Element, an {x, y}
+     * viewport point, or a function of this dial returning either — so a
+     * host can pin every tip to one spot clear of the controls (e.g. the
+     * top of a drawbar column).
+     */
     _showTip() {
-        const r = this.canvas.getBoundingClientRect();
-        ValueTip.show(this._display(this.value), r.left + r.width / 2, r.top, {
+        const anchor = (typeof this.tipAnchor === 'function' ? this.tipAnchor(this) : this.tipAnchor) || this.canvas;
+        let point = anchor;
+        if (typeof anchor.x !== 'number') {
+            const r = anchor.getBoundingClientRect();
+            point = { x: r.left + r.width / 2, y: r.top };
+        }
+        ValueTip.show(this._display(this.value), point.x, point.y, {
             label: this.label,
             autoHideMs: 0,
             extra: this.tipExtra ? this.tipExtra() : null,

@@ -12,6 +12,7 @@
  * interval's complexity — so 1/1 and every 2^k scores 1.0, 3/2 scores high,
  * 21/20 low, and anything with no close small rational (φ, stretched
  * pseudo-octaves) scores 0.
+ * https://en.xen.wiki/w/Tenney_norm
  */
 
 /** Relative tolerance for "is this ratio effectively p/q". ~7 cents: wide

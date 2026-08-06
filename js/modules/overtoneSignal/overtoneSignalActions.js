@@ -1,5 +1,5 @@
 import { AppState, midiConfig } from "../../config.js";
-import { updateHarmonicGate, updateHarmonicFilter, updateHarmonicPan, updateHarmonicPulse, updateHarmonicSequencer, MAX_FILTER_PARTIALS } from "../../audio.js";
+import { updateHarmonicGate, updateHarmonicFilter, updateHarmonicDrive, updateHarmonicPan, updateHarmonicPulse, updateHarmonicSequencer, MAX_FILTER_PARTIALS } from "../../audio.js";
 import { getVoicePan } from "../../utils.js";
 import { OVERTONE_SIGNAL_CHANGED } from "../../events.js";
 
@@ -12,6 +12,10 @@ import { OVERTONE_SIGNAL_CHANGED } from "../../events.js";
 // Resonance ceiling shared by the modal dial, the drawbar filter view,
 // and the OSC clamp — one number, three surfaces.
 export const Q_MAX = 40;
+
+// Overdrive ceiling (500%), shared the same way. 1 = full tanh saturation,
+// beyond that the curve hardens toward a clipper.
+export const DRIVE_MAX = 5;
 
 export const OvertoneSignalActions = {
 
@@ -37,6 +41,17 @@ export const OvertoneSignalActions = {
         AppState.oscillatorFilters[index] = filter;
         updateHarmonicFilter(index);
         this._changed(index, 'filter');
+    },
+
+    /** Overdrive amount 0-DRIVE_MAX (0 = clean), applied before the lowpass. */
+    getDrive(index) {
+        return AppState.oscillatorDrives[index] || 0;
+    },
+
+    setDrive(index, amount) {
+        AppState.oscillatorDrives[index] = Math.max(0, Math.min(DRIVE_MAX, Number(amount) || 0));
+        updateHarmonicDrive(index);
+        this._changed(index, 'drive');
     },
 
     getSequencer(index) {
@@ -126,10 +141,11 @@ export const OvertoneSignalActions = {
         return AppState.currentSystem.ratios.length;
     },
 
-    /** Filters to neutral: open (multiplier 0), default resonance. */
+    /** Filters to neutral: open (multiplier 0), default resonance, no drive. */
     resetFilters() {
         for (let i = 0; i < this._voiceCount(); i++) {
             this.setFilter(i, { multiplier: 0, q: 0.707 });
+            this.setDrive(i, 0);
         }
     },
 

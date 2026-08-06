@@ -52,7 +52,6 @@ export const ValueTip = {
         const w = tip.offsetWidth;
         tip.style.left = `${Math.max(4, Math.min(x - w / 2, window.innerWidth - w - 4))}px`;
         tip.style.top = `${Math.max(4, y - tip.offsetHeight - 8)}px`;
-
         clearTimeout(hideTimer);
         if (autoHideMs > 0) {
             hideTimer = setTimeout(() => this.hide(), autoHideMs);

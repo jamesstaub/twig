@@ -212,6 +212,7 @@ function createHarmonicOscillator(i, ratio, gain) {
     const oscData = audioEngine.createOscillator(correctedFrequency, waveform, gain, {
         pan: getVoicePan(i),
         gate: AppState.oscillatorGates[i],
+        drive: AppState.oscillatorDrives[i] || 0,
         filter: {
             cutoff: harmonicFilterCutoff(i, frequency),
             q: AppState.oscillatorFilters[i]?.q,
@@ -443,6 +444,17 @@ export function updateHarmonicPan(index) {
     const node = AppState.oscillators[index];
     if (node && node.key) {
         audioEngine.updateOscillatorPan(node.key, getVoicePan(index), AppState.masterSlewValue);
+    }
+}
+
+/**
+ * Apply the overdrive amount for one harmonic to its running voice.
+ */
+export function updateHarmonicDrive(index) {
+    if (!AppState.isPlaying || !audioEngine) return;
+    const node = AppState.oscillators[index];
+    if (node && node.key) {
+        audioEngine.updateOscillatorDrive(node.key, AppState.oscillatorDrives[index] || 0);
     }
 }
 
