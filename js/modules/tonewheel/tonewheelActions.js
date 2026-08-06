@@ -1,5 +1,5 @@
 import { AppState, CANVAS_HEIGHT_RATIOS, updateAppState } from '../../config.js';
-import { harmonicColor, themeColor } from '../../theme.js';
+import { partialColor, themeColor } from '../../theme.js';
 import { precomputeWaveTable } from '../../audio.js';
 import { lcmArray } from '../waveform/WaveformComponent.js';
 import p5 from 'p5';
@@ -165,7 +165,7 @@ function createVisualizationSketch() {
                 const MAX_RING_MOD = 0.45;
                 const visualAmp = MAX_RING_MOD * (maxAmplitudeRadial / numHarmonics) * spreadFactor * amp;
 
-                const ringColor = p.color(harmonicColor(h));
+                const ringColor = p.color(partialColor(ratio));
                 ringColor.setAlpha(153); // 0x99
                 p.stroke(ringColor);
                 p.strokeWeight(2);

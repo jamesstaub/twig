@@ -173,6 +173,13 @@ export class AudioEngine {
         filterNode.frequency.setValueAtTime(options.filter?.cutoff > 0 ? options.filter.cutoff : 20000, this.context.currentTime);
         filterNode.Q.setValueAtTime(options.filter?.q ?? 0.707, this.context.currentTime);
 
+        // Per-voice level meter: parallel tap after gate + filter, so UI
+        // indicators show what the voice actually contributes (including
+        // sequencer gating). Read via getFloatTimeDomainData.
+        const meter = this.context.createAnalyser();
+        meter.fftSize = 256;
+        filterNode.connect(meter);
+
         // Always stereo: use StereoPannerNode per oscillator
         const panner = this.context.createStereoPanner();
         panner.pan.setValueAtTime(options.pan ?? 0, this.context.currentTime);
@@ -192,7 +199,25 @@ export class AudioEngine {
         filterNode.connect(panner);
         panner.connect(this.compressor);
 
-        return { oscillator, gainNode, gateNode, filterNode, panner };
+        return { oscillator, gainNode, gateNode, filterNode, panner, meter };
+    }
+
+    /**
+     * Instantaneous peak level (0-1) of a running voice, post gate/filter.
+     */
+    getVoiceLevel(key) {
+        const oscData = this.oscillators.get(key);
+        if (!oscData || !oscData.meter) return 0;
+        if (!this._meterBuffer || this._meterBuffer.length !== oscData.meter.fftSize) {
+            this._meterBuffer = new Float32Array(oscData.meter.fftSize);
+        }
+        oscData.meter.getFloatTimeDomainData(this._meterBuffer);
+        let peak = 0;
+        for (let i = 0; i < this._meterBuffer.length; i++) {
+            const a = Math.abs(this._meterBuffer[i]);
+            if (a > peak) peak = a;
+        }
+        return Math.min(1, peak);
     }
 
     /** Set the cycle-gate parameters on a gate worklet node. */
@@ -364,7 +389,7 @@ export class AudioEngine {
             if (oscData.gateNode) {
                 oscData.gateNode.port.postMessage('stop');
             }
-            for (const node of [oscData.gainNode, oscData.gateNode, oscData.filterNode, oscData.panner]) {
+            for (const node of [oscData.gainNode, oscData.gateNode, oscData.filterNode, oscData.panner, oscData.meter]) {
                 try { node?.disconnect(); } catch { /* already disconnected */ }
             }
         }

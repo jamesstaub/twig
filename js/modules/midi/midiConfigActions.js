@@ -10,6 +10,17 @@ export function updateMidiInputChannel(channel) {
     notifyListeners();
 }
 
+export function updateMidiOutputChannel(channel) {
+    midiConfig.outputChannel = Math.max(1, Math.min(16, Math.round(channel)));
+    notifyListeners();
+}
+
+/** Notes below this number are ignored on input (feedback-loop guard). */
+export function updateMidiInputNoteMin(note) {
+    midiConfig.inputNoteMin = Math.max(0, Math.min(127, Math.round(note)));
+    notifyListeners();
+}
+
 export function updateMidiDrawbarCC(index, cc) {
     midiConfig.drawbarsCC[index] = cc;
     notifyListeners();

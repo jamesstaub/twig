@@ -218,11 +218,11 @@ body.embed .drawbar-input-wrapper {
 }
 
 body.embed .drawbar-slider {
+    --drawbar-thumb-length: 28px;
     width: 80px;
 }
 
 body.embed .drawbar-slider::-webkit-slider-thumb {
-    width: 28px;
     height: 16px;
 }
 
@@ -279,4 +279,19 @@ body.embed #tonewheel-container {
     flex: 0 0 160px;
     width: 160px;
     min-width: 160px;
+}
+
+/* Pulse/pan aux row and view tabs don't fit the 170px embed budget */
+body.embed .drawbar-aux {
+    min-height: 0;
+}
+
+body.embed .drawbar-aux .mini-dial {
+    display: none;
+}
+
+body.embed .drawbar-dial-stack {
+    height: 80px;
+    margin: 2px 0;
+    gap: 0.25rem;
 }

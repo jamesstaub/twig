@@ -1,13 +1,36 @@
 import { AppState } from "../../config.js";
-import { harmonicColor } from "../../theme.js";
+import { partialColor } from "../../theme.js";
 import BaseComponent from "../base/BaseComponent.js";
-import { calculateFrequency } from "../../utils.js";
+import { calculateFrequency, formatHz, getVoicePan } from "../../utils.js";
+import { getVoiceLevel, harmonicFilterCutoff, MAX_FILTER_PARTIALS } from "../../audio.js";
 import { DrawbarsActions } from "./drawbarsActions.js";
+import { OvertoneSignalActions, Q_MAX } from "../overtoneSignal/overtoneSignalActions.js";
+import { Dial } from "../generic/dial/Dial.js";
+import { ValueTip } from "../generic/valueTip.js";
+import { drawSequencePreview, shapeIconDataURL } from "../overtoneSignal/sequencePreview.js";
 import { showStatus } from "../../domUtils.js";
 import OvertoneSignalModalComponent from "../generic/modal/OvertoneSignalModalComponent.js";
 import { openModal, closeModal } from "../generic/modal/modalActions.js";
 
 const DRAWBAR_SLIDER_SELECTOR = ".drawbar-slider";
+
+// Tab views over the same overtone columns: which parameter the column's
+// main control edits. 'gain' is the classic drawbar amplitude view.
+export const DRAWBAR_VIEWS = ["gain", "filter", "sequence"];
+
+// Sequence modes as single letters for the per-column cycle button
+const SEQ_MODE_LETTERS = ["O", "A", "E", "P", "S"];
+const SEQ_MODE_NAMES = ["off", "alternating", "euclidean", "probability", "sequence"];
+
+// What the x/y dials mean per mode; null = the dial does nothing there.
+// (Probability uses only x; off and 0/1-sequence use neither.)
+const SEQ_PARAM_LABELS = [
+    [null, null],                 // off
+    ["cycles on", "cycles off"],  // alternating
+    ["pulses", "steps"],          // euclidean
+    ["probability %", null],      // probability
+    [null, null],                 // sequence (pattern comes from the 0/1 string)
+];
 
 async function copyFrequency(freq) {
     const text = freq.toFixed(4).replace(/\.?0+$/, '');
@@ -33,11 +56,22 @@ export class DrawbarsComponent extends BaseComponent {
     constructor(elementId) {
         super(elementId);
         this.sliders = [];
+        this.view = "gain";
+        this._dials = { pan: [], res: [], x: [], y: [] };
+        this._dots = [];
+        this._dotLevels = [];
+        this._meterRaf = null;
+        this._waveStrips = [];
+        this._modeBtns = [];
     }
 
     render(props = {}) {
         this.el.innerHTML = "";
         this.sliders = [];
+        this._dials = { pan: [], res: [], x: [], y: [] };
+        this._dots = [];
+        this._waveStrips = [];
+        this._modeBtns = [];
 
         this.setupDrawbars();
         this.updateDrawbarLabels(props.isSubharmonic);
@@ -58,44 +92,106 @@ export class DrawbarsComponent extends BaseComponent {
         });
 
         this.sliders.forEach(slider => {
-            // Mouse / keyboard: use native range input event
+            // Keyboard (arrow keys) still uses the native range input event
             this.bindEvent(slider, "input", (e) => this.handleDrawbarChange(e));
 
-            // Touch: custom vertical-drag handler.
-            //
-            // The slider is rotated -90deg in CSS so it renders vertically, but
-            // the browser's native touch tracking uses the element's pre-rotation
-            // coordinate space — meaning only a fraction of finger movement
-            // registers. We bypass that entirely by:
-            //   1. Attaching listeners to the wrapper (the visual 140×25px area)
-            //      whose getBoundingClientRect() is already in screen coordinates.
-            //   2. Mapping touchY directly to value (top = max, bottom = min).
-            //   3. Calling preventDefault() to block container scroll.
+            // Pointer drag (mouse, touch, pen): the slider renders rotated
+            // -90deg, but the browser's native drag tracking works in the
+            // element's pre-rotation coordinate space — vertical pointer
+            // movement barely registers. We own the whole gesture instead:
+            // the wrapper's getBoundingClientRect() is in screen coordinates,
+            // so map absolute clientY into the value range (top = max).
+            // Vertical scroll is already blocked by touch-action: pan-x on
+            // the .drawbar column.
             const wrapper = slider.parentElement; // .drawbar-input-wrapper
 
-            let dragStartY = 0;
-            let dragStartValue = 0;
-
-            this.bindEvent(wrapper, "touchstart", (e) => {
-                e.preventDefault();
-                dragStartY = e.touches[0].clientY;
-                dragStartValue = parseFloat(slider.value);
-            }, { passive: false });
-
-            this.bindEvent(wrapper, "touchmove", (e) => {
-                e.preventDefault();
+            const applyPointer = (e) => {
                 const rect = wrapper.getBoundingClientRect();
-                const touchY = e.touches[0].clientY;
-                // Clamp touch within wrapper bounds, then map to [0, 1].
-                // Top of wrapper = max (1), bottom = min (0).
-                const clampedY = Math.max(rect.top, Math.min(rect.bottom, touchY));
-                const newValue = 1 - (clampedY - rect.top) / rect.height;
-                slider.value = newValue;
-                slider.setAttribute("aria-valuenow", newValue);
-                const index = Number(slider.dataset.index);
-                this.onChange?.(index, newValue);
-            }, { passive: false });
+                // Map pointer Y to the thumb CENTER's travel range
+                // [thumb/2, height - thumb/2] — same geometry the value tip
+                // uses, so grabbing the handle never jumps the value.
+                const thumb = parseFloat(getComputedStyle(slider).getPropertyValue("--drawbar-thumb-length")) || 32;
+                const travel = Math.max(1, rect.height - thumb);
+                const offset = e.clientY - rect.top - thumb / 2;
+                const t = 1 - Math.max(0, Math.min(1, offset / travel));
+                const min = parseFloat(slider.min) || 0;
+                const max = parseFloat(slider.max) || 1;
+                const step = parseFloat(slider.step) || 0.01;
+                const newValue = Math.round((min + t * (max - min)) / step) * step;
+                if (String(newValue) !== slider.value) {
+                    slider.value = newValue;
+                    this.handleDrawbarChange({ target: slider });
+                }
+            };
+
+            this.bindEvent(wrapper, "pointerdown", (e) => {
+                if (e.button !== 0) return; // right-click stays with the context menu
+                e.preventDefault(); // suppress the native (mis-mapped) slider drag
+                slider.focus({ preventScroll: true }); // keep keyboard arrows working
+                try {
+                    wrapper.setPointerCapture(e.pointerId);
+                } catch { /* synthetic pointer — drag still works */ }
+                applyPointer(e);
+                this.showSliderTip(slider);
+                const onMove = (ev) => applyPointer(ev);
+                wrapper.addEventListener("pointermove", onMove);
+                wrapper.addEventListener("pointerup", () => {
+                    wrapper.removeEventListener("pointermove", onMove);
+                }, { once: true });
+            });
         });
+
+        this.startMeterLoop();
+    }
+
+    /**
+     * Live amplitude dots: per-frame peak from each voice's meter tap, with
+     * a decay envelope so subaudible clicks stay visible. rAF-driven —
+     * visuals freeze when the page is hidden, audio is unaffected.
+     */
+    startMeterLoop() {
+        if (this._meterRaf) cancelAnimationFrame(this._meterRaf);
+        const tick = () => {
+            for (let i = 0; i < this._dots.length; i++) {
+                const dot = this._dots[i];
+                if (!dot) continue;
+                const level = Math.max(getVoiceLevel(i), (this._dotLevels[i] || 0) * 0.88);
+                this._dotLevels[i] = level;
+                dot.style.opacity = 0.12 + 0.88 * Math.min(1, level * 2.5);
+            }
+            this._meterRaf = requestAnimationFrame(tick);
+        };
+        this._meterRaf = requestAnimationFrame(tick);
+    }
+
+    /** External updates (modal edits, OSC/Max) → refresh visible controls. */
+    syncSignal(index, kind) {
+        if (kind === "pan") {
+            this._dials.pan[index]?.setValue(getVoicePan(index));
+        } else if (kind === "filter") {
+            const f = OvertoneSignalActions.getFilter(index);
+            this._dials.res[index]?.setValue(f.q);
+            if (this.view === "filter" && this.sliders[index]) {
+                this.sliders[index].value = f.multiplier;
+                this.syncFill(this.sliders[index]);
+            }
+        } else if (kind === "gate" || kind === "seq") {
+            const g = OvertoneSignalActions.getGate(index);
+            this._dials.x[index]?.setValue(g.x);
+            this._dials.y[index]?.setValue(g.y);
+            this.applyModeToDials(index, g.mode);
+            const btn = this._modeBtns[index];
+            if (btn) {
+                btn.textContent = SEQ_MODE_LETTERS[g.mode] || "O";
+                btn.title = `mode: ${SEQ_MODE_NAMES[g.mode] || "off"} (click to cycle)`;
+            }
+            const strip = this._waveStrips[index];
+            if (strip) {
+                const shape = OvertoneSignalActions.getSequencer(index).shape;
+                strip.querySelectorAll(".seq-wave-icon").forEach((b) =>
+                    b.classList.toggle("active", b.dataset.shape === shape));
+            }
+        }
     }
 
     setupDrawbars() {
@@ -129,8 +225,10 @@ export class DrawbarsComponent extends BaseComponent {
         const wrapper = document.createElement("div");
         wrapper.className = "drawbar";
         wrapper.dataset.index = index;
-        // Color the drawbar like its partial's ring in the p5 tonewheel
-        wrapper.style.setProperty("--drawbar-color", harmonicColor(index));
+        // Color by the partial's consonance against the fundamental (matches
+        // its ring in the p5 tonewheel), and expose the value as --drawbar-fill
+        // so the track can render its meter lines up to the handle.
+        wrapper.style.setProperty("--drawbar-color", partialColor(AppState.currentSystem.ratios[index]));
         // Disable browser touch handling for the entire drawbar column (label
         // area included) so our custom touch handler gets every gesture.
         wrapper.style.touchAction = 'pan-x';
@@ -139,16 +237,34 @@ export class DrawbarsComponent extends BaseComponent {
         label.className = "drawbar-label";
         label.id = `drawbar-label-${index}`;
         this.updateContent(label, AppState.currentSystem.labels[index] || "");
+        wrapper.appendChild(label);
 
+        // Main control area — depends on the active view
+        if (this.view === "sequence") {
+            wrapper.appendChild(this.createSequenceStack(index));
+            wrapper.style.setProperty("--drawbar-fill", 0);
+        } else {
+            const conf = this.view === "filter"
+                ? { min: 0, max: MAX_FILTER_PARTIALS, step: 1, value: OvertoneSignalActions.getFilter(index).multiplier }
+                : { min: 0, max: 1, step: 0.01, value };
+            wrapper.appendChild(this.createSliderWrap(index, conf));
+            wrapper.style.setProperty("--drawbar-fill", (conf.value - conf.min) / (conf.max - conf.min || 1));
+        }
+
+        wrapper.appendChild(this.createAux(index));
+        return wrapper;
+    }
+
+    createSliderWrap(index, { min, max, step, value }) {
         const track = document.createElement("div");
         track.className = "drawbar-track";
 
         const slider = document.createElement("input");
         slider.type = "range";
         slider.className = "drawbar-slider";
-        slider.min = "0";
-        slider.max = "1";
-        slider.step = "0.01";
+        slider.min = String(min);
+        slider.max = String(max);
+        slider.step = String(step);
         slider.value = value;
         slider.dataset.index = index;
         // Override CSS touch-action: pan-x so the browser doesn't intercept
@@ -158,30 +274,279 @@ export class DrawbarsComponent extends BaseComponent {
         const wrap = document.createElement("div");
         wrap.className = "drawbar-input-wrapper";
         wrap.append(track, slider);
+        return wrap;
+    }
 
-        wrapper.append(label, wrap);
-        return wrapper;
+    /** Sequence view: X and Y pattern-parameter dials fill the column. */
+    /**
+     * Interactive tip content for the sequence view: the live sequence
+     * preview with the ×2/÷2 stretch buttons beneath it. One shared
+     * instance — only one control is adjusted at a time; button handlers
+     * follow this._tipIndex.
+     */
+    seqTipContent(index) {
+        this._tipIndex = index;
+        if (!this._tipContent) {
+            const wrap = document.createElement("div");
+            wrap.className = "value-tip-seq";
+
+            const canvas = document.createElement("canvas");
+            canvas.className = "value-tip-preview";
+            canvas.width = 160;
+            canvas.height = 36;
+            // Escape the global viz-canvas sizing, same as the dials
+            canvas.style.setProperty("width", "160px", "important");
+            canvas.style.setProperty("height", "36px", "important");
+            wrap.appendChild(canvas);
+
+            const row = document.createElement("div");
+            row.className = "signal-stretch-row";
+            const label = document.createElement("span");
+            label.className = "signal-stretch-label";
+            const fmt = (v) => (v >= 1 ? `×${v}` : `÷${1 / v}`);
+            const refresh = () => {
+                label.textContent = fmt(OvertoneSignalActions.getSequencer(this._tipIndex).stretch);
+                drawSequencePreview(canvas, this._tipIndex);
+            };
+            const mkBtn = (text, factor) => {
+                const b = document.createElement("button");
+                b.type = "button";
+                b.className = "action-btn signal-stretch-btn";
+                b.textContent = text;
+                b.addEventListener("click", () => {
+                    const current = OvertoneSignalActions.getSequencer(this._tipIndex).stretch;
+                    OvertoneSignalActions.setSequencerStretch(this._tipIndex, current * factor);
+                    refresh();
+                });
+                return b;
+            };
+            row.append(mkBtn("÷2", 0.5), label, mkBtn("×2", 2));
+            wrap.appendChild(row);
+
+            this._tipContent = { wrap, refresh };
+        }
+        this._tipContent.refresh();
+        return this._tipContent.wrap;
+    }
+
+    /** Show an interactive tip (preview + stretch) above a column control. */
+    showSeqTip(el, label, text, index) {
+        const r = el.getBoundingClientRect();
+        ValueTip.show(text, r.left + r.width / 2, r.top, {
+            label,
+            interactive: true,
+            autoHideMs: 1600,
+            extra: this.seqTipContent(index),
+        });
+    }
+
+    /** Apply mode-specific labels to a column's x/y dials, disabling unused ones. */
+    applyModeToDials(index, mode) {
+        const [xLabel, yLabel] = SEQ_PARAM_LABELS[mode] || [null, null];
+        const x = this._dials.x[index];
+        const y = this._dials.y[index];
+        if (x) {
+            x.setLabel(xLabel || "x");
+            x.setDisabled(xLabel === null);
+        }
+        if (y) {
+            y.setLabel(yLabel || "y");
+            y.setDisabled(yLabel === null);
+        }
+    }
+
+    createSequenceStack(index) {
+        const stack = document.createElement("div");
+        stack.className = "drawbar-dial-stack";
+        const gate = OvertoneSignalActions.getGate(index);
+        const seq = OvertoneSignalActions.getSequencer(index);
+        const tipExtra = () => this.seqTipContent(index);
+
+        // Column: [waveform icon strip] | [mode + x/y dials]
+        const strip = this.createWaveStrip(index, seq.shape);
+        this._waveStrips[index] = strip;
+
+        const controls = document.createElement("div");
+        controls.className = "drawbar-seq-controls";
+
+        controls.appendChild(this.createModeButton(index, gate.mode));
+
+        const x = new Dial({
+            min: 0, max: 32, step: 1, value: gate.x, label: "x",
+            tipExtra,
+            onChange: (v) => OvertoneSignalActions.setGate(index, { ...OvertoneSignalActions.getGate(index), x: v }),
+        });
+        const y = new Dial({
+            min: 0, max: 32, step: 1, value: gate.y, label: "y",
+            tipExtra,
+            onChange: (v) => OvertoneSignalActions.setGate(index, { ...OvertoneSignalActions.getGate(index), y: v }),
+        });
+        this._dials.x[index] = x;
+        this._dials.y[index] = y;
+        controls.append(x.el, y.el);
+        this.applyModeToDials(index, gate.mode);
+
+        stack.append(strip, controls);
+        return stack;
+    }
+
+    /**
+     * Thin vertical waveform selector: one PNG icon per option from the
+     * oscillator menu (customs included), click to select. Icons instead
+     * of words, and no native dropdown — those don't open inside jweb.
+     */
+    createWaveStrip(index, selectedShape) {
+        const strip = document.createElement("div");
+        strip.className = "seq-wave-strip";
+        const source = document.getElementById("waveform-select");
+        const names = source ? Array.from(source.options).map((o) => o.value) : ["square", "sine", "triangle", "sawtooth"];
+
+        for (const name of names) {
+            const btn = document.createElement("button");
+            btn.type = "button";
+            btn.className = "seq-wave-icon";
+            btn.dataset.shape = name;
+            btn.title = name;
+            btn.classList.toggle("active", name === selectedShape);
+            const img = document.createElement("img");
+            img.src = shapeIconDataURL(name, { width: 16, height: 9 });
+            img.alt = name;
+            btn.appendChild(img);
+            btn.addEventListener("click", () => {
+                OvertoneSignalActions.setSequencerShape(index, name);
+                strip.querySelectorAll(".seq-wave-icon").forEach((b) => b.classList.toggle("active", b === btn));
+                this.showSeqTip(btn, "wave", name, index);
+            });
+            strip.appendChild(btn);
+        }
+        return strip;
+    }
+
+    /** Sequence-mode control: single letter, click cycles O→A→E→P→S. */
+    createModeButton(index, mode) {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "seq-mode-btn";
+        const apply = (m) => {
+            btn.textContent = SEQ_MODE_LETTERS[m] || "O";
+            btn.title = `mode: ${SEQ_MODE_NAMES[m] || "off"} (click to cycle)`;
+        };
+        apply(mode);
+        btn.addEventListener("click", () => {
+            const next = (OvertoneSignalActions.getGate(index).mode + 1) % SEQ_MODE_LETTERS.length;
+            OvertoneSignalActions.setGate(index, { ...OvertoneSignalActions.getGate(index), mode: next });
+            apply(next);
+            this.applyModeToDials(index, next);
+            this.showSeqTip(btn, "mode", SEQ_MODE_NAMES[next], index);
+        });
+        this._modeBtns[index] = btn;
+        return btn;
+    }
+
+    /** Below every column: live amplitude dot, plus the view's aux dial. */
+    createAux(index) {
+        const aux = document.createElement("div");
+        aux.className = "drawbar-aux";
+
+        const dot = document.createElement("span");
+        dot.className = "drawbar-amp";
+        this._dots[index] = dot;
+        aux.appendChild(dot);
+
+        if (this.view === "gain") {
+            const pan = new Dial({
+                min: -1, max: 1, step: 0.01, value: getVoicePan(index), label: "pan",
+                format: (v) => (Math.abs(v) < 0.005 ? "C" : v < 0 ? `L${Math.round(-v * 100)}` : `R${Math.round(v * 100)}`),
+                onChange: (v) => OvertoneSignalActions.setPan(index, v),
+            });
+            this._dials.pan[index] = pan;
+            aux.appendChild(pan.el);
+        } else if (this.view === "filter") {
+            const res = new Dial({
+                min: 0.1, max: Q_MAX, step: 0.05, value: OvertoneSignalActions.getFilter(index).q, label: "res",
+                color: "--accent-negative",
+                format: (v) => `Q ${v.toFixed(2)}`,
+                onChange: (v) => OvertoneSignalActions.setFilter(index, { ...OvertoneSignalActions.getFilter(index), q: v }),
+            });
+            this._dials.res[index] = res;
+            aux.appendChild(res.el);
+        }
+
+        return aux;
+    }
+
+    /** Keep the track's meter fill in sync with a slider's value. */
+    syncFill(slider) {
+        const min = parseFloat(slider.min) || 0;
+        const max = parseFloat(slider.max) || 1;
+        const t = (parseFloat(slider.value) - min) / (max - min || 1);
+        slider.closest(".drawbar")?.style.setProperty("--drawbar-fill", t);
     }
 
     updateSingleDrawbar(index, value) {
         // rather than a full rerender, just set one slider value
-        if (this.sliders[index]) {
+        // (amplitude values only apply to the gain view's sliders)
+        if (this.view === "gain" && this.sliders[index]) {
             this.sliders[index].value = value;
+            this.syncFill(this.sliders[index]);
         }
     }
 
     handleDrawbarChange(e) {
-
         const index = Number(e.target.dataset.index);
         const value = Number(e.target.value);
 
-        this.onChange?.(index, value);
+        if (this.view === "filter") {
+            OvertoneSignalActions.setFilter(index, {
+                ...OvertoneSignalActions.getFilter(index),
+                multiplier: value,
+            });
+        } else {
+            this.onChange?.(index, value);
+        }
         e.target.setAttribute("aria-valuenow", value);
+        this.syncFill(e.target);
+        this.showSliderTip(e.target);
+    }
+
+    /**
+     * The cutoff position's display text: the current overtone system's own
+     * partial label plus the resulting frequency, matching the modal's dial
+     * (e.g. "φ^2 · 660 Hz" on the golden ratio system).
+     */
+    filterTipText(index, step) {
+        if (step === 0) return "open";
+        const labels = AppState.currentSystem.labels;
+        const label = step <= labels.length ? labels[step - 1] : `+${step - labels.length}`;
+        const voiceFreq = calculateFrequency(AppState.currentSystem.ratios[index]);
+        return `${label} · ${formatHz(harmonicFilterCutoff(index, voiceFreq))}`;
+    }
+
+    /** Floating readout (parameter name over value) tracking the thumb. */
+    showSliderTip(slider) {
+        const wrap = slider.closest(".drawbar-input-wrapper");
+        if (!wrap) return;
+        const value = parseFloat(slider.value);
+        const text = this.view === "filter"
+            ? this.filterTipText(Number(slider.dataset.index), Math.round(value))
+            : `${Math.round(value * 100)}%`;
+        const rect = wrap.getBoundingClientRect();
+        const min = parseFloat(slider.min) || 0;
+        const max = parseFloat(slider.max) || 1;
+        const t = (value - min) / (max - min || 1);
+        // Top edge of the thumb: its center travels through
+        // [thumb/2, height - thumb/2] with top of wrapper = max
+        const thumb = parseFloat(getComputedStyle(slider).getPropertyValue("--drawbar-thumb-length")) || 32;
+        const y = rect.top + (1 - t) * (rect.height - thumb);
+        ValueTip.show(text, rect.left + rect.width / 2, y, {
+            label: this.view === "filter" ? "cutoff" : "gain",
+        });
     }
 
     setValue(index, value) {
-        if (this.sliders[index]) {
+        if (this.view === "gain" && this.sliders[index]) {
             this.sliders[index].value = value;
+            this.syncFill(this.sliders[index]);
         }
     }
 
@@ -252,6 +617,10 @@ export class DrawbarsComponent extends BaseComponent {
 
     teardown() {
         this.closeContextMenu();
+        if (this._meterRaf) {
+            cancelAnimationFrame(this._meterRaf);
+            this._meterRaf = null;
+        }
         super.teardown();
     }
 }

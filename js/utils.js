@@ -102,6 +102,11 @@ export function getVoicePan(index) {
     return index === 0 ? 0 : (index % 2 === 0 ? -0.8 : 0.8);
 }
 
+/** "660 Hz" / "1.10 kHz" style display formatting. */
+export function formatHz(hz) {
+    return hz >= 1000 ? `${(hz / 1000).toFixed(2)} kHz` : `${Math.round(hz)} Hz`;
+}
+
 export function calculateFrequency(ratio) {
     if (AppState.isSubharmonic) {
         return ratio === 0 ? 0 : AppState.fundamentalFrequency / ratio;

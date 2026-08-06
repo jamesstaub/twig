@@ -1,10 +1,12 @@
 // controller/DrawbarController.js
 import { DrawbarsComponent } from "./DrawbarsComponent.js";
 import { DrawbarsActions } from "./drawbarsActions.js";
+import { OvertoneSignalActions } from "../overtoneSignal/overtoneSignalActions.js";
 import {
     DRAWBAR_CHANGE,
     DRAWBARS_RANDOMIZED,
     DRAWBARS_RESET,
+    OVERTONE_SIGNAL_CHANGED,
     SPECTRAL_SYSTEM_CHANGED,
     SUBHARMONIC_TOGGLED
 } from "../../events.js";
@@ -34,12 +36,21 @@ export class DrawbarsController extends BaseController {
         this.component.updateSingleDrawbar(index, value);
     }
 
+    /** Reset applies to the values the active view edits. */
     reset() {
-        DrawbarsActions.reset();
+        switch (this.component.view) {
+            case "filter": OvertoneSignalActions.resetFilters(); break;
+            case "sequence": OvertoneSignalActions.resetGates(); break;
+            default: DrawbarsActions.reset();
+        }
     }
 
     randomize() {
-        DrawbarsActions.randomize();
+        switch (this.component.view) {
+            case "filter": OvertoneSignalActions.randomizeFilters(); break;
+            case "sequence": OvertoneSignalActions.randomizeGates(); break;
+            default: DrawbarsActions.randomize();
+        }
     }
 
     /**
@@ -58,6 +69,22 @@ export class DrawbarsController extends BaseController {
 
         document.getElementById(RANDOMIZE_DRAWBARS_BUTTON_ID)?.addEventListener("click", () => {
             this.randomize();
+        });
+
+        // Per-overtone signal edits from the modal or OSC → visible controls
+        document.addEventListener(OVERTONE_SIGNAL_CHANGED, (e) => {
+            const { index, kind } = e.detail || {};
+            if (index !== undefined) this.component.syncSignal(index, kind);
+        });
+
+        // View tabs: gain | filter | sequence
+        document.querySelectorAll("#drawbars-tabs .drawbars-tab").forEach((btn) => {
+            btn.addEventListener("click", () => {
+                document.querySelectorAll("#drawbars-tabs .drawbars-tab")
+                    .forEach((b) => b.classList.toggle("active", b === btn));
+                this.component.view = btn.dataset.view;
+                this.update();
+            });
         });
     }
 

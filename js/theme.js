@@ -10,6 +10,8 @@
  * ever swapped at runtime.
  */
 
+import { consonance } from './consonance.js';
+
 /** Number of --harmonic-N tokens defined in css/theme.css. */
 export const HARMONIC_COLOR_COUNT = 12;
 
@@ -30,9 +32,22 @@ export function themeColor(token) {
     return value;
 }
 
-/** Color for a partial by index, cycling through the harmonic palette. */
-export function harmonicColor(index) {
-    return themeColor(`--harmonic-${(index % HARMONIC_COLOR_COUNT) + 1}`);
+/**
+ * Color for a partial by its interval against the fundamental: the
+ * consonance score picks a step on the --harmonic-1..N ramp (ordered
+ * dissonant → consonant), Hammond-style — octave partials land on the
+ * lightest "white" end, complex/irrational intervals on the dark end.
+ * Shared by the drawbars and the p5 tonewheel rings so they always match.
+ */
+export function partialColor(ratio) {
+    const key = `partial:${ratio}`;
+    let color = cache.get(key);
+    if (color === undefined) {
+        const step = 1 + Math.round(consonance(ratio) * (HARMONIC_COLOR_COUNT - 1));
+        color = themeColor(`--harmonic-${step}`);
+        cache.set(key, color);
+    }
+    return color;
 }
 
 /** Drop memoized values (only needed after swapping themes at runtime). */

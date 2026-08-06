@@ -57,8 +57,13 @@ export class MidiInputRouter {
 
         const isNoteOn = (status & 0xF0) === 0x90 && data2 > 0;
         const isNoteOff = (status & 0xF0) === 0x80 || data2 === 0;
-        if (isNoteOn) return this.handleNoteOn(data1, data2);
-        if (isNoteOff) return this.handleNoteOff(data1);
+        if (isNoteOn || isNoteOff) {
+            // Feedback-loop guard: our own pulse outputs send low note
+            // numbers (1..12 by default) — ignore them on the way back in
+            // so an IAC in/out loop can't retrigger the fundamental.
+            if (data1 < this._currentConfig.inputNoteMin) return;
+            return isNoteOn ? this.handleNoteOn(data1, data2) : this.handleNoteOff(data1);
+        }
     }
 
     handleCC(cc, val, age = 0) {

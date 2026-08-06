@@ -1,5 +1,5 @@
 import { AppState, midiConfig } from "../../config.js";
-import { updateHarmonicGate, updateHarmonicFilter, updateHarmonicPan, updateHarmonicPulse, updateHarmonicSequencer } from "../../audio.js";
+import { updateHarmonicGate, updateHarmonicFilter, updateHarmonicPan, updateHarmonicPulse, updateHarmonicSequencer, MAX_FILTER_PARTIALS } from "../../audio.js";
 import { getVoicePan } from "../../utils.js";
 import { OVERTONE_SIGNAL_CHANGED } from "../../events.js";
 
@@ -9,6 +9,10 @@ import { OVERTONE_SIGNAL_CHANGED } from "../../events.js";
  * OVERTONE_SIGNAL_CHANGED to sync Live params upstream. (Inbound OSC writes
  * state directly and does not emit this event, so there is no echo.)
  */
+// Resonance ceiling shared by the modal dial, the drawbar filter view,
+// and the OSC clamp — one number, three surfaces.
+export const Q_MAX = 40;
+
 export const OvertoneSignalActions = {
 
     getGate(index) {
@@ -112,6 +116,54 @@ export const OvertoneSignalActions = {
         AppState.oscillatorPans[index] = Math.max(-1, Math.min(1, pan));
         updateHarmonicPan(index);
         this._changed(index, 'pan');
+    },
+
+    // ---------------------------------------------------------------
+    // Bulk operations (the drawbar section's view-scoped reset/randomize)
+    // ---------------------------------------------------------------
+
+    _voiceCount() {
+        return AppState.currentSystem.ratios.length;
+    },
+
+    /** Filters to neutral: open (multiplier 0), default resonance. */
+    resetFilters() {
+        for (let i = 0; i < this._voiceCount(); i++) {
+            this.setFilter(i, { multiplier: 0, q: 0.707 });
+        }
+    },
+
+    /** Random cutoff partial per voice; resonance (the aux dial) untouched. */
+    randomizeFilters() {
+        for (let i = 0; i < this._voiceCount(); i++) {
+            this.setFilter(i, {
+                ...this.getFilter(i),
+                multiplier: 1 + Math.floor(Math.random() * MAX_FILTER_PARTIALS),
+            });
+        }
+    },
+
+    /** Gates off, pattern params back to defaults. */
+    resetGates() {
+        for (let i = 0; i < this._voiceCount(); i++) {
+            this.setGate(i, { mode: 0, x: 1, y: 1, seq: [] });
+        }
+    },
+
+    /**
+     * Random audible rhythm per voice: alternating or euclidean mode with
+     * small musical x/y values (randomizing x/y under mode-off would be
+     * inaudible, which reads as a broken button).
+     */
+    randomizeGates() {
+        for (let i = 0; i < this._voiceCount(); i++) {
+            this.setGate(i, {
+                mode: 1 + Math.floor(Math.random() * 2),
+                x: 1 + Math.floor(Math.random() * 8),
+                y: 2 + Math.floor(Math.random() * 15),
+                seq: [],
+            });
+        }
     },
 
     _changed(index, kind) {

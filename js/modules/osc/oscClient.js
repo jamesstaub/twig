@@ -50,8 +50,8 @@
  */
 
 import { AppState, updateAppState } from "../../config.js";
-import { updateHarmonicGate, updateHarmonicFilter, updateHarmonicPan, updateHarmonicPulse } from "../../audio.js";
-import { OvertoneSignalActions } from "../overtoneSignal/overtoneSignalActions.js";
+import { updateHarmonicPulse } from "../../audio.js";
+import { OvertoneSignalActions, Q_MAX } from "../overtoneSignal/overtoneSignalActions.js";
 import { getVoicePan } from "../../utils.js";
 import { DrawbarsActions } from "../drawbars/drawbarsActions.js";
 import { SpectralSystemActions } from "../spectralSystem/spectralSystemActions.js";
@@ -296,10 +296,9 @@ export class OscClient {
                         x: Math.max(0, Number(rest[1]) || 0),
                         y: Math.max(0, Number(rest[2]) || 0),
                     };
-                this.forVoices(n, (i) => {
-                    AppState.oscillatorGates[i] = { ...config };
-                    updateHarmonicGate(i);
-                });
+                // Via the actions layer so UI views sync (upstream echo is
+                // suppressed by the inbound flag)
+                this.forVoices(n, (i) => OvertoneSignalActions.setGate(i, { ...config }));
                 break;
             }
             case 'filter': {
@@ -312,14 +311,12 @@ export class OscClient {
                 const [n, rest] = perVoiceArgs(sub, args);
                 if (n === null || rest[0] === undefined) break;
                 const multiplier = Math.round(Number(rest[0]));
-                const q = rest[1] !== undefined ? Math.min(48, Math.max(0.0001, Number(rest[1]))) : undefined;
-                this.forVoices(n, (i) => {
-                    AppState.oscillatorFilters[i] = {
-                        multiplier: multiplier > 0 ? multiplier : 0,
-                        ...(q !== undefined ? { q } : {}),
-                    };
-                    updateHarmonicFilter(i);
-                });
+                const q = rest[1] !== undefined ? Math.min(Q_MAX, Math.max(0.0001, Number(rest[1]))) : undefined;
+                this.forVoices(n, (i) => OvertoneSignalActions.setFilter(i, {
+                    ...OvertoneSignalActions.getFilter(i),
+                    multiplier: multiplier > 0 ? multiplier : 0,
+                    ...(q !== undefined ? { q } : {}),
+                }));
                 break;
             }
             case 'pan': {
@@ -327,11 +324,7 @@ export class OscClient {
                 const [n, rest] = perVoiceArgs(sub, args);
                 if (n === null || rest[0] === undefined) break;
                 const v = Math.max(-1, Math.min(1, Number(rest[0]) || 0));
-                this.forVoices(n, (i) => {
-                    if (!Array.isArray(AppState.oscillatorPans)) AppState.oscillatorPans = [];
-                    AppState.oscillatorPans[i] = v;
-                    updateHarmonicPan(i);
-                });
+                this.forVoices(n, (i) => OvertoneSignalActions.setPan(i, v));
                 break;
             }
             case 'seqshape': {
@@ -416,11 +409,15 @@ export class OscClient {
     }
 
     /**
-     * Relay a voice pulse upstream: /twig/pulse/<n> [cycle, gateOn].
-     * Not part of the cached state — pulses are events, not settings.
+     * Relay a voice pulse upstream: /twig/pulse/<n> [cycle, gateOn, velocity].
+     * Velocity (0-127) tracks the overtone's drawbar gain, so the patch can
+     * feed it straight into [noteout]. Not part of the cached state —
+     * pulses are events, not settings.
      */
     emitPulse(index, pulse) {
-        this.emit(`pulse/${index + 1}`, [pulse.cycle, pulse.gateOn ? 1 : 0]);
+        const amp = AppState.harmonicAmplitudes[index] || 0;
+        const velocity = amp <= 0.001 ? 0 : Math.max(1, Math.round(amp * 127));
+        this.emit(`pulse/${index + 1}`, [pulse.cycle, pulse.gateOn ? 1 : 0, velocity]);
     }
 
     /**

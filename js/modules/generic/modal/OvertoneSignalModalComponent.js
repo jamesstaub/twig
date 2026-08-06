@@ -1,139 +1,15 @@
 import ModalComponent from './ModalComponent.js';
 import { AppState } from '../../../config.js';
-import { calculateFrequency } from '../../../utils.js';
+import { calculateFrequency, formatHz } from '../../../utils.js';
 import { harmonicFilterCutoff, MAX_FILTER_PARTIALS } from '../../../audio.js';
-import { OvertoneSignalActions } from '../../overtoneSignal/overtoneSignalActions.js';
+import { OvertoneSignalActions, Q_MAX } from '../../overtoneSignal/overtoneSignalActions.js';
+import { Dial } from '../dial/Dial.js';
 import { MidiOutputRouter, midiOutputRouter } from '../../midi/midiOutputRouter.js';
 import { oscClient } from '../../osc/oscClient.js';
 import { showStatus } from '../../../domUtils.js';
-import { themeColor } from '../../../theme.js';
-import { getWaveValue } from '../../tonewheel/tonewheelActions.js';
+import { drawSequencePreview } from '../../overtoneSignal/sequencePreview.js';
 
 const PULSE_MAX_HZ = 50; // mirrors the cap in gate-processor.js
-
-/**
- * Unipolar (0-1) cycle contour for a shape name — mirrors shapeValue() in
- * gate-processor.js. Custom waveforms are min-max normalized like the
- * table the worklet receives.
- */
-function shapeContour(shapeName, phase) {
-    switch (shapeName) {
-        case 'sine': return (1 - Math.cos(2 * Math.PI * phase)) / 2;
-        case 'triangle': return 1 - Math.abs(2 * phase - 1);
-        case 'sawtooth': return 1 - phase;
-        case 'square': return 1;
-        default: return null; // custom — sampled separately
-    }
-}
-
-/** Pattern activity for one cycle — mirrors gateForCycle in the worklet
- *  (probability is depicted as all-active; randomness can't be drawn). */
-function previewPattern(gate, cycles) {
-    switch (gate.mode) {
-        case 1: {
-            const period = Math.max(1, Math.round(gate.x) + Math.round(gate.y));
-            return Array.from({ length: cycles }, (_, c) => (c % period) < Math.round(gate.x));
-        }
-        case 2: {
-            const steps = Math.max(1, Math.round(gate.y));
-            const pulses = Math.min(Math.round(gate.x), steps);
-            const pat = [];
-            let bucket = 0;
-            for (let i = 0; i < steps; i++) {
-                bucket += pulses;
-                if (bucket >= steps) { bucket -= steps; pat.push(true); } else pat.push(false);
-            }
-            return Array.from({ length: cycles }, (_, c) => pat[c % steps]);
-        }
-        case 4: {
-            const seq = gate.seq || [];
-            if (!seq.length) return Array.from({ length: cycles }, () => true);
-            return Array.from({ length: cycles }, (_, c) => seq[c % seq.length] > 0.5);
-        }
-        default: // off and probability
-            return Array.from({ length: cycles }, () => true);
-    }
-}
-
-/** Cycles the preview spans: the full pattern period and the full shape period. */
-function previewCycleCount(gate, stretch) {
-    let period = 1;
-    if (gate.mode === 1) period = Math.max(1, Math.round(gate.x) + Math.round(gate.y));
-    else if (gate.mode === 2) period = Math.max(1, Math.round(gate.y));
-    else if (gate.mode === 4) period = Math.max(1, (gate.seq || []).length || 1);
-    return Math.min(32, Math.max(period, Math.ceil(stretch), 1));
-}
-
-/**
- * Draw the full sequence — pattern × shape × stretch — in the app's viz
- * style, exactly the control signal the worklet produces (sans declick).
- */
-function drawSequencePreview(canvas, index) {
-    const gate = OvertoneSignalActions.getGate(index);
-    const seq = OvertoneSignalActions.getSequencer(index);
-    const ctx = canvas.getContext('2d');
-    const { width: w, height: h } = canvas;
-    const pad = 4;
-
-    ctx.fillStyle = themeColor('--viz-bg');
-    ctx.fillRect(0, 0, w, h);
-
-    const cycles = previewCycleCount(gate, seq.stretch);
-    const active = previewPattern(gate, cycles);
-
-    // Cycle boundaries as faint gridlines
-    ctx.strokeStyle = themeColor('--viz-grid');
-    ctx.lineWidth = 1;
-    for (let c = 1; c < cycles; c++) {
-        const x = Math.round((c / cycles) * w) + 0.5;
-        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
-    }
-    ctx.strokeRect(0.5, 0.5, w - 1, h - 1);
-
-    // Custom shape: sample one period, min-max normalized like the worklet table
-    let table = null;
-    if (shapeContour(seq.shape, 0) === null) {
-        const coeffs = AppState.customWaveCoefficients?.[seq.shape];
-        if (coeffs) {
-            const raw = [];
-            for (let i = 0; i < 256; i++) {
-                raw.push(getWaveValue(seq.shape, (i / 256) * 2 * Math.PI, coeffs));
-            }
-            const min = Math.min(...raw);
-            const span = (Math.max(...raw) - min) || 1;
-            table = raw.map((v) => (v - min) / span);
-        }
-    }
-    const shapeAt = (phase) => {
-        if (table) {
-            const pos = phase * table.length;
-            const i0 = Math.floor(pos) % table.length;
-            const i1 = (i0 + 1) % table.length;
-            return table[i0] + (table[i1] - table[i0]) * (pos - i0);
-        }
-        return shapeContour(seq.shape, phase) ?? 1;
-    };
-
-    ctx.strokeStyle = themeColor('--viz-trace');
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    for (let i = 0; i <= w; i++) {
-        const t = (i / w) * cycles;
-        const c = Math.min(cycles - 1, Math.floor(t));
-        const phase = t - c;
-        const s = gate.mode === 0
-            ? 1
-            : (active[c] ? shapeAt(((c + phase) / seq.stretch) % 1) : 0);
-        const y = pad + (1 - s) * (h - 2 * pad);
-        if (i === 0) ctx.moveTo(i, y);
-        else ctx.lineTo(i, y);
-    }
-    ctx.stroke();
-}
-
-function formatHz(hz) {
-    return hz >= 1000 ? `${(hz / 1000).toFixed(2)} kHz` : `${Math.round(hz)} Hz`;
-}
 
 const GATE_MODE_OPTIONS = [
     { value: 0, label: 'Off' },
@@ -561,7 +437,7 @@ export default class OvertoneSignalModalComponent extends ModalComponent {
         const filter = OvertoneSignalActions.getFilter(index);
         const apply = () => OvertoneSignalActions.setFilter(index, { ...filter });
 
-        // The cutoff slider is itself an overtone-series selector: it picks
+        // The cutoff dial is itself an overtone-series selector: it picks
         // a partial (of the current system) of this voice's audible base.
         // 0 = filter open. Positions past the system's own table extend the
         // series and are marked +1, +2, …
@@ -569,62 +445,59 @@ export default class OvertoneSignalModalComponent extends ModalComponent {
         const voiceFreq = calculateFrequency(AppState.currentSystem.ratios[index]);
         const partialLabel = (n) =>
             (n <= sysLabels.length ? sysLabels[n - 1] : `+${n - sysLabels.length}`);
+        const cutoffText = () => (filter.multiplier > 0
+            ? `${partialLabel(Math.round(filter.multiplier))}\n${formatHz(harmonicFilterCutoff(index, voiceFreq))}`
+            : 'open');
 
         const row = document.createElement('div');
-        row.className = 'signal-slider-row';
+        row.className = 'signal-dial-row';
         row.append(
-            this.vSlider({
-                label: 'cutoff', color: 'blue',
-                min: 0, max: MAX_FILTER_PARTIALS, step: 1, value: filter.multiplier || 0,
-                format: (v) => (filter.multiplier > 0
-                    ? `${partialLabel(Math.round(v))}\n${formatHz(harmonicFilterCutoff(index, voiceFreq))}`
-                    : 'open'),
-                onInput: (v) => { filter.multiplier = Math.round(v); apply(); },
+            this.dialColumn({
+                label: 'cutoff',
+                dial: { min: 0, max: MAX_FILTER_PARTIALS, step: 1, value: filter.multiplier || 0 },
+                text: cutoffText,
+                onChange: (v) => { filter.multiplier = Math.round(v); apply(); },
             }),
-            this.vSlider({
-                label: 'resonance', color: 'red',
-                min: 0.1, max: 48, step: 0.05, value: filter.q,
-                format: (v) => `Q ${(+v).toFixed(2)}`,
-                onInput: (v) => { filter.q = v; apply(); },
+            this.dialColumn({
+                label: 'resonance', color: '--accent-negative',
+                dial: { min: 0.1, max: Q_MAX, step: 0.05, value: filter.q },
+                text: () => `Q ${(+filter.q).toFixed(2)}`,
+                onChange: (v) => { filter.q = v; apply(); },
             })
         );
         el.appendChild(row);
         return el;
     }
 
-    /** Vertical slider using the drawbar UI elements. */
-    vSlider({ label, color, min, max, step, value, format, onInput }) {
+    /**
+     * The same mini dial as the drawbar panel, with its name and a live
+     * value readout beneath.
+     */
+    dialColumn({ label, color, dial, text, onChange }) {
         const col = document.createElement('div');
-        col.className = `drawbar ${color} signal-vslider`;
-
-        const lab = document.createElement('span');
-        lab.className = 'drawbar-label';
-        lab.textContent = label;
-
-        const wrap = document.createElement('div');
-        wrap.className = 'drawbar-input-wrapper';
-        const track = document.createElement('div');
-        track.className = 'drawbar-track';
-        const input = document.createElement('input');
-        input.type = 'range';
-        input.className = 'drawbar-slider';
-        input.min = min;
-        input.max = max;
-        input.step = step;
-        input.value = value;
-        wrap.append(track, input);
+        col.className = 'signal-dial-col';
 
         const valueEl = document.createElement('span');
         valueEl.className = 'signal-vslider-value';
-        valueEl.textContent = format(value);
+        valueEl.textContent = text();
 
-        input.addEventListener('input', () => {
-            const v = parseFloat(input.value);
-            onInput(v);
-            valueEl.textContent = format(v);
+        const d = new Dial({
+            ...dial,
+            size: 32,
+            label,
+            ...(color ? { color } : {}),
+            format: () => text().replace('\n', ' · '),
+            onChange: (v) => {
+                onChange(v);
+                valueEl.textContent = text();
+            },
         });
 
-        col.append(lab, wrap, valueEl);
+        const name = document.createElement('span');
+        name.className = 'signal-dial-name';
+        name.textContent = label;
+
+        col.append(d.el, name, valueEl);
         return col;
     }
 
@@ -637,35 +510,18 @@ export default class OvertoneSignalModalComponent extends ModalComponent {
         const format = (v) => (Math.abs(v) < 0.005 ? 'C' : (v < 0 ? `L${Math.round(-v * 100)}` : `R${Math.round(v * 100)}`));
 
         const row = document.createElement('div');
-        row.className = 'signal-pan-row';
-
-        const left = document.createElement('span');
-        left.className = 'signal-pan-edge';
-        left.textContent = 'L';
-        const right = document.createElement('span');
-        right.className = 'signal-pan-edge';
-        right.textContent = 'R';
-
-        const input = document.createElement('input');
-        input.type = 'range';
-        input.className = 'signal-pan-slider';
-        input.min = -1;
-        input.max = 1;
-        input.step = 0.01;
-        input.value = OvertoneSignalActions.getPan(index);
-
-        const valueEl = document.createElement('span');
-        valueEl.className = 'signal-vslider-value';
-        valueEl.textContent = format(parseFloat(input.value));
-
-        input.addEventListener('input', () => {
-            const v = parseFloat(input.value);
-            valueEl.textContent = format(v);
-            OvertoneSignalActions.setPan(index, v);
-        });
-
-        row.append(left, input, right);
-        el.append(row, valueEl);
+        row.className = 'signal-dial-row';
+        let value = OvertoneSignalActions.getPan(index);
+        row.appendChild(this.dialColumn({
+            label: 'pan',
+            dial: { min: -1, max: 1, step: 0.01, value },
+            text: () => format(value),
+            onChange: (v) => {
+                value = v;
+                OvertoneSignalActions.setPan(index, v);
+            },
+        }));
+        el.appendChild(row);
         return el;
     }
 }

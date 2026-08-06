@@ -58,27 +58,31 @@
     --key-black: #1f2937;
 
     /* ---- Drawbars ----
-       Per-drawbar color comes from the harmonic palette below
-       (--drawbar-color, set per element); this is the label fallback. */
-    --drawbar-label: #d1d5db;
+       Per-drawbar handle color comes from the harmonic ramp below
+       (--drawbar-color, set per element by consonance). */
+    --drawbar-label: #d1d5db;          /* label fallback when uncolored */
+    --drawbar-track-bg: #0d131f;       /* dark shaft behind the handle */
+    --drawbar-meter: rgba(255, 255, 255, 0.65); /* position meter lines */
 
-    /* ---- Harmonic partial palette ----
-       One color per partial, cycled. Shared by the p5 tonewheel rings
-       (js/theme.js) and any UI that colors by partial. */
+    /* ---- Harmonic consonance ramp ----
+       Ordered dissonant (1) → consonant (12). js/theme.js picks a step per
+       partial from its interval's consonance, shared by drawbars and the
+       p5 tonewheel rings. Two hue families from the app's accents:
+       consonant = blues (7-12, lighter = purer; octaves land near-white),
+       dissonant = reds (1-6, darker = more complex/irrational). */
+    --harmonic-1: #7f1d1d;
+    --harmonic-2: #991b1b;
+    --harmonic-3: #b91c1c;
+    --harmonic-4: #dc2626;
+    --harmonic-5: #ef4444;
+    --harmonic-6: #f87171;
+    --harmonic-7: #2563eb;
+    --harmonic-8: #3b82f6;
+    --harmonic-9: #60a5fa;
+    --harmonic-10: #93c5fd;
+    --harmonic-11: #bfdbfe;
+    --harmonic-12: #dbeafe;
 
-      --harmonic-1: #12344d;
-      --harmonic-2: #1d4965;
-      --harmonic-3: #2a5f7d;
-      --harmonic-4: #397695;
-      --harmonic-5: #4a8ca8;
-      --harmonic-6: #63a2b2;
-      --harmonic-7: #7cb5a8;
-      --harmonic-8: #97c48f;
-      --harmonic-9: #b3ce7d;
-      --harmonic-10: #d0d06f;
-      --harmonic-11: #e3cf8d;
-      --harmonic-12: #efe6c8;
-   
 
     /* ---- Layout ---- */
     --navbar-height: 6rem;

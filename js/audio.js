@@ -385,6 +385,16 @@ export function updateHarmonicSequencer(index) {
     }
 }
 
+/**
+ * Live peak level (0-1) of one harmonic's voice, post gate/filter — for UI
+ * amplitude indicators. Cheap enough to poll per animation frame.
+ */
+export function getVoiceLevel(index) {
+    if (!AppState.isPlaying || !audioEngine) return 0;
+    const node = AppState.oscillators[index];
+    return node && node.key ? audioEngine.getVoiceLevel(node.key) : 0;
+}
+
 /** True when any pulse consumer (MIDI, OSC, clock) wants this voice's cycles. */
 export function harmonicPulseEnabled(index) {
     const out = AppState.oscillatorPulseOuts[index];

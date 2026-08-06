@@ -1,153 +1,180 @@
 
 import ModalComponent from './ModalComponent.js';
 import { midiConfig } from '../../../config.js';
+import { midiOutputRouter } from '../../midi/midiOutputRouter.js';
 import {
     updateMidiInputChannel,
+    updateMidiOutputChannel,
+    updateMidiInputNoteMin,
     updateMidiDrawbarCC,
     updatePulseNote,
     setPulseOutputEnabled
 } from '../../../modules/midi/midiConfigActions.js';
 
 /**
- * MidiMappingModalComponent
- * A modal for mapping MIDI channels, notes, and CCs to parameters.
- * Uses placeholder inputs for now.
+ * MidiMappingModalComponent — MIDI routing and mapping settings, laid out
+ * as Input / Output setting cards over mapping tables (drawbar CCs, pulse
+ * notes), in the same sectioned style as the overtone settings modal.
  */
 export default class MidiMappingModalComponent extends ModalComponent {
+
+    /** Range-checked number input. */
+    numInput(value, min, max, onChange) {
+        const input = document.createElement('input');
+        input.type = 'number';
+        input.min = min;
+        input.max = max;
+        input.value = value;
+        input.className = 'midi-num-input';
+        input.addEventListener('change', (e) => {
+            const val = parseInt(e.target.value, 10);
+            if (val >= min && val <= max) onChange(val);
+        });
+        return input;
+    }
+
+    /** "label ........ [control]" row inside a section. */
+    settingRow(text, control) {
+        const row = document.createElement('label');
+        row.className = 'midi-setting-row';
+        const span = document.createElement('span');
+        span.textContent = text;
+        row.append(span, control);
+        return row;
+    }
+
+    /** Raised card with an uppercase title, like the signal modal's sections. */
+    section(title, wide = false) {
+        const sec = document.createElement('section');
+        sec.className = 'midi-section' + (wide ? ' midi-section-wide' : '');
+        const heading = document.createElement('div');
+        heading.className = 'midi-section-title';
+        heading.textContent = title;
+        sec.appendChild(heading);
+        return sec;
+    }
+
+    /**
+     * Two-row mapping table: labels across the top, an editable value per
+     * column beneath. Scrolls horizontally rather than wrapping.
+     */
+    mappingTable(labels, values, onChange) {
+        const scroll = document.createElement('div');
+        scroll.className = 'midi-map-scroll';
+        const table = document.createElement('table');
+        table.className = 'midi-map-table';
+        const head = table.createTHead().insertRow();
+        const body = table.createTBody().insertRow();
+        labels.forEach((label, i) => {
+            const th = document.createElement('th');
+            th.textContent = label;
+            head.appendChild(th);
+            body.insertCell().appendChild(
+                this.numInput(values[i], 0, 127, (val) => onChange(i, val))
+            );
+        });
+        scroll.appendChild(table);
+        return scroll;
+    }
+
+    toggleRow(text, key, kind) {
+        const toggle = document.createElement('div');
+        toggle.className = 'toggle-switch midi-pulse-toggle';
+        toggle.setAttribute('role', 'switch');
+        toggle.classList.toggle('active', Boolean(midiConfig[key]));
+        toggle.setAttribute('aria-checked', String(Boolean(midiConfig[key])));
+        toggle.setAttribute('aria-label', text);
+        this.bindEvent(toggle, 'click', () => {
+            const on = !toggle.classList.contains('active');
+            toggle.classList.toggle('active', on);
+            toggle.setAttribute('aria-checked', String(on));
+            setPulseOutputEnabled(kind, on);
+        });
+        return this.settingRow(text, toggle);
+    }
+
+    outputPortSelect() {
+        const select = document.createElement('select');
+        select.className = 'control-select midi-port-select';
+        const ports = midiOutputRouter.outputPorts();
+        if (ports.length === 0) {
+            const opt = document.createElement('option');
+            opt.textContent = midiOutputRouter.midi ? 'no output ports found' : 'MIDI unavailable';
+            opt.disabled = true;
+            opt.selected = true;
+            select.appendChild(opt);
+            select.disabled = true;
+            return select;
+        }
+        for (const port of ports) {
+            const opt = document.createElement('option');
+            opt.value = port.id;
+            opt.textContent = port.name;
+            if (midiOutputRouter.output && port.id === midiOutputRouter.output.id) opt.selected = true;
+            select.appendChild(opt);
+        }
+        select.addEventListener('change', () => midiOutputRouter.selectOutput(select.value));
+        return select;
+    }
+
     async render(props = {}) {
         this.teardown();
         this.el.innerHTML = '';
 
-        // Modal overlay
         const overlay = document.createElement('div');
         overlay.className = 'modal-overlay';
         overlay.tabIndex = -1;
 
-        // Modal dialog
         const dialog = document.createElement('div');
-        dialog.className = 'modal-dialog';
+        dialog.className = 'modal-dialog midi-modal';
 
-        // Title
         const title = document.createElement('h2');
         title.textContent = 'MIDI Mapping';
         title.className = 'midi-modal-title';
         dialog.appendChild(title);
 
-        // MIDI Channel input
-        const channelLabel = document.createElement('label');
-        channelLabel.textContent = 'MIDI Channel: ';
-        const channelInput = document.createElement('input');
-        channelInput.type = 'number';
-        channelInput.min = 1;
-        channelInput.max = 16;
-        channelInput.value = midiConfig.inputChannel;
-        channelInput.className = 'midi-num-input';
-        channelInput.addEventListener('change', (e) => {
-            let val = parseInt(e.target.value, 10);
-            if (val >= 1 && val <= 16) {
-                updateMidiInputChannel(val);
-            }
-        });
-        channelLabel.appendChild(channelInput);
-        dialog.appendChild(channelLabel);
-        dialog.appendChild(document.createElement('br'));
+        // --- Input / Output setting cards side by side ---
+        const cards = document.createElement('div');
+        cards.className = 'midi-sections-row';
 
-        // Drawbars CC inputs
-        const drawbarsLabel = document.createElement('div');
-        drawbarsLabel.textContent = 'Drawbars CC Mapping:';
-        drawbarsLabel.className = 'midi-section-label';
-        dialog.appendChild(drawbarsLabel);
+        const input = this.section('Input');
+        input.append(
+            this.settingRow('Channel', this.numInput(midiConfig.inputChannel, 1, 16, updateMidiInputChannel)),
+            this.settingRow('Ignore notes below', this.numInput(midiConfig.inputNoteMin, 0, 127, updateMidiInputNoteMin)),
+        );
+        const inputHint = document.createElement('p');
+        inputHint.className = 'midi-section-hint';
+        inputHint.textContent = 'Notes below the floor are ignored so the pulse notes (1–12 by default) can’t loop back into the fundamental.';
+        input.appendChild(inputHint);
 
-        const drawbarsList = document.createElement('div');
-        drawbarsList.className = 'midi-cc-list';
-        for (let i = 0; i < midiConfig.drawbarsCC.length; i++) {
-            const ccWrap = document.createElement('div');
-            ccWrap.className = 'midi-cc-item';
-            const label = document.createElement('label');
-            label.textContent = `D${i + 1}`;
-            const ccInput = document.createElement('input');
-            ccInput.type = 'number';
-            ccInput.min = 0;
-            ccInput.max = 127;
-            ccInput.value = midiConfig.drawbarsCC[i];
-            ccInput.className = 'midi-num-input';
-            ccInput.addEventListener('change', (e) => {
-                let val = parseInt(e.target.value, 10);
-                if (val >= 0 && val <= 127) {
-                    updateMidiDrawbarCC(i, val);
-                }
-            });
-            label.appendChild(ccInput);
-            ccWrap.appendChild(label);
-            drawbarsList.appendChild(ccWrap);
-        }
-        dialog.appendChild(drawbarsList);
+        const output = this.section('Output');
+        output.append(
+            this.settingRow('Port', this.outputPortSelect()),
+            this.settingRow('Channel', this.numInput(midiConfig.outputChannel, 1, 16, updateMidiOutputChannel)),
+            this.toggleRow('MIDI pulse out', 'pulseMidiEnabled', 'midi'),
+            this.toggleRow('OSC pulse out', 'pulseOscEnabled', 'osc'),
+        );
 
-        // --- MIDI Out: pulse outputs ---
-        const outLabel = document.createElement('div');
-        outLabel.textContent = 'Pulse Output:';
-        outLabel.className = 'midi-section-label';
-        dialog.appendChild(outLabel);
+        cards.append(input, output);
+        dialog.appendChild(cards);
 
-        // Global master switches for the two pulse paths
-        const toggles = document.createElement('div');
-        toggles.className = 'midi-pulse-toggles';
-        const addToggle = (text, key, kind) => {
-            const row = document.createElement('div');
-            row.className = 'midi-pulse-toggle-row';
-            const toggle = document.createElement('div');
-            toggle.className = 'toggle-switch midi-pulse-toggle';
-            toggle.setAttribute('role', 'switch');
-            toggle.classList.toggle('active', Boolean(midiConfig[key]));
-            toggle.setAttribute('aria-checked', String(Boolean(midiConfig[key])));
-            toggle.setAttribute('aria-label', text);
-            this.bindEvent(toggle, 'click', () => {
-                const on = !toggle.classList.contains('active');
-                toggle.classList.toggle('active', on);
-                toggle.setAttribute('aria-checked', String(on));
-                setPulseOutputEnabled(kind, on);
-            });
-            const label = document.createElement('span');
-            label.textContent = text;
-            row.append(toggle, label);
-            toggles.appendChild(row);
-        };
-        addToggle('MIDI pulse out', 'pulseMidiEnabled', 'midi');
-        addToggle('OSC pulse out', 'pulseOscEnabled', 'osc');
-        dialog.appendChild(toggles);
+        // --- Mapping tables ---
+        const ccSection = this.section('Drawbar CC Mapping', true);
+        ccSection.appendChild(this.mappingTable(
+            midiConfig.drawbarsCC.map((_, i) => `D${i + 1}`),
+            midiConfig.drawbarsCC,
+            updateMidiDrawbarCC,
+        ));
+        dialog.appendChild(ccSection);
 
-        // Per-overtone pulse note numbers (linear 1..N by default)
-        const notesLabel = document.createElement('div');
-        notesLabel.textContent = 'Pulse Note Mapping:';
-        notesLabel.className = 'midi-section-label';
-        dialog.appendChild(notesLabel);
+        const notesSection = this.section('Pulse Note Mapping', true);
+        notesSection.appendChild(this.mappingTable(
+            midiConfig.pulseNotes.map((_, i) => `O${i + 1}`),
+            midiConfig.pulseNotes,
+            updatePulseNote,
+        ));
+        dialog.appendChild(notesSection);
 
-        const notesList = document.createElement('div');
-        notesList.className = 'midi-cc-list';
-        for (let i = 0; i < midiConfig.pulseNotes.length; i++) {
-            const noteWrap = document.createElement('div');
-            noteWrap.className = 'midi-cc-item';
-            const label = document.createElement('label');
-            label.textContent = `O${i + 1}`;
-            const noteInput = document.createElement('input');
-            noteInput.type = 'number';
-            noteInput.min = 0;
-            noteInput.max = 127;
-            noteInput.value = midiConfig.pulseNotes[i];
-            noteInput.className = 'midi-num-input';
-            noteInput.addEventListener('change', (e) => {
-                const val = parseInt(e.target.value, 10);
-                if (val >= 0 && val <= 127) {
-                    updatePulseNote(i, val);
-                }
-            });
-            label.appendChild(noteInput);
-            noteWrap.appendChild(label);
-            notesList.appendChild(noteWrap);
-        }
-        dialog.appendChild(notesList);
-
-        // Close button
         const closeBtn = document.createElement('button');
         closeBtn.className = 'modal-close-btn';
         closeBtn.setAttribute('aria-label', 'Close modal');
@@ -192,4 +219,3 @@ export default class MidiMappingModalComponent extends ModalComponent {
         this.el.innerHTML = '';
     }
 }
-

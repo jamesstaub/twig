@@ -12,8 +12,6 @@ const CLOCK_STOP = 0xfc;
 // zero-length notes still register it — nothing waits on a timer, so
 // note-offs can't be dropped by page throttling.
 const BLIP_MS = 10;
-const VELOCITY = 100;
-const MIDI_CHANNEL = 1; // fixed for now; per-voice channels are a later knob
 
 /**
  * MidiOutputRouter — turns voice pulses into Web MIDI events.
@@ -32,6 +30,7 @@ const MIDI_CHANNEL = 1; // fixed for now; per-voice channels are a later knob
 export class MidiOutputRouter {
 
     constructor() {
+        this.midi = null;
         this.output = null;
         this.available = false;
         this._clockRunning = false;
@@ -40,18 +39,32 @@ export class MidiOutputRouter {
     async init() {
         if (!navigator.requestMIDIAccess) return;
         try {
-            const midi = await navigator.requestMIDIAccess();
-            const pick = () => {
-                this.output = midi.outputs.values().next().value || null;
-                this.available = Boolean(this.output);
-            };
-            pick();
-            midi.onstatechange = pick;
+            this.midi = await navigator.requestMIDIAccess();
+            this._pick();
+            this.midi.onstatechange = () => this._pick();
         } catch {
             // Denied (expected in embedded webviews) — OSC pulses still work
             return;
         }
         pulseBus.addSink((index, pulse) => this.onPulse(index, pulse));
+    }
+
+    /** Resolve the active output: the configured port if present, else first. */
+    _pick() {
+        const outs = this.midi ? [...this.midi.outputs.values()] : [];
+        this.output = outs.find((o) => o.id === midiConfig.outputId) || outs[0] || null;
+        this.available = Boolean(this.output);
+    }
+
+    /** Available system output ports, for the MIDI modal's selector. */
+    outputPorts() {
+        return this.midi ? [...this.midi.outputs.values()].map((o) => ({ id: o.id, name: o.name })) : [];
+    }
+
+    /** Route pulses to a specific output port. */
+    selectOutput(id) {
+        midiConfig.outputId = id || null;
+        this._pick();
     }
 
     /**
@@ -82,10 +95,20 @@ export class MidiOutputRouter {
     sendBlip(index) {
         const note = MidiOutputRouter.noteForVoice(index);
         if (note === null) return;
-        const status = MIDI_CHANNEL - 1;
+        // Velocity tracks the overtone's drawbar gain; silent drawbars
+        // (which you can't hear) send no note at all
+        const velocity = MidiOutputRouter.velocityForVoice(index);
+        if (velocity === 0) return;
+        const status = (midiConfig.outputChannel || 1) - 1;
         const now = window.performance.now();
-        this.output.send([NOTE_ON | status, note, VELOCITY], now);
+        this.output.send([NOTE_ON | status, note, velocity], now);
         this.output.send([NOTE_OFF | status, note, 0], now + BLIP_MS);
+    }
+
+    /** 1-127 from the overtone's drawbar amplitude; 0 = drawbar silent. */
+    static velocityForVoice(index) {
+        const amp = AppState.harmonicAmplitudes[index] || 0;
+        return amp <= 0.001 ? 0 : Math.max(1, Math.round(amp * 127));
     }
 
     sendClockTicks(pulse) {
