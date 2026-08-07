@@ -4,38 +4,15 @@
     display: flex;
     flex-direction: column;
     gap: 0.75rem;
-    width: 44rem;
+    width: 48rem;
     max-width: 100%;
 }
 
-/* Title left, "copy settings to" right — one chrome row instead of two */
 .signal-modal-header {
     display: flex;
     align-items: center;
-    justify-content: space-between;
     gap: 0.75rem;
-    flex-wrap: wrap;
     padding-right: 2rem; /* clear the close button */
-}
-
-.signal-copy-row {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-}
-
-.signal-copy-label {
-    font-size: 0.8rem;
-    font-weight: 600;
-    color: var(--text-secondary);
-    white-space: nowrap;
-}
-
-.signal-copy-select {
-    width: auto;
-    flex: 0 1 16rem;
-    padding: 0.25rem 0.5rem;
-    font-size: 0.85rem;
 }
 
 .signal-modal-title {
@@ -165,8 +142,9 @@
 
 .signal-pulse-row {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
-    gap: 0.5rem;
+    gap: 0.25rem 0.5rem;
 }
 
 .signal-pulse-row-disabled {
@@ -200,6 +178,8 @@
     font-size: 0.7rem;
     color: var(--text-accent);
     font-family: monospace;
+    min-width: 0;
+    overflow-wrap: anywhere;
 }
 
 .signal-pulse-warning {
@@ -288,10 +268,13 @@
 
 /* ---- Dial-based filter/pan controls (shared Dial widget) ---- */
 
+/* Wrap freely: a squeezed section (e.g. the four ADSR dials) flows its
+   dials onto extra rows instead of spilling into the neighboring cards */
 .signal-dial-row {
     display: flex;
+    flex-wrap: wrap;
     justify-content: center;
-    gap: 1.5rem;
+    gap: 0.75rem 1.25rem;
     margin-top: 0.5rem;
 }
 

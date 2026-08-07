@@ -41,7 +41,7 @@
  * Refactored to use modular DSP classes with period multiplier support
  */
 
-import { AppState, midiConfig, updateAppState, WAVETABLE_SIZE } from './config.js';
+import { AppState, ENVELOPE_DEFAULTS, midiConfig, updateAppState, WAVETABLE_SIZE } from './config.js';
 import { calculateFrequency, generateFilenameParts, getVoicePan } from './utils.js';
 
 import { AudioEngine, WavetableManager, WAVExporter } from './dsp/index.js';
@@ -82,30 +82,38 @@ export function getWavetableManager() {
 // ================================
 
 /**
- * Initializes the AudioContext and the audio graph
+ * Initializes the AudioContext and the audio graph.
+ * Concurrent callers share one in-flight initialization — a second caller
+ * must never see a constructed-but-uninitialized engine (voices created
+ * against one throw and are silently lost).
  */
+let audioInitPromise = null;
+
 export async function initAudio() {
-    if (!audioEngine) {
-        audioEngine = new AudioEngine();
-        wavetableManager = new WavetableManager();
+    if (!audioInitPromise) {
+        audioInitPromise = (async () => {
+            audioEngine = new AudioEngine();
+            wavetableManager = new WavetableManager();
 
-        // Initialize the audio engine with oscillator-only synthesis
-        await audioEngine.initialize(AppState.masterGainValue);
+            // Initialize the audio engine with oscillator-only synthesis
+            await audioEngine.initialize(AppState.masterGainValue);
 
-        // Voice cycle pulses → pulse bus
-        audioEngine.onPulse = pulseHandler;
+            // Voice cycle pulses → pulse bus
+            audioEngine.onPulse = pulseHandler;
 
-        // Store references for compatibility
-        AppState.audioContext = audioEngine.getContext();
-        AppState.compressor = audioEngine.compressor;
-        AppState.masterGain = audioEngine.masterGain;
+            // Store references for compatibility
+            AppState.audioContext = audioEngine.getContext();
+            AppState.compressor = audioEngine.compressor;
+            AppState.masterGain = audioEngine.masterGain;
 
-        // Store standard waveforms for compatibility
-        AppState.blWaveforms = AppState.blWaveforms || {};
-        AppState.blWaveforms.square = audioEngine.getStandardWaveform('square');
-        AppState.blWaveforms.sawtooth = audioEngine.getStandardWaveform('sawtooth');
-        AppState.blWaveforms.triangle = audioEngine.getStandardWaveform('triangle');
+            // Store standard waveforms for compatibility
+            AppState.blWaveforms = AppState.blWaveforms || {};
+            AppState.blWaveforms.square = audioEngine.getStandardWaveform('square');
+            AppState.blWaveforms.sawtooth = audioEngine.getStandardWaveform('sawtooth');
+            AppState.blWaveforms.triangle = audioEngine.getStandardWaveform('triangle');
+        })();
     }
+    await audioInitPromise;
 
     // Resume context if suspended
     await audioEngine.resume();
@@ -184,18 +192,27 @@ function getFrequencyCorrection(waveformName) {
 // ================================
 
 /**
- * Starts synthesis using oscillators with period multiplier frequency correction
+ * Starts synthesis using oscillators with period multiplier frequency correction.
+ * Re-entrancy guard: startTone yields between its isPlaying check and set,
+ * so overlapping calls (double space, local + bridged play) would otherwise
+ * each build a voice bank — the extras orphaned as ungated, unstoppable
+ * drones. One start at a time; the rest are no-ops.
  */
-export async function startTone() {
-    await initAudio();
-    if (AppState.isPlaying) return;
+let startPending = false;
 
+export async function startTone() {
+    if (startPending) return;
+    startPending = true;
     try {
+        await initAudio();
+        if (AppState.isPlaying) return;
         await startToneWithOscillators();
         updateAppState({ isPlaying: true });
     } catch (error) {
         console.error('Failed to start synthesis:', error);
         throw error;
+    } finally {
+        startPending = false;
     }
 }
 
@@ -219,6 +236,7 @@ function createHarmonicOscillator(i, ratio, gain) {
         },
         pulseOut: harmonicPulseEnabled(i),
         sequencer: harmonicSequencerPayload(i),
+        envelopeOpen: AppState.envelopeMode !== 'adsr',
     });
     const oscKey = `harmonic_${i}`;
     audioEngine.addOscillator(oscKey, oscData);
@@ -421,6 +439,46 @@ export function updateHarmonicPulse(index) {
     const node = AppState.oscillators[index];
     if (node && node.key) {
         audioEngine.updateOscillatorPulse(node.key, harmonicPulseEnabled(index));
+    }
+}
+
+/** ADSR of one harmonic, with unset fields falling back to the defaults. */
+function harmonicEnvelope(index) {
+    return { ...ENVELOPE_DEFAULTS, ...AppState.oscillatorEnvelopes[index] };
+}
+
+/**
+ * Gate one harmonic's ADSR on (attack → decay → sustain). Only meaningful
+ * in ADSR mode — in Open mode the envelope is pinned at unity.
+ */
+export function triggerHarmonicAttack(index) {
+    if (AppState.envelopeMode !== 'adsr' || !AppState.isPlaying || !audioEngine) return;
+    const node = AppState.oscillators[index];
+    if (node && node.key) {
+        audioEngine.triggerOscillatorAttack(node.key, harmonicEnvelope(index));
+    }
+}
+
+/** Gate one harmonic's ADSR off (release to silence). */
+export function triggerHarmonicRelease(index) {
+    if (AppState.envelopeMode !== 'adsr' || !AppState.isPlaying || !audioEngine) return;
+    const node = AppState.oscillators[index];
+    if (node && node.key) {
+        audioEngine.triggerOscillatorRelease(node.key, harmonicEnvelope(index));
+    }
+}
+
+/**
+ * Apply the current envelope mode to every running voice: Open pins the
+ * envelopes at unity, ADSR rests them silent until triggered.
+ */
+export function updateAllHarmonicEnvelopeModes() {
+    if (!AppState.isPlaying || !audioEngine) return;
+    const open = AppState.envelopeMode !== 'adsr';
+    for (const node of AppState.oscillators) {
+        if (node && node.key) {
+            audioEngine.setOscillatorEnvelopeOpen(node.key, open);
+        }
     }
 }
 

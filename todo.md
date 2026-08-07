@@ -22,16 +22,16 @@ hosting/deployment.
 
 
 Controls:
-    - if you CMD+CLICK on dials and drawbars it sets the value for all inputs of that type. a subtle color change should indicate that they're locked together. maybe double tap on touch device or a lock icon appears when editing? 
+    - cmd/ctrl link-all implemented (drawbars + dials + modal controls, body.link-all glow). still open: a touch-device equivalent — double tap or a lock icon while editing?
     - add a filter UI to the value tip and overtone settings modal so we can see a output spectrum and a filter curve when editng filter parameters
     - the sequencer tab's viewtip should not disappear so long as any of the controls are "active" or "focused"
 
 
-Add a `K` toggle. this enables keyboard control of the synth. 
-- `1` through `=` set fundamental
-- `Q` throgh `]` trigger an ADSR on each overtone voice. 
-- need to decide if/how we want to also expose that ADSR to midi input because we currently use midi input for fundamental and block low midi notes to avoid loopback. we could instead reserve midi 1-12 for these ADSRs and trust the user to set different channels or MIDI ports to avoid loopback (Or let it happen!)
-- global setting for "ADSR" mode or "Open" mode. Open by default. add a trigger button below each drawbar in ADSR mode. 
+keyboard / ADSR (implemented: `1`-`=` set fundamental, `Q`-`]` gate per-overtone
+ADSRs with keydown/keyup sustain, navbar Open/ADSR toggle, ADSR dials in the
+overtone settings modal, trigger pads under drawbars in ADSR mode, bridged as
+/twig/adsr/<n> and /twig/envmode)
+- need to decide if/how we want to also expose the per-overtone ADSRs to midi input because we currently use midi input for fundamental and block low midi notes to avoid loopback. we could instead reserve midi 1-12 for these ADSRs and trust the user to set different channels or MIDI ports to avoid loopback (Or let it happen!)
 
 
 Presets:

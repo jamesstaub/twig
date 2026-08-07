@@ -77,7 +77,9 @@ export class Dial {
             if (next !== this.value) {
                 this.value = next;
                 this.draw();
-                this.onChange?.(this.value);
+                // The event rides along so hosts can read gesture modifiers
+                // (cmd/ctrl-drag = apply to all overtones)
+                this.onChange?.(this.value, e);
             }
             this._showTip();
         };
@@ -101,10 +103,10 @@ export class Dial {
             }, { once: true });
         });
 
-        this.canvas.addEventListener('dblclick', () => {
+        this.canvas.addEventListener('dblclick', (e) => {
             if (this.disabled) return;
             this.setValue(this.initialValue);
-            this.onChange?.(this.value);
+            this.onChange?.(this.value, e);
         });
     }
 

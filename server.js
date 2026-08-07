@@ -56,11 +56,11 @@ const log = (msg) => (Max ? Max.post(msg) : console.log(msg));
 const STATE_ORDER = [
     'system', 'waveform', 'subharmonic', 'note', 'freq',
     'gain', 'slew', 'drawbars', 'drawbar', 'gate', 'filter', 'drive', 'pan',
-    'seqshape', 'seqgain', 'seqfreq', 'seqres', 'seqstretch',
-    'pulsemidi', 'pulseosc', 'midiclock', 'play'
+    'adsr', 'seqshape', 'seqgain', 'seqfreq', 'seqres', 'seqstretch',
+    'pulsemidi', 'pulseosc', 'midiclock', 'envmode', 'play'
 ];
 const PER_INDEX_COMMANDS = new Set([
-    'drawbar', 'gate', 'filter', 'drive', 'pan',
+    'drawbar', 'gate', 'filter', 'drive', 'pan', 'adsr',
     'seqshape', 'seqgain', 'seqfreq', 'seqres', 'seqstretch',
     'pulsemidi', 'pulseosc'
 ]);
@@ -179,7 +179,7 @@ if (Max) {
         'system', 'waveform', 'subharmonic', 'play', 'reset', 'randomize',
         'setdrawbarfundamental', 'gate', 'filter', 'drive', 'pan',
         'seqshape', 'seqgain', 'seqfreq', 'seqres', 'seqstretch',
-        'pulsemidi', 'pulseosc', 'midiclock'
+        'pulsemidi', 'pulseosc', 'midiclock', 'adsr', 'envmode'
     ];
     for (const cmd of APP_COMMANDS) {
         Max.addHandler(cmd, (...args) => {

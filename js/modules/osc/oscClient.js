@@ -40,6 +40,12 @@
  *   /twig/drive/<n> [f 0-5]       per-overtone overdrive (tanh saturation)
  *                                 before the filter (n=0 → all); 0 = clean,
  *                                 1 = full saturation, 5 = hard clip
+ *   /twig/adsr/<n> [a d s r]      per-overtone envelope (n=0 → all):
+ *                                 attack/decay/release seconds, sustain 0-1.
+ *                                 Applied at the next trigger in ADSR mode.
+ *   /twig/envmode [i 0|1]         envelope mode: 0 = Open (voices drone),
+ *                                 1 = ADSR (voices rest silent, gated by
+ *                                 keyboard/pad triggers)
  *
  * Instance targeting (optional, shared-server setups only): insert an id
  * segment after /twig — /twig/<id>/drawbar/3 — matching this page's
@@ -72,7 +78,8 @@ import {
     PLAY_STATE_CHANGED,
     MASTER_GAIN_CHANGED,
     MASTER_SLEW_CHANGED,
-    OVERTONE_SIGNAL_CHANGED
+    OVERTONE_SIGNAL_CHANGED,
+    ENVELOPE_MODE_CHANGED
 } from "../../events.js";
 
 const COMMANDS = new Set([
@@ -80,7 +87,8 @@ const COMMANDS = new Set([
     'system', 'waveform', 'subharmonic', 'play', 'reset', 'randomize',
     'setdrawbarfundamental', 'gate', 'filter', 'drive', 'pan',
     'pulsemidi', 'pulseosc', 'midiclock',
-    'seqshape', 'seqgain', 'seqfreq', 'seqres', 'seqstretch'
+    'seqshape', 'seqgain', 'seqfreq', 'seqres', 'seqstretch',
+    'adsr', 'envmode'
 ]);
 
 const SEQ_AMOUNT_TARGETS = { seqgain: 'gain', seqfreq: 'freq', seqres: 'res' };
@@ -372,6 +380,18 @@ export class OscClient {
                 this.forVoices(n, (i) => OvertoneSignalActions.setSequencerAmount(i, target, Number(rest[0]) || 0));
                 break;
             }
+            case 'adsr': {
+                // /twig/adsr/<n> [a, d, s, r] or /twig/adsr [n, a, d, s, r];
+                // n = 0 → all. Clamping happens in the actions layer.
+                const [n, rest] = perVoiceArgs(sub, args);
+                if (n === null || rest.length < 4) break;
+                const [a, d, s, r] = rest.map(Number);
+                this.forVoices(n, (i) => OvertoneSignalActions.setEnvelope(i, { a, d, s, r }));
+                break;
+            }
+            case 'envmode':
+                OvertoneSignalActions.setEnvelopeMode(Number(args[0]) ? 'adsr' : 'open');
+                break;
             case 'pulsemidi':
             case 'pulseosc': {
                 // /twig/pulsemidi/<n> [0|1] — per-voice pulse outputs
@@ -516,6 +536,9 @@ export class OscClient {
                 this.emit(`filter/${n}`, [f.multiplier ?? 0, f.q ?? 0.707]);
             } else if (kind === 'drive') {
                 this.emit(`drive/${n}`, [OvertoneSignalActions.getDrive(index)]);
+            } else if (kind === 'envelope') {
+                const env = OvertoneSignalActions.getEnvelope(index);
+                this.emit(`adsr/${n}`, [env.a, env.d, env.s, env.r]);
             } else if (kind === 'pan') {
                 this.emit(`pan/${n}`, [getVoicePan(index)]);
             }
@@ -529,6 +552,9 @@ export class OscClient {
         });
         document.addEventListener(SUBHARMONIC_TOGGLED, () => {
             this.emit('subharmonic', [AppState.isSubharmonic ? 1 : 0]);
+        });
+        document.addEventListener(ENVELOPE_MODE_CHANGED, () => {
+            this.emit('envmode', [AppState.envelopeMode === 'adsr' ? 1 : 0]);
         });
         document.addEventListener(FUNDAMENTAL_CHANGED, () => {
             // note (quantized) for note-based params, then freq (exact) so

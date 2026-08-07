@@ -2,12 +2,12 @@ import ModalComponent from './ModalComponent.js';
 import { AppState } from '../../../config.js';
 import { calculateFrequency, formatHz } from '../../../utils.js';
 import { harmonicFilterCutoff, MAX_FILTER_PARTIALS } from '../../../audio.js';
-import { OvertoneSignalActions, Q_MAX, DRIVE_MAX } from '../../overtoneSignal/overtoneSignalActions.js';
+import { OvertoneSignalActions, Q_MAX, DRIVE_MAX, ENV_TIME_MAX } from '../../overtoneSignal/overtoneSignalActions.js';
 import { Dial } from '../dial/Dial.js';
 import { MidiOutputRouter, midiOutputRouter } from '../../midi/midiOutputRouter.js';
 import { oscClient } from '../../osc/oscClient.js';
-import { showStatus } from '../../../domUtils.js';
 import { drawSequencePreview } from '../../overtoneSignal/sequencePreview.js';
+import { voiceTargets } from '../linkAll.js';
 
 const PULSE_MAX_HZ = 50; // mirrors the cap in gate-processor.js
 
@@ -51,7 +51,7 @@ export default class OvertoneSignalModalComponent extends ModalComponent {
 
         const header = document.createElement('div');
         header.className = 'signal-modal-header';
-        header.append(title, this.buildCopyRow(index));
+        header.append(title);
         root.appendChild(header);
 
         // Filter and pan are dial-sized now — stack them in one column so
@@ -62,7 +62,7 @@ export default class OvertoneSignalModalComponent extends ModalComponent {
 
         const sections = document.createElement('div');
         sections.className = 'signal-modal-sections';
-        sections.append(this.buildGateSection(index), side, this.buildPulseSection(index));
+        sections.append(this.buildGateSection(index), side, this.buildEnvelopeSection(index), this.buildPulseSection(index));
         root.appendChild(sections);
 
         return root;
@@ -88,7 +88,7 @@ export default class OvertoneSignalModalComponent extends ModalComponent {
             detail: `note ${note} · ch 1${midiAvailable ? '' : ' · no output available'}`,
             enabled: midiAvailable,
             value: OvertoneSignalActions.getPulseOut(index).midi,
-            onToggle: (on) => OvertoneSignalActions.setPulseOut(index, { midi: on }),
+            onToggle: (on, e) => voiceTargets(index, e).forEach((i) => OvertoneSignalActions.setPulseOut(i, { midi: on })),
         }));
 
         // One /twig/pulse message per audible cycle, into the Max patch
@@ -98,7 +98,7 @@ export default class OvertoneSignalModalComponent extends ModalComponent {
             detail: oscAvailable ? `pulse ${index + 1} <cycle> <gate>` : 'bridge offline',
             enabled: oscAvailable,
             value: OvertoneSignalActions.getPulseOut(index).osc,
-            onToggle: (on) => OvertoneSignalActions.setPulseOut(index, { osc: on }),
+            onToggle: (on, e) => voiceTargets(index, e).forEach((i) => OvertoneSignalActions.setPulseOut(i, { osc: on })),
         }));
 
         // Exclusive: one voice may drive the MIDI clock (24 ticks/cycle)
@@ -144,11 +144,11 @@ export default class OvertoneSignalModalComponent extends ModalComponent {
         toggle.setAttribute('aria-checked', String(Boolean(value)));
         toggle.setAttribute('aria-label', text);
         if (enabled) {
-            toggle.addEventListener('click', () => {
+            toggle.addEventListener('click', (e) => {
                 const on = !toggle.classList.contains('active');
                 toggle.classList.toggle('active', on);
                 toggle.setAttribute('aria-checked', String(on));
-                onToggle(on);
+                onToggle(on, e);
             });
         }
 
@@ -162,73 +162,6 @@ export default class OvertoneSignalModalComponent extends ModalComponent {
 
         row.append(toggle, label, detailEl);
         return row;
-    }
-
-    /**
-     * "Copy settings to" — apply this overtone's gate, filter, and pan to
-     * another overtone (or all of them). Selecting an entry copies
-     * immediately and resets the menu to its placeholder.
-     */
-    buildCopyRow(index) {
-        const row = document.createElement('div');
-        row.className = 'signal-copy-row';
-
-        const label = document.createElement('span');
-        label.className = 'signal-copy-label';
-        label.textContent = 'Copy settings to';
-
-        const select = document.createElement('select');
-        select.className = 'control-select signal-copy-select';
-        const placeholder = document.createElement('option');
-        placeholder.value = '';
-        placeholder.textContent = 'choose…';
-        placeholder.selected = true;
-        placeholder.disabled = true;
-        select.appendChild(placeholder);
-
-        const all = document.createElement('option');
-        all.value = 'all';
-        all.textContent = 'All';
-        select.appendChild(all);
-
-        const count = AppState.currentSystem.ratios.length;
-        for (let i = 0; i < count; i++) {
-            if (i === index) continue;
-            const o = document.createElement('option');
-            o.value = i;
-            o.textContent = `Overtone ${i + 1} (${AppState.currentSystem.labels[i] || '—'})`;
-            select.appendChild(o);
-        }
-
-        select.addEventListener('change', () => {
-            const targets = select.value === 'all'
-                ? Array.from({ length: count }, (_, i) => i).filter((i) => i !== index)
-                : [parseInt(select.value, 10)];
-            this.copySettingsTo(index, targets);
-            select.value = ''; // back to placeholder — it's an action, not state
-            showStatus(
-                targets.length === 1
-                    ? `Copied overtone ${index + 1} settings to overtone ${targets[0] + 1}`
-                    : `Copied overtone ${index + 1} settings to all overtones`,
-                'success'
-            );
-        });
-
-        row.append(label, select);
-        return row;
-    }
-
-    copySettingsTo(sourceIndex, targets) {
-        const gate = OvertoneSignalActions.getGate(sourceIndex);
-        const filter = OvertoneSignalActions.getFilter(sourceIndex);
-        const drive = OvertoneSignalActions.getDrive(sourceIndex);
-        const pan = OvertoneSignalActions.getPan(sourceIndex);
-        for (const t of targets) {
-            OvertoneSignalActions.setGate(t, { ...gate, seq: [...(gate.seq || [])] });
-            OvertoneSignalActions.setFilter(t, { ...filter });
-            OvertoneSignalActions.setDrive(t, drive);
-            OvertoneSignalActions.setPan(t, pan);
-        }
     }
 
     /**
@@ -255,8 +188,13 @@ export default class OvertoneSignalModalComponent extends ModalComponent {
     buildGateSection(index) {
         const el = this.section('Sequence');
         const gate = OvertoneSignalActions.getGate(index);
-        const apply = () => {
-            OvertoneSignalActions.setGate(index, { ...gate });
+        // Cmd/ctrl held while editing applies the whole gate config to all
+        // voices (select/input change events carry no modifiers, so the
+        // tracked key state decides)
+        const apply = (e) => {
+            for (const i of voiceTargets(index, e)) {
+                OvertoneSignalActions.setGate(i, { ...gate, seq: [...(gate.seq || [])] });
+            }
             this._redrawSeqPreview?.();
         };
 
@@ -292,11 +230,11 @@ export default class OvertoneSignalModalComponent extends ModalComponent {
                 input.className = 'signal-seq-input';
                 input.placeholder = 'e.g. 10110';
                 input.value = (gate.seq || []).join('');
-                input.addEventListener('input', () => {
+                input.addEventListener('input', (e) => {
                     const clean = input.value.replace(/[^01]/g, '');
                     if (clean !== input.value) input.value = clean;
                     gate.seq = clean.split('').map(Number);
-                    apply();
+                    apply(e);
                 });
                 lab.appendChild(input);
                 params.appendChild(lab);
@@ -311,11 +249,11 @@ export default class OvertoneSignalModalComponent extends ModalComponent {
                     input.max = max;
                     input.step = 1;
                     input.value = gate[key] ?? 1;
-                    input.addEventListener('change', () => {
+                    input.addEventListener('change', (e) => {
                         const v = Math.min(max, Math.max(min, Math.round(Number(input.value)) || 0));
                         input.value = v;
                         gate[key] = v;
-                        apply();
+                        apply(e);
                     });
                     lab.appendChild(input);
                     params.appendChild(lab);
@@ -323,10 +261,10 @@ export default class OvertoneSignalModalComponent extends ModalComponent {
             }
         };
 
-        select.addEventListener('change', () => {
+        select.addEventListener('change', (e) => {
             gate.mode = parseInt(select.value, 10);
             renderParams();
-            apply();
+            apply(e);
         });
         renderParams();
 
@@ -365,8 +303,10 @@ export default class OvertoneSignalModalComponent extends ModalComponent {
         const draw = () => drawSequencePreview(canvas, index);
         this._redrawSeqPreview = draw;
 
-        select.addEventListener('change', () => {
-            OvertoneSignalActions.setSequencerShape(index, select.value);
+        select.addEventListener('change', (e) => {
+            for (const i of voiceTargets(index, e)) {
+                OvertoneSignalActions.setSequencerShape(i, select.value);
+            }
             draw();
         });
 
@@ -384,9 +324,13 @@ export default class OvertoneSignalModalComponent extends ModalComponent {
             b.type = 'button';
             b.className = 'action-btn signal-stretch-btn';
             b.textContent = text;
-            b.addEventListener('click', () => {
-                const current = OvertoneSignalActions.getSequencer(index).stretch;
-                OvertoneSignalActions.setSequencerStretch(index, current * factor);
+            b.addEventListener('click', (e) => {
+                // Linked: every voice gets the edited voice's NEW stretch,
+                // not its own doubled/halved one
+                const next = OvertoneSignalActions.getSequencer(index).stretch * factor;
+                for (const i of voiceTargets(index, e)) {
+                    OvertoneSignalActions.setSequencerStretch(i, next);
+                }
                 lenLabel.textContent = fmt(OvertoneSignalActions.getSequencer(index).stretch);
                 draw();
             });
@@ -426,9 +370,11 @@ export default class OvertoneSignalModalComponent extends ModalComponent {
             const value = document.createElement('span');
             value.className = 'signal-target-value';
             value.textContent = (+seq.amounts[target]).toFixed(2);
-            input.addEventListener('input', () => {
+            input.addEventListener('input', (e) => {
                 const v = parseFloat(input.value);
-                OvertoneSignalActions.setSequencerAmount(index, target, v);
+                for (const i of voiceTargets(index, e)) {
+                    OvertoneSignalActions.setSequencerAmount(i, target, v);
+                }
                 value.textContent = v.toFixed(2);
             });
             row.append(label, input, value);
@@ -449,7 +395,14 @@ export default class OvertoneSignalModalComponent extends ModalComponent {
     buildFilterSection(index) {
         const el = this.section('Filter');
         const filter = OvertoneSignalActions.getFilter(index);
-        const apply = () => OvertoneSignalActions.setFilter(index, { ...filter });
+        // Linked edits merge only the changed field into each voice's own
+        // filter, so cmd-dragging cutoff doesn't flatten everyone's resonance
+        const applyField = (key, value, e) => {
+            filter[key] = value;
+            for (const i of voiceTargets(index, e)) {
+                OvertoneSignalActions.setFilter(i, { ...OvertoneSignalActions.getFilter(i), [key]: value });
+            }
+        };
 
         // The cutoff dial is itself an overtone-series selector: it picks
         // a partial (of the current system) of this voice's audible base.
@@ -470,13 +423,13 @@ export default class OvertoneSignalModalComponent extends ModalComponent {
                 label: 'cutoff',
                 dial: { min: 0, max: MAX_FILTER_PARTIALS, step: 1, value: filter.multiplier || 0 },
                 text: cutoffText,
-                onChange: (v) => { filter.multiplier = Math.round(v); apply(); },
+                onChange: (v, e) => applyField('multiplier', Math.round(v), e),
             }),
             this.dialColumn({
                 label: 'resonance', color: '--accent-negative',
                 dial: { min: 0.1, max: Q_MAX, step: 0.05, value: filter.q },
                 text: () => `Q ${(+filter.q).toFixed(2)}`,
-                onChange: (v) => { filter.q = v; apply(); },
+                onChange: (v, e) => applyField('q', v, e),
             }),
             this.dialColumn({
                 label: 'drive', color: '--accent-positive',
@@ -485,7 +438,7 @@ export default class OvertoneSignalModalComponent extends ModalComponent {
                     const v = OvertoneSignalActions.getDrive(index);
                     return v > 0 ? `${Math.round(v * 100)}%` : 'clean';
                 },
-                onChange: (v) => OvertoneSignalActions.setDrive(index, v),
+                onChange: (v, e) => voiceTargets(index, e).forEach((i) => OvertoneSignalActions.setDrive(i, v)),
             })
         );
         el.sectionBody.appendChild(row);
@@ -510,8 +463,8 @@ export default class OvertoneSignalModalComponent extends ModalComponent {
             label,
             ...(color ? { color } : {}),
             format: () => text().replace('\n', ' · '),
-            onChange: (v) => {
-                onChange(v);
+            onChange: (v, e) => {
+                onChange(v, e);
                 valueEl.textContent = text();
             },
         });
@@ -522,6 +475,45 @@ export default class OvertoneSignalModalComponent extends ModalComponent {
 
         col.append(d.el, name, valueEl);
         return col;
+    }
+
+    // ---------------------------------------------------------------
+    // Envelope (ADSR — applied when the global mode is ADSR)
+    // ---------------------------------------------------------------
+
+    buildEnvelopeSection(index) {
+        const el = this.section('Envelope');
+        const fmtTime = (v) => (v >= 1 ? `${v.toFixed(2)} s` : `${Math.round(v * 1000)} ms`);
+
+        const row = document.createElement('div');
+        row.className = 'signal-dial-row';
+        const timeDial = (label, key) => this.dialColumn({
+            label,
+            dial: { min: 0.001, max: ENV_TIME_MAX[key], step: 0.001, value: OvertoneSignalActions.getEnvelope(index)[key] },
+            text: () => fmtTime(OvertoneSignalActions.getEnvelope(index)[key]),
+            onChange: (v, e) => voiceTargets(index, e).forEach((i) => OvertoneSignalActions.setEnvelope(i, { [key]: v })),
+        });
+        row.append(
+            timeDial('attack', 'a'),
+            timeDial('decay', 'd'),
+            this.dialColumn({
+                label: 'sustain', color: '--accent-primary',
+                dial: { min: 0, max: 1, step: 0.01, value: OvertoneSignalActions.getEnvelope(index).s },
+                text: () => `${Math.round(OvertoneSignalActions.getEnvelope(index).s * 100)}%`,
+                onChange: (v, e) => voiceTargets(index, e).forEach((i) => OvertoneSignalActions.setEnvelope(i, { s: v })),
+            }),
+            timeDial('release', 'r')
+        );
+        el.sectionBody.appendChild(row);
+
+        if (OvertoneSignalActions.getEnvelopeMode() !== 'adsr') {
+            const hint = document.createElement('div');
+            hint.className = 'signal-pulse-detail';
+            hint.textContent = 'applies in ADSR mode (navbar toggle)';
+            el.sectionBody.appendChild(hint);
+        }
+
+        return el;
     }
 
     // ---------------------------------------------------------------
@@ -539,9 +531,9 @@ export default class OvertoneSignalModalComponent extends ModalComponent {
             label: 'pan',
             dial: { min: -1, max: 1, step: 0.01, value },
             text: () => format(value),
-            onChange: (v) => {
+            onChange: (v, e) => {
                 value = v;
-                OvertoneSignalActions.setPan(index, v);
+                voiceTargets(index, e).forEach((i) => OvertoneSignalActions.setPan(i, v));
             },
         }));
         el.sectionBody.appendChild(row);

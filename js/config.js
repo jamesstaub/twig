@@ -289,6 +289,9 @@ export const NUM_HARMONICS = spectralSystems[0].ratios.length;
 export const DEFAULT_MASTER_GAIN = 0.3;
 export const DEFAULT_MASTER_SLEW = 0.01; // seconds
 
+// Per-overtone ADSR fallback (a/d/r seconds, s 0-1)
+export const ENVELOPE_DEFAULTS = { a: 0.01, d: 0.15, s: 0.7, r: 0.4 };
+
 // Visualization constants
 export const VISUAL_HARMONIC_TERMS = 12;
 export const CANVAS_HEIGHT_RATIOS = {
@@ -331,6 +334,15 @@ export const AppState = {
     // Per-overtone overdrive before the filter, sparse by index: amount
     // 0-5 (0 = clean bypass, 1 = full tanh saturation, up to 5 = hard clip).
     oscillatorDrives: {},
+
+    // Envelope mode: 'open' (every voice sounds freely — the classic organ
+    // behavior) or 'adsr' (voices rest silent; keyboard/pad triggers gate
+    // each voice's ADSR: keydown = attack→decay→sustain, keyup = release).
+    envelopeMode: 'open',
+
+    // Per-overtone ADSR, sparse by index: { a, d, r } seconds, { s } 0-1.
+    // Unset voices fall back to ENVELOPE_DEFAULTS in the getter.
+    oscillatorEnvelopes: {},
 
     // Per-overtone pulse outputs, sparse objects keyed by partial index:
     // { midi: bool, osc: bool }. Pulses fire once per oscillator cycle

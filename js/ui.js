@@ -4,7 +4,8 @@
  */
 
 import { AppState, midiConfig, updateAppState } from './config.js';
-import { MASTER_SLEW_CHANGED } from './events.js';
+import { MASTER_SLEW_CHANGED, ENVELOPE_MODE_CHANGED } from './events.js';
+import { OvertoneSignalActions } from './modules/overtoneSignal/overtoneSignalActions.js';
 import { updateText, updateValue } from './domUtils.js';
 import { DrawbarsController } from './modules/drawbars/drawbarsController.js';
 import { SpectralSystemController } from './modules/spectralSystem/spectralSystemController.js';
@@ -22,6 +23,7 @@ import { openModal, closeModal } from './modules/generic/modal/modalActions.js';
 import { PlayToggleController } from './modules/playToggle/playToggleController.js';
 import { WaveformSelectorController } from './modules/waveformSelector/waveformSelectorController.js';
 import { oscClient, oscEnabled } from './modules/osc/oscClient.js';
+import { initLinkAll } from './modules/generic/linkAll.js';
 import { pulseBus } from './modules/pulse/pulseBus.js';
 import { midiOutputRouter } from './modules/midi/midiOutputRouter.js';
 import { setPulseHandler } from './audio.js';
@@ -82,6 +84,9 @@ export function initUI() {
 
     // Initialize keyboard shortcuts
     new KeyboardShortcuts().init();
+
+    // Cmd/Ctrl link gestures: apply per-overtone edits to all voices
+    initLinkAll();
 
     // OSC over WebSocket: the remote-control path for jweb/Max4Live, where
     // Web MIDI delivery is starved while the view is hidden (?osc=0 disables).
@@ -155,6 +160,36 @@ function setupFundamental() {
 function setupMainButtons() {
     const playToggleController = new PlayToggleController('.play-toggle-container');
     playToggleController.init();
+    setupEnvelopeModeToggle();
+}
+
+/**
+ * Navbar Open/ADSR switch. Open = every voice drones freely; ADSR = voices
+ * rest silent and are gated per overtone (Q-] keys, drawbar trigger pads).
+ * body.adsr-mode drives the pads' visibility in CSS.
+ */
+function setupEnvelopeModeToggle() {
+    const toggle = document.getElementById('envelope-mode-toggle');
+    if (!toggle) return;
+
+    const sync = () => {
+        const adsr = OvertoneSignalActions.getEnvelopeMode() === 'adsr';
+        toggle.classList.toggle('active', adsr);
+        toggle.setAttribute('aria-checked', String(adsr));
+        document.body.classList.toggle('adsr-mode', adsr);
+        document.getElementById('env-open-label')?.classList.toggle('inactive', adsr);
+        document.getElementById('env-open-label')?.classList.toggle('active', !adsr);
+        document.getElementById('env-adsr-label')?.classList.toggle('inactive', !adsr);
+        document.getElementById('env-adsr-label')?.classList.toggle('active', adsr);
+    };
+
+    toggle.addEventListener('click', () => {
+        OvertoneSignalActions.setEnvelopeMode(
+            OvertoneSignalActions.getEnvelopeMode() === 'adsr' ? 'open' : 'adsr'
+        );
+    });
+    document.addEventListener(ENVELOPE_MODE_CHANGED, sync);
+    sync(); // bootstrap may have applied a bridged mode before init
 }
 
 function setupControlSliders() {

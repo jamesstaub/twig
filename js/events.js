@@ -11,4 +11,5 @@ export const PLAY_STATE_CHANGED = 'play-state-changed';
 export const MASTER_GAIN_CHANGED = 'master-gain-changed';
 export const MASTER_SLEW_CHANGED = 'master-slew-changed';
 export const OVERTONE_SIGNAL_CHANGED = 'overtone-signal-changed';
+export const ENVELOPE_MODE_CHANGED = 'envelope-mode-changed';
 export const PULSE = 'overtone-pulse';

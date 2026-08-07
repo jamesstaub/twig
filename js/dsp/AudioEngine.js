@@ -152,6 +152,12 @@ export class AudioEngine {
         // Set gain
         gainNode.gain.setValueAtTime(gain, this.context.currentTime);
 
+        // Per-voice ADSR gain, ahead of the drawbar gain so meters and the
+        // drive stage follow the envelope. Created for every voice: unity in
+        // Open mode, closed at rest in ADSR mode — trigger methods ramp it.
+        const envNode = this.context.createGain();
+        envNode.gain.setValueAtTime(options.envelopeOpen === false ? 0 : 1, this.context.currentTime);
+
         // Per-voice cycle gate (rhythmic muting) — created for every voice
         // so gating can be enabled mid-playback without rewiring
         let gateNode = null;
@@ -191,8 +197,9 @@ export class AudioEngine {
         const panner = this.context.createStereoPanner();
         panner.pan.setValueAtTime(options.pan ?? 0, this.context.currentTime);
 
-        // osc → gain → [gate] → drive → lowpass → pan → bus
-        oscillator.connect(gainNode);
+        // osc → env → gain → [gate] → drive → lowpass → pan → bus
+        oscillator.connect(envNode);
+        envNode.connect(gainNode);
         if (gateNode) {
             gainNode.connect(gateNode);
             gateNode.connect(driveNode, 0);
@@ -207,7 +214,48 @@ export class AudioEngine {
         filterNode.connect(panner);
         panner.connect(this.compressor);
 
-        return { oscillator, gainNode, gateNode, driveNode, filterNode, panner, meter };
+        return { oscillator, envNode, gainNode, gateNode, driveNode, filterNode, panner, meter };
+    }
+
+    /**
+     * Gate a running voice's ADSR on: ramp to full over the attack, then
+     * down to the sustain level over the decay. Holds at sustain until
+     * triggerOscillatorRelease.
+     */
+    triggerOscillatorAttack(key, { a, d, s }) {
+        const oscData = this.oscillators.get(key);
+        if (!oscData || !oscData.envNode) return;
+        const gain = oscData.envNode.gain;
+        const now = this.context.currentTime;
+        gain.cancelScheduledValues(now);
+        gain.setValueAtTime(gain.value, now);
+        const attackEnd = now + Math.max(0.001, a);
+        gain.linearRampToValueAtTime(1, attackEnd);
+        gain.linearRampToValueAtTime(Math.max(0, Math.min(1, s)), attackEnd + Math.max(0.001, d));
+    }
+
+    /** Gate a running voice's ADSR off: ramp to silence over the release. */
+    triggerOscillatorRelease(key, { r }) {
+        const oscData = this.oscillators.get(key);
+        if (!oscData || !oscData.envNode) return;
+        const gain = oscData.envNode.gain;
+        const now = this.context.currentTime;
+        gain.cancelScheduledValues(now);
+        gain.setValueAtTime(gain.value, now);
+        gain.linearRampToValueAtTime(0, now + Math.max(0.001, r));
+    }
+
+    /**
+     * Envelope-mode switch for a running voice: open pins the envelope at
+     * unity (organ behavior), closed rests it at silence awaiting triggers.
+     */
+    setOscillatorEnvelopeOpen(key, open, rampTime = 0.02) {
+        const oscData = this.oscillators.get(key);
+        if (oscData && oscData.envNode) {
+            const now = this.context.currentTime;
+            oscData.envNode.gain.cancelScheduledValues(now);
+            oscData.envNode.gain.setTargetAtTime(open ? 1 : 0, now, rampTime / 3);
+        }
     }
 
     /**
@@ -326,12 +374,37 @@ export class AudioEngine {
     }
     // No setRoutingMode needed
 
+    /** Stop and disconnect one voice's node chain. */
+    teardownVoice(oscData) {
+        if (oscData.oscillator) {
+            try {
+                oscData.oscillator.stop(this.context.currentTime + 0.01); // Small delay to avoid clicks
+            } catch {
+                // Oscillator may already be stopped
+            }
+        }
+        // Worklet processors are kept alive while process() returns true —
+        // tell them to die, then unhook the chain so it can be collected
+        if (oscData.gateNode) {
+            oscData.gateNode.port.postMessage('stop');
+        }
+        for (const node of [oscData.envNode, oscData.gainNode, oscData.gateNode, oscData.driveNode, oscData.filterNode, oscData.panner, oscData.meter]) {
+            try { node?.disconnect(); } catch { /* already disconnected */ }
+        }
+    }
+
     /**
      * Add an oscillator to the managed oscillators map
      * @param {string} key - Unique key for the oscillator
      * @param {Object} oscData - Object containing oscillator and gain nodes
      */
     addOscillator(key, oscData) {
+        // A voice already registered under this key would be orphaned by the
+        // Map overwrite — still connected and sounding, but unreachable by
+        // any update (gates, stop). Tear it down first.
+        const existing = this.oscillators.get(key);
+        if (existing) this.teardownVoice(existing);
+
         // Start the oscillator
         oscData.oscillator.start(this.context.currentTime);
 
@@ -407,26 +480,9 @@ export class AudioEngine {
      * Stop all oscillators
      */
     stopAllOscillators() {
-        const now = this.context.currentTime;
-
         for (const oscData of this.oscillators.values()) {
-            if (oscData.oscillator) {
-                try {
-                    oscData.oscillator.stop(now + 0.01); // Small delay to avoid clicks
-                } catch {
-                    // Oscillator may already be stopped
-                }
-            }
-            // Worklet processors are kept alive while process() returns true —
-            // tell them to die, then unhook the chain so it can be collected
-            if (oscData.gateNode) {
-                oscData.gateNode.port.postMessage('stop');
-            }
-            for (const node of [oscData.gainNode, oscData.gateNode, oscData.driveNode, oscData.filterNode, oscData.panner, oscData.meter]) {
-                try { node?.disconnect(); } catch { /* already disconnected */ }
-            }
+            this.teardownVoice(oscData);
         }
-
         this.oscillators.clear();
     }
 

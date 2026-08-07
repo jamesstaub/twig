@@ -1,7 +1,7 @@
-import { AppState, midiConfig } from "../../config.js";
-import { updateHarmonicGate, updateHarmonicFilter, updateHarmonicDrive, updateHarmonicPan, updateHarmonicPulse, updateHarmonicSequencer, MAX_FILTER_PARTIALS } from "../../audio.js";
+import { AppState, ENVELOPE_DEFAULTS, midiConfig } from "../../config.js";
+import { updateHarmonicGate, updateHarmonicFilter, updateHarmonicDrive, updateHarmonicPan, updateHarmonicPulse, updateHarmonicSequencer, updateAllHarmonicEnvelopeModes, MAX_FILTER_PARTIALS } from "../../audio.js";
 import { getVoicePan } from "../../utils.js";
-import { OVERTONE_SIGNAL_CHANGED } from "../../events.js";
+import { OVERTONE_SIGNAL_CHANGED, ENVELOPE_MODE_CHANGED } from "../../events.js";
 
 /**
  * Per-overtone signal-chain state (cycle gate, lowpass, pan).
@@ -16,6 +16,10 @@ export const Q_MAX = 40;
 // Overdrive ceiling (500%), shared the same way. 1 = full tanh saturation,
 // beyond that the curve hardens toward a clipper.
 export const DRIVE_MAX = 5;
+
+// ADSR time ceilings in seconds (sustain is 0-1), shared by the modal
+// dials and the OSC clamp.
+export const ENV_TIME_MAX = { a: 2, d: 2, r: 5 };
 
 export const OvertoneSignalActions = {
 
@@ -52,6 +56,40 @@ export const OvertoneSignalActions = {
         AppState.oscillatorDrives[index] = Math.max(0, Math.min(DRIVE_MAX, Number(amount) || 0));
         updateHarmonicDrive(index);
         this._changed(index, 'drive');
+    },
+
+    /** Per-overtone ADSR: { a, d, r } seconds, { s } 0-1. */
+    getEnvelope(index) {
+        return { ...ENVELOPE_DEFAULTS, ...AppState.oscillatorEnvelopes[index] };
+    },
+
+    /**
+     * Merge ADSR fields for a voice. No live-audio call — values are read
+     * at the next attack/release trigger.
+     */
+    setEnvelope(index, env) {
+        const merged = { ...this.getEnvelope(index), ...env };
+        const time = (v, max) => Math.max(0.001, Math.min(max, Number(v) || 0));
+        AppState.oscillatorEnvelopes[index] = {
+            a: time(merged.a, ENV_TIME_MAX.a),
+            d: time(merged.d, ENV_TIME_MAX.d),
+            s: Math.max(0, Math.min(1, Number(merged.s) || 0)),
+            r: time(merged.r, ENV_TIME_MAX.r),
+        };
+        this._changed(index, 'envelope');
+    },
+
+    /** Global envelope mode: 'open' (default) or 'adsr'. */
+    getEnvelopeMode() {
+        return AppState.envelopeMode;
+    },
+
+    setEnvelopeMode(mode) {
+        const next = mode === 'adsr' ? 'adsr' : 'open';
+        if (next === AppState.envelopeMode) return;
+        AppState.envelopeMode = next;
+        updateAllHarmonicEnvelopeModes();
+        document.dispatchEvent(new CustomEvent(ENVELOPE_MODE_CHANGED));
     },
 
     getSequencer(index) {

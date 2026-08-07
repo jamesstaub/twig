@@ -51,6 +51,13 @@
                 <!-- MIDI Mapping Button -->
                 <button id="open-midi-mapping-btn" class="action-btn ml-2"
                     aria-label="Open MIDI Mapping Modal">MIDI</button>
+                <!-- Envelope Mode: Open (drone) vs ADSR (triggered) -->
+                <div class="envelope-mode-container flex items-center gap-2 ml-4">
+                    <span id="env-open-label" class="toggle-label active">Open</span>
+                    <div id="envelope-mode-toggle" class="toggle-switch" role="switch" aria-checked="false"
+                        aria-label="Envelope mode: Open or ADSR"></div>
+                    <span id="env-adsr-label" class="toggle-label inactive">ADSR</span>
+                </div>
             </div>
 
             <div
