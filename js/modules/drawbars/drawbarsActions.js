@@ -72,18 +72,21 @@ import { SpectralSystemActions } from "../spectralSystem/spectralSystemActions.j
 export const DrawbarsActions = {
     setDrawbar(index, value) {
         const amps = AppState.harmonicAmplitudes;
-        if (amps && amps.length > index) {
-            if (amps[index] !== value) {
-                amps[index] = value;
-                updateAppState({ harmonicAmplitudes: amps });
-                // Always update audio immediately
-                smoothUpdateHarmonicAmplitude(index, value);
-                document.dispatchEvent(
-                    new CustomEvent(DRAWBAR_CHANGE, {
-                        detail: { index, value }
-                    })
-                );
-            }
+        if (!amps || !(index >= 0)) return;
+        // Grow-only store: indices beyond the current system are still
+        // stored (e.g. a bridged 12-drawbar restore while booted into a
+        // smaller system) and surface when a larger system is selected
+        while (amps.length <= index) amps.push(0);
+        if (amps[index] !== value) {
+            amps[index] = value;
+            updateAppState({ harmonicAmplitudes: amps });
+            // Always update audio immediately
+            smoothUpdateHarmonicAmplitude(index, value);
+            document.dispatchEvent(
+                new CustomEvent(DRAWBAR_CHANGE, {
+                    detail: { index, value }
+                })
+            );
         }
     },
 
@@ -102,8 +105,11 @@ export const DrawbarsActions = {
 
     randomize() {
         // Build a new amplitudes array in one go to avoid emitting
-        // DRAWBAR_CHANGE for every single drawbar update.
-        const newAmps = AppState.harmonicAmplitudes.map((_, i) => {
+        // DRAWBAR_CHANGE for every single drawbar update. Only the current
+        // system's partials are touched — hidden tail state is preserved.
+        const count = AppState.currentSystem.ratios.length;
+        const newAmps = AppState.harmonicAmplitudes.map((v, i) => {
+            if (i >= count) return v;
             return i === 0 ? 0.5 + Math.random() * 0.5 : Math.random();
         });
 
@@ -119,8 +125,10 @@ export const DrawbarsActions = {
     },
 
     reset() {
+        // Scoped like randomize: hidden tail state survives a reset
+        const count = AppState.currentSystem.ratios.length;
         const oldAmps = AppState.harmonicAmplitudes || [];
-        const newAmps = oldAmps.map((_, i) => (i === 0 ? 1 : 0));
+        const newAmps = oldAmps.map((v, i) => (i >= count ? v : (i === 0 ? 1 : 0)));
 
         updateAppState({ harmonicAmplitudes: newAmps });
 

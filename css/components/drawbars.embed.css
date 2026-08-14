@@ -1,0 +1,134 @@
+/* Embed-mode overrides for drawbars.css.
+
+   Two structural changes from the base (desktop/tablet) layout:
+
+   1. Columns are flexible width, not fixed — the section itself has no
+      fixed width either (see embed.css's shell: #drawbars-control-root
+      is `flex: 1 1 320px`), and .drawbar-container's overflow stays
+      visible so it can never open its OWN horizontal scrollbar; if the
+      partial count genuinely can't fit even at each column's floor
+      width, the outer body.embed row (which already scrolls) is what
+      scrolls, not a second nested scrollbar just for drawbars.
+
+   2. The slider's rotated length fills its wrapper's actual height
+      instead of a hand-picked px value. The wrapper's height comes from
+      flex/grid stretch (pure CSS, resolved by the browser per row); the
+      slider's PRE-rotation width has to equal that same number, and CSS
+      can't derive one axis from the other on a rotated element — so
+      DrawbarsComponent measures the wrapper post-layout and publishes it
+      as --drawbar-track-length (same pattern as --drawbar-thumb-length).
+      It's measured unconditionally, but only embed's CSS reads it —
+      the desktop slider keeps its fixed length untouched. */
+
+body.embed .drawbar-container {
+    padding: 2px 0 2px 0.5rem;
+    overflow-x: visible;
+    /* Base's max-width:100% would resolve against #drawbars-control-root's
+       own (still being computed) width, capping this container before its
+       true min-content size can propagate up and grow the section — the
+       exact thing needed for "full width, no internal scroll" to work */
+    max-width: none;
+    flex: 1 1 auto;
+    min-height: 0;
+}
+
+/* Columns share the section's width evenly, shrinking as partial count
+   grows; min-width is the floor where content stops shrinking further */
+body.embed .drawbar {
+    flex: 1 1 0;
+    width: auto;
+    min-width: 34px;
+}
+
+body.embed .drawbar-label {
+    height: 12px;
+    padding: 0;
+    margin-bottom: 2px;
+    font-size: 0.6rem;
+}
+
+/* Reset/Randomize ride the header row (right of the view tabs) instead
+   of a footer row — the freed height goes to the columns below */
+body.embed #drawbars-control-root {
+    position: relative;
+}
+
+/* Tabs hug the title on the left so the absolute buttons own the right */
+body.embed #drawbars-control-root > span {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 0.5rem;
+    padding-right: 9.5rem; /* keep tabs clear of the buttons */
+}
+
+body.embed #drawbars-control-root > .flex.justify-center {
+    position: absolute;
+    top: 0.125rem;
+    right: 0.375rem;
+    margin: 0;
+}
+
+/* Fills its column's full height — see --drawbar-track-length above */
+body.embed .drawbar-input-wrapper {
+    flex: 1 1 auto;
+    height: auto;
+    min-height: 0;
+    margin: 2px 0;
+}
+
+body.embed .drawbar-slider {
+    --drawbar-thumb-length: 26px;
+    width: var(--drawbar-track-length, 104px);
+}
+
+body.embed .drawbar-slider::-webkit-slider-thumb {
+    height: 16px;
+}
+
+body.embed .drawbar-slider::-moz-range-thumb {
+    height: 16px;
+}
+
+body.embed .drawbar-aux {
+    min-height: 0;
+}
+
+/* Aux dials (gain: pan; filter: res/drive) ride BESIDE the slider — the
+   column becomes a two-row grid (label spanning row 1) since stacking
+   below the slider would need more height than the row has. Row 2 gets
+   an explicit 1fr track so the wrapper's height:100% (via align-self:
+   stretch below) has something definite to resolve against. */
+body.embed .drawbar:has(.drawbar-aux .mini-dial) {
+    display: grid;
+    grid-template-columns: auto auto;
+    grid-template-rows: auto 1fr;
+    justify-content: center;
+    align-items: center;
+    column-gap: 3px;
+    min-width: 52px;
+}
+
+body.embed .drawbar:has(.drawbar-aux .mini-dial) .drawbar-label {
+    grid-column: 1 / -1;
+}
+
+/* Only the slider stretches to the row's full height; the aux dial stays
+   its natural size, centered (inherited from the grid's align-items) */
+body.embed .drawbar:has(.drawbar-aux .mini-dial) .drawbar-input-wrapper {
+    align-self: stretch;
+    height: auto;
+    flex: initial;
+    margin: 0;
+}
+
+body.embed .drawbar-aux-dials {
+    flex-direction: column;
+    gap: 3px;
+}
+
+body.embed .drawbar-dial-stack {
+    height: 104px;
+    margin: 2px 0;
+    gap: 0.25rem;
+}

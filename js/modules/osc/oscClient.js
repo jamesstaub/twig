@@ -30,13 +30,19 @@
  *   /twig/pan/<n> [-1..1]         per-overtone stereo pan (n=0 → all);
  *                                 defaults: fundamental centered, overtones
  *                                 alternating R/L at ±0.8
- *   /twig/filter/<n> [mult q?]    per-overtone lowpass (n=0 → all). mult is
- *                                 a 1-based partial index into the current
- *                                 overtone system applied to the voice's
- *                                 audible base (lowest multiple of its pitch
- *                                 clearing 20 Hz) — an overtone series
- *                                 within the overtone series. Tracks
- *                                 fundamental glides. mult <= 0 opens.
+ *   /twig/filter/<n> [mult q?]    per-overtone lowpass cutoff (n=0 → all).
+ *                                 mult is a 1-based partial index into the
+ *                                 current overtone system applied to the
+ *                                 voice's audible base (lowest multiple of
+ *                                 its pitch clearing 20 Hz) — an overtone
+ *                                 series within the overtone series. Tracks
+ *                                 fundamental glides. mult <= 0 opens. The
+ *                                 optional q sets resonance atomically;
+ *                                 upstream, cutoff and resonance emit as
+ *                                 separate filter/res messages.
+ *   /twig/res/<n> [f q]           per-overtone filter resonance alone
+ *                                 (n=0 → all), Q 0.1-40 — the patch-side
+ *                                 handle for a resonance-only dial.
  *   /twig/drive/<n> [f 0-5]       per-overtone overdrive (tanh saturation)
  *                                 before the filter (n=0 → all); 0 = clean,
  *                                 1 = full saturation, 5 = hard clip
@@ -46,6 +52,14 @@
  *   /twig/envmode [i 0|1]         envelope mode: 0 = Open (voices drone),
  *                                 1 = ADSR (voices rest silent, gated by
  *                                 keyboard/pad triggers)
+ *   /twig/midiout [id|index|name] Web MIDI output port for pulse note
+ *                                 blips and clock: exact port id, 0-based
+ *                                 index into the outputs, or port name
+ *                                 (multi-word ok — args are rejoined; exact
+ *                                 match first, then substring). '' = first
+ *                                 available. Resolves after the delayed
+ *                                 MIDI init, so bridged restores land.
+ *                                 Ignored where Web MIDI is denied (jweb).
  *
  * Instance targeting (optional, shared-server setups only): insert an id
  * segment after /twig — /twig/<id>/drawbar/3 — matching this page's
@@ -58,8 +72,10 @@
  * Live-native parameters. Inbound applications are not re-emitted.
  */
 
-import { AppState, updateAppState } from "../../config.js";
+import { AppState, midiConfig, updateAppState } from "../../config.js";
 import { updateHarmonicPulse } from "../../audio.js";
+import { updateMidiOutputPort } from "../midi/midiConfigActions.js";
+import { showStatus } from "../../domUtils.js";
 import { OvertoneSignalActions, Q_MAX, DRIVE_MAX } from "../overtoneSignal/overtoneSignalActions.js";
 import { getVoicePan } from "../../utils.js";
 import { DrawbarsActions } from "../drawbars/drawbarsActions.js";
@@ -79,17 +95,22 @@ import {
     MASTER_GAIN_CHANGED,
     MASTER_SLEW_CHANGED,
     OVERTONE_SIGNAL_CHANGED,
-    ENVELOPE_MODE_CHANGED
+    ENVELOPE_MODE_CHANGED,
+    MIDI_OUTPUT_CHANGED
 } from "../../events.js";
 
 const COMMANDS = new Set([
     'drawbar', 'drawbars', 'gain', 'slew', 'note', 'freq',
     'system', 'waveform', 'subharmonic', 'play', 'reset', 'randomize',
-    'setdrawbarfundamental', 'gate', 'filter', 'drive', 'pan',
+    'setdrawbarfundamental', 'gate', 'filter', 'res', 'drive', 'pan',
     'pulsemidi', 'pulseosc', 'midiclock',
     'seqshape', 'seqgain', 'seqfreq', 'seqres', 'seqstretch',
-    'adsr', 'envmode'
+    'adsr', 'envmode', 'midiout'
 ]);
+
+// Commands that are actions, not state — the bridge rightly never caches
+// them (see the staleness check in bootstrap()).
+const TRANSIENT_COMMANDS = new Set(['reset', 'randomize', 'setdrawbarfundamental']);
 
 const SEQ_AMOUNT_TARGETS = { seqgain: 'gain', seqfreq: 'freq', seqres: 'res' };
 
@@ -136,6 +157,7 @@ export class OscClient {
         try {
             const res = await fetch('/state', { cache: 'no-store' });
             if (!res.ok) return;
+            this.checkServerFreshness(res.headers.get('x-twig-commands'));
             entries = await res.json();
         } catch {
             return; // static hosting / no bridge — defaults apply
@@ -146,6 +168,25 @@ export class OscClient {
             } catch (err) {
                 console.error('[osc] bootstrap failed to apply', msg.address, err);
             }
+        }
+    }
+
+    /**
+     * The running bridge process caches only commands in ITS whitelist —
+     * a server started before a new param was added silently drops it, and
+     * the param mysteriously "doesn't persist". The server advertises its
+     * list in an x-twig-commands header; warn loudly when it's missing
+     * something this client can emit. (Servers predating the header send
+     * none — nothing to check.)
+     */
+    checkServerFreshness(header) {
+        if (!header) return;
+        const known = new Set(header.split(','));
+        const missing = [...COMMANDS].filter((c) => !TRANSIENT_COMMANDS.has(c) && !known.has(c));
+        if (missing.length) {
+            const msg = `bridge server is stale — restart it to persist: ${missing.join(', ')}`;
+            console.warn(`[osc] ${msg}`);
+            showStatus(msg, 'warning');
         }
     }
 
@@ -330,6 +371,18 @@ export class OscClient {
                 }));
                 break;
             }
+            case 'res': {
+                // /twig/res/<n> [q] or /twig/res [n, q]; n = 0 → all.
+                // Resonance alone — cutoff multiplier untouched.
+                const [n, rest] = perVoiceArgs(sub, args);
+                if (n === null || rest[0] === undefined) break;
+                const q = Math.min(Q_MAX, Math.max(0.0001, Number(rest[0]) || 0.0001));
+                this.forVoices(n, (i) => OvertoneSignalActions.setFilter(i, {
+                    ...OvertoneSignalActions.getFilter(i),
+                    q,
+                }));
+                break;
+            }
             case 'drive': {
                 // /twig/drive/<n> [0..5] or /twig/drive [n, v]; n = 0 → all
                 const [n, rest] = perVoiceArgs(sub, args);
@@ -391,6 +444,15 @@ export class OscClient {
             }
             case 'envmode':
                 OvertoneSignalActions.setEnvelopeMode(Number(args[0]) ? 'adsr' : 'open');
+                break;
+            case 'midiout':
+                // Port id, 0-based index, or name. Multi-word names arrive
+                // from Max as separate args — rejoin them.
+                updateMidiOutputPort(
+                    typeof args[0] === 'number' && args.length === 1
+                        ? args[0]
+                        : args.join(' ').trim()
+                );
                 break;
             case 'pulsemidi':
             case 'pulseosc': {
@@ -532,8 +594,11 @@ export class OscClient {
                     ? [4, (g.seq || []).join('')]
                     : [g.mode ?? 0, g.x ?? 1, g.y ?? 1]);
             } else if (kind === 'filter') {
+                // Cutoff and resonance as separate messages, so each can
+                // map to its own Live param / patch dial without the other
                 const f = AppState.oscillatorFilters[index] || {};
-                this.emit(`filter/${n}`, [f.multiplier ?? 0, f.q ?? 0.707]);
+                this.emit(`filter/${n}`, [f.multiplier ?? 0]);
+                this.emit(`res/${n}`, [f.q ?? 0.707]);
             } else if (kind === 'drive') {
                 this.emit(`drive/${n}`, [OvertoneSignalActions.getDrive(index)]);
             } else if (kind === 'envelope') {
@@ -555,6 +620,9 @@ export class OscClient {
         });
         document.addEventListener(ENVELOPE_MODE_CHANGED, () => {
             this.emit('envmode', [AppState.envelopeMode === 'adsr' ? 1 : 0]);
+        });
+        document.addEventListener(MIDI_OUTPUT_CHANGED, () => {
+            this.emit('midiout', [midiConfig.outputId || '']);
         });
         document.addEventListener(FUNDAMENTAL_CHANGED, () => {
             // note (quantized) for note-based params, then freq (exact) so

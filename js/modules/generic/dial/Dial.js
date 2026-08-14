@@ -27,6 +27,12 @@ export class Dial {
         onChange = null,
         tipExtra = null,
         tipAnchor = null,
+        fineOnShift = true,
+        hostTip = null,
+        grabFocus = false,
+        tipHold = null,
+        tipPlacement = 'above',
+        onExpand = null,
     } = {}) {
         this.min = min;
         this.max = max;
@@ -40,6 +46,19 @@ export class Dial {
         this.onChange = onChange;
         this.tipExtra = tipExtra; // () => HTMLElement embedded in the tip
         this.tipAnchor = tipAnchor; // Element | (dial) => Element to pin the tip to
+        // Hosts that give shift-drag their own meaning (shaped row apply)
+        // pass false so shift moves at normal speed
+        this.fineOnShift = fineOnShift;
+        // (e) => true when the host shows its own tip for this gesture —
+        // the dial then skips its readout so it can't overwrite the host's
+        this.hostTip = hostTip;
+        // grabFocus: focus the canvas on grab so "focused" is meaningful
+        // for dials; tipHold: () => bool keeping the tip open while the
+        // host's controls stay engaged (see ValueTip holdWhile)
+        this.grabFocus = grabFocus;
+        this.tipHold = tipHold;
+        this.tipPlacement = tipPlacement; // 'left' keeps interactive tips clear of the control
+        this.onExpand = onExpand; // tip corner ⤢ → host's full editor
 
         this.el = document.createElement('div');
         this.el.className = 'mini-dial';
@@ -54,6 +73,7 @@ export class Dial {
         // rule for the viz canvases that would stretch (and blur) dials
         this.canvas.style.setProperty('width', `${size}px`, 'important');
         this.canvas.style.setProperty('height', `${size}px`, 'important');
+        if (this.grabFocus) this.canvas.tabIndex = -1;
         this.el.appendChild(this.canvas);
 
         this._bindDrag();
@@ -72,7 +92,7 @@ export class Dial {
         const onMove = (e) => {
             const range = this.max - this.min;
             // Full range over ~128px of vertical travel; shift = 8× finer
-            const scale = range / (e.shiftKey ? 1024 : 128);
+            const scale = range / (e.shiftKey && this.fineOnShift ? 1024 : 128);
             const next = this._quantize(startValue + (startY - e.clientY) * scale);
             if (next !== this.value) {
                 this.value = next;
@@ -81,7 +101,7 @@ export class Dial {
                 // (cmd/ctrl-drag = apply to all overtones)
                 this.onChange?.(this.value, e);
             }
-            this._showTip();
+            if (!this.hostTip?.(e)) this._showTip();
         };
 
         this.canvas.addEventListener('pointerdown', (e) => {
@@ -89,8 +109,9 @@ export class Dial {
             e.preventDefault();
             startY = e.clientY;
             startValue = this.value;
+            if (this.grabFocus) this.canvas.focus({ preventScroll: true });
             // Show the tip on grab: the control's name lives here, not in the DOM
-            this._showTip();
+            if (!this.hostTip?.(e)) this._showTip();
             try {
                 this.canvas.setPointerCapture(e.pointerId);
             } catch { /* synthetic or already-released pointer — drag still works */ }
@@ -140,6 +161,12 @@ export class Dial {
             label: this.label,
             autoHideMs: 0,
             extra: this.tipExtra ? this.tipExtra() : null,
+            // Embedded content (seq preview + buttons) must be reachable
+            // after release, and stays open while the host is engaged
+            interactive: Boolean(this.tipExtra),
+            holdWhile: this.tipHold,
+            placement: this.tipPlacement,
+            onExpand: this.onExpand,
         });
     }
 

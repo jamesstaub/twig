@@ -1,0 +1,87 @@
+/* Embed-mode overrides for signal-modal.css: the overtone signal editor
+   becomes a horizontal band — sections side by side, each section's
+   content flowing as a row — scrolling sideways like the drawbar strip. */
+
+body.embed .signal-modal {
+    width: max-content;
+    min-height: 100%;
+    gap: 0.375rem;
+    justify-content: center;
+}
+
+body.embed .signal-modal-header {
+    flex-wrap: nowrap;
+    gap: 1rem;
+    padding-right: 2rem;
+}
+
+body.embed .signal-modal-title {
+    font-size: 0.8rem;
+    white-space: nowrap;
+}
+
+body.embed .signal-modal-sections {
+    flex-wrap: nowrap;
+    gap: 0.5rem;
+    align-items: stretch;
+}
+
+body.embed .signal-section {
+    flex: 0 0 auto;
+    min-width: 0;
+    padding: 0.375rem 0.5rem;
+    gap: 0.25rem;
+}
+
+body.embed .signal-section-body {
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 0.75rem;
+}
+
+body.embed .signal-side-col {
+    flex: 0 0 auto;
+    flex-direction: row;
+    gap: 0.5rem;
+}
+
+body.embed .signal-gate-mode {
+    gap: 0.25rem;
+}
+
+body.embed .signal-shape {
+    margin-top: 0;
+    gap: 0.25rem;
+    width: 9rem;
+}
+
+body.embed .signal-shape-preview {
+    height: 26px;
+}
+
+body.embed .signal-targets {
+    margin-top: 0;
+    padding-top: 0;
+    border-top: none;
+    min-width: 10rem;
+    gap: 0.125rem;
+}
+
+body.embed .signal-dial-row {
+    margin-top: 0.25rem;
+    gap: 0.75rem;
+    flex-wrap: nowrap; /* the embed band scrolls sideways instead */
+}
+
+body.embed .signal-vslider-value {
+    min-height: 0;
+}
+
+body.embed .signal-pulse-rows {
+    gap: 0.25rem;
+}
+
+body.embed .signal-pulse-label,
+body.embed .signal-pulse-detail {
+    font-size: 0.7rem;
+}

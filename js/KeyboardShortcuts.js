@@ -8,9 +8,10 @@ import { FundamentalActions } from './modules/fundamental/fundamentalActions.js'
 import { PlayToggleActions } from './modules/playToggle/playToggleActions.js';
 import { triggerHarmonicAttack, triggerHarmonicRelease } from './audio.js';
 
-// Number row: fundamental, 12 chromatic steps up from the current octave's C
+// Number row: fundamental, chromatic steps up from the current octave's C
+// (` is the root, 1-= continue upward — 13 keys, a full octave inclusive)
 const NOTE_KEYS = [
-    'Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5', 'Digit6',
+    'Backquote', 'Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5', 'Digit6',
     'Digit7', 'Digit8', 'Digit9', 'Digit0', 'Minus', 'Equal'
 ];
 
@@ -43,16 +44,6 @@ export class KeyboardShortcuts {
                 e.stopPropagation();
             }
         }, { capture: true });
-
-        // …and where they can't be swallowed, make the close ask first:
-        // while the synth is playing, closing the tab prompts instead of
-        // silently killing the session.
-        window.addEventListener('beforeunload', (e) => {
-            if (AppState.isPlaying) {
-                e.preventDefault();
-                e.returnValue = ''; // legacy engines need this for the prompt
-            }
-        });
     }
 
     handleKeyDown(e) {

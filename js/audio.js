@@ -270,8 +270,9 @@ async function startToneWithOscillators() {
                 AppState.oscillators[i] = null;
             }
         } else {
-            // Hide extra oscillators and set gain to 0
-            AppState.harmonicAmplitudes[i] = 0;
+            // Partial beyond this system's count: no voice, but KEEP its
+            // stored amplitude — the store is grow-only so a return to a
+            // larger system restores the drawbars
             AppState.oscillators[i] = null;
         }
     }
@@ -658,7 +659,9 @@ export async function sampleCurrentWaveform(routingMode = 'mono', isSubharmonic 
     //----------------------------------------------------------------------
     const activeRatios = [];
     for (let h = 0; h < numOsc; h++) {
-        if (AppState.harmonicAmplitudes[h] > 0.001) {
+        // Ratio check: the grow-only amplitude store can be longer than
+        // the current system's partial table
+        if (AppState.harmonicAmplitudes[h] > 0.001 && AppState.currentSystem.ratios[h] > 0) {
             activeRatios.push(AppState.currentSystem.ratios[h]);
         }
     }
@@ -679,6 +682,7 @@ export async function sampleCurrentWaveform(routingMode = 'mono', isSubharmonic 
         if (amp <= 0.001) continue;
 
         const ratio = AppState.currentSystem.ratios[h];
+        if (!(ratio > 0)) continue; // hidden partial (grow-only store)
         const buf = oscBuffers[h];
 
         for (let i = 0; i < tableSize; i++) {

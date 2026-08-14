@@ -87,4 +87,11 @@
     /* ---- Layout ---- */
     --navbar-height: 6rem;
     --navbar-height-tall: 8rem;      /* stacked (narrow-viewport) navbar */
+
+    /* The boundary between the two UI designs (standard web vs Max4Live/
+       jweb embed): app.js reads this via js/theme.js's themeNumber() and
+       toggles body.embed when the viewport is at or below it. Single
+       source of truth — CSS has no consumer of the raw number itself,
+       only of the body.embed class it drives. */
+    --embed-max-height: 220px;
 }

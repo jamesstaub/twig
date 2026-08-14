@@ -11,7 +11,7 @@ const CLOCK_STOP = 0xfc;
 // scheduled (Web MIDI accepts future timestamps) so receivers that ignore
 // zero-length notes still register it — nothing waits on a timer, so
 // note-offs can't be dropped by page throttling.
-const BLIP_MS = 10;
+const BLIP_MS = 50;
 
 /**
  * MidiOutputRouter — turns voice pulses into Web MIDI events.
@@ -51,9 +51,33 @@ export class MidiOutputRouter {
 
     /** Resolve the active output: the configured port if present, else first. */
     _pick() {
+        // A selector that arrived before Web MIDI was up (bridge bootstrap
+        // replays ~2s before init) resolves now that ports exist
+        if (this._selector != null && !this.outputPorts().some((o) => o.id === midiConfig.outputId)) {
+            const id = this.resolvePortId(this._selector);
+            if (id) midiConfig.outputId = id;
+        }
         const outs = this.midi ? [...this.midi.outputs.values()] : [];
         this.output = outs.find((o) => o.id === midiConfig.outputId) || outs[0] || null;
         this.available = Boolean(this.output);
+    }
+
+    /**
+     * Port id for a flexible selector: exact port id, 0-based index into
+     * the output list (matching how system/waveform address menus), or a
+     * port name — exact first, then case-insensitive substring.
+     */
+    resolvePortId(selector) {
+        const ports = this.outputPorts();
+        if (typeof selector === 'number') return ports[Math.round(selector)]?.id ?? null;
+        const s = String(selector ?? '').trim();
+        if (!s) return null;
+        const port = ports.find((p) => p.id === s) ||
+            ports.find((p) => p.name === s) ||
+            ports.find((p) => p.name.toLowerCase().includes(s.toLowerCase()));
+        // Unresolved string: keep it as an id — it may name a port that
+        // appears later (onstatechange re-picks)
+        return port ? port.id : s;
     }
 
     /** Available system output ports, for the MIDI modal's selector. */
@@ -61,9 +85,15 @@ export class MidiOutputRouter {
         return this.midi ? [...this.midi.outputs.values()].map((o) => ({ id: o.id, name: o.name })) : [];
     }
 
-    /** Route pulses to a specific output port. */
-    selectOutput(id) {
-        midiConfig.outputId = id || null;
+    /**
+     * Route pulses to a specific output port — by id, 0-based index, or
+     * name (see resolvePortId). null/'' clears to first available. The
+     * raw selector is remembered so it can resolve after late MIDI init.
+     */
+    selectOutput(selector) {
+        const cleared = selector == null || selector === '';
+        this._selector = cleared ? null : selector;
+        midiConfig.outputId = cleared ? null : this.resolvePortId(selector);
         this._pick();
     }
 

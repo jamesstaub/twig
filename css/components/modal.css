@@ -19,7 +19,7 @@
 }
 
 /* The navbar stacks taller on narrow viewports */
-@media (max-width: 768px) {
+@media (max-width: theme(--breakpoint-md)) {
     .modal-overlay {
         top: var(--navbar-height-tall);
         height: calc(100vh - var(--navbar-height-tall));

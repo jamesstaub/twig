@@ -5,8 +5,7 @@
 @source "../index.html";
 @source "../js";
 
-/* Design tokens first, then base, then components. embed.css must stay
-   last: it overrides component styles for the Max4Live (jweb) layout. */
+/* Design tokens first, then base, then components. */
 @import "./theme.css";
 @import "./base.css";
 @import "./components/navbar.css";
@@ -20,4 +19,18 @@
 @import "./components/modal.css";
 @import "./components/signal-modal.css";
 @import "./components/status.css";
+
+/* Embed mode (Max4Live/jweb): the shell first, then each component's
+   embed.css counterpart. This whole block must stay LAST — every rule
+   here targets body.embed (a jump in specificity over its base-file
+   sibling already, but source order is the belt to that suspenders). */
 @import "./embed.css";
+@import "./components/buttons.embed.css";
+@import "./components/navbar.embed.css";
+@import "./components/controls.embed.css";
+@import "./components/keyboard.embed.css";
+@import "./components/toggle.embed.css";
+@import "./components/drawbars.embed.css";
+@import "./components/viz.embed.css";
+@import "./components/modal.embed.css";
+@import "./components/signal-modal.embed.css";

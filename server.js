@@ -55,12 +55,12 @@ const log = (msg) => (Max ? Max.post(msg) : console.log(msg));
 // tracks upstream app gestures, so a jweb reload restores the latest state.
 const STATE_ORDER = [
     'system', 'waveform', 'subharmonic', 'note', 'freq',
-    'gain', 'slew', 'drawbars', 'drawbar', 'gate', 'filter', 'drive', 'pan',
+    'gain', 'slew', 'drawbars', 'drawbar', 'gate', 'filter', 'res', 'drive', 'pan',
     'adsr', 'seqshape', 'seqgain', 'seqfreq', 'seqres', 'seqstretch',
-    'pulsemidi', 'pulseosc', 'midiclock', 'envmode', 'play'
+    'pulsemidi', 'pulseosc', 'midiclock', 'midiout', 'envmode', 'play'
 ];
 const PER_INDEX_COMMANDS = new Set([
-    'drawbar', 'gate', 'filter', 'drive', 'pan', 'adsr',
+    'drawbar', 'gate', 'filter', 'res', 'drive', 'pan', 'adsr',
     'seqshape', 'seqgain', 'seqfreq', 'seqres', 'seqstretch',
     'pulsemidi', 'pulseosc'
 ]);
@@ -116,9 +116,13 @@ function stateSnapshot() {
 const app = express();
 app.use(express.static(path.join(__dirname)));
 
-// Bootstrap snapshot, applied by the app before its first render
+// Bootstrap snapshot, applied by the app before its first render.
+// The command whitelist rides along so the app can detect a stale server
+// process (one started before new params were added) and warn instead of
+// letting them silently fail to persist.
 app.get('/state', (req, res) => {
     res.set('Cache-Control', 'no-store');
+    res.set('X-Twig-Commands', STATE_ORDER.join(','));
     res.json(stateSnapshot());
 });
 
@@ -177,9 +181,9 @@ if (Max) {
     const APP_COMMANDS = [
         'drawbar', 'drawbars', 'gain', 'slew', 'note', 'freq',
         'system', 'waveform', 'subharmonic', 'play', 'reset', 'randomize',
-        'setdrawbarfundamental', 'gate', 'filter', 'drive', 'pan',
+        'setdrawbarfundamental', 'gate', 'filter', 'res', 'drive', 'pan',
         'seqshape', 'seqgain', 'seqfreq', 'seqres', 'seqstretch',
-        'pulsemidi', 'pulseosc', 'midiclock', 'adsr', 'envmode'
+        'pulsemidi', 'pulseosc', 'midiclock', 'adsr', 'envmode', 'midiout'
     ];
     for (const cmd of APP_COMMANDS) {
         Max.addHandler(cmd, (...args) => {

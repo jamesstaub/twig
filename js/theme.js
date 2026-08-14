@@ -33,6 +33,15 @@ export function themeColor(token) {
 }
 
 /**
+ * Read a token as a number, e.g. themeNumber('--embed-max-height') → 220.
+ * Strips whatever CSS unit it carries (px, rem, …) — callers that need
+ * unit-awareness should read themeColor() directly instead.
+ */
+export function themeNumber(token) {
+    return parseFloat(themeColor(token));
+}
+
+/**
  * Color for a partial by its interval against the fundamental: the
  * consonance score picks a step on the --harmonic-1..N ramp (ordered
  * dissonant → consonant), Hammond-style — octave partials land on the

@@ -108,6 +108,10 @@ CSS under `css/components/`.
   above the floor on a shared port will still loop — the separate
   input/output channel settings cover that case.
 - `midiConfig` (channels, CC/note maps, note floor) is **not** bridged or
-  persisted to Max yet — browser-session only.
+  persisted to Max yet — browser-session only. Exception: the output port
+  (`outputId`) is bridged as `/twig/midiout` and persists.
+- The app self-diagnoses a stale bridge process: `GET /state` carries an
+  `x-twig-commands` header (the server's `STATE_ORDER`), and the client
+  warns on boot when its commands are missing from it.
 - Native `<select>` dropdowns don't open inside jweb — embed-facing controls
   need button/icon alternatives (see the sequence view's waveform strip).

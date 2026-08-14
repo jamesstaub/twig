@@ -5,9 +5,11 @@ import { PULSE } from "../../events.js";
  * PulseBus — fan-out hub for per-cycle pulses from the gate worklets.
  *
  * Each voice's overtone-gate processor posts {type:'pulse', cycle, gateOn,
- * frequency, audioTime} on every cycle wrap (when enabled, and only while
- * the voice is <= 50 Hz). The AudioEngine forwards them here; the bus
- * routes to consumers:
+ * frequency, audioTime} once per cycle at the cycle MIDPOINT (phase 0.5 —
+ * half a period ahead of the next gate transition, so latency-laden
+ * external MIDI gear lands in step), when enabled and only while the
+ * voice is <= 50 Hz. The AudioEngine forwards them here; the bus routes
+ * to consumers:
  *
  *   - registered handlers (window.TWIG.pulses.subscribe) — arbitrary JS,
  *     the future virtual patch-bay

@@ -8,7 +8,8 @@ import {
     updateMidiInputNoteMin,
     updateMidiDrawbarCC,
     updatePulseNote,
-    setPulseOutputEnabled
+    setPulseOutputEnabled,
+    updateMidiOutputPort
 } from '../../../modules/midi/midiConfigActions.js';
 
 /**
@@ -113,7 +114,9 @@ export default class MidiMappingModalComponent extends ModalComponent {
             if (midiOutputRouter.output && port.id === midiOutputRouter.output.id) opt.selected = true;
             select.appendChild(opt);
         }
-        select.addEventListener('change', () => midiOutputRouter.selectOutput(select.value));
+        // Via the actions layer so the choice syncs to the bridge and
+        // persists across reloads
+        select.addEventListener('change', () => updateMidiOutputPort(select.value));
         return select;
     }
 

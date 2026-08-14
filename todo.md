@@ -24,7 +24,8 @@ hosting/deployment.
 Controls:
     - cmd/ctrl link-all implemented (drawbars + dials + modal controls, body.link-all glow). still open: a touch-device equivalent — double tap or a lock icon while editing?
     - add a filter UI to the value tip and overtone settings modal so we can see a output spectrum and a filter curve when editng filter parameters
-    - the sequencer tab's viewtip should not disappear so long as any of the controls are "active" or "focused"
+  - valuetip over drawbar  shift+click linked edit: obstructs the mouse in Max4Live mode. it must avoid the active slider on the X axis
+
 
 
 keyboard / ADSR (implemented: `1`-`=` set fundamental, `Q`-`]` gate per-overtone
@@ -56,3 +57,14 @@ frequency choices based on the currently selected overtone system where the fund
       in gate-processor.
     - later: multiple sequencers per overtone / decouple sequencers from
       overtones so any pulse source can drive any parameter (virtual patch-bay)
+
+
+hover over the ADSR buttons to show the key mapping that controls it
+
+when you use the qwerty keys to trigger ADSR the trigger buttons should light up as if they were clicked.
+
+when you shift + click wave function on the sliders it shows the valueTip with the wave shape. this UI should let you switch the oscillator waveform instead of being locked to the main fundamental's oscillator shape. 
+
+in M4L view the drawbars should not collapse to scroll horizontally, always take full horizontal space for drawbars
+
+add "copy milisecond value" to the right click context menu of overtones

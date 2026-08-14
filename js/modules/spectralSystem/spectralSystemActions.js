@@ -13,17 +13,15 @@ export const SpectralSystemActions = {
     setSystem(index) {
         updateAppState({ currentSystem: spectralSystems[index] });
 
-        // Resize amplitudes to match new system
+        // The amplitude store is GROW-ONLY: switching to a system with
+        // fewer partials keeps the hidden tail, so a larger system gets
+        // its drawbar state back. Only pad when the new system is bigger.
         const numPartials = AppState.currentSystem.ratios.length;
-        const oldAmps = AppState.harmonicAmplitudes || [];
-        const newAmps = [];
-        for (let i = 0; i < numPartials; i++) {
-            newAmps[i] = typeof oldAmps[i] === 'number' ? oldAmps[i] : (i === 0 ? 1.0 : 0.0);
+        const amps = AppState.harmonicAmplitudes || [];
+        for (let i = amps.length; i < numPartials; i++) {
+            amps[i] = i === 0 ? 1.0 : 0.0;
         }
-        for (let i = oldAmps.length; i < numPartials; i++) {
-            newAmps[i] = (i === 0 ? 1.0 : 0.0);
-        }
-        AppState.harmonicAmplitudes = newAmps;
+        AppState.harmonicAmplitudes = amps;
 
         smoothUpdateSystem(index);
 

@@ -28,6 +28,8 @@
     border: 1px solid var(--border-strong);
 }
 
+/* Bespoke breakpoint (not on Tailwind's scale) — narrower than any
+   default step, just for this one rotated-logo affordance. */
 @media (max-width: 500px) {
     .logo {
         right: 0;

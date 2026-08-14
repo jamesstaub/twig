@@ -134,9 +134,14 @@ function createVisualizationSketch() {
 
         function drawIndividualPartials(points, currentAngle) {
             const type = AppState.currentWaveform;
-            const numHarmonics = AppState.harmonicAmplitudes.length;
+            // Clamp to the current system: the grow-only amplitude store
+            // can be longer than its partial table (hidden tail state)
+            const numHarmonics = Math.min(
+                AppState.harmonicAmplitudes.length,
+                AppState.currentSystem.ratios.length
+            );
             const laneRadii = computeHarmonicLaneRadii({
-                harmonicAmplitudes: AppState.harmonicAmplitudes,
+                harmonicAmplitudes: AppState.harmonicAmplitudes.slice(0, numHarmonics),
                 baseRadius,
                 maxLaneHeight: maxAmplitudeRadial
             });

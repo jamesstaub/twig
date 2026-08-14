@@ -34,7 +34,7 @@ canvas {
 }
 
 /* Responsive canvas layout - mobile/tablet only */
-@media (max-width: 768px) {
+@media (max-width: theme(--breakpoint-md)) {
     #tonewheel-container {
         flex: none;
         max-width: none;

@@ -73,7 +73,7 @@
 
 /* Narrow (mobile) wrap: filter + pan side by side across the full width
    instead of a half-empty column */
-@media (max-width: 639px) {
+@media (max-width: theme(--breakpoint-sm)) {
     .signal-side-col {
         flex: 1 1 100%;
         flex-direction: row;

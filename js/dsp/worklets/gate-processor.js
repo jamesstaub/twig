@@ -10,8 +10,9 @@
  * PATTERN (sequence mode) decides which cycles are active:
  *   mode 0  off          no modulation at all — audio passes through
  *                        untouched and the CVs stay at 0; pulses still
- *                        fire every cycle (use alternating 1/0 for a
- *                        shape-LFO on every cycle)
+ *                        fire every cycle, at each cycle's midpoint
+ *                        (use alternating 1/0 for a shape-LFO on every
+ *                        cycle)
  *   mode 1  alternating  x cycles on, then y cycles off
  *   mode 2  euclidean    x pulses distributed over y cycles (Bjorklund)
  *   mode 3  probability  each cycle is on with x percent probability
@@ -144,6 +145,10 @@ class OvertoneGateProcessor extends AudioWorkletProcessor {
         super();
         this.phase = 0;
         this.cycle = 0;
+        // Pulses fire at each cycle's MIDPOINT (phase 0.5), not the wrap:
+        // external MIDI gear adds latency downstream, and the half-cycle
+        // lead keeps triggered instruments in step with the audible gate
+        this.pulsedThisCycle = false;
         this.gateTarget = null; // decided on first process() once params exist
         this.gain = 1;
         this.patternState = { pattern: null, patternKey: '' };
@@ -237,13 +242,21 @@ class OvertoneGateProcessor extends AudioWorkletProcessor {
                 this.cycle++;
                 this.gateTarget = gateForCycle(this.patternState, this.cycle, mode, x, y) ? 1 : 0;
                 this.updateSmoothing(f);
+                this.pulsedThisCycle = false;
+            }
+            // Half-cycle pulse: fire once per cycle at phase 0.5 — the
+            // opposite end from the gate transition, so externally
+            // triggered instruments (which add their own latency) land
+            // with the audible cycle instead of trailing it
+            if (!this.pulsedThisCycle && this.phase >= 0.5) {
+                this.pulsedThisCycle = true;
                 if (pulseOut && f <= PULSE_MAX_HZ) {
                     this.port.postMessage({
                         type: 'pulse',
                         cycle: this.cycle,
                         gateOn: this.gateTarget === 1,
                         frequency: f,
-                        // Audio-clock time of this exact cycle boundary, so
+                        // Audio-clock time of this exact emission point, so
                         // consumers can schedule against it even when this
                         // message arrives late (throttled main thread)
                         audioTime: currentFrame / sampleRate + i / sampleRate,

@@ -1,0 +1,23 @@
+/* Embed-mode overrides for viz.css. */
+
+body.embed canvas {
+    min-height: 0;
+}
+
+body.embed #current-waveform-canvas-area,
+body.embed #waveform-canvas-area {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+}
+
+/* Square-ish, sized by the row's height rather than a fraction of width */
+body.embed #tonewheel-container {
+    flex: 0 0 160px;
+    width: 160px;
+    min-width: 160px;
+    height: 100%;
+    max-height: 100%;
+    margin: 0;
+    overflow: hidden;
+}

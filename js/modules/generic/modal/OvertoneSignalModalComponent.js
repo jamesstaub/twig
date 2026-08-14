@@ -109,7 +109,7 @@ export default class OvertoneSignalModalComponent extends ModalComponent {
             return '24 ticks per cycle';
         };
         const clockRow = this.pulseRow({
-            text: 'MIDI clock source',
+            text: 'Output as MIDI clock',
             detail: clockDetail(),
             enabled: midiOutputRouter.available,
             value: AppState.midiClockVoice === index,
@@ -350,7 +350,7 @@ export default class OvertoneSignalModalComponent extends ModalComponent {
 
         const heading = document.createElement('div');
         heading.className = 'signal-targets-heading';
-        heading.textContent = 'Target';
+        heading.textContent = 'Modulation Target';
         wrap.appendChild(heading);
 
         const seq = OvertoneSignalActions.getSequencer(index);

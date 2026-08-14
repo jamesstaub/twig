@@ -276,7 +276,7 @@
     color: var(--text-accent);
 }
 
-@media (max-width: 639px) {
+@media (max-width: theme(--breakpoint-sm)) {
     .drawbar-container {
         justify-content: flex-start;
         padding-left: 1.5rem;
@@ -372,16 +372,25 @@ body.adsr-mode .drawbar-trigger {
     gap: 4px;
 }
 
-/* ---- Sequence view: X/Y dial stack replaces the slider ---- */
+/* ---- Sequence view: wave stepper, mode stepper, x/y dials stacked ---- */
 
 .drawbar-dial-stack {
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 0.75rem;
+    gap: 0.45rem;
     height: 160px;
     margin: 10px 0;
+}
+
+/* x/y dials side by side under the steppers */
+.drawbar-seq-controls {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
 }
 
 /* ---- Mini dial widget ---- */
@@ -405,80 +414,14 @@ body.adsr-mode .drawbar-trigger {
     box-shadow: none !important;
     background: transparent !important;
     object-fit: fill !important;
-}
-
-.mini-dial canvas {
     cursor: ns-resize;
     touch-action: none;
 }
 
-/* ---- Sequence view: waveform icon strip + mode/x/y controls ---- */
-
-.drawbar-dial-stack {
-    flex-direction: row;
-    align-items: stretch;
-    justify-content: center;
-    gap: 0.3rem;
-}
-
-.seq-wave-strip {
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    gap: 2px;
-    width: 20px;
-}
-
-.seq-wave-icon {
-    padding: 1px;
-    background: none;
-    border: 1px solid transparent;
-    border-radius: 3px;
-    cursor: pointer;
-    line-height: 0;
-    opacity: 0.55;
-    transition: opacity 0.1s, border-color 0.1s;
-}
-
-.seq-wave-icon img {
-    display: block;
-    width: 16px;
-    height: 9px;
-}
-
-.seq-wave-icon:hover {
-    opacity: 1;
-}
-
-.seq-wave-icon.active {
-    opacity: 1;
-    border-color: var(--accent-primary);
-    background: color-mix(in srgb, var(--accent-primary) 14%, transparent);
-}
-
-.drawbar-seq-controls {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 0.4rem;
-}
-
-.seq-mode-btn {
-    width: 20px;
-    height: 18px;
-    padding: 0;
-    font-size: 0.65rem;
-    font-weight: 700;
-    color: var(--text-accent);
-    background: none;
-    border: 1px solid var(--border-subtle);
-    border-radius: 4px;
-    cursor: pointer;
-}
-
-.seq-mode-btn:hover {
-    border-color: var(--accent-primary);
+/* grabFocus dials take focus so the seq tip knows they're engaged —
+   the dial's own arc is the affordance, no ring needed */
+.mini-dial canvas:focus {
+    outline: none;
 }
 
 .mini-dial-disabled {
@@ -503,7 +446,7 @@ body.link-all .drawbar-slider::-moz-range-thumb {
     outline-offset: 1px;
 }
 
-body.link-all .seq-mode-btn,
-body.link-all .seq-wave-icon {
+body.link-all .drawbar-dial-stack .cycle-stepper-arrow,
+body.link-all .drawbar-dial-stack .cycle-stepper-current {
     border-color: color-mix(in srgb, var(--accent-primary) 60%, transparent);
 }

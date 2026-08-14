@@ -102,7 +102,8 @@ function createWaveformSketch(component) {
 
                     for (let h = 0; h < props.harmonicAmplitudes.length; h++) {
                         const amp = props.harmonicAmplitudes[h] || 0;
-                        if (amp > 0.001) {
+                        // Amplitude store can outlive the system (grow-only)
+                        if (amp > 0.001 && props.currentSystem.ratios[h] > 0) {
                             const ratio = props.currentSystem.ratios[h];
                             // Use division for subharmonics, multiplication for normal harmonics
                             const harmonicPhase = props.isSubharmonic ? theta / ratio : ratio * theta;

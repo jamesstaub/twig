@@ -383,11 +383,6 @@ export function updateAppState(updates) {
     Object.assign(AppState, updates);
 }
 
-export function resetHarmonicAmplitudes() {
-    AppState.harmonicAmplitudes.fill(0.0);
-    AppState.harmonicAmplitudes[0] = 1.0;
-}
-
 export function getCurrentSystem() {
     return AppState.currentSystem;
 }

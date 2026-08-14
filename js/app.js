@@ -12,23 +12,24 @@ import { faviconService } from './modules/favicon/faviconService.js';
 import { getAudioEngine } from './audio.js';
 import { oscClient, oscEnabled } from './modules/osc/oscClient.js';
 import { pulseBus } from './modules/pulse/pulseBus.js';
+import { themeNumber } from './theme.js';
 
 
 /**
  * EMBED MODE (Max4Live / jweb)
  * The jweb object in a Max4Live device gives us ~170px of height, so the app
- * collapses into a single horizontal row (see "EMBED MODE" in styles.css).
- * Detected from viewport height, or forced with ?embed=1 / disabled with ?embed=0.
+ * collapses into a single horizontal row (see css/embed.css). Detected from
+ * viewport height against --embed-max-height (css/theme.css — the single
+ * source of truth for the boundary between the two UI designs), or forced
+ * with ?embed=1 / disabled with ?embed=0.
  */
-const EMBED_MAX_HEIGHT = 220;
-
 function updateEmbedMode() {
     const embedParam = new URLSearchParams(window.location.search).get('embed');
     let embed;
     if (embedParam !== null) {
         embed = embedParam !== '0' && embedParam !== 'false';
     } else {
-        embed = window.innerHeight > 0 && window.innerHeight <= EMBED_MAX_HEIGHT;
+        embed = window.innerHeight > 0 && window.innerHeight <= themeNumber('--embed-max-height');
     }
     document.body.classList.toggle('embed', embed);
 }

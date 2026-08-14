@@ -1,7 +1,9 @@
 // midiConfigActions.js
 // Actions for updating midiConfig and propagating changes
 import { AppState, midiConfig } from '../../config.js';
-import { updateAllHarmonicPulses } from '../../audio.js';
+import { midiOutputRouter } from './midiOutputRouter.js';
+import { OvertoneSignalActions } from '../overtoneSignal/overtoneSignalActions.js';
+import { MIDI_OUTPUT_CHANGED } from '../../events.js';
 
 const listeners = [];
 
@@ -43,18 +45,27 @@ export function setPulseOutputEnabled(kind, enabled) {
     if (kind === 'midi') midiConfig.pulseMidiEnabled = on;
     if (kind === 'osc') midiConfig.pulseOscEnabled = on;
 
+    // Per voice through the actions layer, so the change syncs upstream
+    // to the bridge (and each running voice's worklet is re-evaluated)
     const count = AppState.currentSystem.ratios.length;
     for (let i = 0; i < count; i++) {
-        AppState.oscillatorPulseOuts[i] = {
-            midi: midiConfig.pulseMidiEnabled,
-            osc: midiConfig.pulseOscEnabled,
-            ...AppState.oscillatorPulseOuts[i],
-            [flag]: on,
-        };
+        OvertoneSignalActions.setPulseOut(i, { [flag]: on });
     }
 
-    updateAllHarmonicPulses();
     notifyListeners();
+}
+
+/**
+ * Select the Web MIDI output port — by port id, 0-based index, or name
+ * (null/'' = first available). The single write path shared by the MIDI
+ * modal and the OSC bridge, so the choice syncs upstream and persists
+ * across reloads. Safe before the router initializes — the selector is
+ * kept and resolved when Web MIDI comes up.
+ */
+export function updateMidiOutputPort(selector) {
+    midiOutputRouter.selectOutput(selector);
+    notifyListeners();
+    document.dispatchEvent(new CustomEvent(MIDI_OUTPUT_CHANGED));
 }
 
 export function onMidiConfigChange(listener) {
