@@ -1,7 +1,6 @@
 import { AppState, CANVAS_HEIGHT_RATIOS, updateAppState } from '../../config.js';
 import { partialColor, themeColor } from '../../theme.js';
 import { precomputeWaveTable } from '../../audio.js';
-import { lcmArray } from '../waveform/WaveformComponent.js';
 import p5 from 'p5';
 
 let spreadFactor = 1;
@@ -146,20 +145,7 @@ function createVisualizationSketch() {
                 maxLaneHeight: maxAmplitudeRadial
             });
 
-            // Determine full period multiplier for subharmonics
-            let fullPeriodMultiplier = 1; // default: 1 cycle
-            if (AppState.isSubharmonic) {
-                const denominators = AppState.currentSystem.ratios
-                    .map((r, h) => AppState.harmonicAmplitudes[h] > 0.001 ? Math.round(r) : null)
-                    .filter(Boolean);
-
-                if (denominators.length > 0) {
-                    fullPeriodMultiplier = lcmArray(denominators);
-                    fullPeriodMultiplier = Math.min(fullPeriodMultiplier, 32); // cap to prevent extreme values
-                }
-            }
-
-            const thetaScale = (p.TWO_PI * fullPeriodMultiplier) / points;
+            const thetaScale = p.TWO_PI / points;
 
             for (let h = 0; h < numHarmonics; h++) {
                 const amp = AppState.harmonicAmplitudes[h];
@@ -170,6 +156,16 @@ function createVisualizationSketch() {
                 const MAX_RING_MOD = 0.45;
                 const visualAmp = MAX_RING_MOD * (maxAmplitudeRadial / numHarmonics) * spreadFactor * amp;
 
+                // Tonewheel duality. Overtone mode: wheels on a common shaft,
+                // tooth count = ratio (frequency = teeth × speed). Subharmonic
+                // mode: teeth can't go below one, so — like the Hammond's gear
+                // reductions — every wheel keeps ONE tooth and spins at
+                // 1/ratio of the shaft. Depth in the series reads as slower
+                // rotation, and each ring stays a crisp single cycle instead
+                // of wrapping sub-cycles into mush.
+                const teeth = AppState.isSubharmonic ? 1 : ratio;
+                const spin = AppState.isSubharmonic ? currentAngle / ratio : currentAngle;
+
                 const ringColor = p.color(partialColor(ratio));
                 ringColor.setAlpha(153); // 0x99
                 p.stroke(ringColor);
@@ -179,10 +175,9 @@ function createVisualizationSketch() {
 
                 for (let i = 0; i < points; i++) {
                     const theta = i * thetaScale;
-                    const harmonicPhase = AppState.isSubharmonic ? theta / ratio : theta * ratio;
-                    const waveValue = getWaveValue(type, harmonicPhase, AppState.customWaveCoefficients?.[type]);
+                    const waveValue = getWaveValue(type, theta * teeth, AppState.customWaveCoefficients?.[type]);
 
-                    const rotatedTheta = theta + currentAngle;
+                    const rotatedTheta = theta + spin;
                     const r = ringRadius + waveValue * visualAmp;
 
                     const x = r * p.cos(rotatedTheta);
