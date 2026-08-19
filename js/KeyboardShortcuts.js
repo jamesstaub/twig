@@ -22,6 +22,9 @@ const TRIGGER_KEYS = [
     'KeyO', 'KeyP', 'BracketLeft', 'BracketRight'
 ];
 
+// TODO: 
+// add CMD + left / right arrow to move fundament octave up/down
+
 export class KeyboardShortcuts {
     constructor() {
         this.heldTriggers = new Set();

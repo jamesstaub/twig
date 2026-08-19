@@ -130,7 +130,15 @@ export const ValueTip = {
         clearTimeout(hideTimer);
         holdWhile = null;
         detach();
-        el?.classList.remove('visible');
+        // Reset interactive/expandable state along with the classes that
+        // carry it: .value-tip.interactive sets pointer-events:auto, and
+        // the tip only ever hides via opacity — leaving that class on
+        // would strand an invisible-but-clickable element at its last
+        // (also never-reset) fixed position, silently eating clicks meant
+        // for whatever control is underneath.
+        interactive = false;
+        expandable = false;
+        el?.classList.remove('visible', 'interactive', 'attached-left');
     },
 
     /**

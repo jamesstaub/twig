@@ -78,6 +78,11 @@ export class DrawbarsComponent extends BaseComponent {
     }
 
     render(props = {}) {
+        // Unbind the previous render's listeners before discarding its DOM —
+        // relying on the caller (BaseController.update()) to do this first
+        // is an unwritten invariant; calling it here matches every other
+        // component and keeps this one correct even if called directly.
+        this.teardown();
         this.el.innerHTML = "";
         this.sliders = [];
         this._dials = { pan: [], res: [], drive: [], x: [], y: [] };
