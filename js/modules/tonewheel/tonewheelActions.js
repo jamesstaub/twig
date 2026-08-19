@@ -1,6 +1,6 @@
 import { AppState, CANVAS_HEIGHT_RATIOS, updateAppState } from '../../config.js';
 import { partialColor, themeColor } from '../../theme.js';
-import { precomputeWaveTable } from '../../audio.js';
+import { harmonicEnvelopeLevel, precomputeWaveTable } from '../../audio.js';
 import p5 from 'p5';
 
 let spreadFactor = 1;
@@ -151,6 +151,13 @@ function createVisualizationSketch() {
                 const amp = AppState.harmonicAmplitudes[h];
                 if (amp <= 0.001) continue;
 
+                // In ADSR mode a voice is only audible while its envelope is
+                // open — hide closed rings and fade with the live envelope.
+                // Lane radii stay gain-based so rings don't reshuffle on
+                // every trigger.
+                const envLevel = harmonicEnvelopeLevel(h);
+                if (envLevel <= 0.001) continue;
+
                 const ratio = AppState.currentSystem.ratios[h];
                 const ringRadius = laneRadii[h];
                 const MAX_RING_MOD = 0.45;
@@ -167,7 +174,7 @@ function createVisualizationSketch() {
                 const spin = AppState.isSubharmonic ? currentAngle / ratio : currentAngle;
 
                 const ringColor = p.color(partialColor(ratio));
-                ringColor.setAlpha(153); // 0x99
+                ringColor.setAlpha(153 * envLevel); // 0x99 at full envelope
                 p.stroke(ringColor);
                 p.strokeWeight(2);
                 p.noFill();

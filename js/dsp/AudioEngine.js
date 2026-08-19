@@ -249,6 +249,17 @@ export class AudioEngine {
      * Envelope-mode switch for a running voice: open pins the envelope at
      * unity (organ behavior), closed rests it at silence awaiting triggers.
      */
+    /**
+     * Instantaneous envelope level (0..1) of a voice — follows attack,
+     * decay, and release ramps. 0 for unknown voices.
+     * @param {string} key - Oscillator key
+     * @returns {number}
+     */
+    getOscillatorEnvelopeLevel(key) {
+        const oscData = this.oscillators.get(key);
+        return oscData?.envNode ? oscData.envNode.gain.value : 0;
+    }
+
     setOscillatorEnvelopeOpen(key, open, rampTime = 0.02) {
         const oscData = this.oscillators.get(key);
         if (oscData && oscData.envNode) {

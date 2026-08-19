@@ -445,6 +445,19 @@ export function triggerHarmonicRelease(index) {
 }
 
 /**
+ * Live envelope level (0..1) of one harmonic, for visualizations. Unity in
+ * Open mode (the envelope is pinned); in ADSR mode the instantaneous
+ * envelope gain of the running voice — 0 when closed, silent, or stopped.
+ */
+export function harmonicEnvelopeLevel(index) {
+    if (AppState.envelopeMode !== 'adsr') return 1;
+    if (!AppState.isPlaying || !audioEngine) return 0;
+    const node = AppState.oscillators[index];
+    if (!node?.key) return 0;
+    return audioEngine.getOscillatorEnvelopeLevel(node.key);
+}
+
+/**
  * Apply the current envelope mode to every running voice: Open pins the
  * envelopes at unity, ADSR rests them silent until triggered.
  */
