@@ -36,7 +36,9 @@ export function freqToMidi(frequency) {
  */
 export function midiToNoteName(midi) {
     const octave = Math.floor(midi / 12) - 1;
-    const noteIndex = midi % 12;
+    // Wrap, don't truncate: very low fundamentals map to negative MIDI
+    // notes, and a negative % would index past the start of the name table
+    const noteIndex = ((midi % 12) + 12) % 12;
     return MIDI_NOTE_NAMES[noteIndex] + octave;
 }
 
