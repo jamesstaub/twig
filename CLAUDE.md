@@ -67,14 +67,6 @@ CSS under `css/components/`.
   **unbundled** — no imports allowed in that file. Arbitrary data (0/1
   sequences, shape tables) goes over `port.postMessage`, numbers go as
   AudioParams.
-- Wavetable baking ("create oscillator", WAV export) is coefficient-domain:
-  `js/dsp/PartialSpectrum.js` snaps each partial to an integer Fourier bin on
-  a grid of `periodMultiplier` fundamental periods — no time-domain sampling,
-  no DFT, no leakage, works for irrational tuning systems. Playback runs the
-  oscillator at freq / periodMultiplier. Browser PeriodicWave is natively
-  mipmapped (band-limits by actual oscillator frequency) and caps at 2048
-  coefficients (`MAX_SPECTRUM_BIN` in `js/audio.js`) — do not add custom
-  band-limiting or mipmap levels.
 - Filter cutoffs are series-relative, not absolute Hz: the multiplier is a
   1-based partial index into the current system's ratio table applied to the
   voice's audible base (lowest integer multiple of its pitch clearing 20 Hz)
@@ -86,6 +78,51 @@ CSS under `css/components/`.
   reflows the app into one ~170px horizontal band. Modals become horizontal
   scrolling bands there; `.signal-section-body` exists so section content can
   flow column-on-desktop / row-in-embed with pure CSS.
+
+## Wavetable baking (DSP)
+
+- "Create oscillator" and WAV export are **coefficient-domain** — no
+  time-domain sampling, no DFT. `js/dsp/PartialSpectrum.js` (pure, no Web
+  Audio/AppState) places each drawbar partial on an integer Fourier bin of a
+  grid spanning `periodMultiplier` (P) fundamental periods:
+  `bin = round(ratio × P)`. One bin per component = zero spectral leakage =
+  loop-continuous by construction. The old sample-then-DFT path smeared
+  irrational ratios across bins (audible buzz) — do not reintroduce it.
+- Playback compensates by running the oscillator at `freq / P`
+  (`getFrequencyCorrection` in `js/audio.js`); WAV export compensates via the
+  file's sample-rate header (`sampleRate / P`).
+- Pitch is exact for rational systems (grid hits the denominator LCM) and
+  snapped to ≤ 0.5 cents otherwise (accepted tradeoff). Bright primitives
+  (square/saw, 128-harmonic stacks) eat the bin budget and force coarser
+  grids — several cents on irrational systems; sine primitives get sub-cent.
+  Primitive stacks are band-limited at the creation-time Nyquist to match
+  what the live voices sound like.
+- Amplitude semantics: the drawbar mix IS baked in (each partial's amplitude
+  ÷ its primitive's time-domain peak, matching PeriodicWave normalization of
+  live voices). Acceptance test: bake → reset drawbars to fundamental-only →
+  sounds identical to pre-bake (gain only; filter/gate/drive/sequencer are
+  post-processing, never baked). The bake itself is mono; stereo/multichannel
+  apply to WAV export only (stereo keeps the mix, multichannel = full-scale
+  per-voice stems).
+- Period selection (`chooseBeatPreservingPeriod`): smallest P meeting the
+  cents tolerance where every component also gets its OWN bin — components
+  sharing a bin vector-sum into a static partial, freezing the slow beating
+  ("shimmer") that near-coincident components produce live, which matters
+  when baking complex waves from complex waves. Out-of-budget components
+  count as collisions (never "resolve" a clash by silencing). Falls back to
+  pitch-only `choosePeriodMultiplier` when separation is impossible.
+  Experimental — revert commit `3868b7c` alone to restore smallest-P.
+  Physics limit either way: a loop cannot beat slower than `f0 / P`; the
+  aperiodic drift of live stacked voices is not fully bakeable.
+- Verified browser facts (headless probes): PeriodicWave renders up to
+  coefficient 2048 and silently drops higher bins (`MAX_SPECTRUM_BIN = 2047`
+  in `js/audio.js`), and is natively mipmapped — band-limits by the
+  oscillator's actual frequency, which is exactly right since bins map to
+  true output frequencies. Do NOT add custom mipmap levels or band-limiting
+  (the old `mipmap` branch is obsolete).
+- Nested bakes work: a custom wave used as a primitive maps its bins through
+  its own stored P (`source.period`); its stack snaps per-component instead
+  of base-snapped, since a multi-period table has no single fundamental.
 
 ## Testing
 
