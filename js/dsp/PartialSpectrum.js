@@ -61,17 +61,7 @@ export function choosePeriodMultiplier(ratios, maxPeriod, centsTolerance = 0.5) 
     let bestWorst = Infinity;
 
     for (let period = 1; period <= maxPeriod; period++) {
-        let worst = 0;
-        for (const ratio of ratios) {
-            const bin = Math.round(ratio * period);
-            if (bin < 1) {
-                // Ratio too low to land on this grid at all
-                worst = Infinity;
-                break;
-            }
-            const cents = Math.abs(1200 * Math.log2(bin / period / ratio));
-            if (cents > worst) worst = cents;
-        }
+        const worst = worstDetuneCents(ratios, period);
         if (worst < bestWorst) {
             bestWorst = worst;
             bestPeriod = period;
@@ -80,6 +70,93 @@ export function choosePeriodMultiplier(ratios, maxPeriod, centsTolerance = 0.5) 
     }
 
     return bestPeriod;
+}
+
+/** Worst-case snap detune (cents) across ratios on a P-period bin grid. */
+function worstDetuneCents(ratios, period) {
+    let worst = 0;
+    for (const ratio of ratios) {
+        const bin = Math.round(ratio * period);
+        // Ratio too low to land on this grid at all
+        if (bin < 1) return Infinity;
+        const cents = Math.abs(1200 * Math.log2(bin / period / ratio));
+        if (cents > worst) worst = cents;
+    }
+    return worst;
+}
+
+/**
+ * Like choosePeriodMultiplier, but among the periods that meet the pitch
+ * tolerance it prefers the smallest one where every component gets its OWN
+ * bin. Components that share a bin are vector-summed into a static partial —
+ * the slow beating ("shimmer") they produced live freezes. A collision-free
+ * grid keeps them distinct so they continue to beat, at the nearest rate the
+ * loop can represent. Falls back to plain choosePeriodMultiplier when no
+ * collision-free period exists within maxPeriod.
+ *
+ * @param {Partial[]} partials
+ * @param {number} maxPeriod
+ * @param {number} maxBin - Bin budget (collisions above it are moot)
+ * @param {number} centsTolerance
+ * @returns {number} Period multiplier
+ */
+export function chooseBeatPreservingPeriod(partials, maxPeriod, maxBin, centsTolerance = 0.5) {
+    const ratios = partials.map((p) => p.ratio);
+    if (ratios.length === 0) return 1;
+
+    for (let period = 1; period <= maxPeriod; period++) {
+        if (worstDetuneCents(ratios, period) > centsTolerance) continue;
+        if (countBinCollisions(partials, period, maxBin) === 0) return period;
+    }
+
+    return choosePeriodMultiplier(ratios, maxPeriod, centsTolerance);
+}
+
+/**
+ * Number of non-silent components that fail to get their own bin within the
+ * budget at the given period multiplier: sharing a bin with an earlier
+ * component counts, and so does falling outside [1, maxBin] — a component
+ * the grid can't represent at all is worse than a frozen one, so such
+ * periods must not be preferred.
+ */
+export function countBinCollisions(partials, periodMultiplier, maxBin) {
+    const occupied = new Uint8Array(maxBin + 1);
+    let collisions = 0;
+    for (const partial of partials) {
+        forEachComponentBin(partial, periodMultiplier, (bin) => {
+            if (bin < 1 || bin > maxBin || occupied[bin]) collisions++;
+            else occupied[bin] = 1;
+        });
+    }
+    return collisions;
+}
+
+/**
+ * Maps a partial's non-silent source components to their grid bins — the
+ * single source of truth for bin placement, shared by buildSpectrum and
+ * countBinCollisions. Reports raw bins, including ones outside the budget;
+ * consumers decide how to treat those.
+ */
+function forEachComponentBin(partial, periodMultiplier, fn) {
+    const { ratio, source, maxSourceBin } = partial;
+    const lastBin = Math.min(
+        Math.min(source.real.length, source.imag.length) - 1,
+        maxSourceBin ?? Infinity
+    );
+
+    // Harmonic sources (period 1) snap their base once so the overtone stack
+    // stays exactly harmonic, matching a live oscillator voice. Multi-period
+    // sources (nested baked waves) have no single fundamental — each
+    // component snaps individually.
+    const baseBin = source.period === 1 ? Math.round(ratio * periodMultiplier) : 0;
+
+    for (let k = 1; k <= lastBin; k++) {
+        if (source.real[k] === 0 && source.imag[k] === 0) continue;
+        const bin = source.period === 1
+            ? k * baseBin
+            : Math.round((k / source.period) * ratio * periodMultiplier);
+        fn(bin, k);
+    }
 }
 
 /**
@@ -100,22 +177,14 @@ export function buildSpectrum(partials, periodMultiplier, maxBin) {
     const imag = new Float32Array(maxBin + 1);
     let top = 1;
 
-    for (const { ratio, amplitude, source, maxSourceBin } of partials) {
-        const lastBin = Math.min(
-            Math.min(source.real.length, source.imag.length) - 1,
-            maxSourceBin ?? Infinity
-        );
-
-        for (let k = 1; k <= lastBin; k++) {
-            const bin = source.period === 1
-                ? k * Math.round(ratio * periodMultiplier)
-                : Math.round((k / source.period) * ratio * periodMultiplier);
-            if (bin < 1) continue;
-            if (bin > maxBin) break;
+    for (const partial of partials) {
+        const { amplitude, source } = partial;
+        forEachComponentBin(partial, periodMultiplier, (bin, k) => {
+            if (bin < 1 || bin > maxBin) return;
             real[bin] += amplitude * source.real[k];
             imag[bin] += amplitude * source.imag[k];
             if (bin > top) top = bin;
-        }
+        });
     }
 
     return {

@@ -16,7 +16,7 @@ import { calculateFrequency, generateFilenameParts, getVoicePan } from './utils.
 import { AudioEngine, WavetableManager, WAVExporter, WaveformGenerator } from './dsp/index.js';
 import {
     buildSpectrum,
-    choosePeriodMultiplier,
+    chooseBeatPreservingPeriod,
     normalizeBuffers,
     renderSpectrum,
     spectrumPeak,
@@ -715,10 +715,11 @@ export async function buildCurrentSpectrum(isSubharmonic = false) {
         );
     }
     const maxPeriod = Math.max(1, Math.floor(MAX_SPECTRUM_BIN / maxComponentRatio));
-    const periodMultiplier = choosePeriodMultiplier(
-        partials.map((p) => p.ratio),
-        maxPeriod
-    );
+    // Beat-preserving: among pitch-accurate grids, prefer the smallest one
+    // where no two components share a bin, so slow beating between
+    // near-coincident components ("shimmer") survives the bake instead of
+    // freezing into a static partial.
+    const periodMultiplier = chooseBeatPreservingPeriod(partials, maxPeriod, MAX_SPECTRUM_BIN);
 
     const { real, imag } = buildSpectrum(partials, periodMultiplier, MAX_SPECTRUM_BIN);
     return { real, imag, periodMultiplier, partials };
