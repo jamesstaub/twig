@@ -152,6 +152,12 @@
                                 <button type="button" class="action-btn select-step-btn" data-target="ratio-system-select"
                                     data-step="1" aria-label="Next overtone system">-&gt;</button>
                             </div>
+                            <div id="start-harmonic-row" class="flex items-center gap-2 hidden">
+                                <label for="start-harmonic-input" class="text-xs whitespace-nowrap">Start harmonic</label>
+                                <input type="number" id="start-harmonic-input" class="fundamental-input w-20"
+                                    value="1" min="1" max="64" step="1" autocomplete="off"
+                                    aria-label="First partial of the overtone system">
+                            </div>
                             <div id="system-description" class="system-description text-xs/5 text-gray-400 py-2"></div>
                             <!-- Overtone controls for md/lg screens -->
                             <div class="flex flex-col gap-2 md:mt-4">

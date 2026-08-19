@@ -15,6 +15,8 @@
  *   /twig/note [i midinote]       fundamental via MIDI note number
  *   /twig/freq [f hz]             fundamental via frequency
  *   /twig/system [i index]        overtone system by index
+ *   /twig/startharmonic [i n]     first partial of generative systems (1..64;
+ *                                 measured/historical systems ignore it)
  *   /twig/waveform [s name]       oscillator: square|sine|triangle|sawtooth|custom_*
  *   /twig/subharmonic [i 0|1]     overtone/subharmonic mode
  *   /twig/play [i 0|1]            playback on/off
@@ -101,7 +103,7 @@ import {
 
 const COMMANDS = new Set([
     'drawbar', 'drawbars', 'gain', 'slew', 'note', 'freq',
-    'system', 'waveform', 'subharmonic', 'play', 'reset', 'randomize',
+    'system', 'startharmonic', 'waveform', 'subharmonic', 'play', 'reset', 'randomize',
     'setdrawbarfundamental', 'gate', 'filter', 'res', 'drive', 'pan',
     'pulsemidi', 'pulseosc', 'midiclock',
     'seqshape', 'seqgain', 'seqfreq', 'seqres', 'seqstretch',
@@ -299,6 +301,10 @@ export class OscClient {
                 break;
             case 'system':
                 SpectralSystemActions.setSystem(Math.round(args[0]));
+                break;
+            case 'startharmonic':
+                // First partial of generative systems; action clamps 1..max
+                SpectralSystemActions.setStartHarmonic(Math.round(args[0]));
                 break;
             case 'waveform': {
                 // By name ("sine") or by index into the oscillator menu
@@ -554,6 +560,7 @@ export class OscClient {
         document.addEventListener(SPECTRAL_SYSTEM_CHANGED, (e) => {
             const { index } = e.detail || {};
             if (index !== undefined) this.emit('system', [index]);
+            this.emit('startharmonic', [AppState.startHarmonic]);
             // Partial count/values can change with the system — resync all
             this.emit('drawbars', [...AppState.harmonicAmplitudes]);
         });

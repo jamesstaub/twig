@@ -13,15 +13,17 @@ export class SpectralSystemComponent extends BaseComponent {
          * Public callbacks set by the controller:
          *  - onChange(systemIndex)
          *  - onSubharmonicToggle()
+         *  - onStartHarmonicChange(startHarmonic)
          */
         this.onChange = null;
         this.onSubharmonicToggle = null;
+        this.onStartHarmonicChange = null;
     }
 
     /**
      * Main render cycle: receives fresh props from BaseController.
      */
-    render({ systems, currentSystem, isSubharmonic }) {
+    render({ systems, currentSystem, currentSystemIndex, isSubharmonic, startHarmonic }) {
         const selectEl = this.q('#ratio-system-select');
         const descriptionEl = this.q('#system-description');
 
@@ -36,7 +38,7 @@ export class SpectralSystemComponent extends BaseComponent {
             const option = document.createElement('option');
             option.textContent = system.name;
             option.value = index;
-            if (system === currentSystem) option.selected = true;
+            if (index === currentSystemIndex) option.selected = true;
             selectEl.appendChild(option);
         });
 
@@ -45,16 +47,34 @@ export class SpectralSystemComponent extends BaseComponent {
             asHTML: true
         });
 
+        this.renderStartHarmonic({ currentSystem, startHarmonic });
+
         // --- Subharmonic toggle ---
         this.renderSubharmonicToggle({ isSubharmonic });
     }
 
-    updateSelector({ currentSystem, systems }) {
+    updateSelector({ currentSystemIndex, currentSystem, startHarmonic }) {
         const selectEl = this.q('#ratio-system-select');
         if (!selectEl) return;
 
-        const index = systems.findIndex(s => s === currentSystem);
-        if (index >= 0) selectEl.value = index;
+        if (currentSystemIndex >= 0) selectEl.value = currentSystemIndex;
+        this.renderStartHarmonic({ currentSystem, startHarmonic });
+    }
+
+    /**
+     * Show the start-harmonic input only for generative systems (those with
+     * a generate() — fixed measured/historical tables can't be shifted).
+     * Skips writing the value while the user is typing in the field.
+     */
+    renderStartHarmonic({ currentSystem, startHarmonic }) {
+        const row = this.q('#start-harmonic-row');
+        const input = this.q('#start-harmonic-input');
+        if (!row || !input) return;
+
+        row.classList.toggle('hidden', !currentSystem?.generate);
+        if (document.activeElement !== input) {
+            input.value = startHarmonic ?? 1;
+        }
     }
 
     /**
@@ -79,6 +99,17 @@ export class SpectralSystemComponent extends BaseComponent {
             e.target.setAttribute('aria-valuenow', systemIndex);
         };
         selectEl.addEventListener('change', this._selectChangeHandler);
+
+        const startInput = this.q('#start-harmonic-input');
+        if (startInput) {
+            if (this._startHarmonicHandler) {
+                startInput.removeEventListener('change', this._startHarmonicHandler);
+            }
+            this._startHarmonicHandler = (e) => {
+                this.onStartHarmonicChange?.(parseInt(e.target.value, 10));
+            };
+            startInput.addEventListener('change', this._startHarmonicHandler);
+        }
     }
 
 

@@ -37,6 +37,8 @@ export class SpectralSystemController extends BaseController {
         return {
             systems: spectralSystems,
             currentSystem: AppState.currentSystem,
+            currentSystemIndex: AppState.currentSystemIndex,
+            startHarmonic: AppState.startHarmonic,
             isSubharmonic: AppState.isSubharmonic
         };
     }
@@ -52,6 +54,10 @@ export class SpectralSystemController extends BaseController {
 
         this.component.onSubharmonicToggle = () => {
             SpectralSystemActions.toggleSubharmonic();
+        };
+
+        this.component.onStartHarmonicChange = (startHarmonic) => {
+            SpectralSystemActions.setStartHarmonic(startHarmonic);
         };
 
         if (typeof this.component.bindComponentEvents === 'function') {

@@ -28,11 +28,16 @@ export const midiConfig = {
 // SPECTRAL SYSTEMS CONFIGURATION
 // ================================
 
-// Default partial range for generated systems. Every system below passes its
-// range explicitly, so any system can use arbitrary partials — e.g.
-// harmonicSeries(8, 19) starts the series on the 8th harmonic.
+// Default partial range for generated systems. Systems built from a formula
+// expose generate(start): "start harmonic" shifts the window to the same
+// partial COUNT beginning at that partial (absolute, not re-rooted — start 5
+// on the Harmonic Series puts ratios 5..16 on the drawbars). Measured and
+// historical systems (bonang, bells, organ stops) have no generate and the
+// start-harmonic control hides for them.
 export const DEFAULT_PARTIAL_START = 1;
 export const DEFAULT_PARTIAL_END = 12;
+// Upper bound for the start-harmonic control and OSC clamp
+export const START_HARMONIC_MAX = 64;
 
 const PHI = (1 + Math.sqrt(5)) / 2;
 
@@ -42,13 +47,9 @@ function range(start, end, step = 1) {
     return out;
 }
 
-/**
- * Integer harmonic series over an arbitrary range of partials.
- * normalize divides by the first partial so the series is rooted at 1/1
- * (e.g. harmonicSeries(8, 22, { normalize: true }) for an otonality on 8).
- */
-function harmonicSeries(start = DEFAULT_PARTIAL_START, end = DEFAULT_PARTIAL_END, { step = 1, normalize = false } = {}) {
-    return range(start, end, step).map(n => (normalize ? n / start : n));
+/** Integer harmonic series over an arbitrary range of partials. */
+function harmonicSeries(start = DEFAULT_PARTIAL_START, end = DEFAULT_PARTIAL_END) {
+    return range(start, end);
 }
 
 /**
@@ -56,18 +57,19 @@ function harmonicSeries(start = DEFAULT_PARTIAL_START, end = DEFAULT_PARTIAL_END
  * pseudo-octave lands on A instead of 2. A = 2 gives the harmonic series;
  * 2.1 is Sethares' classic stretched timbre, 1.9 its compressed mirror.
  */
-function stretchedSpectrum(A, start = DEFAULT_PARTIAL_START, end = DEFAULT_PARTIAL_END) {
+function stretchedSpectrum(A, start, end) {
     const exp = Math.log2(A);
     return range(start, end).map(n => Math.pow(n, exp));
 }
 
 /**
  * Stiff string (piano) inharmonicity: f_n = n * sqrt(1 + B*n^2), normalized to
- * the first partial. Real pianos measure B ≈ 0.0001–0.001 in the midrange.
+ * partial 1 so shifted windows stay on the same physical string. Real pianos
+ * measure B ≈ 0.0001–0.001 in the midrange.
  */
-function stiffString(B, start = DEFAULT_PARTIAL_START, end = DEFAULT_PARTIAL_END) {
+function stiffString(B, start, end) {
     const f = (n) => n * Math.sqrt(1 + B * n * n);
-    return range(start, end).map(n => f(n) / f(start));
+    return range(start, end).map(n => f(n) / f(1));
 }
 
 /**
@@ -75,137 +77,148 @@ function stiffString(B, start = DEFAULT_PARTIAL_START, end = DEFAULT_PARTIAL_END
  * frequencies ∝ (kL)^2 with the exact first five roots of cos(kL)·cosh(kL)=1,
  * then the asymptote kL ≈ (2n+1)π/2. Ratios: 1, 2.76, 5.40, 8.93, 13.34…
  */
-function freeBar(count = 8) {
+function freeBar(start, end) {
     const kL = [4.7300408, 7.8532046, 10.9956078, 14.1371655, 17.2787597];
-    while (kL.length < count) kL.push((2 * (kL.length + 1) + 1) * Math.PI / 2);
-    return kL.slice(0, count).map(x => Math.pow(x / kL[0], 2));
-}
-
-/** Geometric spectrum: 1, x, x^2, … x^(count-1). */
-function powersOf(x, count) {
-    return range(0, count - 1).map(k => Math.pow(x, k));
+    while (kL.length < end) kL.push((2 * (kL.length + 1) + 1) * Math.PI / 2);
+    return range(start, end).map(n => Math.pow(kL[n - 1] / kL[0], 2));
 }
 
 /**
  * Combination (sum) tones m·a + n·b of two generators — the spectralist
- * ring-modulation technique. Deduped, sorted, first `count` values from 1/1.
+ * ring-modulation technique. Deduped, sorted; returns `count` values
+ * starting from the start-th tone at or above 1/1.
  */
-function combinationTones(a, b, count = 12, maxCoeff = 6) {
-    const seen = [];
+function combinationTones(a, b, start, count) {
+    const maxCoeff = 6 + start; // enough lattice points to reach the window
+    const values = [];
     for (let m = 0; m <= maxCoeff; m++) {
         for (let n = 0; n <= maxCoeff; n++) {
             if (m === 0 && n === 0) continue;
             const v = m * a + n * b;
-            if (v < 1 - 1e-6) continue;
-            if (!seen.some(u => Math.abs(u - v) < 1e-6)) seen.push(v);
+            if (v >= 1 - 1e-6) values.push(v);
         }
     }
-    return seen.sort((x, y) => x - y).slice(0, count);
-}
-
-/** k equal divisions of the tritave (3/1). */
-function edt(divisions, count) {
-    return range(0, count - 1).map(k => Math.pow(3, k / divisions));
+    values.sort((x, y) => x - y);
+    const out = [];
+    for (const v of values) {
+        if (out.length && Math.abs(out[out.length - 1] - v) < 1e-6) continue;
+        out.push(v);
+        if (out.length === start + count - 1) break;
+    }
+    return out.slice(start - 1);
 }
 
 function decimalLabels(ratios, digits = 2) {
     return ratios.map(r => r.toFixed(digits).replace(/\.?0+$/, ''));
 }
 
-const HARMONIC_SERIES_DEFAULT = harmonicSeries(DEFAULT_PARTIAL_START, DEFAULT_PARTIAL_END);
-const ODD_HARMONICS = harmonicSeries(1, 23, { step: 2 });
-const STRETCHED_21 = stretchedSpectrum(2.1);
-const COMPRESSED_19 = stretchedSpectrum(1.9);
-const STIFF_STRING = stiffString(0.001);
-const FREE_BAR = freeBar(8);
-const BONANG = [1, 1.52, 3.46, 3.92];
-const CHURCH_BELL = [1 / 2, 1 / 1, 6 / 5, 3 / 2, 2 / 1, 5 / 2, 3 / 1, 4 / 1];
-const GOLDEN = powersOf(PHI, 8);
-const RING_MOD_SQRT2 = combinationTones(1, Math.SQRT2, 12);
+/** Materialize a generative system's default ratios/labels from generate(1). */
+function generative(def) {
+    return { ...def, ...def.generate(DEFAULT_PARTIAL_START) };
+}
+
 const OTONALITY_PARTIALS = [8, 9, 10, 11, 12, 14, 15, 16, 18, 20, 21, 22];
 const OTONALITY = OTONALITY_PARTIALS.map(n => n / 8);
-const BP_13EDT = edt(13, 13);
 
 export const spectralSystems = [
-    {
+    generative({
         name: "Harmonic Series",
         description:
             '<b>Canonical.</b> Exact integer partials — the spectrum of bowed, blown, and sung tones, and the reference point for every other system here. See <a href="https://en.wikipedia.org/wiki/Harmonic_series_(music)">Harmonic series (Wikipedia)</a>.',
-        ratios: HARMONIC_SERIES_DEFAULT,
-        labels: HARMONIC_SERIES_DEFAULT.map(n => `${n}:1`)
-    },
+        generate(start) {
+            const ratios = harmonicSeries(start, start + 11);
+            return { ratios, labels: ratios.map(n => `${n}:1`) };
+        },
+    }),
 
-    {
+    generative({
         name: "Odd Harmonics",
         description:
             '<b>Canonical.</b> Odd partials only (1, 3, 5, …) — the clarinet / closed-pipe / square-wave family. Also the natural companion timbre for the Bohlen–Pierce system below, which was derived from odd partials of the tritave.',
-        ratios: ODD_HARMONICS,
-        labels: ODD_HARMONICS.map(n => `${n}:1`)
-    },
+        generate(start) {
+            const ratios = range(start, start + 11).map(n => 2 * n - 1);
+            return { ratios, labels: ratios.map(n => `${n}:1`) };
+        },
+    }),
 
-    {
+    generative({
         name: "Stretched Spectrum (Sethares, A = 2.1)",
         description:
             '<b>Designed, research-based.</b> Partial n falls at n<sup>log₂ 2.1</sup>, so the pseudo-octave is 2.1 — true octaves beat while the stretched octave stays pure. From Sethares’ <i>Tuning, Timbre, Spectrum, Scale</i>: a spectrum and the scale at its dissonance minima define each other. See <a href="https://sethares.engr.wisc.edu/consemi.html">Relating Tuning and Timbre</a> and <a href="https://en.xen.wiki/w/Xentimbre">xentimbre</a>.',
-        ratios: STRETCHED_21,
-        labels: decimalLabels(STRETCHED_21)
-    },
+        generate(start) {
+            const ratios = stretchedSpectrum(2.1, start, start + 11);
+            return { ratios, labels: decimalLabels(ratios) };
+        },
+    }),
 
-    {
+    generative({
         name: "Compressed Spectrum (Sethares, A = 1.9)",
         description:
             '<b>Designed, research-based.</b> The mirror of the stretched spectrum: partial n at n<sup>log₂ 1.9</sup>, pseudo-octave 1.9. Darker and more clustered than harmonic; its natural scale is compressed the same way.',
-        ratios: COMPRESSED_19,
-        labels: decimalLabels(COMPRESSED_19)
-    },
+        generate(start) {
+            const ratios = stretchedSpectrum(1.9, start, start + 11);
+            return { ratios, labels: decimalLabels(ratios) };
+        },
+    }),
 
-    {
+    generative({
         name: "Stiff String (Piano Inharmonicity)",
         description:
             '<b>Physical model.</b> f<sub>n</sub> = n·√(1 + Bn²): string stiffness sharpens upper partials progressively — the reason pianos are stretch-tuned. B = 0.001 here sits at the audible top of real midrange pianos; raise B in config.js for exaggerated bell-piano hybrids.',
-        ratios: STIFF_STRING,
-        labels: decimalLabels(STIFF_STRING, 3)
-    },
+        generate(start) {
+            const ratios = stiffString(0.001, start, start + 11);
+            return { ratios, labels: decimalLabels(ratios, 3) };
+        },
+    }),
 
-    {
+    generative({
         name: "Free Bar (Glockenspiel / Saron)",
         description:
             '<b>Physical model.</b> Transverse modes of a free metal bar: 1, 2.76, 5.40, 8.93, 13.34… — the true metallic-clang spectrum of glockenspiels, chimes, and gamelan saron-family bars. Per Sethares, this is the timbre family from which slendro-like tunings emerge.',
-        ratios: FREE_BAR,
-        labels: decimalLabels(FREE_BAR)
-    },
+        generate(start) {
+            const ratios = freeBar(start, start + 7);
+            return { ratios, labels: decimalLabels(ratios) };
+        },
+    }),
 
     {
         name: "Gamelan Bonang (Measured)",
         description:
             '<b>Measured.</b> Sethares’ field measurement of a bonang gong: partials at 1, 1.52, 3.46, 3.92. The slendro scale falls out of this spectrum’s dissonance minima. See <a href="https://searchingfornewsound.blogspot.com/2022/05/gamelan-tuning-and-instrumental-spectra.html">gamelan tuning &amp; instrumental spectra</a>.',
-        ratios: BONANG,
-        labels: decimalLabels(BONANG)
+        ratios: [1, 1.52, 3.46, 3.92],
+        labels: decimalLabels([1, 1.52, 3.46, 3.92])
     },
 
     {
         name: "Church Bell (Minor-Third Bell)",
         description:
             '<b>Measured, idealized profile.</b> The harmonically tuned bell: hum ½, prime 1, tierce 6/5, quint 3/2, nominal 2, then upper partials to the octave nominal. The minor-third tierce is what makes a bell sound like a bell. See <a href="https://www.hibberts.co.uk/basic-principles-of-bell-tuning/">Hibberts — bell tuning</a>.',
-        ratios: CHURCH_BELL,
+        ratios: [1 / 2, 1 / 1, 6 / 5, 3 / 2, 2 / 1, 5 / 2, 3 / 1, 4 / 1],
         labels: ["hum", "prime", "tierce", "quint", "nom.", "deciem", "s.quint", "oct.nom"]
     },
 
-    {
+    generative({
         name: "Golden Ratio (Chowning, Stria)",
         description:
             '<b>Designed, historical.</b> Partials at powers of φ ≈ 1.618 — the spectrum of Chowning’s <i>Stria</i> (1977). Self-reinforcing: the difference between adjacent partials is itself a partial (φ<sup>n+1</sup> − φ<sup>n</sup> = φ<sup>n−1</sup>), so intermodulation stays inside the spectrum. See <a href="https://geometrycode.com/golden-ratio-and-sound-john-chowning-synthesis/">Chowning and the golden ratio</a>.',
-        ratios: GOLDEN,
-        labels: GOLDEN.map((_, k) => (k === 0 ? "1" : `φ^${k}`))
-    },
+        generate(start) {
+            const exponents = range(start, start + 7).map(n => n - 1);
+            return {
+                ratios: exponents.map(k => Math.pow(PHI, k)),
+                labels: exponents.map(k => (k === 0 ? "1" : `φ^${k}`)),
+            };
+        },
+    }),
 
-    {
+    generative({
         name: "Ring-Mod Spectrum (1 × √2)",
         description:
             '<b>Designed, spectralist technique.</b> Sum tones m + n·√2 of two generators a tritone apart — the ring-modulation / combination-tone spectra Grisey and Murail built harmony from (cf. <a href="https://en.wikipedia.org/wiki/Partiels">Partiels</a>). Inharmonic but internally coherent.',
-        ratios: RING_MOD_SQRT2,
-        labels: decimalLabels(RING_MOD_SQRT2)
-    },
+        generate(start) {
+            const ratios = combinationTones(1, Math.SQRT2, start, 12);
+            return { ratios, labels: decimalLabels(ratios) };
+        },
+    }),
 
     {
         name: "Otonality on 8 (Partch, 11-limit)",
@@ -215,13 +228,18 @@ export const spectralSystems = [
         labels: OTONALITY_PARTIALS.map(n => `${n}/8`)
     },
 
-    {
+    generative({
         name: "Bohlen–Pierce (13-EDT)",
         description:
             '<b>Designed, scale-as-spectrum.</b> 13 equal divisions of the tritave (3:1), each step 3<sup>1/13</sup>. Strictly a scale used as a spectrum — BP was derived from odd partials 3:5:7, so try it with the Odd Harmonics character in mind. See <a href="https://en.wikipedia.org/wiki/Bohlen%E2%80%93Pierce_scale">Bohlen–Pierce (Wikipedia)</a>.',
-        ratios: BP_13EDT,
-        labels: BP_13EDT.map((_, k) => (k === 0 ? "1/1" : `3^(${k}/13)`))
-    },
+        generate(start) {
+            const exponents = range(start, start + 12).map(n => n - 1);
+            return {
+                ratios: exponents.map(k => Math.pow(3, k / 13)),
+                labels: exponents.map(k => (k === 0 ? "1/1" : `3^(${k}/13)`)),
+            };
+        },
+    }),
 
     {
         name: "Hammond — Standard 9 Drawbars",
@@ -271,6 +289,16 @@ export const spectralSystems = [
 
 ]; // end export
 
+/**
+ * The system at `index`, with its partial window shifted to startHarmonic
+ * when the system is generative. Fixed-table systems ignore the start.
+ */
+export function systemWithStart(index, startHarmonic = 1) {
+    const base = spectralSystems[index];
+    if (!base?.generate || startHarmonic <= 1) return base;
+    return { ...base, ...base.generate(startHarmonic) };
+}
+
 
 // ================================
 // CONSTANTS
@@ -316,6 +344,10 @@ export const AppState = {
 
     // Spectral properties
     currentSystem: spectralSystems[0],
+    currentSystemIndex: 0,
+    // First partial of generative systems (1..START_HARMONIC_MAX). Systems
+    // without generate() (measured/historical tables) ignore it.
+    startHarmonic: 1,
     harmonicAmplitudes: (() => {
         const amplitudes = Array(NUM_HARMONICS).fill(0.0);
         amplitudes[0] = 1.0; // Fundamental enabled by default
@@ -387,7 +419,8 @@ export function getCurrentSystem() {
 }
 
 export function setCurrentSystem(systemIndex) {
-    AppState.currentSystem = spectralSystems[systemIndex];
+    AppState.currentSystemIndex = systemIndex;
+    AppState.currentSystem = systemWithStart(systemIndex, AppState.startHarmonic);
 }
 
 export function getHarmonicAmplitude(index) {
