@@ -67,6 +67,14 @@ CSS under `css/components/`.
   **unbundled** — no imports allowed in that file. Arbitrary data (0/1
   sequences, shape tables) goes over `port.postMessage`, numbers go as
   AudioParams.
+- Wavetable baking ("create oscillator", WAV export) is coefficient-domain:
+  `js/dsp/PartialSpectrum.js` snaps each partial to an integer Fourier bin on
+  a grid of `periodMultiplier` fundamental periods — no time-domain sampling,
+  no DFT, no leakage, works for irrational tuning systems. Playback runs the
+  oscillator at freq / periodMultiplier. Browser PeriodicWave is natively
+  mipmapped (band-limits by actual oscillator frequency) and caps at 2048
+  coefficients (`MAX_SPECTRUM_BIN` in `js/audio.js`) — do not add custom
+  band-limiting or mipmap levels.
 - Filter cutoffs are series-relative, not absolute Hz: the multiplier is a
   1-based partial index into the current system's ratio table applied to the
   voice's audible base (lowest integer multiple of its pitch clearing 20 Hz)

@@ -1,51 +1,32 @@
 /**
- * AUDIO MODULE WITH ADVANCED PERIOD MULTIPLIER SYSTEM
- * 
- * This module implements sophisticated wavetable synthesis with automatic phase
- * continuity correction for irrational frequency ratios found in alternative
- * tuning systems (Just Intonation, microtonal scales, etc.).
- * 
- * CORE INNOVATION: PERIOD MULTIPLIER ALGORITHM
- * 
- * PROBLEM SOLVED:
- * Traditional wavetable synthesis samples exactly one period (2π) of a waveform.
- * For irrational ratios like 16/15 (Just Intonation), this creates phase 
- * discontinuities at the wavetable boundary, causing audible buzzing artifacts.
- * 
- * SOLUTION APPROACH:
- * 1. Analyze active frequency ratios to find optimal sampling period
- * 2. Sample N fundamental periods (where N minimizes phase errors for all ratios)
- * 3. Store period multiplier (N) with each custom waveform
- * 4. Apply frequency correction (freq × 1/N) during playback
- * 5. Adjust WAV export sample rates for correct pitch
- * 
- * MATHEMATICAL FOUNDATION:
- * For each ratio R, find smallest integer P where R × P ≈ integer.
- * Use LCM of all optimal periods as the final period multiplier.
- * This ensures ALL ratios complete near-integer cycles simultaneously.
- * 
- * SYSTEM COMPONENTS:
- * - calculateOptimalPeriod(): Core mathematical algorithm
- * - getFrequencyCorrection(): Automatic pitch compensation
- * - sampleCurrentWaveformBasic(): Multi-period wavetable sampling
- * - WavetableManager: Storage with period multiplier metadata
- * - AudioEngine: Synthesis with frequency correction support
- * 
- * UNIVERSAL APPLICABILITY:
- * This system works with ANY tuning system because it's based on mathematical
- * properties of rational approximation, not tuning-specific optimizations.
- * Successfully tested with Just Intonation, Equal Temperament variants,
- * and exotic microtonal scales.
- * 
- * Contains Web Audio API functions, oscillator management, and audio processing
- * Refactored to use modular DSP classes with period multiplier support
+ * AUDIO MODULE
+ *
+ * Web Audio graph management, oscillator voice control, and wavetable baking.
+ *
+ * Baked wavetables span `periodMultiplier` fundamental periods so that every
+ * active partial — including irrational ratios from alternative tuning
+ * systems — lands on an integer Fourier bin (see js/dsp/PartialSpectrum.js).
+ * Playback compensates by running the oscillator at freq / periodMultiplier;
+ * WAV export compensates via the file's sample-rate header.
  */
 
 import { AppState, ENVELOPE_DEFAULTS, midiConfig, updateAppState, WAVETABLE_SIZE } from './config.js';
 import { calculateFrequency, generateFilenameParts, getVoicePan } from './utils.js';
 
-import { AudioEngine, WavetableManager, WAVExporter } from './dsp/index.js';
+import { AudioEngine, WavetableManager, WAVExporter, WaveformGenerator } from './dsp/index.js';
+import {
+    buildSpectrum,
+    choosePeriodMultiplier,
+    normalizeBuffers,
+    renderSpectrum,
+    spectrumPeak,
+} from './dsp/PartialSpectrum.js';
 import { showStatus } from './domUtils.js';
+
+// Highest Fourier bin a bake may occupy. Browser PeriodicWave tables are
+// 4096 samples at standard rates (2048 partials); this also keeps renders
+// below Nyquist of the WAVETABLE_SIZE export buffers.
+const MAX_SPECTRUM_BIN = 2047;
 
 // ================================
 // DSP INSTANCES
@@ -105,12 +86,6 @@ export async function initAudio() {
             AppState.audioContext = audioEngine.getContext();
             AppState.compressor = audioEngine.compressor;
             AppState.masterGain = audioEngine.masterGain;
-
-            // Store standard waveforms for compatibility
-            AppState.blWaveforms = AppState.blWaveforms || {};
-            AppState.blWaveforms.square = audioEngine.getStandardWaveform('square');
-            AppState.blWaveforms.sawtooth = audioEngine.getStandardWaveform('sawtooth');
-            AppState.blWaveforms.triangle = audioEngine.getStandardWaveform('triangle');
         })();
     }
     await audioInitPromise;
@@ -629,303 +604,188 @@ export function restartAudio() {
 }
 
 // ================================
-// WAVETABLE GENERATION
+// WAVETABLE BAKING
 // ================================
 
+// Standard primitives as spectra over their own fundamental. Peaks are
+// cached so a baked partial's loudness matches live playback, where
+// PeriodicWave normalization gives every primitive a time-domain peak of 1.
+const primitiveSources = {};
+
+function resolvePrimitiveSource(waveformName) {
+    if (waveformName?.startsWith('custom_')) {
+        const coeffs = AppState.customWaveCoefficients?.[waveformName];
+        if (coeffs) {
+            const source = {
+                real: coeffs.real,
+                imag: coeffs.imag,
+                period: AppState.customWavePeriodMultipliers?.[waveformName] || 1,
+            };
+            return {
+                source,
+                peak: spectrumPeak(source, 2 * Math.max(2048, coeffs.real.length)),
+            };
+        }
+        // Unknown custom key — fall through to sine
+        waveformName = 'sine';
+    }
+
+    const type = ['square', 'sawtooth', 'triangle'].includes(waveformName)
+        ? waveformName
+        : 'sine';
+    if (!primitiveSources[type]) {
+        let source;
+        if (type === 'sine') {
+            source = { real: new Float32Array(2), imag: Float32Array.from([0, 1]), period: 1 };
+        } else {
+            const imag = Float32Array.from(WaveformGenerator.getFourierCoefficients(type, 128));
+            source = { real: new Float32Array(imag.length), imag, period: 1 };
+        }
+        primitiveSources[type] = { source, peak: spectrumPeak(source) };
+    }
+    return primitiveSources[type];
+}
+
 /**
- * Samples the current waveform configuration into a buffer with period multiplier support
- * @returns {Object} {buffer: Float32Array, periodMultiplier: number}
+ * Gathers the active drawbar partials as bake inputs: effective ratio,
+ * peak-matched amplitude, pan (for stereo export), and a creation-Nyquist
+ * cap on the primitive's overtone stack so the bake carries the same
+ * bandwidth the live voices have at the current fundamental.
  */
+function collectBakePartials(isSubharmonic) {
+    const { source, peak } = resolvePrimitiveSource(AppState.currentWaveform);
+    const nyquist = AppState.audioContext.sampleRate / 2;
+    const f0 = AppState.fundamentalFrequency;
+    const partials = [];
+
+    for (let h = 0; h < AppState.harmonicAmplitudes.length; h++) {
+        const amp = AppState.harmonicAmplitudes[h] || 0;
+        const r = AppState.currentSystem.ratios[h];
+        // Amplitude store is grow-only and can outlive the system's table
+        if (amp <= 0.001 || !(r > 0)) continue;
+
+        const ratio = isSubharmonic ? 1 / r : r;
+        partials.push({
+            index: h,
+            ratio,
+            amplitude: amp / peak,
+            pan: AppState.oscillatorPans?.[h] ?? 0,
+            source,
+            maxSourceBin: Math.floor((nyquist * source.period) / (ratio * f0)),
+        });
+    }
+    return partials;
+}
+
 /**
- * Samples the current waveform configuration into a buffer with period multiplier support
- * and supports mono, stereo, or multichannel output for WAV export.
- * @param {string} routingMode - 'mono', 'stereo', 'multichannel'
- * @returns {Object} { buffer(s), periodMultiplier }
+ * Bakes the current drawbar timbre into a Fourier spectrum on a bin grid
+ * spanning `periodMultiplier` fundamental periods. Every partial occupies
+ * exactly one bin (and its primitive overtone stack stays harmonic), so the
+ * resulting wavetable is loop-continuous with no spectral leakage — the
+ * source of the buzzing the old sample-then-DFT path produced on irrational
+ * tuning systems.
+ *
+ * @returns {Promise<Object|null>} { real, imag, periodMultiplier, partials },
+ *   or null when no partial is active
  */
-export async function sampleCurrentWaveform(routingMode = 'mono', isSubharmonic = false) {
+export async function buildCurrentSpectrum(isSubharmonic = false) {
     await initAudio();
 
-    const numOsc = AppState.harmonicAmplitudes.length;
+    if (!AppState.currentSystem?.ratios) {
+        console.error('Spectral system missing');
+        return null;
+    }
+
+    const partials = collectBakePartials(isSubharmonic);
+    if (partials.length === 0) return null;
+
+    // The period multiplier trades pitch accuracy against bin budget: a
+    // finer grid (higher P) snaps ratios more precisely, but the highest
+    // baked component must stay within MAX_SPECTRUM_BIN.
+    let maxComponentRatio = 0;
+    for (const p of partials) {
+        const lastBin = Math.min(
+            Math.min(p.source.real.length, p.source.imag.length) - 1,
+            p.maxSourceBin
+        );
+        maxComponentRatio = Math.max(
+            maxComponentRatio,
+            p.ratio,
+            (lastBin / p.source.period) * p.ratio
+        );
+    }
+    const maxPeriod = Math.max(1, Math.floor(MAX_SPECTRUM_BIN / maxComponentRatio));
+    const periodMultiplier = choosePeriodMultiplier(
+        partials.map((p) => p.ratio),
+        maxPeriod
+    );
+
+    const { real, imag } = buildSpectrum(partials, periodMultiplier, MAX_SPECTRUM_BIN);
+    return { real, imag, periodMultiplier, partials };
+}
+
+/**
+ * Renders the current timbre to time-domain buffers for WAV export.
+ * All routing modes render from the same snapped bin grid, so every buffer
+ * loops cleanly. Mono and stereo preserve the drawbar mix (normalized once,
+ * jointly); multichannel keeps one full-scale stem per oscillator.
+ *
+ * @param {string} routingMode - 'mono', 'stereo', 'multichannel'
+ * @returns {Promise<Object>} { buffer|buffers, periodMultiplier }
+ */
+export async function sampleCurrentWaveform(routingMode = 'mono', isSubharmonic = false) {
+    const spectrum = await buildCurrentSpectrum(isSubharmonic);
+    if (!spectrum) return { buffer: new Float32Array(0), periodMultiplier: 1 };
+
+    const { periodMultiplier, partials } = spectrum;
     const tableSize = WAVETABLE_SIZE;
 
-    // Validate system
-    if (!AppState.currentSystem || !AppState.currentSystem.ratios) {
-        console.error("Spectral system missing");
-        return { buffer: new Float32Array(0), periodMultiplier: 1 };
-    }
-
-    //----------------------------------------------------------------------
-    // 1. Compute base period
-    //----------------------------------------------------------------------
-    const activeRatios = [];
-    for (let h = 0; h < numOsc; h++) {
-        // Ratio check: the grow-only amplitude store can be longer than
-        // the current system's partial table
-        if (AppState.harmonicAmplitudes[h] > 0.001 && AppState.currentSystem.ratios[h] > 0) {
-            activeRatios.push(AppState.currentSystem.ratios[h]);
-        }
-    }
-
-    const periodMultiplier = calculateOptimalPeriod(activeRatios, isSubharmonic);
-    const totalPeriodLen = 2 * Math.PI * periodMultiplier;
-    const customCoeffs = AppState.customWaveCoefficients?.[AppState.currentWaveform];
-
-    //----------------------------------------------------------------------
-    // 2. Render each oscillator separately (always)
-    //    => This gives us max routing flexibility with no recomputation.
-    //----------------------------------------------------------------------
-    const oscBuffers = Array(numOsc).fill(null).map(() => new Float32Array(tableSize));
-
-    for (let h = 0; h < numOsc; h++) {
-
-        const amp = AppState.harmonicAmplitudes[h];
-        if (amp <= 0.001) continue;
-
-        const ratio = AppState.currentSystem.ratios[h];
-        if (!(ratio > 0)) continue; // hidden partial (grow-only store)
-        const buf = oscBuffers[h];
-
-        for (let i = 0; i < tableSize; i++) {
-            const theta = (i / (tableSize - 1)) * totalPeriodLen;
-            const harmonic = isSubharmonic ? (1 / ratio) * theta : ratio * theta;
-            buf[i] =
-                getWaveValue(AppState.currentWaveform, harmonic, customCoeffs) * amp;
-        }
-
-        // Normalize each osc so stereo/multi routing behaves cleanly
-        let maxA = 0;
-        for (let i = 0; i < tableSize; i++) maxA = Math.max(maxA, Math.abs(buf[i]));
-        if (maxA > 0) {
-            const n = 1 / maxA;
-            for (let i = 0; i < tableSize; i++) buf[i] *= n;
-        }
-    }
-
-    //----------------------------------------------------------------------
-    // 3. Routing
-    //----------------------------------------------------------------------
+    const renderPartial = (partial) =>
+        renderSpectrum(buildSpectrum([partial], periodMultiplier, MAX_SPECTRUM_BIN), tableSize);
 
     switch (routingMode) {
-
-        //------------------------------------------------------------------
-        // MONO — sum all oscillators
-        //------------------------------------------------------------------
-        case 'mono': {
-            const mono = new Float32Array(tableSize);
-
-            for (let h = 0; h < numOsc; h++) {
-                const b = oscBuffers[h];
-                if (!b) continue;
-                for (let i = 0; i < tableSize; i++) mono[i] += b[i];
-            }
-
-            // normalize
-            let maxA = 0;
-            for (let i = 0; i < tableSize; i++) maxA = Math.max(maxA, Math.abs(mono[i]));
-            if (maxA > 0) {
-                const n = 1 / maxA;
-                for (let i = 0; i < tableSize; i++) mono[i] *= n;
-            }
-
-            return { buffer: mono, periodMultiplier };
-        }
-
-        //------------------------------------------------------------------
-        // STEREO — use AppState.oscillatorPans for equal-power panning
-        //------------------------------------------------------------------
         case 'stereo': {
-            const L = new Float32Array(tableSize);
-            const R = new Float32Array(tableSize);
+            const left = new Float32Array(tableSize);
+            const right = new Float32Array(tableSize);
 
-            for (let h = 0; h < numOsc; h++) {
-                const b = oscBuffers[h];
-                if (!b) continue;
-
-                // read pan value
-                const pan = AppState.oscillatorPans?.[h] ?? 0; // -1 to +1
-                const p = (pan + 1) * 0.5;                     // 0–1
-
-                // equal-power panning
+            for (const partial of partials) {
+                const buf = renderPartial(partial);
+                const p = (partial.pan + 1) * 0.5;
                 const gainL = Math.cos(p * Math.PI * 0.5);
                 const gainR = Math.sin(p * Math.PI * 0.5);
-
                 for (let i = 0; i < tableSize; i++) {
-                    const v = b[i];
-                    L[i] += v * gainL;
-                    R[i] += v * gainR;
+                    left[i] += buf[i] * gainL;
+                    right[i] += buf[i] * gainR;
                 }
             }
 
-            // Normalize stereo pair together
-            let maxA = 0;
-            for (let i = 0; i < tableSize; i++) {
-                maxA = Math.max(maxA, Math.abs(L[i]), Math.abs(R[i]));
-            }
-            if (maxA > 0) {
-                const n = 1 / maxA;
-                for (let i = 0; i < tableSize; i++) {
-                    L[i] *= n;
-                    R[i] *= n;
-                }
-            }
-
-            return { buffers: [L, R], periodMultiplier };
+            normalizeBuffers([left, right]);
+            return { buffers: [left, right], periodMultiplier };
         }
 
-        //------------------------------------------------------------------
-        // MULTICHANNEL — each oscillator isolated
-        //------------------------------------------------------------------
         case 'multichannel': {
             const numChannels = 12;
-            const channels = [];
+            const channels = Array.from(
+                { length: numChannels },
+                () => new Float32Array(tableSize)
+            );
 
-            for (let ch = 0; ch < numChannels; ch++) {
-                channels[ch] = oscBuffers[ch] ?? new Float32Array(tableSize);
-            }
-
-            // Normalize each channel independently
-            for (let ch = 0; ch < numChannels; ch++) {
-                const c = channels[ch];
-                let maxA = 0;
-                for (let i = 0; i < tableSize; i++) {
-                    maxA = Math.max(maxA, Math.abs(c[i]));
-                }
-                if (maxA > 0) {
-                    const n = 1 / maxA;
-                    for (let i = 0; i < tableSize; i++) c[i] *= n;
-                }
+            for (const partial of partials) {
+                if (partial.index >= numChannels) continue;
+                const buf = renderPartial(partial);
+                normalizeBuffers([buf]);
+                channels[partial.index] = buf;
             }
 
             return { buffers: channels, periodMultiplier };
         }
 
-        //------------------------------------------------------------------
-        // fallback = mono
-        //------------------------------------------------------------------
-        default:
-            console.warn(`Unknown routingMode ${routingMode}, defaulting to mono`);
-            return sampleCurrentWaveform('mono', isSubharmonic);
-    }
-}
-
-
-
-/**
- * Advanced waveform sampling with period multiplier optimization for phase continuity.
- * 
- * PROBLEM ADDRESSED:
- * Traditional wavetable synthesis samples exactly one period (2π) of a waveform.
- * For irrational frequency ratios common in alternative tuning systems, this creates
- * phase discontinuities at the wavetable boundary, causing audible buzzing artifacts.
- * 
- * SOLUTION:
- * 1. Analyze active frequency ratios to find optimal sampling period
- * 2. Sample multiple fundamental periods (the "period multiplier") 
- * 3. Ensure all ratios complete near-integer cycles within this extended period
- * 4. Store period multiplier for later frequency correction during playback
- * 
- * TECHNICAL DETAILS:
- * - Wavetable size: Fixed at 2048 samples for Web Audio compatibility
- * - Period calculation: Uses LCM of individual ratio optimal periods
- * - Phase continuity: Verified by comparing start/end values
- * - Normalization: Applied after sampling to prevent clipping
- * 
- * OUTPUT FORMAT:
- * Returns an object with:
- * - buffer: Float32Array with normalized waveform samples
- * - periodMultiplier: Number of periods contained in the buffer
- * 
- * The periodMultiplier is critical for correct pitch during playback - it tells
- * the frequency correction system how to compensate for the packed periods.
- * 
- * @returns {Object} {buffer: Float32Array, periodMultiplier: number}
- */
-/**
- * Samples the current waveform configuration into a wavetable buffer
- * with period multiplier support.
- *
- *
-
- */
-
-
-
-
-/**
- * Calculate optimal period multiplier to minimize phase discontinuities in wavetables.
- * 
- * MATHEMATICAL FOUNDATION:
- * When creating wavetables from irrational frequency ratios (like 16/15 in Just Intonation),
- * simply sampling one period (2π) often creates discontinuities because the ratio doesn't
- * complete an integer number of cycles within that period. This causes buzzing artifacts.
- * 
- * SOLUTION APPROACH:
- * Instead of sampling just 1 period, we find the smallest number of periods where ALL
- * active ratios complete (nearly) integer cycles. This ensures phase continuity.
- * 
- * ALGORITHM:
- * 1. For each ratio, find the smallest period P where ratio × P ≈ integer
- * 2. Take the Least Common Multiple (LCM) of all optimal periods
- * 3. Sample P periods instead of 1, then compensate frequency during playback
- * 
- * EXAMPLE:
- * For ratio 16/15 = 1.0667:
- * - Period 1: 1.0667 × 1 = 1.0667 cycles (0.0667 fractional error)
- * - Period 15: 1.0667 × 15 = 16.000 cycles (0.000 fractional error) ✓
- * 
- * The wavetable contains 15 periods of the fundamental, so we must play it at
- * frequency × (1/15) to get the correct pitch.
- * 
- * UNIVERSALITY:
- * This algorithm works for ANY tuning system (Just Intonation, Equal Temperament,
- * Pythagorean, microtonal scales, etc.) because it's based on mathematical
- * properties of rational approximation, not tuning-specific optimizations.
- * 
- * @param {Array} ratios - Active frequency ratios from the current tuning system
- * @returns {number} Period multiplier - number of fundamental periods to sample
- */
-function calculateOptimalPeriod(ratios, isSubharmonic) {
-    if (ratios.length === 0) return 1;
-
-    // For each ratio, find the smallest integer period where ratio * period ≈ integer
-    // This minimizes the phase error at the end of the wavetable
-    const bestPeriods = ratios.map(ratio => {
-        let bestPeriod = 1;
-        let smallestError = Infinity;
-
-        // Test periods 1-20 (computational limit for real-time use)
-        for (let period = 1; period <= 20; period++) {
-            let cycles;
-            if (isSubharmonic) {
-                cycles = (1 / ratio) * period;
-            } else {
-                cycles = ratio * period;
-            }
-
-            const fractionalPart = Math.abs(cycles - Math.round(cycles));
-
-            if (fractionalPart < smallestError) {
-                smallestError = fractionalPart;
-                bestPeriod = period;
-            }
-
-            // If we found an exact match (within floating-point precision), stop
-            if (fractionalPart < 0.001) break;
+        default: {
+            const mono = renderSpectrum(spectrum, tableSize);
+            normalizeBuffers([mono]);
+            return { buffer: mono, periodMultiplier };
         }
-
-        console.log(`Ratio ${ratio}: best period ${bestPeriod} gives ${ratio * bestPeriod} cycles (error: ${smallestError})`);
-        return bestPeriod;
-    });
-
-    // Use the LCM (Least Common Multiple) of all best periods
-    // This ensures ALL ratios have good phase continuity simultaneously
-    const lcm = bestPeriods.reduce((acc, period) => {
-        const gcd = (a, b) => b === 0 ? a : gcd(b, a % b);
-        return (acc * period) / gcd(acc, period);
-    }, 1);
-
-    // Cap at reasonable value to prevent excessive computation/memory usage
-    return Math.min(lcm, 20);
+    }
 }
 
 // ================================
@@ -1017,7 +877,9 @@ export function exportAsWAV(data, numCycles = 1) {
 
 
 
-// wavetableCache = { customName: Float32Array(512) }
+// Visual lookup tables for custom waves. Baked spectra occupy bins up to
+// MAX_SPECTRUM_BIN, so tables need 2× that many samples to draw cleanly.
+const VISUAL_TABLE_SIZE = 4096;
 const wavetableCache = {};
 
 export function getWaveValue(type, theta, customCoeffs) {
@@ -1029,15 +891,16 @@ export function getWaveValue(type, theta, customCoeffs) {
         if (!table) {
             if (!customCoeffs) return Math.sin(theta);
             table = wavetableCache[type] =
-                precomputeWavetableFromCoefficients(customCoeffs, 512);
+                precomputeWavetableFromCoefficients(customCoeffs, VISUAL_TABLE_SIZE);
         }
 
-        // Fast lookup
+        // Fast lookup: the table holds one loop sampled at i / length, so
+        // interpolation wraps modulo the length
         const normalized = (theta % (2 * Math.PI)) / (2 * Math.PI);
-        const index = normalized * (table.length - 1);
-        const i0 = index | 0;
+        const index = normalized * table.length;
+        const i0 = Math.floor(index) % table.length;
         const i1 = (i0 + 1) % table.length;
-        const frac = index - i0;
+        const frac = index - Math.floor(index);
 
         return table[i0] * (1 - frac) + table[i1] * frac;
     }
@@ -1069,21 +932,25 @@ export function getWaveValue(type, theta, customCoeffs) {
     }
 }
 
-export async function addWaveformToAudio(buffer, periodMultiplier, AppState) {
+/**
+ * Registers a baked spectrum with the wavetable manager and precomputes its
+ * visual lookup table.
+ * @param {Object} spectrum - { real, imag, periodMultiplier } from buildCurrentSpectrum
+ */
+export async function addWaveformToAudio(spectrum) {
     await initAudio();
 
-    const waveKey = getWavetableManager().addFromSamples(
-        buffer,
+    const waveKey = getWavetableManager().addFromSpectrum(
+        spectrum.real,
+        spectrum.imag,
         AppState.audioContext,
-        128,
-        periodMultiplier
+        spectrum.periodMultiplier
     );
 
-    // Get coefficients from audio
     const coefficients = getWavetableManager().getCoefficients(waveKey);
 
     // Precompute P5 visual wavetable
-    wavetableCache[waveKey] = precomputeWavetableFromCoefficients(coefficients);
+    wavetableCache[waveKey] = precomputeWavetableFromCoefficients(coefficients, VISUAL_TABLE_SIZE);
 
     const periodicWave = getWavetableManager().getWaveform(waveKey);
 

@@ -1,4 +1,4 @@
-import { addWaveformToAudio, restartAudio, sampleCurrentWaveform } from "../../audio.js";
+import { addWaveformToAudio, buildCurrentSpectrum, restartAudio } from "../../audio.js";
 import { AppState, updateAppState } from "../../config.js";
 import { showStatus } from "../../domUtils.js";
 import { generateFilenameParts } from "../../utils.js";
@@ -22,67 +22,39 @@ export function handleWaveformChange(e) {
 }
 
 
-export function handleAddToWaveforms(routingMode, isSubharmonic) {
-    sampleCurrentWaveform(routingMode, isSubharmonic).then(sampledData => {
-        const buffer = sampledData.buffer || sampledData; // Handle both old and new format
-        if (buffer.length > 0) {
-            addToWaveforms(sampledData);
+export function handleAddToWaveforms(isSubharmonic) {
+    buildCurrentSpectrum(isSubharmonic).then(spectrum => {
+        if (!spectrum) {
+            showStatus("Nothing to capture — no active drawbars.", "warning");
+            return;
         }
+        return addToWaveforms(spectrum);
     }).catch(error => {
-        console.error('Failed to sample waveform for adding:', error);
-        showStatus('Failed to sample waveform for adding', 'error');
+        console.error('Failed to bake waveform:', error);
+        showStatus('Failed to bake waveform', 'error');
     });
 }
 
 
 /**
- * Adds a sampled waveform to the available waveform library with period multiplier support.
- * 
- * WORKFLOW:
- * 1. Extract buffer and period multiplier from sampling data
- * 2. Store in WavetableManager with period multiplier metadata
- * 3. Register with getAudioEngine() for AudioWorklet compatibility
- * 4. Store period multiplier in AppState for frequency correction
- * 5. Add UI option and automatically select new waveform
- * 
- * PERIOD MULTIPLIER STORAGE:
- * The period multiplier is stored in multiple locations for robustness:
- * - WavetableManager: Primary storage with PeriodicWave object
- * - AppState.customWavePeriodMultipliers: Fallback/compatibility storage
- * 
- * This ensures frequency correction works correctly whether using individual
- * oscillators or AudioWorklet synthesis, and persists across audio system
- * restarts or mode switches.
- * 
- * AUTOMATIC SELECTION:
- * After adding the waveform, it's automatically selected and synthesis is
- * restarted if currently playing. This provides immediate audio feedback
- * of the newly created waveform.
- * 
- * @param {Float32Array|Object} sampledData - Sampled waveform data or {buffer, periodMultiplier}
+ * Adds a baked spectrum to the waveform library: registers the PeriodicWave,
+ * stores coefficients and period multiplier in AppState (used for frequency
+ * correction and for nesting the wave as a later bake's primitive), then
+ * selects it in the UI.
+ *
+ * @param {Object} spectrum - { real, imag, periodMultiplier } from buildCurrentSpectrum
  */
-
-export async function addToWaveforms(sampledData) {
-    const buffer = sampledData.buffer || sampledData;
-    const periodMultiplier = sampledData.periodMultiplier || 1;
-
-    if (buffer.length === 0) {
-        showStatus("Warning: Cannot add empty waveform data.", "warning");
-        return;
-    }
-
+export async function addToWaveforms(spectrum) {
     try {
         // 1) AUDIO
-        const { waveKey, coefficients, periodicWave } =
-            await addWaveformToAudio(buffer, periodMultiplier, AppState);
+        const { waveKey, coefficients } = await addWaveformToAudio(spectrum);
 
         // 2) STATE
         const customWaveIndex = addWaveformToState(
             AppState,
             waveKey,
             coefficients,
-            periodicWave,
-            periodMultiplier
+            spectrum.periodMultiplier
         );
 
         // 3) UI
@@ -100,9 +72,7 @@ export async function addToWaveforms(sampledData) {
 // Handles ONLY AppState updates, no DOM, no audio
 
 
-export function addWaveformToState(AppState, waveKey, coefficients, periodicWave, periodMultiplier) {
-
-    AppState.blWaveforms[waveKey] = periodicWave;
+export function addWaveformToState(AppState, waveKey, coefficients, periodMultiplier) {
 
     if (!AppState.customWaveCoefficients) {
         AppState.customWaveCoefficients = {};

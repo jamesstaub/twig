@@ -29,8 +29,9 @@ export class DownloadControlController extends BaseController {
         };
 
         this.component.onAddToWaveforms = () => {
-            const { routingMode, isSubharmonic } = this.getProps();
-            handleAddToWaveforms(routingMode, isSubharmonic);
+            // The baked oscillator is inherently mono — routing mode only
+            // affects WAV export
+            handleAddToWaveforms(this.getProps().isSubharmonic);
         };
     }
 

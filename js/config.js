@@ -369,7 +369,6 @@ export const AppState = {
     compressor: null,
     masterGain: null,
     oscillators: [],
-    blWaveforms: {}, // Band-limited waveforms
 
     // P5 instance reference
     p5Instance: null
