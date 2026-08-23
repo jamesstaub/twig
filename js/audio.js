@@ -14,6 +14,7 @@ import { AppState, ENVELOPE_DEFAULTS, midiConfig, updateAppState, WAVETABLE_SIZE
 import { calculateFrequency, generateFilenameParts, getVoicePan } from './utils.js';
 
 import { AudioEngine, WavetableManager, WAVExporter, WaveformGenerator } from './dsp/index.js';
+import { midiOutputRouter } from './modules/midi/midiOutputRouter.js';
 import {
     buildSpectrum,
     chooseBeatPreservingPeriod,
@@ -183,6 +184,11 @@ export async function startTone() {
         if (AppState.isPlaying) return;
         await startToneWithOscillators();
         updateAppState({ isPlaying: true });
+        // MIDI transport start on the clock port, scheduled to the voices'
+        // audible onset: they started at context.currentTime, which reaches
+        // the speakers (and downstream gear's ears) one output latency later
+        const ctx = AppState.audioContext;
+        midiOutputRouter.sendTransportStart((ctx.outputLatency ?? ctx.baseLatency ?? 0) * 1000);
     } catch (error) {
         console.error('Failed to start synthesis:', error);
         throw error;
@@ -262,6 +268,8 @@ export function stopTone() {
 
     // Stop individual oscillators
     audioEngine.stopAllOscillators();
+
+    midiOutputRouter.sendTransportStop();
 
     updateAppState({
         oscillators: [],

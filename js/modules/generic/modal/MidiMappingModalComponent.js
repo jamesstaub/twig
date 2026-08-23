@@ -1,6 +1,7 @@
 
 import ModalComponent from './ModalComponent.js';
 import { midiConfig } from '../../../config.js';
+import { midiInputRouter } from '../../midi/midiInputRouter.js';
 import { midiOutputRouter } from '../../midi/midiOutputRouter.js';
 import {
     updateMidiInputChannel,
@@ -9,13 +10,17 @@ import {
     updateMidiDrawbarCC,
     updatePulseNote,
     setPulseOutputEnabled,
-    updateMidiOutputPort
+    updateMidiOutputPort,
+    updateMidiClockOutputPort,
+    updateMidiInputPort
 } from '../../../modules/midi/midiConfigActions.js';
 
 /**
- * MidiMappingModalComponent — MIDI routing and mapping settings, laid out
- * as Input / Output setting cards over mapping tables (drawbar CCs, pulse
- * notes), in the same sectioned style as the overtone settings modal.
+ * MidiMappingModalComponent — MIDI routing and mapping settings: one card
+ * per role (note/CC in, note out, clock/transport out), each with its own
+ * port — and channel where the MIDI spec has one — over mapping tables
+ * (drawbar CCs, pulse notes), in the same sectioned style as the overtone
+ * settings modal.
  */
 export default class MidiMappingModalComponent extends ModalComponent {
 
@@ -94,29 +99,39 @@ export default class MidiMappingModalComponent extends ModalComponent {
         return this.settingRow(text, toggle);
     }
 
-    outputPortSelect() {
+    /**
+     * Port selector over a {id, name} port list. `selectedId` marks the
+     * current choice; `noneLabel` (optional) adds a first option with value
+     * '' for the role's default routing ("All inputs", "Same as note out").
+     * Changes go through the actions layer so every surface stays in sync.
+     */
+    portSelect(ports, selectedId, onChange, { noneLabel = null, unavailable = false } = {}) {
         const select = document.createElement('select');
         select.className = 'control-select midi-port-select';
-        const ports = midiOutputRouter.outputPorts();
-        if (ports.length === 0) {
+        if (ports.length === 0 && !noneLabel) {
             const opt = document.createElement('option');
-            opt.textContent = midiOutputRouter.midi ? 'no output ports found' : 'MIDI unavailable';
+            opt.textContent = unavailable ? 'MIDI unavailable' : 'no ports found';
             opt.disabled = true;
             opt.selected = true;
             select.appendChild(opt);
             select.disabled = true;
             return select;
         }
+        if (noneLabel) {
+            const opt = document.createElement('option');
+            opt.value = '';
+            opt.textContent = noneLabel;
+            opt.selected = selectedId == null || !ports.some((p) => p.id === selectedId);
+            select.appendChild(opt);
+        }
         for (const port of ports) {
             const opt = document.createElement('option');
             opt.value = port.id;
             opt.textContent = port.name;
-            if (midiOutputRouter.output && port.id === midiOutputRouter.output.id) opt.selected = true;
+            if (port.id === selectedId) opt.selected = true;
             select.appendChild(opt);
         }
-        // Via the actions layer so the choice syncs to the bridge and
-        // persists across reloads
-        select.addEventListener('change', () => updateMidiOutputPort(select.value));
+        select.addEventListener('change', () => onChange(select.value));
         return select;
     }
 
@@ -143,8 +158,16 @@ export default class MidiMappingModalComponent extends ModalComponent {
         const cards = document.createElement('div');
         cards.className = 'midi-sections-row';
 
-        const input = this.section('Input');
+        const midiUp = Boolean(midiOutputRouter.midi || midiInputRouter.midi);
+
+        const input = this.section('Note / CC In');
         input.append(
+            this.settingRow('Port', this.portSelect(
+                midiInputRouter.inputPorts(),
+                midiConfig.inputId,
+                updateMidiInputPort,
+                { noneLabel: 'All inputs', unavailable: !midiUp },
+            )),
             this.settingRow('Channel', this.numInput(midiConfig.inputChannel, 1, 16, updateMidiInputChannel)),
             this.settingRow('Ignore notes below', this.numInput(midiConfig.inputNoteMin, 0, 127, updateMidiInputNoteMin)),
         );
@@ -153,13 +176,32 @@ export default class MidiMappingModalComponent extends ModalComponent {
         inputHint.textContent = 'Notes below the floor are ignored so the pulse notes (1–12 by default) can’t loop back into the fundamental.';
         input.appendChild(inputHint);
 
-        const output = this.section('Output');
+        const output = this.section('Note Out');
         output.append(
-            this.settingRow('Port', this.outputPortSelect()),
+            this.settingRow('Port', this.portSelect(
+                midiOutputRouter.outputPorts(),
+                midiOutputRouter.output?.id ?? null,
+                updateMidiOutputPort,
+                { unavailable: !midiUp },
+            )),
             this.settingRow('Channel', this.numInput(midiConfig.outputChannel, 1, 16, updateMidiOutputChannel)),
             this.toggleRow('MIDI pulse out', 'pulseMidiEnabled', 'midi'),
             this.toggleRow('OSC pulse out', 'pulseOscEnabled', 'osc'),
         );
+
+        const clock = this.section('Clock / Transport Out');
+        clock.append(
+            this.settingRow('Port', this.portSelect(
+                midiOutputRouter.outputPorts(),
+                midiConfig.clockOutputId,
+                updateMidiClockOutputPort,
+                { noneLabel: 'Same as note out', unavailable: !midiUp },
+            )),
+        );
+        const clockHint = document.createElement('p');
+        clockHint.className = 'midi-section-hint';
+        clockHint.textContent = 'Carries the overtone clock (24 ticks per cycle of the assigned voice) and transport start/stop on play. Clock messages are system-realtime — the MIDI spec gives them no channel.';
+        clock.appendChild(clockHint);
 
         const ccSection = this.section('Drawbar CC Mapping', true);
         ccSection.appendChild(this.mappingTable(
@@ -175,7 +217,7 @@ export default class MidiMappingModalComponent extends ModalComponent {
             updatePulseNote,
         ));
 
-        cards.append(input, output, ccSection, notesSection);
+        cards.append(input, output, clock, ccSection, notesSection);
         dialog.appendChild(cards);
 
         const closeBtn = document.createElement('button');

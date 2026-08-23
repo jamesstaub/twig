@@ -152,9 +152,13 @@ CSS under `css/components/`.
   (1–12 by default) can't retrigger the fundamental. A pulse note remapped
   above the floor on a shared port will still loop — the separate
   input/output channel settings cover that case.
-- `midiConfig` (channels, CC/note maps, note floor) is **not** bridged or
-  persisted to Max yet — browser-session only. Exception: the output port
-  (`outputId`) is bridged as `/twig/midiout` and persists.
+- `midiConfig` (channels, CC/note maps, note floor, input port `inputId`,
+  clock/transport port `clockOutputId`) is **not** bridged or persisted to
+  Max yet — browser-session only. Exception: the note-out port (`outputId`)
+  is bridged as `/twig/midiout` and persists. MIDI roles are split: note
+  blips → `outputId`+`outputChannel`; clock ticks and play-toggle transport
+  start/stop → `clockOutputId` (defaults to note-out port; channel-less by
+  MIDI spec); note/CC in → `inputId` (null = all inputs) + `inputChannel`.
 - The app self-diagnoses a stale bridge process: `GET /state` carries an
   `x-twig-commands` header (the server's `STATE_ORDER`), and the client
   warns on boot when its commands are missing from it.

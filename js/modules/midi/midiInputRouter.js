@@ -3,7 +3,7 @@ import { smoothUpdateMasterGain } from "../../utils.js";
 import { DrawbarsActions } from "../drawbars/drawbarsActions.js";
 import { FundamentalActions } from "../fundamental/fundamentalActions.js";
 import { midiConfig } from "../../config.js";
-import { onMidiConfigChange } from "./midiConfigActions.js";
+import { resolvePortSelector } from "./portUtils.js";
 import { showStatus } from "../../domUtils.js";
 
 // A CC event older than this sat in a suspended task queue (hidden browser
@@ -15,29 +15,53 @@ export class MidiInputRouter {
 
     constructor() {
         this.lastCC = {};
-        this._currentConfig = { ...midiConfig };
         this._staleCC = new Map(); // cc -> newest value seen in a stale backlog
         this._staleFlushScheduled = false;
         this._lastThrottleWarning = -Infinity;
-        onMidiConfigChange((newConfig) => {
-            this._currentConfig = { ...newConfig };
-        });
     }
 
 
     async init() {
-        let midi;
         try {
-            midi = await navigator.requestMIDIAccess();
+            this.midi = await navigator.requestMIDIAccess();
         } catch (err) {
             // Expected inside jweb/embedded webviews, which deny Web MIDI —
             // control flows over the OSC WebSocket bridge there instead
             console.info(`[midi] Web MIDI unavailable (${err.name}) — OSC/WebSocket control unaffected`);
             return;
         }
-        for (let input of midi.inputs.values()) {
-            input.onmidimessage = (msg) => this.route(msg);
+        this._bind();
+        this.midi.onstatechange = () => this._bind();
+    }
+
+    /** Attach the handler to the selected input port, or all when unset. */
+    _bind() {
+        if (!this.midi) return;
+        // A selector set before Web MIDI was up resolves now that ports exist
+        if (this._selector != null && !this.inputPorts().some((i) => i.id === midiConfig.inputId)) {
+            const id = resolvePortSelector(this.inputPorts(), this._selector);
+            if (id) midiConfig.inputId = id;
         }
+        for (const input of this.midi.inputs.values()) {
+            const active = midiConfig.inputId == null || input.id === midiConfig.inputId;
+            input.onmidimessage = active ? (msg) => this.route(msg) : null;
+        }
+    }
+
+    /** Available system input ports, for the MIDI modal's selector. */
+    inputPorts() {
+        return this.midi ? [...this.midi.inputs.values()].map((i) => ({ id: i.id, name: i.name })) : [];
+    }
+
+    /**
+     * Listen on a specific input port — by id, 0-based index, or name
+     * (see resolvePortSelector). null/'' clears to all inputs.
+     */
+    selectInput(selector) {
+        const cleared = selector == null || selector === '';
+        this._selector = cleared ? null : selector;
+        midiConfig.inputId = cleared ? null : resolvePortSelector(this.inputPorts(), selector);
+        this._bind();
     }
 
 
@@ -45,8 +69,9 @@ export class MidiInputRouter {
         const [status, data1, data2] = msg.data;
         const channel = (status & 0x0F) + 1; // MIDI channels are 1-16
 
-        // Only respond to configured input channel
-        if (channel !== this._currentConfig.inputChannel) return;
+        // Only respond to configured input channel (midiConfig is the live
+        // singleton — no snapshot needed)
+        if (channel !== midiConfig.inputChannel) return;
 
         // msg.timeStamp is when the browser's MIDI service received the
         // message; a large gap to now means the page was suspended meanwhile.
@@ -61,7 +86,7 @@ export class MidiInputRouter {
             // Feedback-loop guard: our own pulse outputs send low note
             // numbers (1..12 by default) — ignore them on the way back in
             // so an IAC in/out loop can't retrigger the fundamental.
-            if (data1 < this._currentConfig.inputNoteMin) return;
+            if (data1 < midiConfig.inputNoteMin) return;
             return isNoteOn ? this.handleNoteOn(data1, data2) : this.handleNoteOff(data1);
         }
     }
@@ -104,7 +129,7 @@ export class MidiInputRouter {
         this.lastCC[cc] = val;
 
         // Drawbar CCs from current config
-        const drawbarIdx = this._currentConfig.drawbarsCC.indexOf(cc);
+        const drawbarIdx = midiConfig.drawbarsCC.indexOf(cc);
         if (drawbarIdx !== -1) {
             DrawbarsActions.setDrawbar(drawbarIdx, norm);
         }
@@ -130,3 +155,5 @@ export class MidiInputRouter {
         // AudioActions.noteOff(note);
     }
 }
+
+export const midiInputRouter = new MidiInputRouter();

@@ -15,7 +15,7 @@ import { KeyboardShortcuts } from './KeyboardShortcuts.js';
 import { TonewheelController } from './modules/tonewheel/tonewheelController.js';
 import { smoothUpdateMasterGain } from './utils.js';
 import { SliderController } from './modules/generic/slider/sliderController.js';
-import { MidiInputRouter } from './modules/midi/midiInputRouter.js';
+import { midiInputRouter } from './modules/midi/midiInputRouter.js';
 import { FundamentalController } from './modules/fundamental/fundamentalController.js';
 import { ModalController } from './modules/generic/modal/modalController.js';
 import MidiMappingModalComponent from './modules/generic/modal/MidiMappingModalComponent.js';
@@ -99,7 +99,7 @@ export function initUI() {
 
     setTimeout(() => {
         // if midi is firing while the components are still rendering it breaks the p5 sketch :-/
-        new MidiInputRouter().init();
+        midiInputRouter.init();
         midiOutputRouter.init(); // no-op where Web MIDI is unavailable (jweb)
     }, 2000);
 }

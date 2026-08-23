@@ -3,21 +3,31 @@
 // ================================
 
 export const midiConfig = {
+    // --- Note/CC in ---
     inputChannel: 1, // MIDI channel 1 by default (1-16)
-    outputChannel: 1, // channel for pulse note blips (1-16)
+    // Input port id; null = listen on every input
+    inputId: null,
     // Incoming notes below this are ignored. Default 13 keeps the pulse
     // outputs' own notes (1..12) from feeding back into the fundamental
     // when in and out share a port (e.g. an IAC loop).
     inputNoteMin: 13,
     drawbarsCC: [20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31], // Default CCs for 12 drawbars
 
+    // --- Note out (pulse blips) ---
+    outputChannel: 1, // channel for pulse note blips (1-16)
+    // Web MIDI output port id; null = first available
+    outputId: null,
+
+    // --- Clock/transport out ---
+    // Port for MIDI clock ticks and transport start/stop; null = same port
+    // as note out. Clock messages are system-realtime — no channel exists.
+    clockOutputId: null,
+
     // Pulse outputs: note per overtone (linear 1..N by default, reassignable
     // in the MIDI modal) and global master switches for the two pulse paths
     pulseNotes: Array.from({ length: 16 }, (_, i) => i + 1),
     pulseMidiEnabled: true,
     pulseOscEnabled: true,
-    // Web MIDI output port id; null = first available
-    outputId: null,
 };
 /**
  * CONFIGURATION MODULE

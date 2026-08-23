@@ -1,5 +1,6 @@
 import { AppState, midiConfig } from "../../config.js";
 import { pulseBus } from "../pulse/pulseBus.js";
+import { resolvePortSelector } from "./portUtils.js";
 
 const NOTE_ON = 0x90;
 const NOTE_OFF = 0x80;
@@ -23,6 +24,12 @@ const BLIP_MS = 50;
  *    evenly-spaced 0xF8 ticks per cycle (cycle = quarter note), scheduled
  *    ahead across the coming period so timing survives throttling. Clock
  *    ticks fire on every cycle, gated or not — a clock must not stutter.
+ *  - Transport: play start/stop sends 0xFA/0xFC, scheduled to the voices'
+ *    audible onset (see sendTransportStart).
+ *
+ * Note blips route to the note-out port; clock and transport route to the
+ * clock-out port (which defaults to the note-out port until a distinct one
+ * is chosen). Clock/transport messages are system-realtime — channel-less.
  *
  * Degrades to a no-op where Web MIDI is unavailable (e.g. inside jweb —
  * use the OSC pulse output there instead).
@@ -32,6 +39,7 @@ export class MidiOutputRouter {
     constructor() {
         this.midi = null;
         this.output = null;
+        this.clockOutput = null;
         this.available = false;
         this._clockRunning = false;
     }
@@ -49,51 +57,55 @@ export class MidiOutputRouter {
         pulseBus.addSink((index, pulse) => this.onPulse(index, pulse));
     }
 
-    /** Resolve the active output: the configured port if present, else first. */
+    /** Resolve the active outputs: configured ports if present, else first. */
     _pick() {
         // A selector that arrived before Web MIDI was up (bridge bootstrap
         // replays ~2s before init) resolves now that ports exist
         if (this._selector != null && !this.outputPorts().some((o) => o.id === midiConfig.outputId)) {
-            const id = this.resolvePortId(this._selector);
+            const id = resolvePortSelector(this.outputPorts(), this._selector);
             if (id) midiConfig.outputId = id;
+        }
+        if (this._clockSelector != null && !this.outputPorts().some((o) => o.id === midiConfig.clockOutputId)) {
+            const id = resolvePortSelector(this.outputPorts(), this._clockSelector);
+            if (id) midiConfig.clockOutputId = id;
         }
         const outs = this.midi ? [...this.midi.outputs.values()] : [];
         this.output = outs.find((o) => o.id === midiConfig.outputId) || outs[0] || null;
+        // Clock/transport follow the note-out port until a distinct one is set
+        this.clockOutput = outs.find((o) => o.id === midiConfig.clockOutputId) || this.output;
         this.available = Boolean(this.output);
     }
 
-    /**
-     * Port id for a flexible selector: exact port id, 0-based index into
-     * the output list (matching how system/waveform address menus), or a
-     * port name — exact first, then case-insensitive substring.
-     */
-    resolvePortId(selector) {
-        const ports = this.outputPorts();
-        if (typeof selector === 'number') return ports[Math.round(selector)]?.id ?? null;
-        const s = String(selector ?? '').trim();
-        if (!s) return null;
-        const port = ports.find((p) => p.id === s) ||
-            ports.find((p) => p.name === s) ||
-            ports.find((p) => p.name.toLowerCase().includes(s.toLowerCase()));
-        // Unresolved string: keep it as an id — it may name a port that
-        // appears later (onstatechange re-picks)
-        return port ? port.id : s;
-    }
-
-    /** Available system output ports, for the MIDI modal's selector. */
+    /** Available system output ports, for the MIDI modal's selectors. */
     outputPorts() {
         return this.midi ? [...this.midi.outputs.values()].map((o) => ({ id: o.id, name: o.name })) : [];
     }
 
     /**
-     * Route pulses to a specific output port — by id, 0-based index, or
-     * name (see resolvePortId). null/'' clears to first available. The
-     * raw selector is remembered so it can resolve after late MIDI init.
+     * Route note blips to a specific output port — by id, 0-based index, or
+     * name (see resolvePortSelector). null/'' clears to first available.
+     * The raw selector is remembered so it can resolve after late MIDI init.
      */
     selectOutput(selector) {
         const cleared = selector == null || selector === '';
         this._selector = cleared ? null : selector;
-        midiConfig.outputId = cleared ? null : this.resolvePortId(selector);
+        midiConfig.outputId = cleared ? null : resolvePortSelector(this.outputPorts(), selector);
+        this._pick();
+    }
+
+    /**
+     * Route clock + transport to a specific output port. null/'' clears
+     * back to "same as note out". A running clock is stopped on the old
+     * port first so downstream gear doesn't free-run.
+     */
+    selectClockOutput(selector) {
+        if (this._clockRunning && this.clockOutput) {
+            this.clockOutput.send([CLOCK_STOP]);
+            this._clockRunning = false;
+        }
+        const cleared = selector == null || selector === '';
+        this._clockSelector = cleared ? null : selector;
+        midiConfig.clockOutputId = cleared ? null : resolvePortSelector(this.outputPorts(), selector);
         this._pick();
     }
 
@@ -108,16 +120,17 @@ export class MidiOutputRouter {
     }
 
     onPulse(index, pulse) {
-        if (!this.available) return;
-
-        const midiOn = AppState.oscillatorPulseOuts[index]?.midi ?? midiConfig.pulseMidiEnabled;
-        if (midiOn && pulse.gateOn) {
-            this.sendBlip(index);
+        if (this.output) {
+            const midiOn = AppState.oscillatorPulseOuts[index]?.midi ?? midiConfig.pulseMidiEnabled;
+            if (midiOn && pulse.gateOn) {
+                this.sendBlip(index);
+            }
         }
+        if (!this.clockOutput) return;
         if (AppState.midiClockVoice === index) {
             this.sendClockTicks(pulse);
         } else if (this._clockRunning && AppState.midiClockVoice === null) {
-            this.output.send([CLOCK_STOP]);
+            this.clockOutput.send([CLOCK_STOP]);
             this._clockRunning = false;
         }
     }
@@ -147,20 +160,38 @@ export class MidiOutputRouter {
         const periodMs = 1000 / freq;
         const now = window.performance.now();
         if (!this._clockRunning) {
-            this.output.send([CLOCK_START], now);
+            this.clockOutput.send([CLOCK_START], now);
             this._clockRunning = true;
         }
         // 24 PPQN: one voice cycle = one quarter note
         for (let k = 0; k < 24; k++) {
-            this.output.send([CLOCK_TICK], now + (k * periodMs) / 24);
+            this.clockOutput.send([CLOCK_TICK], now + (k * periodMs) / 24);
         }
     }
 
     stopClock() {
-        if (this.available && this._clockRunning) {
-            this.output.send([CLOCK_STOP]);
+        if (this.clockOutput && this._clockRunning) {
+            this.clockOutput.send([CLOCK_STOP]);
             this._clockRunning = false;
         }
+    }
+
+    /**
+     * Transport start on the clock port, scheduled `delayMs` ahead — the
+     * caller passes the audio output latency so the message lands with the
+     * voices' (and their sequencers') audible onset.
+     */
+    sendTransportStart(delayMs = 0) {
+        if (!this.clockOutput) return;
+        this.clockOutput.send([CLOCK_START], window.performance.now() + Math.max(0, delayMs));
+        this._clockRunning = true;
+    }
+
+    /** Transport stop on the clock port. */
+    sendTransportStop() {
+        if (!this.clockOutput) return;
+        this.clockOutput.send([CLOCK_STOP]);
+        this._clockRunning = false;
     }
 }
 

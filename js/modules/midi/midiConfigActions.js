@@ -1,6 +1,7 @@
 // midiConfigActions.js
 // Actions for updating midiConfig and propagating changes
 import { AppState, midiConfig } from '../../config.js';
+import { midiInputRouter } from './midiInputRouter.js';
 import { midiOutputRouter } from './midiOutputRouter.js';
 import { OvertoneSignalActions } from '../overtoneSignal/overtoneSignalActions.js';
 import { MIDI_OUTPUT_CHANGED } from '../../events.js';
@@ -56,16 +57,28 @@ export function setPulseOutputEnabled(kind, enabled) {
 }
 
 /**
- * Select the Web MIDI output port — by port id, 0-based index, or name
- * (null/'' = first available). The single write path shared by the MIDI
- * modal and the OSC bridge, so the choice syncs upstream and persists
- * across reloads. Safe before the router initializes — the selector is
- * kept and resolved when Web MIDI comes up.
+ * Select the note-out port — by port id, 0-based index, or name (null/'' =
+ * first available). The single write path shared by the MIDI modal and the
+ * OSC bridge, so the choice syncs upstream and persists across reloads.
+ * Safe before the router initializes — the selector is kept and resolved
+ * when Web MIDI comes up.
  */
 export function updateMidiOutputPort(selector) {
     midiOutputRouter.selectOutput(selector);
     notifyListeners();
     document.dispatchEvent(new CustomEvent(MIDI_OUTPUT_CHANGED));
+}
+
+/** Select the clock/transport-out port (null/'' = same as note out). */
+export function updateMidiClockOutputPort(selector) {
+    midiOutputRouter.selectClockOutput(selector);
+    notifyListeners();
+}
+
+/** Select the note/CC input port (null/'' = all inputs). */
+export function updateMidiInputPort(selector) {
+    midiInputRouter.selectInput(selector);
+    notifyListeners();
 }
 
 export function onMidiConfigChange(listener) {
