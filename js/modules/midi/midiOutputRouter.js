@@ -18,8 +18,9 @@ const BLIP_MS = 50;
  * MidiOutputRouter — turns voice pulses into Web MIDI events.
  *
  *  - Note blips: voices with pulse-MIDI enabled send a note-on/note-off
- *    pair per audible (gate-open) cycle; the note number is the voice's
- *    nearest MIDI pitch.
+ *    pair per audible (gate-open) cycle, scheduled onto the cycle BOUNDARY
+ *    (the audible click of a low-frequency square/saw) via Web MIDI future
+ *    timestamps — see _cycleBoundaryMs.
  *  - MIDI clock: the single voice assigned as clock source emits 24
  *    evenly-spaced 0xF8 ticks per cycle (cycle = quarter note), scheduled
  *    ahead across the coming period so timing survives throttling. Clock
@@ -123,7 +124,7 @@ export class MidiOutputRouter {
         if (this.output) {
             const midiOn = AppState.oscillatorPulseOuts[index]?.midi ?? midiConfig.pulseMidiEnabled;
             if (midiOn && pulse.gateOn) {
-                this.sendBlip(index);
+                this.sendBlip(index, pulse);
             }
         }
         if (!this.clockOutput) return;
@@ -135,7 +136,40 @@ export class MidiOutputRouter {
         }
     }
 
-    sendBlip(index) {
+    /**
+     * Wall-clock ms of the next waveform cycle boundary for a pulse — the
+     * audible click of a low-frequency square/saw. The worklet fires pulses
+     * at the cycle MIDPOINT and stamps them with the emission's audio-clock
+     * time; the boundary is half a period later, heard one output latency
+     * after the context renders it. Web MIDI future timestamps do the
+     * precise scheduling, so main-thread delivery jitter never reaches the
+     * receiver. A pulse that crossed the main thread too late holds to the
+     * following boundary instead of firing at an arbitrary lag.
+     */
+    _cycleBoundaryMs(pulse) {
+        const ctx = AppState.audioContext;
+        const now = window.performance.now();
+        if (!ctx || !(pulse?.frequency > 0) || !(pulse?.audioTime > 0)) return now;
+        const periodMs = 1000 / pulse.frequency;
+        const boundaryCtxTime = pulse.audioTime + 0.5 / pulse.frequency;
+
+        let t;
+        const ots = ctx.getOutputTimestamp?.();
+        if (ots && ots.performanceTime > 0) {
+            // Coherent (contextTime, performanceTime) pair at the output
+            // device — includes output latency, and avoids the callback-
+            // quantum jitter of reading currentTime and performance.now()
+            // as if they were simultaneous
+            t = ots.performanceTime + (boundaryCtxTime - ots.contextTime) * 1000;
+        } else {
+            const latencyMs = (ctx.outputLatency ?? ctx.baseLatency ?? 0) * 1000;
+            t = now + (boundaryCtxTime - ctx.currentTime) * 1000 + latencyMs;
+        }
+        while (t < now) t += periodMs;
+        return t;
+    }
+
+    sendBlip(index, pulse) {
         const note = MidiOutputRouter.noteForVoice(index);
         if (note === null) return;
         // Velocity tracks the overtone's drawbar gain; silent drawbars
@@ -143,9 +177,9 @@ export class MidiOutputRouter {
         const velocity = MidiOutputRouter.velocityForVoice(index);
         if (velocity === 0) return;
         const status = (midiConfig.outputChannel || 1) - 1;
-        const now = window.performance.now();
-        this.output.send([NOTE_ON | status, note, velocity], now);
-        this.output.send([NOTE_OFF | status, note, 0], now + BLIP_MS);
+        const at = this._cycleBoundaryMs(pulse);
+        this.output.send([NOTE_ON | status, note, velocity], at);
+        this.output.send([NOTE_OFF | status, note, 0], at + BLIP_MS);
     }
 
     /** 1-127 from the overtone's drawbar amplitude; 0 = drawbar silent. */
@@ -158,14 +192,17 @@ export class MidiOutputRouter {
         const freq = pulse.frequency;
         if (!(freq > 0)) return;
         const periodMs = 1000 / freq;
-        const now = window.performance.now();
+        // Anchor the tick grid on the cycle boundary so the downbeat lands
+        // with the audible click; each pulse schedules the NEXT cycle's 24
+        // ticks, so consecutive batches tile without gap or overlap
+        const boundary = this._cycleBoundaryMs(pulse);
         if (!this._clockRunning) {
-            this.clockOutput.send([CLOCK_START], now);
+            this.clockOutput.send([CLOCK_START], boundary);
             this._clockRunning = true;
         }
         // 24 PPQN: one voice cycle = one quarter note
         for (let k = 0; k < 24; k++) {
-            this.clockOutput.send([CLOCK_TICK], now + (k * periodMs) / 24);
+            this.clockOutput.send([CLOCK_TICK], boundary + (k * periodMs) / 24);
         }
     }
 
