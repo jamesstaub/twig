@@ -1,5 +1,6 @@
 import { AppState, midiConfig } from "../../config.js";
 import { pulseBus } from "../pulse/pulseBus.js";
+import { audioTimeToPerformanceMs, pulseCycleBoundaryMs } from "../pulse/pulseTime.js";
 import { resolvePortSelector } from "./portUtils.js";
 
 const NOTE_ON = 0x90;
@@ -20,7 +21,8 @@ const BLIP_MS = 50;
  *  - Note blips: voices with pulse-MIDI enabled send a note-on/note-off
  *    pair per audible (gate-open) cycle, scheduled onto the cycle BOUNDARY
  *    (the audible click of a low-frequency square/saw) via Web MIDI future
- *    timestamps — see _cycleBoundaryMs.
+ *    timestamps. All wall-clock scheduling maps through pulseTime.js so
+ *    blips, clock, and transport agree with each other and the audio.
  *  - MIDI clock: the single voice assigned as clock source emits 24
  *    evenly-spaced 0xF8 ticks per cycle (cycle = quarter note), scheduled
  *    ahead across the coming period so timing survives throttling. Clock
@@ -136,39 +138,6 @@ export class MidiOutputRouter {
         }
     }
 
-    /**
-     * Wall-clock ms of the next waveform cycle boundary for a pulse — the
-     * audible click of a low-frequency square/saw. The worklet fires pulses
-     * at the cycle MIDPOINT and stamps them with the emission's audio-clock
-     * time; the boundary is half a period later, heard one output latency
-     * after the context renders it. Web MIDI future timestamps do the
-     * precise scheduling, so main-thread delivery jitter never reaches the
-     * receiver. A pulse that crossed the main thread too late holds to the
-     * following boundary instead of firing at an arbitrary lag.
-     */
-    _cycleBoundaryMs(pulse) {
-        const ctx = AppState.audioContext;
-        const now = window.performance.now();
-        if (!ctx || !(pulse?.frequency > 0) || !(pulse?.audioTime > 0)) return now;
-        const periodMs = 1000 / pulse.frequency;
-        const boundaryCtxTime = pulse.audioTime + 0.5 / pulse.frequency;
-
-        let t;
-        const ots = ctx.getOutputTimestamp?.();
-        if (ots && ots.performanceTime > 0) {
-            // Coherent (contextTime, performanceTime) pair at the output
-            // device — includes output latency, and avoids the callback-
-            // quantum jitter of reading currentTime and performance.now()
-            // as if they were simultaneous
-            t = ots.performanceTime + (boundaryCtxTime - ots.contextTime) * 1000;
-        } else {
-            const latencyMs = (ctx.outputLatency ?? ctx.baseLatency ?? 0) * 1000;
-            t = now + (boundaryCtxTime - ctx.currentTime) * 1000 + latencyMs;
-        }
-        while (t < now) t += periodMs;
-        return t;
-    }
-
     sendBlip(index, pulse) {
         const note = MidiOutputRouter.noteForVoice(index);
         if (note === null) return;
@@ -177,7 +146,9 @@ export class MidiOutputRouter {
         const velocity = MidiOutputRouter.velocityForVoice(index);
         if (velocity === 0) return;
         const status = (midiConfig.outputChannel || 1) - 1;
-        const at = this._cycleBoundaryMs(pulse);
+        // Scheduled onto the cycle boundary (the audible click) — Web MIDI
+        // future timestamps keep main-thread jitter away from the receiver
+        const at = pulseCycleBoundaryMs(AppState.audioContext, pulse);
         this.output.send([NOTE_ON | status, note, velocity], at);
         this.output.send([NOTE_OFF | status, note, 0], at + BLIP_MS);
     }
@@ -195,7 +166,7 @@ export class MidiOutputRouter {
         // Anchor the tick grid on the cycle boundary so the downbeat lands
         // with the audible click; each pulse schedules the NEXT cycle's 24
         // ticks, so consecutive batches tile without gap or overlap
-        const boundary = this._cycleBoundaryMs(pulse);
+        const boundary = pulseCycleBoundaryMs(AppState.audioContext, pulse);
         if (!this._clockRunning) {
             this.clockOutput.send([CLOCK_START], boundary);
             this._clockRunning = true;
@@ -214,13 +185,17 @@ export class MidiOutputRouter {
     }
 
     /**
-     * Transport start on the clock port, scheduled `delayMs` ahead — the
-     * caller passes the audio output latency so the message lands with the
-     * voices' (and their sequencers') audible onset.
+     * Transport start on the clock port. Pass the audio-clock time the
+     * voices started at and the message is scheduled to their audible
+     * onset, through the same clock mapping as blips and ticks; omitted,
+     * it fires immediately.
      */
-    sendTransportStart(delayMs = 0) {
+    sendTransportStart(atAudioTime = null) {
         if (!this.clockOutput) return;
-        this.clockOutput.send([CLOCK_START], window.performance.now() + Math.max(0, delayMs));
+        const at = atAudioTime != null
+            ? audioTimeToPerformanceMs(AppState.audioContext, atAudioTime)
+            : window.performance.now();
+        this.clockOutput.send([CLOCK_START], at);
         this._clockRunning = true;
     }
 

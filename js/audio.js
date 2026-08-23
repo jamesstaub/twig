@@ -185,10 +185,8 @@ export async function startTone() {
         await startToneWithOscillators();
         updateAppState({ isPlaying: true });
         // MIDI transport start on the clock port, scheduled to the voices'
-        // audible onset: they started at context.currentTime, which reaches
-        // the speakers (and downstream gear's ears) one output latency later
-        const ctx = AppState.audioContext;
-        midiOutputRouter.sendTransportStart((ctx.outputLatency ?? ctx.baseLatency ?? 0) * 1000);
+        // audible onset (they started at the current audio-clock time)
+        midiOutputRouter.sendTransportStart(AppState.audioContext.currentTime);
     } catch (error) {
         console.error('Failed to start synthesis:', error);
         throw error;
