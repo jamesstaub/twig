@@ -1,7 +1,31 @@
 import BaseComponent from "../base/BaseComponent.js";
+import { Dial } from "../generic/dial/Dial.js";
+import { DEFAULT_STIFFNESS_B, STIFFNESS_B_MAX } from "../../config.js";
 
 
 const RATIO_SYSTEM_SELECT_ID = '#ratio-system-select';
+
+/**
+ * Dial definitions for per-system tunable params. A system opts in by
+ * listing keys in its `params` array (config.js); the dial's value is the
+ * matching AppState field, delivered via props.systemParams and written
+ * back through onParamChange(key, value). Dials work in a normalized 0-1
+ * position with per-param taper, so parameters whose useful range is tiny
+ * relative to their bounds still get fine control.
+ */
+const SYSTEM_PARAM_DIALS = {
+    stiffnessB: {
+        label: 'stiffness',
+        // Cubic taper: real pianos live at B ≈ 0.0001–0.001, a fraction of
+        // the 0–0.1 range — linear travel would bury them in the first 2%
+        toValue: (t) => STIFFNESS_B_MAX * t * t * t,
+        toPosition: (v) => Math.cbrt((v ?? DEFAULT_STIFFNESS_B) / STIFFNESS_B_MAX),
+        format: (t) => {
+            const b = STIFFNESS_B_MAX * t * t * t;
+            return b < 1e-6 ? 'B 0' : `B ${b.toPrecision(2)}`;
+        },
+    },
+};
 
 export class SpectralSystemComponent extends BaseComponent {
     // Store reference to the click handler for proper removal
@@ -18,13 +42,13 @@ export class SpectralSystemComponent extends BaseComponent {
         this.onChange = null;
         this.onSubharmonicToggle = null;
         this.onStartHarmonicChange = null;
-        this.onStiffnessChange = null;
+        this.onParamChange = null;
     }
 
     /**
      * Main render cycle: receives fresh props from BaseController.
      */
-    render({ systems, currentSystem, currentSystemIndex, isSubharmonic, startHarmonic, stiffnessB }) {
+    render({ systems, currentSystem, currentSystemIndex, isSubharmonic, startHarmonic, systemParams }) {
         const selectEl = this.q('#ratio-system-select');
         const descriptionEl = this.q('#system-description');
 
@@ -49,33 +73,62 @@ export class SpectralSystemComponent extends BaseComponent {
         });
 
         this.renderStartHarmonic({ currentSystem, startHarmonic });
-        this.renderStiffness({ currentSystem, stiffnessB });
+        this.renderSystemParams({ currentSystem, systemParams });
 
         // --- Subharmonic toggle ---
         this.renderSubharmonicToggle({ isSubharmonic });
     }
 
-    updateSelector({ currentSystemIndex, currentSystem, startHarmonic, stiffnessB }) {
+    updateSelector({ currentSystemIndex, currentSystem, startHarmonic, systemParams }) {
         const selectEl = this.q('#ratio-system-select');
         if (!selectEl) return;
 
         if (currentSystemIndex >= 0) selectEl.value = currentSystemIndex;
         this.renderStartHarmonic({ currentSystem, startHarmonic });
-        this.renderStiffness({ currentSystem, stiffnessB });
+        this.renderSystemParams({ currentSystem, systemParams });
     }
 
     /**
-     * Show the stiffness-B input only for systems that read it (the Stiff
-     * String model). Skips writing the value while the user is typing.
+     * Dials for the current system's tunable params. Dial instances are
+     * rebuilt only when the param list changes (system switch) — external
+     * updates (bridge, reload) sync through setValue, which doesn't echo,
+     * so an in-progress drag is never torn down under the pointer.
      */
-    renderStiffness({ currentSystem, stiffnessB }) {
-        const row = this.q('#stiffness-row');
-        const input = this.q('#stiffness-input');
-        if (!row || !input) return;
+    renderSystemParams({ currentSystem, systemParams }) {
+        const row = this.q('#system-params-row');
+        if (!row) return;
 
-        row.classList.toggle('hidden', !currentSystem?.stiffness);
-        if (document.activeElement !== input) {
-            input.value = stiffnessB ?? 0.001;
+        const keys = (currentSystem?.params || []).filter((k) => SYSTEM_PARAM_DIALS[k]);
+        row.classList.toggle('hidden', keys.length === 0);
+
+        const signature = keys.join(',');
+        if (this._paramSignature !== signature) {
+            this._paramSignature = signature;
+            this._paramDials = {};
+            row.innerHTML = '';
+            for (const key of keys) {
+                const def = SYSTEM_PARAM_DIALS[key];
+                const label = document.createElement('label');
+                label.className = 'start-harmonic-label';
+                label.textContent = def.label;
+                const dial = new Dial({
+                    min: 0, max: 1, step: 0.005, size: 26,
+                    value: def.toPosition(systemParams?.[key]),
+                    label: def.label,
+                    format: def.format,
+                    onChange: (t) => this.onParamChange?.(key, def.toValue(t)),
+                });
+                this._paramDials[key] = dial;
+                row.append(label, dial.el);
+            }
+            return;
+        }
+
+        for (const [key, dial] of Object.entries(this._paramDials || {})) {
+            const pos = SYSTEM_PARAM_DIALS[key].toPosition(systemParams?.[key]);
+            // Tolerance beats the dial step so a value that round-tripped
+            // through the taper doesn't jitter the knob mid-drag
+            if (Math.abs(pos - dial.value) > 0.004) dial.setValue(pos);
         }
     }
 
@@ -129,16 +182,6 @@ export class SpectralSystemComponent extends BaseComponent {
             startInput.addEventListener('change', this._startHarmonicHandler);
         }
 
-        const stiffnessInput = this.q('#stiffness-input');
-        if (stiffnessInput) {
-            if (this._stiffnessHandler) {
-                stiffnessInput.removeEventListener('change', this._stiffnessHandler);
-            }
-            this._stiffnessHandler = (e) => {
-                this.onStiffnessChange?.(parseFloat(e.target.value));
-            };
-            stiffnessInput.addEventListener('change', this._stiffnessHandler);
-        }
     }
 
 

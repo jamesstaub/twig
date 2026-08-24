@@ -178,7 +178,7 @@ export const spectralSystems = [
         name: "Stiff String (Piano Inharmonicity)",
         description:
             '<b>Physical model.</b> f<sub>n</sub> = n·√(1 + Bn²): string stiffness sharpens upper partials progressively — the reason pianos are stretch-tuned. Real midrange pianos measure B ≈ 0.0001–0.001; raise it for exaggerated bell-piano hybrids.',
-        stiffness: true, // shows the stiffness-B input when selected
+        params: ['stiffnessB'], // per-system dials (see SYSTEM_PARAM_DIALS)
         generate(start, { stiffnessB = DEFAULT_STIFFNESS_B } = {}) {
             const ratios = stiffString(stiffnessB, start, start + 11);
             return { ratios, labels: decimalLabels(ratios, 3) };
