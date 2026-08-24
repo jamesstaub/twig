@@ -17,6 +17,8 @@
  *   /twig/system [i index]        overtone system by index
  *   /twig/startharmonic [i n]     first partial of generative systems (1..64;
  *                                 measured/historical systems ignore it)
+ *   /twig/stiffness [f B]         stiff-string inharmonicity coefficient
+ *                                 (0..0.1; only the Stiff String system)
  *   /twig/waveform [s name]       oscillator: square|sine|triangle|sawtooth|custom_*
  *   /twig/subharmonic [i 0|1]     overtone/subharmonic mode
  *   /twig/play [i 0|1]            playback on/off
@@ -103,7 +105,7 @@ import {
 
 const COMMANDS = new Set([
     'drawbar', 'drawbars', 'gain', 'slew', 'note', 'freq',
-    'system', 'startharmonic', 'waveform', 'subharmonic', 'play', 'reset', 'randomize',
+    'system', 'startharmonic', 'stiffness', 'waveform', 'subharmonic', 'play', 'reset', 'randomize',
     'setdrawbarfundamental', 'gate', 'filter', 'res', 'drive', 'pan',
     'pulsemidi', 'pulseosc', 'midiclock',
     'seqshape', 'seqgain', 'seqfreq', 'seqres', 'seqstretch',
@@ -305,6 +307,10 @@ export class OscClient {
             case 'startharmonic':
                 // First partial of generative systems; action clamps 1..max
                 SpectralSystemActions.setStartHarmonic(Math.round(args[0]));
+                break;
+            case 'stiffness':
+                // Stiff-string inharmonicity B; action clamps 0..max
+                SpectralSystemActions.setStiffnessB(args[0]);
                 break;
             case 'waveform': {
                 // By name ("sine") or by index into the oscillator menu
@@ -561,6 +567,7 @@ export class OscClient {
             const { index } = e.detail || {};
             if (index !== undefined) this.emit('system', [index]);
             this.emit('startharmonic', [AppState.startHarmonic]);
+            this.emit('stiffness', [AppState.stiffnessB]);
             // Partial count/values can change with the system — resync all
             this.emit('drawbars', [...AppState.harmonicAmplitudes]);
         });

@@ -35,24 +35,23 @@
     <link rel="stylesheet" href="dist/styles-compiled.css">
 </head>
 
-<body class="app-container pt-(--navbar-height-tall) md:pt-(--navbar-height)">
+<body class="app-container">
     <!-- Fixed Top Navbar -->
-    <nav class="navbar top-0 left-0 right-0 fixed pr-22">
-        <div
-            class="flex flex-nowrap gap-3 px-8 py-4 justify-center md:justify-between h-(--navbar-height-tall) md:h-(--navbar-height)">
-            <div class="navbar-section flex basis-auto">
+    <nav class="navbar">
+        <div class="navbar-row">
+            <div class="navbar-section">
                 <!-- Play/Stop Toggle -->
-                <div class="play-toggle-container flex-grow flex-wrap items-center">
-                    <span id="play-label" class="toggle-label w-8 active">Play</span>
+                <div class="play-toggle-container">
+                    <span id="play-label" class="toggle-label active">Play</span>
                     <div id="play-toggle" class="toggle-switch" role="switch" aria-checked="false"
                         aria-label="Play/Stop control">
                     </div>
                 </div>
                 <!-- MIDI Mapping Button -->
-                <button id="open-midi-mapping-btn" class="action-btn ml-2"
+                <button id="open-midi-mapping-btn" class="action-btn midi-btn"
                     aria-label="Open MIDI Mapping Modal">MIDI</button>
                 <!-- Envelope Mode: Open (drone) vs ADSR (triggered) -->
-                <div class="envelope-mode-container flex items-center gap-2 ml-4">
+                <div class="envelope-mode-container">
                     <span id="env-open-label" class="toggle-label active">Open</span>
                     <div id="envelope-mode-toggle" class="toggle-switch" role="switch" aria-checked="false"
                         aria-label="Envelope mode: Open or ADSR"></div>
@@ -60,29 +59,28 @@
                 </div>
             </div>
 
-            <div
-                class="navbar-section center flex flex-wrap  gap-3  md:flex-nowrap basis-1/3 [0_1_auto] justify-center">
+            <div class="navbar-section center">
                 <!-- Master Gain Control -->
-                <div id="master-gain-slider-root" class="navbar-control-group px-2 py-2"></div>
-                <div id="master-slew-slider-root" class="navbar-control-group px-2 py-2"></div>
+                <div id="master-gain-slider-root" class="navbar-control-group"></div>
+                <div id="master-slew-slider-root" class="navbar-control-group"></div>
             </div>
         </div>
 
-        <div class="navbar-section logo absolute right-8">
-            <p class="text-lg font-semibold text-(--text-title)">twig</p>
+        <div class="navbar-section logo">
+            <p class="logo-text">twig</p>
         </div>
     </nav>
 
     <!-- Modal Root (for generic modal, always present, only one open at a time) -->
     <div id="modal-root"></div>
 
-    <div class="flex embed-flatten">
-        <div class="m-auto embed-flatten">
+    <div class="page-shell embed-flatten">
+        <div class="page-content embed-flatten">
             <!-- Main Controls -->
             <div class="control-card embed-flatten">
-                <div class="control-row flex flex-row gap-4 flex-wrap embed-flatten">
+                <div class="control-row embed-flatten">
                     <!-- Waveform Selector -->
-                    <div id="oscillator-control-root" class="labeled-control md:w-1/2 lg:w-1/2 w-full">
+                    <div id="oscillator-control-root" class="labeled-control col-half">
                         <label for="waveform-select">
                             Oscillator
                         </label>
@@ -98,13 +96,13 @@
                             <button type="button" class="action-btn select-step-btn" data-target="waveform-select"
                                 data-step="1" aria-label="Next oscillator">-&gt;</button>
                         </div>
-                        <div id="current-waveform-canvas-area" class="flex-1">
+                        <div id="current-waveform-canvas-area" class="canvas-flex-area">
                             <!-- P5 canvas injected here -->
                         </div>
                     </div>
 
                     <!-- Fundamental & Waveform Controls Row -->
-                    <div id="fundamental-control-root" class="labeled-control md:w-1/2 lg:w-1/2 w-full">
+                    <div id="fundamental-control-root" class="labeled-control col-half">
                         <label for="fundamental-input">
                             Fundamental Frequency
                             <span class="fundamental-input-group">
@@ -117,7 +115,7 @@
                         <div class="frequency-control-group">
                             <!-- Fundamental Frequency Control -->
                             <!-- Octave Controls -->
-                            <div class="octave-control flex justify-center items-center gap-6">
+                            <div class="octave-control">
 
 
                                 <button id="octave-down" class="action-btn btn-octave">&lt;-</button>
@@ -135,11 +133,10 @@
             </div>
 
             <div class="control-card embed-flatten">
-                <div class="control-row flex flex-wrap gap-4 embed-flatten">
-                    <div class="w-full xl:grid xl:grid-cols-2 xl:gap-6 flex flex-col md:flex-row md:gap-4 gap-4 embed-flatten">
+                <div class="control-row embed-flatten">
+                    <div class="system-result-row embed-flatten">
                         <!-- Overtone System (title + select) -->
-                        <div id="spectral-system-root"
-                            class="system-selector labeled-control flex flex-col gap-2 xl:col-span-1 w-full p-2 md:min-w-[24rem]">
+                        <div id="spectral-system-root" class="system-selector labeled-control">
                             <label for="ratio-system-select">
                                 Overtone System
                             </label>
@@ -152,17 +149,22 @@
                                 <button type="button" class="action-btn select-step-btn" data-target="ratio-system-select"
                                     data-step="1" aria-label="Next overtone system">-&gt;</button>
                             </div>
-                            <div id="start-harmonic-row" class="flex items-center gap-2 hidden">
-                                <label for="start-harmonic-input" class="text-xs whitespace-nowrap">Start harmonic</label>
-                                <input type="number" id="start-harmonic-input" class="fundamental-input w-20"
+                            <div id="start-harmonic-row" class="start-harmonic-row hidden">
+                                <label for="start-harmonic-input" class="start-harmonic-label">Start harmonic</label>
+                                <input type="number" id="start-harmonic-input" class="fundamental-input"
                                     value="1" min="1" max="64" step="1" autocomplete="off"
                                     aria-label="First partial of the overtone system">
                             </div>
-                            <div id="system-description" class="system-description text-xs/5 text-gray-400 py-2"></div>
+                            <div id="stiffness-row" class="start-harmonic-row hidden">
+                                <label for="stiffness-input" class="start-harmonic-label">Stiffness B</label>
+                                <input type="number" id="stiffness-input" class="fundamental-input"
+                                    value="0.001" min="0" max="0.1" step="0.0005" autocomplete="off"
+                                    aria-label="String stiffness inharmonicity coefficient">
+                            </div>
+                            <div id="system-description" class="system-description"></div>
                             <!-- Overtone controls for md/lg screens -->
-                            <div class="flex flex-col gap-2 md:mt-4">
-                                <div
-                                    class="subharmonic-toggle-container flex items-center justify-start gap-4 pt-2">
+                            <div class="overtone-controls">
+                                <div class="subharmonic-toggle-container">
                                     <span class="toggle-label overtone">Overtone
                                         <small class="toggle-sublabel">otonality</small></span>
                                     <div id="subharmonic-toggle" class="toggle-switch" role="switch"
@@ -178,22 +180,21 @@
                             <label>
                                 Wavetable
                             </label>
-                            <div class="control-row xl:col-span-1 w-full relative flex flex-col gap-4">
+                            <div class="result-row">
 
-                                <div id="waveform-canvas-area" class="flex-1">
+                                <div id="waveform-canvas-area" class="canvas-flex-area">
                                     <!-- P5 canvas injected here -->
                                 </div>
-                                <div class="flex items-stretch justify-end gap-4">
+                                <div class="result-actions">
                                     <button id="add-wave-button" type="button" role="button"
-                                        class="action-btn focus-ring mx-1"
+                                        class="action-btn focus-ring action-btn-spaced"
                                         aria-label="Reset drawbars">Create Oscillator</button>
 
                                     <div id="routing-control-root" class="download-group">
                                         <button id="export-wav-button" type="button" role="button"
-                                            class="action-btn focus-ring mx-1"
+                                            class="action-btn focus-ring action-btn-spaced"
                                             aria-label="Download wav">Download</button>
-                                        <div id="routing-mode-group"
-                                            class="routing-mode-group flex items-center gap-2 ml-2">
+                                        <div id="routing-mode-group" class="routing-mode-group">
                                             <select name="routing-mode" id="routing-mode-select" class="control-select">
                                                 <option value="mono" selected>Mono</option>
                                                 <option value="stereo">Stereo</option>
@@ -208,10 +209,10 @@
                         </div>
                     </div>
                 </div>
-                <div class="control-row grid grid-cols-1 lg:grid-cols-4 gap-4 embed-flatten">
+                <div class="drawbars-tonewheel-row embed-flatten">
 
                     <!-- Drawbars -->
-                    <div id="drawbars-control-root" class="labeled-control max-w-[55rem] col-span-3">
+                    <div id="drawbars-control-root" class="labeled-control">
                         <span>
                             Drawbars
                             <span id="drawbars-tabs" class="drawbars-tabs">
@@ -223,26 +224,25 @@
                         <div id="drawbars" class="drawbar-container">
                             <!-- Drawbars will be generated by JavaScript -->
                         </div>
-                        <div class="flex justify-center">
+                        <div class="drawbars-actions">
                             <button id="reset-drawbars-button" type="button" role="button"
-                                class="action-btn focus-ring mx-1"
+                                class="action-btn focus-ring action-btn-spaced"
                                 aria-label="Reset drawbars">Reset</button>
                             <button id="randomize-drawbars-button" type="button" role="button"
-                                class="action-btn focus-ring mx-1"
+                                class="action-btn focus-ring action-btn-spaced"
                                 aria-label="Randomize drawbars">Randomize</button>
 
                         </div>
                     </div>
 
                     <!-- Main Tonewheel Canvas -->
-                    <div id="tonewheel-container" class="canvas-container col-span-1">
+                    <div id="tonewheel-container">
                         <!-- Main tonewheel p5.js canvas will be injected here -->
                         <div class="controls-overlay">
                             <!-- Responsive Visualization Overlay Controls -->
-                            <div id="tonewheel-viz-controls"
-                                class="absolute top-2 right-2 md:top-4 md:right-4 z-10 bg-(--surface-deep)/70 rounded-xl p-2 md:p-3 shadow-lg flex flex-col gap-2 items-end w-auto max-w-xs md:max-w-sm opacity-0 pointer-events-none transition-opacity duration-500">
-                                <div id="spread-slider-root" class="flex items-center gap-2 w-full"></div>
-                                <div id="viz-freq-slider-root" class="flex items-center gap-2 w-full"></div>
+                            <div id="tonewheel-viz-controls" class="tonewheel-viz-controls">
+                                <div id="spread-slider-root" class="viz-slider-row"></div>
+                                <div id="viz-freq-slider-root" class="viz-slider-row"></div>
                             </div>
                         </div>
                     </div>

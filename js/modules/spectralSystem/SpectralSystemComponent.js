@@ -18,12 +18,13 @@ export class SpectralSystemComponent extends BaseComponent {
         this.onChange = null;
         this.onSubharmonicToggle = null;
         this.onStartHarmonicChange = null;
+        this.onStiffnessChange = null;
     }
 
     /**
      * Main render cycle: receives fresh props from BaseController.
      */
-    render({ systems, currentSystem, currentSystemIndex, isSubharmonic, startHarmonic }) {
+    render({ systems, currentSystem, currentSystemIndex, isSubharmonic, startHarmonic, stiffnessB }) {
         const selectEl = this.q('#ratio-system-select');
         const descriptionEl = this.q('#system-description');
 
@@ -48,17 +49,34 @@ export class SpectralSystemComponent extends BaseComponent {
         });
 
         this.renderStartHarmonic({ currentSystem, startHarmonic });
+        this.renderStiffness({ currentSystem, stiffnessB });
 
         // --- Subharmonic toggle ---
         this.renderSubharmonicToggle({ isSubharmonic });
     }
 
-    updateSelector({ currentSystemIndex, currentSystem, startHarmonic }) {
+    updateSelector({ currentSystemIndex, currentSystem, startHarmonic, stiffnessB }) {
         const selectEl = this.q('#ratio-system-select');
         if (!selectEl) return;
 
         if (currentSystemIndex >= 0) selectEl.value = currentSystemIndex;
         this.renderStartHarmonic({ currentSystem, startHarmonic });
+        this.renderStiffness({ currentSystem, stiffnessB });
+    }
+
+    /**
+     * Show the stiffness-B input only for systems that read it (the Stiff
+     * String model). Skips writing the value while the user is typing.
+     */
+    renderStiffness({ currentSystem, stiffnessB }) {
+        const row = this.q('#stiffness-row');
+        const input = this.q('#stiffness-input');
+        if (!row || !input) return;
+
+        row.classList.toggle('hidden', !currentSystem?.stiffness);
+        if (document.activeElement !== input) {
+            input.value = stiffnessB ?? 0.001;
+        }
     }
 
     /**
@@ -109,6 +127,17 @@ export class SpectralSystemComponent extends BaseComponent {
                 this.onStartHarmonicChange?.(parseInt(e.target.value, 10));
             };
             startInput.addEventListener('change', this._startHarmonicHandler);
+        }
+
+        const stiffnessInput = this.q('#stiffness-input');
+        if (stiffnessInput) {
+            if (this._stiffnessHandler) {
+                stiffnessInput.removeEventListener('change', this._stiffnessHandler);
+            }
+            this._stiffnessHandler = (e) => {
+                this.onStiffnessChange?.(parseFloat(e.target.value));
+            };
+            stiffnessInput.addEventListener('change', this._stiffnessHandler);
         }
     }
 

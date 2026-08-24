@@ -39,6 +39,7 @@ export class SpectralSystemController extends BaseController {
             currentSystem: AppState.currentSystem,
             currentSystemIndex: AppState.currentSystemIndex,
             startHarmonic: AppState.startHarmonic,
+            stiffnessB: AppState.stiffnessB,
             isSubharmonic: AppState.isSubharmonic
         };
     }
@@ -58,6 +59,10 @@ export class SpectralSystemController extends BaseController {
 
         this.component.onStartHarmonicChange = (startHarmonic) => {
             SpectralSystemActions.setStartHarmonic(startHarmonic);
+        };
+
+        this.component.onStiffnessChange = (stiffnessB) => {
+            SpectralSystemActions.setStiffnessB(stiffnessB);
         };
 
         if (typeof this.component.bindComponentEvents === 'function') {

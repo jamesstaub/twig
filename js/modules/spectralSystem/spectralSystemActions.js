@@ -1,5 +1,5 @@
 import { updateAudioProperties } from '../../audio.js';
-import { AppState, setCurrentSystem, START_HARMONIC_MAX, updateAppState } from '../../config.js';
+import { AppState, setCurrentSystem, START_HARMONIC_MAX, STIFFNESS_B_MAX, updateAppState } from '../../config.js';
 import { SPECTRAL_SYSTEM_CHANGED, SUBHARMONIC_TOGGLED } from '../../events.js';
 import { smoothUpdateSystem } from '../../utils.js';
 
@@ -39,13 +39,31 @@ export const SpectralSystemActions = {
         const startHarmonic = Math.min(START_HARMONIC_MAX, Math.max(1, Math.round(value) || 1));
         if (startHarmonic === AppState.startHarmonic) return;
         updateAppState({ startHarmonic });
+        this._regenerateSystem();
+    },
 
+    /**
+     * Stiff-string inharmonicity coefficient B (0 = pure harmonic series).
+     * Only the Stiff String system reads it; the value is kept so it's
+     * there when that system is selected.
+     */
+    setStiffnessB(value) {
+        const v = Number(value);
+        if (!isFinite(v)) return;
+        const stiffnessB = Math.min(STIFFNESS_B_MAX, Math.max(0, v));
+        if (stiffnessB === AppState.stiffnessB) return;
+        updateAppState({ stiffnessB });
+        this._regenerateSystem();
+    },
+
+    /** Rebuild the current system's ratios after a tunable-param change. */
+    _regenerateSystem() {
         const index = AppState.currentSystemIndex;
         setCurrentSystem(index);
         smoothUpdateSystem(index);
 
         document.dispatchEvent(new CustomEvent(SPECTRAL_SYSTEM_CHANGED, {
-            detail: { index, system: AppState.currentSystem, startHarmonic }
+            detail: { index, system: AppState.currentSystem }
         }));
     },
 

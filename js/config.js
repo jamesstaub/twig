@@ -48,6 +48,9 @@ export const DEFAULT_PARTIAL_START = 1;
 export const DEFAULT_PARTIAL_END = 12;
 // Upper bound for the start-harmonic control and OSC clamp
 export const START_HARMONIC_MAX = 64;
+// Stiff-string inharmonicity coefficient: default and control/OSC bounds
+export const DEFAULT_STIFFNESS_B = 0.001;
+export const STIFFNESS_B_MAX = 0.1;
 
 const PHI = (1 + Math.sqrt(5)) / 2;
 
@@ -174,9 +177,10 @@ export const spectralSystems = [
     generative({
         name: "Stiff String (Piano Inharmonicity)",
         description:
-            '<b>Physical model.</b> f<sub>n</sub> = n·√(1 + Bn²): string stiffness sharpens upper partials progressively — the reason pianos are stretch-tuned. B = 0.001 here sits at the audible top of real midrange pianos; raise B in config.js for exaggerated bell-piano hybrids.',
-        generate(start) {
-            const ratios = stiffString(0.001, start, start + 11);
+            '<b>Physical model.</b> f<sub>n</sub> = n·√(1 + Bn²): string stiffness sharpens upper partials progressively — the reason pianos are stretch-tuned. Real midrange pianos measure B ≈ 0.0001–0.001; raise it for exaggerated bell-piano hybrids.',
+        stiffness: true, // shows the stiffness-B input when selected
+        generate(start, { stiffnessB = DEFAULT_STIFFNESS_B } = {}) {
+            const ratios = stiffString(stiffnessB, start, start + 11);
             return { ratios, labels: decimalLabels(ratios, 3) };
         },
     }),
@@ -300,13 +304,14 @@ export const spectralSystems = [
 ]; // end export
 
 /**
- * The system at `index`, with its partial window shifted to startHarmonic
- * when the system is generative. Fixed-table systems ignore the start.
+ * The system at `index`, regenerated for the current tunable parameters:
+ * the start-harmonic window and any per-system options (stiffness B).
+ * Fixed-table systems pass through untouched.
  */
-export function systemWithStart(index, startHarmonic = 1) {
+export function systemWithStart(index, startHarmonic = 1, options = {}) {
     const base = spectralSystems[index];
-    if (!base?.generate || startHarmonic <= 1) return base;
-    return { ...base, ...base.generate(startHarmonic) };
+    if (!base?.generate) return base;
+    return { ...base, ...base.generate(startHarmonic, options) };
 }
 
 
@@ -358,6 +363,9 @@ export const AppState = {
     // First partial of generative systems (1..START_HARMONIC_MAX). Systems
     // without generate() (measured/historical tables) ignore it.
     startHarmonic: 1,
+    // Stiff-string inharmonicity coefficient (0..STIFFNESS_B_MAX); only the
+    // Stiff String system reads it
+    stiffnessB: DEFAULT_STIFFNESS_B,
     harmonicAmplitudes: (() => {
         const amplitudes = Array(NUM_HARMONICS).fill(0.0);
         amplitudes[0] = 1.0; // Fundamental enabled by default
@@ -430,7 +438,9 @@ export function getCurrentSystem() {
 
 export function setCurrentSystem(systemIndex) {
     AppState.currentSystemIndex = systemIndex;
-    AppState.currentSystem = systemWithStart(systemIndex, AppState.startHarmonic);
+    AppState.currentSystem = systemWithStart(systemIndex, AppState.startHarmonic, {
+        stiffnessB: AppState.stiffnessB,
+    });
 }
 
 export function getHarmonicAmplitude(index) {
