@@ -1,5 +1,13 @@
 import { updateAudioProperties } from '../../audio.js';
-import { AppState, setCurrentSystem, START_HARMONIC_MAX, STIFFNESS_B_MAX, updateAppState } from '../../config.js';
+import {
+    AppState,
+    COMPRESS_A_MAX, COMPRESS_A_MIN,
+    setCurrentSystem,
+    START_HARMONIC_MAX,
+    STIFFNESS_B_MAX,
+    STRETCH_A_MAX, STRETCH_A_MIN,
+    updateAppState,
+} from '../../config.js';
 import { SPECTRAL_SYSTEM_CHANGED, SUBHARMONIC_TOGGLED } from '../../events.js';
 import { smoothUpdateSystem } from '../../utils.js';
 
@@ -66,6 +74,25 @@ export const SpectralSystemActions = {
         const tubeClosedness = Math.min(1, Math.max(0, v));
         if (tubeClosedness === AppState.tubeClosedness) return;
         updateAppState({ tubeClosedness });
+        this._regenerateSystem();
+    },
+
+    /** Sethares pseudo-octave for the Stretched system (2..3). */
+    setStretchA(value) {
+        this._setClampedParam('stretchA', value, STRETCH_A_MIN, STRETCH_A_MAX);
+    },
+
+    /** Sethares pseudo-octave for the Compressed system (1.5..2). */
+    setCompressA(value) {
+        this._setClampedParam('compressA', value, COMPRESS_A_MIN, COMPRESS_A_MAX);
+    },
+
+    _setClampedParam(key, value, min, max) {
+        const v = Number(value);
+        if (!isFinite(v)) return;
+        const clamped = Math.min(max, Math.max(min, v));
+        if (clamped === AppState[key]) return;
+        updateAppState({ [key]: clamped });
         this._regenerateSystem();
     },
 

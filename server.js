@@ -54,7 +54,8 @@ const log = (msg) => (Max ? Max.post(msg) : console.log(msg));
 // fetches GET /state before its first render to bootstrap. The cache also
 // tracks upstream app gestures, so a jweb reload restores the latest state.
 const STATE_ORDER = [
-    'startharmonic', 'stiffness', 'closedness', 'system', 'waveform', 'subharmonic', 'note', 'freq',
+    'startharmonic', 'stiffness', 'closedness', 'stretch', 'compress',
+    'system', 'waveform', 'subharmonic', 'note', 'freq',
     'gain', 'slew', 'drawbars', 'drawbar', 'gate', 'filter', 'res', 'drive', 'pan',
     'adsr', 'seqshape', 'seqgain', 'seqfreq', 'seqres', 'seqstretch',
     'pulsemidi', 'pulseosc', 'midiclock', 'midiout', 'envmode', 'play'
@@ -180,7 +181,8 @@ if (Max) {
     //   [script send drawbars 0.1 0.2 …]   [script send waveform sine]
     const APP_COMMANDS = [
         'drawbar', 'drawbars', 'gain', 'slew', 'note', 'freq',
-        'system', 'startharmonic', 'stiffness', 'closedness', 'waveform', 'subharmonic', 'play', 'reset', 'randomize',
+        'system', 'startharmonic', 'stiffness', 'closedness', 'stretch', 'compress',
+        'waveform', 'subharmonic', 'play', 'reset', 'randomize',
         'setdrawbarfundamental', 'gate', 'filter', 'res', 'drive', 'pan',
         'seqshape', 'seqgain', 'seqfreq', 'seqres', 'seqstretch',
         'pulsemidi', 'pulseosc', 'midiclock', 'adsr', 'envmode', 'midiout'

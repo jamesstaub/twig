@@ -1,6 +1,10 @@
 import BaseComponent from "../base/BaseComponent.js";
 import { Dial } from "../generic/dial/Dial.js";
-import { DEFAULT_STIFFNESS_B, DEFAULT_TUBE_CLOSEDNESS, STIFFNESS_B_MAX } from "../../config.js";
+import {
+    COMPRESS_A_MAX, COMPRESS_A_MIN, DEFAULT_COMPRESS_A,
+    DEFAULT_STIFFNESS_B, DEFAULT_STRETCH_A, DEFAULT_TUBE_CLOSEDNESS,
+    STIFFNESS_B_MAX, STRETCH_A_MAX, STRETCH_A_MIN,
+} from "../../config.js";
 
 
 const RATIO_SYSTEM_SELECT_ID = '#ratio-system-select';
@@ -32,7 +36,19 @@ const SYSTEM_PARAM_DIALS = {
         toPosition: (v) => v ?? DEFAULT_TUBE_CLOSEDNESS,
         format: (t) => (t <= 0.0025 ? 'open' : t >= 0.9975 ? 'closed' : `${Math.round(t * 100)}%`),
     },
+    stretchA: linearParamDial('stretch', STRETCH_A_MIN, STRETCH_A_MAX, DEFAULT_STRETCH_A),
+    compressA: linearParamDial('compress', COMPRESS_A_MIN, COMPRESS_A_MAX, DEFAULT_COMPRESS_A),
 };
+
+/** Linear dial over [min, max] with an "A 2.10"-style pseudo-octave readout. */
+function linearParamDial(label, min, max, fallback) {
+    return {
+        label,
+        toValue: (t) => min + t * (max - min),
+        toPosition: (v) => ((v ?? fallback) - min) / (max - min),
+        format: (t) => `A ${(min + t * (max - min)).toFixed(2)}`,
+    };
+}
 
 export class SpectralSystemComponent extends BaseComponent {
     // Store reference to the click handler for proper removal

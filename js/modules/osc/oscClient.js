@@ -21,6 +21,8 @@
  *                                 (0..0.1; only the Stiff String system)
  *   /twig/closedness [f q]        acoustic-tube far-end boundary (0 = open-
  *                                 open, 1 = open-closed; Tube system only)
+ *   /twig/stretch [f A]           stretched-spectrum pseudo-octave (2..3)
+ *   /twig/compress [f A]          compressed-spectrum pseudo-octave (1.5..2)
  *   /twig/waveform [s name]       oscillator: square|sine|triangle|sawtooth|custom_*
  *   /twig/subharmonic [i 0|1]     overtone/subharmonic mode
  *   /twig/play [i 0|1]            playback on/off
@@ -107,7 +109,8 @@ import {
 
 const COMMANDS = new Set([
     'drawbar', 'drawbars', 'gain', 'slew', 'note', 'freq',
-    'system', 'startharmonic', 'stiffness', 'closedness', 'waveform', 'subharmonic', 'play', 'reset', 'randomize',
+    'system', 'startharmonic', 'stiffness', 'closedness', 'stretch', 'compress',
+    'waveform', 'subharmonic', 'play', 'reset', 'randomize',
     'setdrawbarfundamental', 'gate', 'filter', 'res', 'drive', 'pan',
     'pulsemidi', 'pulseosc', 'midiclock',
     'seqshape', 'seqgain', 'seqfreq', 'seqres', 'seqstretch',
@@ -317,6 +320,14 @@ export class OscClient {
             case 'closedness':
                 // Acoustic-tube far-end boundary; action clamps 0..1
                 SpectralSystemActions.setTubeClosedness(args[0]);
+                break;
+            case 'stretch':
+                // Stretched-spectrum pseudo-octave; action clamps 2..3
+                SpectralSystemActions.setStretchA(args[0]);
+                break;
+            case 'compress':
+                // Compressed-spectrum pseudo-octave; action clamps 1.5..2
+                SpectralSystemActions.setCompressA(args[0]);
                 break;
             case 'waveform': {
                 // By name ("sine") or by index into the oscillator menu
@@ -575,6 +586,8 @@ export class OscClient {
             this.emit('startharmonic', [AppState.startHarmonic]);
             this.emit('stiffness', [AppState.stiffnessB]);
             this.emit('closedness', [AppState.tubeClosedness]);
+            this.emit('stretch', [AppState.stretchA]);
+            this.emit('compress', [AppState.compressA]);
             // Partial count/values can change with the system — resync all
             this.emit('drawbars', [...AppState.harmonicAmplitudes]);
         });

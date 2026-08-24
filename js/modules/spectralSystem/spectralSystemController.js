@@ -42,6 +42,8 @@ export class SpectralSystemController extends BaseController {
             systemParams: {
                 stiffnessB: AppState.stiffnessB,
                 tubeClosedness: AppState.tubeClosedness,
+                stretchA: AppState.stretchA,
+                compressA: AppState.compressA,
             },
             isSubharmonic: AppState.isSubharmonic
         };
@@ -69,6 +71,8 @@ export class SpectralSystemController extends BaseController {
         const paramActions = {
             stiffnessB: (v) => SpectralSystemActions.setStiffnessB(v),
             tubeClosedness: (v) => SpectralSystemActions.setTubeClosedness(v),
+            stretchA: (v) => SpectralSystemActions.setStretchA(v),
+            compressA: (v) => SpectralSystemActions.setCompressA(v),
         };
         this.component.onParamChange = (key, value) => paramActions[key]?.(value);
 

@@ -53,6 +53,14 @@ export const DEFAULT_STIFFNESS_B = 0.001;
 export const STIFFNESS_B_MAX = 0.1;
 // Acoustic-tube far-end closedness (0 = open-open, 1 = open-closed)
 export const DEFAULT_TUBE_CLOSEDNESS = 1;
+// Sethares pseudo-octave factors: A = 2 is the harmonic series; the
+// stretched system dials above it, the compressed system below it
+export const DEFAULT_STRETCH_A = 2.1;
+export const STRETCH_A_MIN = 2;
+export const STRETCH_A_MAX = 3;
+export const DEFAULT_COMPRESS_A = 1.9;
+export const COMPRESS_A_MIN = 1.5;
+export const COMPRESS_A_MAX = 2;
 
 const PHI = (1 + Math.sqrt(5)) / 2;
 
@@ -171,21 +179,23 @@ export const spectralSystems = [
     }),
 
     generative({
-        name: "Stretched Spectrum (Sethares, A = 2.1)",
+        name: "Stretched Spectrum (Sethares)",
         description:
-            '<b>Designed, research-based.</b> Partial n falls at n<sup>log₂ 2.1</sup>, so the pseudo-octave is 2.1 — true octaves beat while the stretched octave stays pure. From Sethares’ <i>Tuning, Timbre, Spectrum, Scale</i>: a spectrum and the scale at its dissonance minima define each other. See <a href="https://sethares.engr.wisc.edu/consemi.html">Relating Tuning and Timbre</a> and <a href="https://en.xen.wiki/w/Xentimbre">xentimbre</a>.',
-        generate(start) {
-            const ratios = stretchedSpectrum(2.1, start, start + 11);
+            '<b>Designed, research-based.</b> Partial n falls at n<sup>log₂ A</sup> with the pseudo-octave A dialed above 2 — true octaves beat while the stretched octave stays pure. A = 2.1 is Sethares’ classic timbre from <i>Tuning, Timbre, Spectrum, Scale</i>: a spectrum and the scale at its dissonance minima define each other. See <a href="https://sethares.engr.wisc.edu/consemi.html">Relating Tuning and Timbre</a> and <a href="https://en.xen.wiki/w/Xentimbre">xentimbre</a>.',
+        params: ['stretchA'],
+        generate(start, { stretchA = DEFAULT_STRETCH_A } = {}) {
+            const ratios = stretchedSpectrum(stretchA, start, start + 11);
             return { ratios, labels: decimalLabels(ratios) };
         },
     }),
 
     generative({
-        name: "Compressed Spectrum (Sethares, A = 1.9)",
+        name: "Compressed Spectrum (Sethares)",
         description:
-            '<b>Designed, research-based.</b> The mirror of the stretched spectrum: partial n at n<sup>log₂ 1.9</sup>, pseudo-octave 1.9. Darker and more clustered than harmonic; its natural scale is compressed the same way.',
-        generate(start) {
-            const ratios = stretchedSpectrum(1.9, start, start + 11);
+            '<b>Designed, research-based.</b> The mirror of the stretched spectrum: partial n at n<sup>log₂ A</sup> with the pseudo-octave A dialed below 2. Darker and more clustered than harmonic; its natural scale is compressed the same way. A = 1.9 is the classic mirror of Sethares’ stretched timbre.',
+        params: ['compressA'],
+        generate(start, { compressA = DEFAULT_COMPRESS_A } = {}) {
+            const ratios = stretchedSpectrum(compressA, start, start + 11);
             return { ratios, labels: decimalLabels(ratios) };
         },
     }),
@@ -397,6 +407,9 @@ export const AppState = {
     stiffnessB: DEFAULT_STIFFNESS_B,
     // Acoustic-tube far-end closedness (0..1); only the Tube system reads it
     tubeClosedness: DEFAULT_TUBE_CLOSEDNESS,
+    // Sethares pseudo-octave factors; read by their respective systems
+    stretchA: DEFAULT_STRETCH_A,
+    compressA: DEFAULT_COMPRESS_A,
     harmonicAmplitudes: (() => {
         const amplitudes = Array(NUM_HARMONICS).fill(0.0);
         amplitudes[0] = 1.0; // Fundamental enabled by default
@@ -472,6 +485,8 @@ export function setCurrentSystem(systemIndex) {
     AppState.currentSystem = systemWithStart(systemIndex, AppState.startHarmonic, {
         stiffnessB: AppState.stiffnessB,
         tubeClosedness: AppState.tubeClosedness,
+        stretchA: AppState.stretchA,
+        compressA: AppState.compressA,
     });
 }
 
