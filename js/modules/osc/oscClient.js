@@ -19,6 +19,8 @@
  *                                 measured/historical systems ignore it)
  *   /twig/stiffness [f B]         stiff-string inharmonicity coefficient
  *                                 (0..0.1; only the Stiff String system)
+ *   /twig/closedness [f q]        acoustic-tube far-end boundary (0 = open-
+ *                                 open, 1 = open-closed; Tube system only)
  *   /twig/waveform [s name]       oscillator: square|sine|triangle|sawtooth|custom_*
  *   /twig/subharmonic [i 0|1]     overtone/subharmonic mode
  *   /twig/play [i 0|1]            playback on/off
@@ -105,7 +107,7 @@ import {
 
 const COMMANDS = new Set([
     'drawbar', 'drawbars', 'gain', 'slew', 'note', 'freq',
-    'system', 'startharmonic', 'stiffness', 'waveform', 'subharmonic', 'play', 'reset', 'randomize',
+    'system', 'startharmonic', 'stiffness', 'closedness', 'waveform', 'subharmonic', 'play', 'reset', 'randomize',
     'setdrawbarfundamental', 'gate', 'filter', 'res', 'drive', 'pan',
     'pulsemidi', 'pulseosc', 'midiclock',
     'seqshape', 'seqgain', 'seqfreq', 'seqres', 'seqstretch',
@@ -311,6 +313,10 @@ export class OscClient {
             case 'stiffness':
                 // Stiff-string inharmonicity B; action clamps 0..max
                 SpectralSystemActions.setStiffnessB(args[0]);
+                break;
+            case 'closedness':
+                // Acoustic-tube far-end boundary; action clamps 0..1
+                SpectralSystemActions.setTubeClosedness(args[0]);
                 break;
             case 'waveform': {
                 // By name ("sine") or by index into the oscillator menu
@@ -568,6 +574,7 @@ export class OscClient {
             if (index !== undefined) this.emit('system', [index]);
             this.emit('startharmonic', [AppState.startHarmonic]);
             this.emit('stiffness', [AppState.stiffnessB]);
+            this.emit('closedness', [AppState.tubeClosedness]);
             // Partial count/values can change with the system — resync all
             this.emit('drawbars', [...AppState.harmonicAmplitudes]);
         });

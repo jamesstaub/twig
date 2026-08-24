@@ -56,6 +56,19 @@ export const SpectralSystemActions = {
         this._regenerateSystem();
     },
 
+    /**
+     * Acoustic-tube far-end boundary: 0 = open-open (all harmonics),
+     * 1 = open-closed (odd harmonics). Only the Tube system reads it.
+     */
+    setTubeClosedness(value) {
+        const v = Number(value);
+        if (!isFinite(v)) return;
+        const tubeClosedness = Math.min(1, Math.max(0, v));
+        if (tubeClosedness === AppState.tubeClosedness) return;
+        updateAppState({ tubeClosedness });
+        this._regenerateSystem();
+    },
+
     /** Rebuild the current system's ratios after a tunable-param change. */
     _regenerateSystem() {
         const index = AppState.currentSystemIndex;

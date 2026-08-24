@@ -1,6 +1,6 @@
 import BaseComponent from "../base/BaseComponent.js";
 import { Dial } from "../generic/dial/Dial.js";
-import { DEFAULT_STIFFNESS_B, STIFFNESS_B_MAX } from "../../config.js";
+import { DEFAULT_STIFFNESS_B, DEFAULT_TUBE_CLOSEDNESS, STIFFNESS_B_MAX } from "../../config.js";
 
 
 const RATIO_SYSTEM_SELECT_ID = '#ratio-system-select';
@@ -24,6 +24,13 @@ const SYSTEM_PARAM_DIALS = {
             const b = STIFFNESS_B_MAX * t * t * t;
             return b < 1e-6 ? 'B 0' : `B ${b.toPrecision(2)}`;
         },
+    },
+    tubeClosedness: {
+        label: 'closed end',
+        // Linear — the whole open→closed sweep is equally musical
+        toValue: (t) => t,
+        toPosition: (v) => v ?? DEFAULT_TUBE_CLOSEDNESS,
+        format: (t) => (t <= 0.0025 ? 'open' : t >= 0.9975 ? 'closed' : `${Math.round(t * 100)}%`),
     },
 };
 

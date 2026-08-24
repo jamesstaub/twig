@@ -39,7 +39,10 @@ export class SpectralSystemController extends BaseController {
             currentSystem: AppState.currentSystem,
             currentSystemIndex: AppState.currentSystemIndex,
             startHarmonic: AppState.startHarmonic,
-            systemParams: { stiffnessB: AppState.stiffnessB },
+            systemParams: {
+                stiffnessB: AppState.stiffnessB,
+                tubeClosedness: AppState.tubeClosedness,
+            },
             isSubharmonic: AppState.isSubharmonic
         };
     }
@@ -63,9 +66,11 @@ export class SpectralSystemController extends BaseController {
 
         // Per-system param dials route by key so future params only need
         // an entry here and in SYSTEM_PARAM_DIALS
-        this.component.onParamChange = (key, value) => {
-            if (key === 'stiffnessB') SpectralSystemActions.setStiffnessB(value);
+        const paramActions = {
+            stiffnessB: (v) => SpectralSystemActions.setStiffnessB(v),
+            tubeClosedness: (v) => SpectralSystemActions.setTubeClosedness(v),
         };
+        this.component.onParamChange = (key, value) => paramActions[key]?.(value);
 
         if (typeof this.component.bindComponentEvents === 'function') {
             this.component.bindComponentEvents();

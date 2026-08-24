@@ -51,6 +51,8 @@ export const START_HARMONIC_MAX = 64;
 // Stiff-string inharmonicity coefficient: default and control/OSC bounds
 export const DEFAULT_STIFFNESS_B = 0.001;
 export const STIFFNESS_B_MAX = 0.1;
+// Acoustic-tube far-end closedness (0 = open-open, 1 = open-closed)
+export const DEFAULT_TUBE_CLOSEDNESS = 1;
 
 const PHI = (1 + Math.sqrt(5)) / 2;
 
@@ -94,6 +96,20 @@ function freeBar(start, end) {
     const kL = [4.7300408, 7.8532046, 10.9956078, 14.1371655, 17.2787597];
     while (kL.length < end) kL.push((2 * (kL.length + 1) + 1) * Math.PI / 2);
     return range(start, end).map(n => Math.pow(kL[n - 1] / kL[0], 2));
+}
+
+/**
+ * Standing-wave modes of an acoustic tube whose far-end boundary sweeps
+ * from open (q = 0: pressure node, f_n = nv/2L — all integer harmonics,
+ * the flute family) to closed (q = 1: pressure antinode, f_n = nv/4L odd
+ * multiples only — the clarinet family): mode n falls at n − q/2,
+ * normalized to mode 1. Between the endpoints the reflection phase of a
+ * partially stopped pipe slides even harmonics continuously into odd
+ * positions. v and L set absolute pitch, which twig's fundamental covers.
+ */
+function acousticTube(closedness, start, end) {
+    const f = (n) => n - closedness / 2;
+    return range(start, end).map(n => f(n) / f(1));
 }
 
 /**
@@ -301,6 +317,19 @@ export const spectralSystems = [
         labels: ["8′", "4′", "2⅔′", "2′", "1⅗′"]
     },
 
+    // Appended last: /twig/system addresses systems by index, so new
+    // systems must not renumber existing ones
+    generative({
+        name: "Acoustic Tube (Boundary Conditions)",
+        description:
+            '<b>Physical model.</b> Standing waves in a pipe: open at both ends (f<sub>n</sub> = nv/2L — every harmonic, the flute) or closed at one end (f<sub>n</sub> = nv/4L, odd harmonics only — the clarinet; the closed end forces a node). The dial sweeps the far-end boundary between them: a partially stopped pipe whose even modes slide continuously into the odd positions.',
+        params: ['tubeClosedness'],
+        generate(start, { tubeClosedness = DEFAULT_TUBE_CLOSEDNESS } = {}) {
+            const ratios = acousticTube(tubeClosedness, start, start + 11);
+            return { ratios, labels: decimalLabels(ratios) };
+        },
+    }),
+
 ]; // end export
 
 /**
@@ -366,6 +395,8 @@ export const AppState = {
     // Stiff-string inharmonicity coefficient (0..STIFFNESS_B_MAX); only the
     // Stiff String system reads it
     stiffnessB: DEFAULT_STIFFNESS_B,
+    // Acoustic-tube far-end closedness (0..1); only the Tube system reads it
+    tubeClosedness: DEFAULT_TUBE_CLOSEDNESS,
     harmonicAmplitudes: (() => {
         const amplitudes = Array(NUM_HARMONICS).fill(0.0);
         amplitudes[0] = 1.0; // Fundamental enabled by default
@@ -440,6 +471,7 @@ export function setCurrentSystem(systemIndex) {
     AppState.currentSystemIndex = systemIndex;
     AppState.currentSystem = systemWithStart(systemIndex, AppState.startHarmonic, {
         stiffnessB: AppState.stiffnessB,
+        tubeClosedness: AppState.tubeClosedness,
     });
 }
 
