@@ -366,6 +366,11 @@ export const DEFAULT_OCTAVE = 3;
 export const BASE_OCTAVE_MIDI = 48; // MIDI for C3
 
 export const WAVETABLE_SIZE = 4096; // Standard size for a PeriodicWave table
+// Signal source modes; order is the bridge index for /twig/source
+export const SOURCE_MODES = ['oscillators', 'adc', 'soundfile', 'pink', 'white'];
+// Per-overtone lowpass resonance applied when an external source is
+// selected, turning the voice bank into a resonant filter bank
+export const FILTER_BANK_Q = 30;
 // Partial count of the default system; systems may have more or fewer
 export const NUM_HARMONICS = spectralSystems[0].ratios.length;
 export const DEFAULT_MASTER_GAIN = 0.3;
@@ -395,6 +400,13 @@ export const AppState = {
     currentMidiNote: DEFAULT_MIDI_NOTE,
     currentOctave: DEFAULT_OCTAVE,
     isPlaying: false,
+
+    // Signal source: oscillator bank, or an external signal played through
+    // the per-voice chains as a resonant filter bank
+    sourceMode: 'oscillators', // see SOURCE_MODES
+    adcDeviceId: null,         // audio input device (null = system default)
+    adcChannel: 0,             // 0-based channel within the input stream
+    soundfileName: null,       // display only; the buffer lives in SourceManager
 
     // Spectral properties
     currentSystem: spectralSystems[0],

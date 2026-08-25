@@ -55,7 +55,7 @@ const log = (msg) => (Max ? Max.post(msg) : console.log(msg));
 // tracks upstream app gestures, so a jweb reload restores the latest state.
 const STATE_ORDER = [
     'startharmonic', 'stiffness', 'closedness', 'stretch', 'compress',
-    'system', 'waveform', 'subharmonic', 'note', 'freq',
+    'system', 'waveform', 'source', 'adcin', 'adcchannel', 'subharmonic', 'note', 'freq',
     'gain', 'slew', 'drawbars', 'drawbar', 'gate', 'filter', 'res', 'drive', 'pan',
     'adsr', 'seqshape', 'seqgain', 'seqfreq', 'seqres', 'seqstretch',
     'pulsemidi', 'pulseosc', 'midiclock', 'midiout', 'envmode', 'play'
@@ -182,7 +182,7 @@ if (Max) {
     const APP_COMMANDS = [
         'drawbar', 'drawbars', 'gain', 'slew', 'note', 'freq',
         'system', 'startharmonic', 'stiffness', 'closedness', 'stretch', 'compress',
-        'waveform', 'subharmonic', 'play', 'reset', 'randomize',
+        'waveform', 'source', 'adcin', 'adcchannel', 'subharmonic', 'play', 'reset', 'randomize',
         'setdrawbarfundamental', 'gate', 'filter', 'res', 'drive', 'pan',
         'seqshape', 'seqgain', 'seqfreq', 'seqres', 'seqstretch',
         'pulsemidi', 'pulseosc', 'midiclock', 'adsr', 'envmode', 'midiout'

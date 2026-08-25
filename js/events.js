@@ -13,4 +13,4 @@ export const MASTER_SLEW_CHANGED = 'master-slew-changed';
 export const OVERTONE_SIGNAL_CHANGED = 'overtone-signal-changed';
 export const ENVELOPE_MODE_CHANGED = 'envelope-mode-changed';
 export const MIDI_OUTPUT_CHANGED = 'midi-output-changed';
-export const PULSE = 'overtone-pulse';
+export const PULSE = 'overtone-pulse';export const SOURCE_CHANGED = 'source-changed';

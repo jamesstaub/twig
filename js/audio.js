@@ -14,6 +14,7 @@ import { AppState, ENVELOPE_DEFAULTS, midiConfig, updateAppState, WAVETABLE_SIZE
 import { calculateFrequency, generateFilenameParts, getVoicePan } from './utils.js';
 
 import { AudioEngine, WavetableManager, WAVExporter, WaveformGenerator } from './dsp/index.js';
+import { sourceManager } from './dsp/SourceManager.js';
 import { midiOutputRouter } from './modules/midi/midiOutputRouter.js';
 import {
     buildSpectrum,
@@ -196,16 +197,23 @@ export async function startTone() {
 }
 
 /**
- * Create, start, and register the oscillator for partial `i` at `gain`.
+ * Create, start, and register the voice for partial `i` at `gain` — an
+ * oscillator, or a tap on the shared external source when one is passed.
  * Used at tone start and when a system switch adds partials mid-playback.
  */
 function createHarmonicOscillator(i, ratio, gain) {
+    // In an external source mode, every voice taps the shared source node
+    // (also covers voices created mid-playback by a system switch)
+    const source = AppState.sourceMode !== 'oscillators' ? sourceManager.node : null;
     const frequency = calculateFrequency(ratio);
     const waveform = resolveWaveform(AppState.currentWaveform);
-    const frequencyCorrection = getFrequencyCorrection(AppState.currentWaveform);
+    // External-source voices skip period correction — there is no packed
+    // wavetable playing; frequency only tunes the filter and gate clock
+    const frequencyCorrection = source ? 1 : getFrequencyCorrection(AppState.currentWaveform);
     const correctedFrequency = frequency * frequencyCorrection;
 
     const oscData = audioEngine.createOscillator(correctedFrequency, waveform, gain, {
+        source,
         pan: getVoicePan(i),
         gate: AppState.oscillatorGates[i],
         drive: AppState.oscillatorDrives[i] || 0,
@@ -232,6 +240,21 @@ function createHarmonicOscillator(i, ratio, gain) {
 async function startToneWithOscillators() {
     // Clear any existing oscillators
     AppState.oscillators = [];
+
+    // External source modes: one shared node feeds every voice chain in
+    // place of its oscillator (see SourceManager). Voices keep their
+    // frequency identity for the pitch-tracked filters and gate clocks.
+    if (AppState.sourceMode !== 'oscillators') {
+        try {
+            await sourceManager.prepare(AppState.audioContext, AppState.sourceMode, {
+                deviceId: AppState.adcDeviceId,
+                channel: AppState.adcChannel,
+            });
+        } catch (error) {
+            console.error(`Source '${AppState.sourceMode}' unavailable:`, error);
+            showStatus(`Source unavailable (${error.message}) — using oscillators`, 'warning');
+        }
+    }
 
     const numPartials = AppState.currentSystem.ratios.length;
     for (let i = 0; i < AppState.harmonicAmplitudes.length; i++) {
@@ -266,6 +289,7 @@ export function stopTone() {
 
     // Stop individual oscillators
     audioEngine.stopAllOscillators();
+    sourceManager.dispose();
 
     midiOutputRouter.sendTransportStop();
 

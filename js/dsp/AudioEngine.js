@@ -128,25 +128,38 @@ export class AudioEngine {
             throw new Error("AudioEngine must be initialized before creating oscillators");
         }
 
-        const oscillator = this.context.createOscillator();
+        // External-source voice: options.source (a shared AudioNode) feeds
+        // the chain through a per-voice tap instead of an oscillator. The
+        // voice keeps its frequency identity — the gate worklet and the
+        // pitch-tracking lowpass still use it, so an external signal plays
+        // through a filter bank tuned to the overtone series.
+        let oscillator = null;
+        let sourceTap = null;
         const gainNode = this.context.createGain();
 
-        // Set frequency
-        oscillator.frequency.setValueAtTime(frequency, this.context.currentTime);
-
-        // Set waveform
-        if (typeof waveform === 'string') {
-            if (waveform === 'sine') {
-                oscillator.type = 'sine';
-            } else if (this.standardWaveforms.has(waveform)) {
-                oscillator.setPeriodicWave(this.standardWaveforms.get(waveform));
-            } else {
-                throw new Error(`Unknown waveform type: ${waveform}`);
-            }
-        } else if (waveform instanceof PeriodicWave) {
-            oscillator.setPeriodicWave(waveform);
+        if (options.source) {
+            sourceTap = this.context.createGain();
+            options.source.connect(sourceTap);
         } else {
-            throw new Error("Waveform must be a string or PeriodicWave");
+            oscillator = this.context.createOscillator();
+
+            // Set frequency
+            oscillator.frequency.setValueAtTime(frequency, this.context.currentTime);
+
+            // Set waveform
+            if (typeof waveform === 'string') {
+                if (waveform === 'sine') {
+                    oscillator.type = 'sine';
+                } else if (this.standardWaveforms.has(waveform)) {
+                    oscillator.setPeriodicWave(this.standardWaveforms.get(waveform));
+                } else {
+                    throw new Error(`Unknown waveform type: ${waveform}`);
+                }
+            } else if (waveform instanceof PeriodicWave) {
+                oscillator.setPeriodicWave(waveform);
+            } else {
+                throw new Error("Waveform must be a string or PeriodicWave");
+            }
         }
 
         // Set gain
@@ -198,7 +211,7 @@ export class AudioEngine {
         panner.pan.setValueAtTime(options.pan ?? 0, this.context.currentTime);
 
         // osc → env → gain → [gate] → drive → lowpass → pan → bus
-        oscillator.connect(envNode);
+        (oscillator || sourceTap).connect(envNode);
         envNode.connect(gainNode);
         if (gateNode) {
             gainNode.connect(gateNode);
@@ -214,7 +227,7 @@ export class AudioEngine {
         filterNode.connect(panner);
         panner.connect(this.compressor);
 
-        return { oscillator, envNode, gainNode, gateNode, driveNode, filterNode, panner, meter };
+        return { oscillator, sourceTap, sourceNode: options.source || null, envNode, gainNode, gateNode, driveNode, filterNode, panner, meter };
     }
 
     /**
@@ -394,12 +407,17 @@ export class AudioEngine {
                 // Oscillator may already be stopped
             }
         }
+        // The shared external source outlives voices — unhook this voice's
+        // tap from it so the tap subgraph can be collected
+        if (oscData.sourceNode && oscData.sourceTap) {
+            try { oscData.sourceNode.disconnect(oscData.sourceTap); } catch { /* already disconnected */ }
+        }
         // Worklet processors are kept alive while process() returns true —
         // tell them to die, then unhook the chain so it can be collected
         if (oscData.gateNode) {
             oscData.gateNode.port.postMessage('stop');
         }
-        for (const node of [oscData.envNode, oscData.gainNode, oscData.gateNode, oscData.driveNode, oscData.filterNode, oscData.panner, oscData.meter]) {
+        for (const node of [oscData.sourceTap, oscData.envNode, oscData.gainNode, oscData.gateNode, oscData.driveNode, oscData.filterNode, oscData.panner, oscData.meter]) {
             try { node?.disconnect(); } catch { /* already disconnected */ }
         }
     }
@@ -416,8 +434,9 @@ export class AudioEngine {
         const existing = this.oscillators.get(key);
         if (existing) this.teardownVoice(existing);
 
-        // Start the oscillator
-        oscData.oscillator.start(this.context.currentTime);
+        // Start the oscillator (external-source voices have none — the
+        // shared source is already running)
+        oscData.oscillator?.start(this.context.currentTime);
 
         // Cycle pulses from the gate worklet → whoever registered onPulse
         // (the pulse bus). Set up here so every voice reports under its key.
@@ -449,13 +468,13 @@ export class AudioEngine {
      */
     updateOscillatorFrequency(key, frequency, rampTime = 0.02) {
         const oscData = this.oscillators.get(key);
-        if (oscData && oscData.oscillator) {
-            const now = this.context.currentTime;
-            oscData.oscillator.frequency.setTargetAtTime(frequency, now, rampTime / 3);
-            // Keep the cycle gate's clock in step with the oscillator
-            if (oscData.gateNode) {
-                oscData.gateNode.parameters.get('frequency').setTargetAtTime(frequency, now, rampTime / 3);
-            }
+        if (!oscData) return;
+        const now = this.context.currentTime;
+        // External-source voices have no oscillator but keep their frequency
+        // identity — the gate clock (and the caller's filter retune) follow it
+        oscData.oscillator?.frequency.setTargetAtTime(frequency, now, rampTime / 3);
+        if (oscData.gateNode) {
+            oscData.gateNode.parameters.get('frequency').setTargetAtTime(frequency, now, rampTime / 3);
         }
     }
 

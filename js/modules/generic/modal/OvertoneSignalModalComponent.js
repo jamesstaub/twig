@@ -62,7 +62,11 @@ export default class OvertoneSignalModalComponent extends ModalComponent {
 
         const sections = document.createElement('div');
         sections.className = 'signal-modal-sections';
-        sections.append(this.buildGateSection(index), side, this.buildEnvelopeSection(index), this.buildPulseSection(index));
+        // External source modes have no oscillator cycles — no sequencer
+        if (AppState.sourceMode === 'oscillators') {
+            sections.append(this.buildGateSection(index));
+        }
+        sections.append(side, this.buildEnvelopeSection(index), this.buildPulseSection(index));
         root.appendChild(sections);
 
         return root;

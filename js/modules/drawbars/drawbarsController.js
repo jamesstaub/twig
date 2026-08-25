@@ -7,6 +7,7 @@ import {
     DRAWBARS_RANDOMIZED,
     DRAWBARS_RESET,
     OVERTONE_SIGNAL_CHANGED,
+    SOURCE_CHANGED,
     SPECTRAL_SYSTEM_CHANGED,
     SUBHARMONIC_TOGGLED
 } from "../../events.js";
@@ -86,6 +87,21 @@ export class DrawbarsController extends BaseController {
                 this.update();
             });
         });
+
+        // External source modes have no oscillator cycles to sequence —
+        // hide the sequence view (and leave it if it's active). Applied
+        // once at init too: the bridge bootstrap replays state before
+        // controllers bind, so the event alone can be missed.
+        const applySourceGating = () => {
+            const seqTab = document.querySelector('#drawbars-tabs [data-view="sequence"]');
+            const external = AppState.sourceMode !== 'oscillators';
+            seqTab?.classList.toggle('hidden', external);
+            if (external && this.component.view === 'sequence') {
+                document.querySelector('#drawbars-tabs [data-view="gain"]')?.click();
+            }
+        };
+        document.addEventListener(SOURCE_CHANGED, applySourceGating);
+        applySourceGating();
     }
 
 

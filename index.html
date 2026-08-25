@@ -79,12 +79,29 @@
             <!-- Main Controls -->
             <div class="control-card embed-flatten">
                 <div class="control-row embed-flatten">
-                    <!-- Waveform Selector -->
+                    <!-- Signal source: oscillator bank or an external signal
+                         through the resonant filter bank. Drop a sound file
+                         anywhere on this section to load it. -->
                     <div id="oscillator-control-root" class="labeled-control col-half">
-                        <label for="waveform-select">
-                            Oscillator
+                        <label for="source-mode-select">
+                            Source
                         </label>
-                        <div class="select-stepper">
+                        <select id="source-mode-select" class="control-select" aria-label="Signal source">
+                            <option value="oscillators">Oscillators</option>
+                            <option value="adc">Audio In (ADC)</option>
+                            <option value="soundfile">Sound File</option>
+                            <option value="pink">Pink Noise</option>
+                            <option value="white">White Noise</option>
+                        </select>
+                        <div id="source-adc-controls" class="start-harmonic-row hidden">
+                            <select id="adc-device-select" class="control-select" aria-label="Audio input device"></select>
+                            <select id="adc-channel-select" class="control-select" aria-label="Audio input channel"></select>
+                        </div>
+                        <div id="source-file-controls" class="start-harmonic-row hidden">
+                            <input type="file" id="soundfile-input" accept="audio/*" aria-label="Sound file">
+                            <span id="soundfile-name" class="start-harmonic-label"></span>
+                        </div>
+                        <div id="oscillator-picker" class="select-stepper">
                             <button type="button" class="action-btn select-step-btn" data-target="waveform-select"
                                 data-step="-1" aria-label="Previous oscillator">&lt;-</button>
                             <select id="waveform-select" class="control-select">

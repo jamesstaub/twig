@@ -23,6 +23,10 @@
  *                                 open, 1 = open-closed; Tube system only)
  *   /twig/stretch [f A]           stretched-spectrum pseudo-octave (2..3)
  *   /twig/compress [f A]          compressed-spectrum pseudo-octave (1.5..2)
+ *   /twig/source [i|s mode]       signal source: 0 oscillators, 1 adc,
+ *                                 2 soundfile, 3 pink, 4 white (or by name)
+ *   /twig/adcin [id|index|label]  ADC input device ('' = system default)
+ *   /twig/adcchannel [i ch]       ADC input channel (0-based)
  *   /twig/waveform [s name]       oscillator: square|sine|triangle|sawtooth|custom_*
  *   /twig/subharmonic [i 0|1]     overtone/subharmonic mode
  *   /twig/play [i 0|1]            playback on/off
@@ -80,7 +84,8 @@
  * Live-native parameters. Inbound applications are not re-emitted.
  */
 
-import { AppState, midiConfig, updateAppState } from "../../config.js";
+import { AppState, midiConfig, SOURCE_MODES, updateAppState } from "../../config.js";
+import { SourceActions } from "../source/sourceActions.js";
 import { updateHarmonicPulse } from "../../audio.js";
 import { updateMidiOutputPort } from "../midi/midiConfigActions.js";
 import { showStatus } from "../../domUtils.js";
@@ -104,13 +109,14 @@ import {
     MASTER_SLEW_CHANGED,
     OVERTONE_SIGNAL_CHANGED,
     ENVELOPE_MODE_CHANGED,
-    MIDI_OUTPUT_CHANGED
+    MIDI_OUTPUT_CHANGED,
+    SOURCE_CHANGED
 } from "../../events.js";
 
 const COMMANDS = new Set([
     'drawbar', 'drawbars', 'gain', 'slew', 'note', 'freq',
     'system', 'startharmonic', 'stiffness', 'closedness', 'stretch', 'compress',
-    'waveform', 'subharmonic', 'play', 'reset', 'randomize',
+    'waveform', 'source', 'adcin', 'adcchannel', 'subharmonic', 'play', 'reset', 'randomize',
     'setdrawbarfundamental', 'gate', 'filter', 'res', 'drive', 'pan',
     'pulsemidi', 'pulseosc', 'midiclock',
     'seqshape', 'seqgain', 'seqfreq', 'seqres', 'seqstretch',
@@ -328,6 +334,18 @@ export class OscClient {
             case 'compress':
                 // Compressed-spectrum pseudo-octave; action clamps 1.5..2
                 SpectralSystemActions.setCompressA(args[0]);
+                break;
+            case 'source':
+                // Signal source by SOURCE_MODES index or name; soundfile is
+                // refused until a file has been loaded in the browser
+                SourceActions.setSourceMode(typeof args[0] === 'number' ? Math.round(args[0]) : args[0]);
+                break;
+            case 'adcin':
+                // Audio input device: exact id, 0-based index, or label
+                SourceActions.setAdcDevice(args[0]);
+                break;
+            case 'adcchannel':
+                SourceActions.setAdcChannel(args[0]);
                 break;
             case 'waveform': {
                 // By name ("sine") or by index into the oscillator menu
@@ -590,6 +608,11 @@ export class OscClient {
             this.emit('compress', [AppState.compressA]);
             // Partial count/values can change with the system — resync all
             this.emit('drawbars', [...AppState.harmonicAmplitudes]);
+        });
+        document.addEventListener(SOURCE_CHANGED, () => {
+            this.emit('source', [SOURCE_MODES.indexOf(AppState.sourceMode)]);
+            this.emit('adcin', [AppState.adcDeviceId ?? '']);
+            this.emit('adcchannel', [AppState.adcChannel]);
         });
         // Bulk amplitude changes: emit the full set so Max multisliders track
         document.addEventListener(DRAWBARS_RESET, () => {

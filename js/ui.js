@@ -27,6 +27,7 @@ import { initLinkAll } from './modules/generic/linkAll.js';
 import { pulseBus } from './modules/pulse/pulseBus.js';
 import { midiOutputRouter } from './modules/midi/midiOutputRouter.js';
 import { setPulseHandler } from './audio.js';
+import { SourceController } from './modules/source/sourceController.js';
 // ================================
 // INITIALIZATION
 // ================================
@@ -245,6 +246,9 @@ export function updateSystemDescription() {
 // ================================
 
 function setupWaveformSelector() {
+    const sourceController = new SourceController('#oscillator-control-root');
+    sourceController.init();
+
     const waveformSelectorController = new WaveformSelectorController('#waveform-select');
     waveformSelectorController.init();
 }
