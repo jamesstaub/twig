@@ -4,6 +4,7 @@ import { DownloadControlActions } from "./downloadControlActions.js";
 import { AppState } from "../../config.js";
 import { ROUTING_MODE_CHANGED } from "../../events.js";
 import { handleAddToWaveforms } from "../waveform/waveformActions.js";
+import { ConvolutionActions } from "../convolution/convolutionActions.js";
 
 export class DownloadControlController extends BaseController {
     createComponent(selector) {
@@ -33,6 +34,10 @@ export class DownloadControlController extends BaseController {
             // affects WAV export
             handleAddToWaveforms(this.getProps().isSubharmonic);
         };
+
+        document.getElementById('create-ir-button')?.addEventListener('click', () => {
+            ConvolutionActions.createIRFromCurrent();
+        });
     }
 
     bindExternalEvents() {

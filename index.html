@@ -202,6 +202,9 @@
                                     <button id="add-wave-button" type="button" role="button"
                                         class="action-btn focus-ring action-btn-spaced"
                                         aria-label="Reset drawbars">Create Oscillator</button>
+                                    <button id="create-ir-button" type="button" role="button"
+                                        class="action-btn focus-ring action-btn-spaced"
+                                        aria-label="Create convolution impulse response">Create IR</button>
 
                                     <div id="routing-control-root" class="download-group">
                                         <button id="export-wav-button" type="button" role="button"
@@ -232,6 +235,8 @@
                                 <button type="button" class="drawbars-tab active" data-view="gain">gain</button>
                                 <button type="button" class="drawbars-tab" data-view="filter">filter</button>
                                 <button type="button" class="drawbars-tab" data-view="sequence">sequence</button>
+                                <button type="button" class="drawbars-tab" data-view="convolution">convolution</button>
+                                <select id="conv-ir-select" class="control-select hidden" aria-label="Convolution impulse response"></select>
                             </span>
                         </span>
                         <div id="drawbars" class="drawbar-container">

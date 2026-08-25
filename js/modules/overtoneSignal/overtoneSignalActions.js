@@ -1,5 +1,5 @@
 import { AppState, ENVELOPE_DEFAULTS, midiConfig } from "../../config.js";
-import { updateHarmonicGate, updateHarmonicFilter, updateHarmonicDrive, updateHarmonicPan, updateHarmonicPulse, updateHarmonicSequencer, updateAllHarmonicEnvelopeModes, MAX_FILTER_PARTIALS } from "../../audio.js";
+import { updateHarmonicGate, updateHarmonicFilter, updateHarmonicDrive, updateHarmonicConvolution, updateHarmonicPan, updateHarmonicPulse, updateHarmonicSequencer, updateAllHarmonicEnvelopeModes, MAX_FILTER_PARTIALS } from "../../audio.js";
 import { getVoicePan } from "../../utils.js";
 import { OVERTONE_SIGNAL_CHANGED, ENVELOPE_MODE_CHANGED } from "../../events.js";
 
@@ -13,13 +13,17 @@ import { OVERTONE_SIGNAL_CHANGED, ENVELOPE_MODE_CHANGED } from "../../events.js"
 // and the OSC clamp — one number, three surfaces.
 export const Q_MAX = 40;
 
-// Overdrive ceiling (500%), shared the same way. 1 = full tanh saturation,
+// Overdrive ceiling (250%), shared the same way. 1 = full tanh saturation,
 // beyond that the curve hardens toward a clipper.
-export const DRIVE_MAX = 5;
+export const DRIVE_MAX = 2.5;
 
 // ADSR time ceilings in seconds (sustain is 0-1), shared by the modal
 // dials and the OSC clamp.
 export const ENV_TIME_MAX = { a: 2, d: 2, r: 5 };
+
+// Convolution feedback ceiling (a loop gain of 1 would run away), shared
+// by the convolution view dial and the OSC clamp.
+export const CONV_FEEDBACK_MAX = 0.99;
 
 export const OvertoneSignalActions = {
 
@@ -56,6 +60,22 @@ export const OvertoneSignalActions = {
         AppState.oscillatorDrives[index] = Math.max(0, Math.min(DRIVE_MAX, Number(amount) || 0));
         updateHarmonicDrive(index);
         this._changed(index, 'drive');
+    },
+
+    /** Convolution send: { wet 0-1, feedback 0-CONV_FEEDBACK_MAX, gain -1..1 }. */
+    getConvolution(index) {
+        return { wet: 0, feedback: 0, gain: 1, ...AppState.oscillatorConvolutions[index] };
+    },
+
+    setConvolution(index, patch) {
+        const merged = { ...this.getConvolution(index), ...patch };
+        AppState.oscillatorConvolutions[index] = {
+            wet: Math.max(0, Math.min(1, Number(merged.wet) || 0)),
+            feedback: Math.max(0, Math.min(CONV_FEEDBACK_MAX, Number(merged.feedback) || 0)),
+            gain: Math.max(-1, Math.min(1, isFinite(Number(merged.gain)) ? Number(merged.gain) : 1)),
+        };
+        updateHarmonicConvolution(index);
+        this._changed(index, 'conv');
     },
 
     /** Per-overtone ADSR: { a, d, r } seconds, { s } 0-1. */

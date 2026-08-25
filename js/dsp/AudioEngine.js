@@ -206,11 +206,29 @@ export class AudioEngine {
         meter.fftSize = 256;
         filterNode.connect(meter);
 
+        // Per-voice convolution stage after the lowpass — created for every
+        // voice so it can be enabled mid-playback without rewiring. "Off" is
+        // passthrough: dry 1, wet 0, no IR buffer (a bufferless convolver is
+        // silent). Wet path: convolver → convGain (±1, negative inverts) →
+        // convWet (mix); feedback: convGain → convFb (0..0.99) → convolver.
+        const conv = options.convolution || {};
+        const convolver = this.context.createConvolver();
+        convolver.normalize = true;
+        if (conv.buffer) convolver.buffer = conv.buffer;
+        const convDry = this.context.createGain();
+        const convWet = this.context.createGain();
+        const convGain = this.context.createGain();
+        const convFb = this.context.createGain();
+        convDry.gain.setValueAtTime(1 - (conv.wet ?? 0), this.context.currentTime);
+        convWet.gain.setValueAtTime(conv.wet ?? 0, this.context.currentTime);
+        convGain.gain.setValueAtTime(conv.gain ?? 1, this.context.currentTime);
+        convFb.gain.setValueAtTime(conv.feedback ?? 0, this.context.currentTime);
+
         // Always stereo: use StereoPannerNode per oscillator
         const panner = this.context.createStereoPanner();
         panner.pan.setValueAtTime(options.pan ?? 0, this.context.currentTime);
 
-        // osc → env → gain → [gate] → drive → lowpass → pan → bus
+        // osc → env → gain → [gate] → drive → lowpass → convolution → pan → bus
         (oscillator || sourceTap).connect(envNode);
         envNode.connect(gainNode);
         if (gateNode) {
@@ -224,10 +242,42 @@ export class AudioEngine {
             gainNode.connect(driveNode);
         }
         driveNode.connect(filterNode);
-        filterNode.connect(panner);
+        filterNode.connect(convDry);
+        convDry.connect(panner);
+        filterNode.connect(convolver);
+        convolver.connect(convGain);
+        convGain.connect(convWet);
+        convWet.connect(panner);
+        convGain.connect(convFb);
+        convFb.connect(convolver);
         panner.connect(this.compressor);
 
-        return { oscillator, sourceTap, sourceNode: options.source || null, envNode, gainNode, gateNode, driveNode, filterNode, panner, meter };
+        return {
+            oscillator, sourceTap, sourceNode: options.source || null,
+            envNode, gainNode, gateNode, driveNode, filterNode,
+            convolver, convDry, convWet, convGain, convFb,
+            panner, meter,
+        };
+    }
+
+    /**
+     * Update a running voice's convolution stage. `buffer` (an AudioBuffer
+     * or null) swaps the IR; gains ramp to avoid zipper noise.
+     */
+    updateOscillatorConvolution(key, { wet, feedback, gain, buffer } = {}, rampTime = 0.02) {
+        const oscData = this.oscillators.get(key);
+        if (!oscData || !oscData.convolver) return;
+        const now = this.context.currentTime;
+        const tau = rampTime / 3;
+        if (wet !== undefined) {
+            oscData.convDry.gain.setTargetAtTime(1 - wet, now, tau);
+            oscData.convWet.gain.setTargetAtTime(wet, now, tau);
+        }
+        if (feedback !== undefined) oscData.convFb.gain.setTargetAtTime(feedback, now, tau);
+        if (gain !== undefined) oscData.convGain.gain.setTargetAtTime(gain, now, tau);
+        if (buffer !== undefined && oscData.convolver.buffer !== buffer) {
+            oscData.convolver.buffer = buffer;
+        }
     }
 
     /**
@@ -417,7 +467,11 @@ export class AudioEngine {
         if (oscData.gateNode) {
             oscData.gateNode.port.postMessage('stop');
         }
-        for (const node of [oscData.sourceTap, oscData.envNode, oscData.gainNode, oscData.gateNode, oscData.driveNode, oscData.filterNode, oscData.panner, oscData.meter]) {
+        for (const node of [
+            oscData.sourceTap, oscData.envNode, oscData.gainNode, oscData.gateNode,
+            oscData.driveNode, oscData.filterNode, oscData.convolver, oscData.convDry,
+            oscData.convWet, oscData.convGain, oscData.convFb, oscData.panner, oscData.meter,
+        ]) {
             try { node?.disconnect(); } catch { /* already disconnected */ }
         }
     }

@@ -3,6 +3,7 @@ import { DrawbarsComponent } from "./DrawbarsComponent.js";
 import { DrawbarsActions } from "./drawbarsActions.js";
 import { OvertoneSignalActions } from "../overtoneSignal/overtoneSignalActions.js";
 import {
+    CONVOLUTION_IRS_CHANGED,
     DRAWBAR_CHANGE,
     DRAWBARS_RANDOMIZED,
     DRAWBARS_RESET,
@@ -11,6 +12,8 @@ import {
     SPECTRAL_SYSTEM_CHANGED,
     SUBHARMONIC_TOGGLED
 } from "../../events.js";
+import { irManager } from "../../dsp/IRManager.js";
+import { ConvolutionActions } from "../convolution/convolutionActions.js";
 import { BaseController } from "../base/BaseController.js";
 import { AppState } from "../../config.js";
 
@@ -78,15 +81,24 @@ export class DrawbarsController extends BaseController {
             if (index !== undefined) this.component.syncSignal(index, kind);
         });
 
-        // View tabs: gain | filter | sequence
+        // View tabs: gain | filter | sequence | convolution
         document.querySelectorAll("#drawbars-tabs .drawbars-tab").forEach((btn) => {
             btn.addEventListener("click", () => {
                 document.querySelectorAll("#drawbars-tabs .drawbars-tab")
                     .forEach((b) => b.classList.toggle("active", b === btn));
                 this.component.view = btn.dataset.view;
+                this.refreshIRSelect();
                 this.update();
             });
         });
+
+        // Convolution IR menu: visible only in the convolution view,
+        // repopulated whenever an IR is created or selected
+        const irSelect = document.getElementById('conv-ir-select');
+        irSelect?.addEventListener('change', () => {
+            ConvolutionActions.selectIR(irSelect.value || null);
+        });
+        document.addEventListener(CONVOLUTION_IRS_CHANGED, () => this.refreshIRSelect());
 
         // External source modes have no oscillator cycles to sequence —
         // hide the sequence view (and leave it if it's active). Applied
@@ -104,6 +116,25 @@ export class DrawbarsController extends BaseController {
         applySourceGating();
     }
 
+
+    /** Populate + show/hide the IR menu for the convolution view. */
+    refreshIRSelect() {
+        const select = document.getElementById('conv-ir-select');
+        if (!select) return;
+        select.classList.toggle('hidden', this.component.view !== 'convolution');
+        select.innerHTML = '';
+        const none = document.createElement('option');
+        none.value = '';
+        none.textContent = irManager.list().length ? 'no IR' : 'no IRs — use Create IR';
+        select.appendChild(none);
+        for (const ir of irManager.list()) {
+            const opt = document.createElement('option');
+            opt.value = ir.key;
+            opt.textContent = ir.name;
+            if (ir.key === AppState.convolutionIR) opt.selected = true;
+            select.appendChild(opt);
+        }
+    }
 
     getProps() {
         return {

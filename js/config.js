@@ -408,6 +408,11 @@ export const AppState = {
     adcChannel: 0,             // 0-based channel within the input stream
     soundfileName: null,       // display only; the buffer lives in SourceManager
 
+    // Per-overtone convolution sends, sparse objects keyed by voice index:
+    // { wet 0-1, feedback 0-0.99, gain -1..1 }. The selected IR is global.
+    oscillatorConvolutions: {},
+    convolutionIR: null, // IRManager key, null = none
+
     // Spectral properties
     currentSystem: spectralSystems[0],
     currentSystemIndex: 0,

@@ -14,3 +14,4 @@ export const OVERTONE_SIGNAL_CHANGED = 'overtone-signal-changed';
 export const ENVELOPE_MODE_CHANGED = 'envelope-mode-changed';
 export const MIDI_OUTPUT_CHANGED = 'midi-output-changed';
 export const PULSE = 'overtone-pulse';export const SOURCE_CHANGED = 'source-changed';
+export const CONVOLUTION_IRS_CHANGED = 'convolution-irs-changed';

@@ -14,6 +14,7 @@ import { AppState, ENVELOPE_DEFAULTS, midiConfig, updateAppState, WAVETABLE_SIZE
 import { calculateFrequency, generateFilenameParts, getVoicePan } from './utils.js';
 
 import { AudioEngine, WavetableManager, WAVExporter, WaveformGenerator } from './dsp/index.js';
+import { irManager } from './dsp/IRManager.js';
 import { sourceManager } from './dsp/SourceManager.js';
 import { midiOutputRouter } from './modules/midi/midiOutputRouter.js';
 import {
@@ -223,6 +224,7 @@ function createHarmonicOscillator(i, ratio, gain) {
         },
         pulseOut: harmonicPulseEnabled(i),
         sequencer: harmonicSequencerPayload(i),
+        convolution: harmonicConvolutionPayload(i),
         envelopeOpen: AppState.envelopeMode !== 'adsr',
     });
     const oscKey = `harmonic_${i}`;
@@ -510,6 +512,36 @@ export function updateHarmonicGate(index) {
     const node = AppState.oscillators[index];
     if (node && node.key) {
         audioEngine.updateOscillatorGate(node.key, AppState.oscillatorGates[index] || { mode: 0 });
+    }
+}
+
+/** Convolution send of one harmonic, with the globally selected IR. */
+function harmonicConvolutionPayload(index) {
+    const conv = AppState.oscillatorConvolutions[index] || {};
+    return {
+        wet: conv.wet ?? 0,
+        feedback: conv.feedback ?? 0,
+        gain: conv.gain ?? 1,
+        buffer: irManager.get(AppState.convolutionIR),
+    };
+}
+
+/**
+ * Apply the convolution send for one harmonic to its running voice.
+ */
+export function updateHarmonicConvolution(index) {
+    if (!AppState.isPlaying || !audioEngine) return;
+    const node = AppState.oscillators[index];
+    if (node && node.key) {
+        audioEngine.updateOscillatorConvolution(node.key, harmonicConvolutionPayload(index));
+    }
+}
+
+/** Apply the (globally selected) IR to every running voice. */
+export function updateAllHarmonicConvolutions() {
+    if (!AppState.isPlaying || !audioEngine) return;
+    for (let i = 0; i < AppState.oscillators.length; i++) {
+        updateHarmonicConvolution(i);
     }
 }
 

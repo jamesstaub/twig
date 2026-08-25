@@ -4,7 +4,7 @@ import BaseComponent from "../base/BaseComponent.js";
 import { calculateFrequency, formatHz, getVoicePan } from "../../utils.js";
 import { getVoiceLevel, harmonicFilterCutoff, triggerHarmonicAttack, triggerHarmonicRelease, MAX_FILTER_PARTIALS } from "../../audio.js";
 import { DrawbarsActions } from "./drawbarsActions.js";
-import { OvertoneSignalActions, Q_MAX, DRIVE_MAX } from "../overtoneSignal/overtoneSignalActions.js";
+import { OvertoneSignalActions, Q_MAX, DRIVE_MAX, CONV_FEEDBACK_MAX } from "../overtoneSignal/overtoneSignalActions.js";
 import { Dial } from "../generic/dial/Dial.js";
 import { ValueTip } from "../generic/valueTip.js";
 import { drawSequencePreview, shapeIconDataURL, shapeSampler } from "../overtoneSignal/sequencePreview.js";
@@ -17,7 +17,7 @@ const DRAWBAR_SLIDER_SELECTOR = ".drawbar-slider";
 
 // Tab views over the same overtone columns: which parameter the column's
 // main control edits. 'gain' is the classic drawbar amplitude view.
-export const DRAWBAR_VIEWS = ["gain", "filter", "sequence"];
+export const DRAWBAR_VIEWS = ["gain", "filter", "sequence", "convolution"];
 
 // Sequence modes as single letters for the per-column cycle button
 const SEQ_MODE_LETTERS = ["O", "A", "E", "P", "S"];
@@ -58,7 +58,7 @@ export class DrawbarsComponent extends BaseComponent {
         super(elementId);
         this.sliders = [];
         this.view = "gain";
-        this._dials = { pan: [], res: [], drive: [], x: [], y: [] };
+        this._dials = { pan: [], res: [], drive: [], x: [], y: [], convfb: [], convgain: [] };
         this._dots = [];
         this._dotLevels = [];
         this._meterRaf = null;
@@ -85,7 +85,7 @@ export class DrawbarsComponent extends BaseComponent {
         this.teardown();
         this.el.innerHTML = "";
         this.sliders = [];
-        this._dials = { pan: [], res: [], drive: [], x: [], y: [] };
+        this._dials = { pan: [], res: [], drive: [], x: [], y: [], convfb: [], convgain: [] };
         this._dots = [];
         this._waveSteppers = [];
         this._modeSteppers = [];
@@ -240,6 +240,14 @@ export class DrawbarsComponent extends BaseComponent {
     syncSignal(index, kind) {
         if (kind === "pan") {
             this._dials.pan[index]?.setValue(getVoicePan(index));
+        } else if (kind === "conv") {
+            const c = OvertoneSignalActions.getConvolution(index);
+            this._dials.convfb[index]?.setValue(c.feedback);
+            this._dials.convgain[index]?.setValue(c.gain);
+            if (this.view === "convolution" && this.sliders[index]) {
+                this.sliders[index].value = c.wet;
+                this.syncFill(this.sliders[index]);
+            }
         } else if (kind === "filter") {
             const f = OvertoneSignalActions.getFilter(index);
             this._dials.res[index]?.setValue(f.q);
@@ -327,7 +335,9 @@ export class DrawbarsComponent extends BaseComponent {
         } else {
             const conf = this.view === "filter"
                 ? { min: 0, max: MAX_FILTER_PARTIALS, step: 1, value: OvertoneSignalActions.getFilter(index).multiplier }
-                : { min: 0, max: 1, step: 0.01, value };
+                : this.view === "convolution"
+                    ? { min: 0, max: 1, step: 0.01, value: OvertoneSignalActions.getConvolution(index).wet }
+                    : { min: 0, max: 1, step: 0.01, value };
             wrapper.appendChild(this.createSliderWrap(index, conf));
             wrapper.style.setProperty("--drawbar-fill", (conf.value - conf.min) / (conf.max - conf.min || 1));
         }
@@ -605,6 +615,44 @@ export class DrawbarsComponent extends BaseComponent {
             const dials = document.createElement("div");
             dials.className = "drawbar-aux-dials";
             dials.append(res.el, drive.el);
+            aux.appendChild(dials);
+        } else if (this.view === "convolution") {
+            const conv = OvertoneSignalActions.getConvolution(index);
+            const fb = new Dial({
+                min: 0, max: CONV_FEEDBACK_MAX, step: 0.01, value: conv.feedback, label: "feedback",
+                color: "--accent-negative",
+                format: (v) => `fb ${Math.round(v * 100)}`,
+                fineOnShift: false, // shift = shaped row
+                hostTip: (e) => e.shiftKey,
+                onChange: (v, e) => {
+                    if (e?.shiftKey) {
+                        this.shapeDialRow(index, aux, v, 0, CONV_FEEDBACK_MAX, (i, val) =>
+                            OvertoneSignalActions.setConvolution(i, { feedback: val }));
+                    } else {
+                        voiceTargets(index, e).forEach((i) => OvertoneSignalActions.setConvolution(i, { feedback: v }));
+                    }
+                },
+            });
+            const cgain = new Dial({
+                min: -1, max: 1, step: 0.01, value: conv.gain, label: "gain",
+                color: "--accent-positive",
+                format: (v) => v.toFixed(2),
+                fineOnShift: false, // shift = shaped row
+                hostTip: (e) => e.shiftKey,
+                onChange: (v, e) => {
+                    if (e?.shiftKey) {
+                        this.shapeDialRow(index, aux, v, -1, 1, (i, val) =>
+                            OvertoneSignalActions.setConvolution(i, { gain: val }));
+                    } else {
+                        voiceTargets(index, e).forEach((i) => OvertoneSignalActions.setConvolution(i, { gain: v }));
+                    }
+                },
+            });
+            this._dials.convfb[index] = fb;
+            this._dials.convgain[index] = cgain;
+            const dials = document.createElement("div");
+            dials.className = "drawbar-aux-dials";
+            dials.append(fb.el, cgain.el);
             aux.appendChild(dials);
         }
 
@@ -886,6 +934,8 @@ export class DrawbarsComponent extends BaseComponent {
                     ...OvertoneSignalActions.getFilter(i),
                     multiplier: value,
                 });
+            } else if (this.view === "convolution") {
+                OvertoneSignalActions.setConvolution(i, { wet: value });
             } else {
                 this.onChange?.(i, value);
             }

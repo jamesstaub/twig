@@ -57,11 +57,12 @@ const STATE_ORDER = [
     'startharmonic', 'stiffness', 'closedness', 'stretch', 'compress',
     'system', 'waveform', 'source', 'adcin', 'adcchannel', 'subharmonic', 'note', 'freq',
     'gain', 'slew', 'drawbars', 'drawbar', 'gate', 'filter', 'res', 'drive', 'pan',
+    'conv', 'convir',
     'adsr', 'seqshape', 'seqgain', 'seqfreq', 'seqres', 'seqstretch',
     'pulsemidi', 'pulseosc', 'midiclock', 'midiout', 'envmode', 'play'
 ];
 const PER_INDEX_COMMANDS = new Set([
-    'drawbar', 'gate', 'filter', 'res', 'drive', 'pan', 'adsr',
+    'drawbar', 'gate', 'filter', 'res', 'drive', 'pan', 'adsr', 'conv',
     'seqshape', 'seqgain', 'seqfreq', 'seqres', 'seqstretch',
     'pulsemidi', 'pulseosc'
 ]);
@@ -183,7 +184,7 @@ if (Max) {
         'drawbar', 'drawbars', 'gain', 'slew', 'note', 'freq',
         'system', 'startharmonic', 'stiffness', 'closedness', 'stretch', 'compress',
         'waveform', 'source', 'adcin', 'adcchannel', 'subharmonic', 'play', 'reset', 'randomize',
-        'setdrawbarfundamental', 'gate', 'filter', 'res', 'drive', 'pan',
+        'setdrawbarfundamental', 'gate', 'filter', 'res', 'drive', 'pan', 'conv', 'convir',
         'seqshape', 'seqgain', 'seqfreq', 'seqres', 'seqstretch',
         'pulsemidi', 'pulseosc', 'midiclock', 'adsr', 'envmode', 'midiout'
     ];

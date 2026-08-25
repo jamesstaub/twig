@@ -27,6 +27,9 @@
  *                                 2 soundfile, 3 pink, 4 white (or by name)
  *   /twig/adcin [id|index|label]  ADC input device ('' = system default)
  *   /twig/adcchannel [i ch]       ADC input channel (0-based)
+ *   /twig/conv/<n> [wet fb gain]  per-overtone convolution send (n=0 → all):
+ *                                 wet 0-1, feedback 0-0.99, gain -1..1
+ *   /twig/convir [i index]        select IR by creation index (session IRs)
  *   /twig/waveform [s name]       oscillator: square|sine|triangle|sawtooth|custom_*
  *   /twig/subharmonic [i 0|1]     overtone/subharmonic mode
  *   /twig/play [i 0|1]            playback on/off
@@ -86,6 +89,8 @@
 
 import { AppState, midiConfig, SOURCE_MODES, updateAppState } from "../../config.js";
 import { SourceActions } from "../source/sourceActions.js";
+import { ConvolutionActions } from "../convolution/convolutionActions.js";
+import { irManager } from "../../dsp/IRManager.js";
 import { updateHarmonicPulse } from "../../audio.js";
 import { updateMidiOutputPort } from "../midi/midiConfigActions.js";
 import { showStatus } from "../../domUtils.js";
@@ -110,14 +115,15 @@ import {
     OVERTONE_SIGNAL_CHANGED,
     ENVELOPE_MODE_CHANGED,
     MIDI_OUTPUT_CHANGED,
-    SOURCE_CHANGED
+    SOURCE_CHANGED,
+    CONVOLUTION_IRS_CHANGED
 } from "../../events.js";
 
 const COMMANDS = new Set([
     'drawbar', 'drawbars', 'gain', 'slew', 'note', 'freq',
     'system', 'startharmonic', 'stiffness', 'closedness', 'stretch', 'compress',
     'waveform', 'source', 'adcin', 'adcchannel', 'subharmonic', 'play', 'reset', 'randomize',
-    'setdrawbarfundamental', 'gate', 'filter', 'res', 'drive', 'pan',
+    'setdrawbarfundamental', 'gate', 'filter', 'res', 'drive', 'pan', 'conv', 'convir',
     'pulsemidi', 'pulseosc', 'midiclock',
     'seqshape', 'seqgain', 'seqfreq', 'seqres', 'seqstretch',
     'adsr', 'envmode', 'midiout'
@@ -438,6 +444,22 @@ export class OscClient {
                 this.forVoices(n, (i) => OvertoneSignalActions.setDrive(i, v));
                 break;
             }
+            case 'conv': {
+                // /twig/conv/<n> [wet fb gain] (n = 0 → all); the action
+                // clamps each field, omitted fields keep their values
+                const [n, rest] = perVoiceArgs(sub, args);
+                if (n === null || rest[0] === undefined) break;
+                const patch = { wet: Number(rest[0]) };
+                if (rest[1] !== undefined) patch.feedback = Number(rest[1]);
+                if (rest[2] !== undefined) patch.gain = Number(rest[2]);
+                this.forVoices(n, (i) => OvertoneSignalActions.setConvolution(i, patch));
+                break;
+            }
+            case 'convir':
+                // IR by creation index (0-based); IRs are created in the
+                // browser session, so an unknown index is a silent no-op
+                ConvolutionActions.selectIR(Math.round(args[0]));
+                break;
             case 'pan': {
                 // /twig/pan/<n> [-1..1] or /twig/pan [n, v]; n = 0 → all
                 const [n, rest] = perVoiceArgs(sub, args);
@@ -614,6 +636,9 @@ export class OscClient {
             this.emit('adcin', [AppState.adcDeviceId ?? '']);
             this.emit('adcchannel', [AppState.adcChannel]);
         });
+        document.addEventListener(CONVOLUTION_IRS_CHANGED, () => {
+            this.emit('convir', [irManager.indexOf(AppState.convolutionIR)]);
+        });
         // Bulk amplitude changes: emit the full set so Max multisliders track
         document.addEventListener(DRAWBARS_RESET, () => {
             this.emit('drawbars', [...AppState.harmonicAmplitudes]);
@@ -658,6 +683,9 @@ export class OscClient {
                 this.emit(`res/${n}`, [f.q ?? 0.707]);
             } else if (kind === 'drive') {
                 this.emit(`drive/${n}`, [OvertoneSignalActions.getDrive(index)]);
+            } else if (kind === 'conv') {
+                const c = OvertoneSignalActions.getConvolution(index);
+                this.emit(`conv/${n}`, [c.wet, c.feedback, c.gain]);
             } else if (kind === 'envelope') {
                 const env = OvertoneSignalActions.getEnvelope(index);
                 this.emit(`adsr/${n}`, [env.a, env.d, env.s, env.r]);
