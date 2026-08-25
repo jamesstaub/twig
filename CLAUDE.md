@@ -57,12 +57,21 @@ CSS under `css/components/`.
   behind an anti-echo flag. `server.js` caches state and serves `GET /state`,
   which the app applies before first render (bootstrap — this is the only
   persistence; there is no localStorage).
-- Per-voice audio chain (`js/dsp/AudioEngine.js`): osc → gain → gate worklet
-  (3 outputs: audio, cutoff-CV, Q-CV into the biquad's AudioParams) → drive
-  WaveShaper → lowpass biquad → panner → shared compressor → master gain →
-  limiter. Every node exists for every voice so features can be enabled
-  mid-playback without rewiring; "off" states are passthrough (null
-  WaveShaper curve, 20 kHz cutoff, gate mode 0).
+- Per-voice audio chain (`js/dsp/AudioEngine.js`): source → gain → gate
+  worklet (3 outputs: audio, cutoff-CV, Q-CV into the biquad's AudioParams)
+  → drive WaveShaper → lowpass biquad → convolution stage (dry/wet mix
+  around a ConvolverNode with ±gain and 0-0.99 feedback; IRs from
+  `js/dsp/IRManager.js`, baked via "Create IR") → panner → shared
+  compressor → master gain → limiter. Every node exists for every voice so
+  features can be enabled mid-playback without rewiring; "off" states are
+  passthrough (null WaveShaper curve, 20 kHz cutoff, gate mode 0, conv
+  dry 1/wet 0/no buffer).
+- The voice's head is an OscillatorNode in `sourceMode: 'oscillators'`, or
+  a per-voice tap on one shared external node (`js/dsp/SourceManager.js`:
+  ADC/soundfile/pink/white) — voices keep their frequency identity so the
+  pitch-tracked lowpasses (forced to multiplier 1 / Q 30 on entering an
+  external mode) form a resonant filter bank. External modes hide the
+  sequencer, waveform picker, and fundamental UI.
 - The gate worklet (`js/dsp/worklets/gate-processor.js`) is served
   **unbundled** — no imports allowed in that file. Arbitrary data (0/1
   sequences, shape tables) goes over `port.postMessage`, numbers go as
