@@ -143,12 +143,16 @@ export class DrawbarsComponent extends BaseComponent {
                     if (e.shiftKey && this.view !== "sequence") {
                         // Shift+drag: sculpt the whole row with the current
                         // oscillator waveform, peak on the dragged column.
-                        // Gain shapes amplitudes; filter shapes series steps.
+                        // Gain shapes amplitudes, convolution shapes wet/dry,
+                        // filter shapes series steps.
                         const idx = Number(slider.dataset.index);
                         const v = Number(slider.value);
                         if (this.view === "gain") {
                             this.applyShapedRow(idx, v, (i, ti) =>
                                 this.onChange?.(i, Math.round(ti * 100) / 100));
+                        } else if (this.view === "convolution") {
+                            this.applyShapedRow(idx, v, (i, ti) =>
+                                OvertoneSignalActions.setConvolution(i, { wet: Math.round(ti * 100) / 100 }));
                         } else {
                             this.applyShapedRow(idx, v / MAX_FILTER_PARTIALS, (i, ti) =>
                                 OvertoneSignalActions.setFilter(i, {
