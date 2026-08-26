@@ -9,11 +9,19 @@
  * timbre transposed to their own pitch.
  */
 
+// Memory guards for pitched copies. Pitching an IR down lengthens it (two
+// octaves down = 4× longer), and every distinct pitch is another buffer —
+// unbounded, a fundamental glide across twelve voices can allocate
+// hundreds of MB of AudioBuffers plus each ConvolverNode's FFT state.
+const PITCHED_MAX_SECONDS = 4;   // truncate (with a short fade) beyond this
+const PITCHED_CACHE_MAX = 48;    // LRU entries kept across all IRs
+const PITCHED_FADE_SECONDS = 0.02;
+
 export class IRManager {
 
     constructor() {
         this.irs = new Map();      // key → { name, buffer, bakeFrequency }
-        this.pitchedCache = new Map(); // `${key}@${cents}` → AudioBuffer
+        this.pitchedCache = new Map(); // `${key}@${cents}` → AudioBuffer (LRU by insertion)
         this.count = 0;
     }
 
@@ -61,11 +69,18 @@ export class IRManager {
         if (cents === 0) return ir.buffer;
         const cacheKey = `${key}@${cents}`;
         const cached = this.pitchedCache.get(cacheKey);
-        if (cached) return cached;
+        if (cached) {
+            // Refresh LRU position
+            this.pitchedCache.delete(cacheKey);
+            this.pitchedCache.set(cacheKey, cached);
+            return cached;
+        }
 
         const factor = Math.pow(2, cents / 1200); // playback speed-up
         const src = ir.buffer.getChannelData(0);
-        const length = Math.max(2, Math.round(src.length / factor));
+        const wanted = Math.max(2, Math.round(src.length / factor));
+        const maxLength = Math.round(PITCHED_MAX_SECONDS * ctx.sampleRate);
+        const length = Math.min(wanted, maxLength);
         const out = ctx.createBuffer(1, length, ctx.sampleRate);
         const data = out.getChannelData(0);
         for (let i = 0; i < length; i++) {
@@ -75,7 +90,15 @@ export class IRManager {
             const frac = pos - i0;
             data[i] = (src[i0] ?? 0) * (1 - frac) + (src[i1] ?? 0) * frac;
         }
+        if (length < wanted) {
+            // Truncated: fade the cut so the tail doesn't end in a step
+            const fade = Math.min(length, Math.round(PITCHED_FADE_SECONDS * ctx.sampleRate));
+            for (let i = 0; i < fade; i++) data[length - 1 - i] *= i / fade;
+        }
         this.pitchedCache.set(cacheKey, out);
+        while (this.pitchedCache.size > PITCHED_CACHE_MAX) {
+            this.pitchedCache.delete(this.pitchedCache.keys().next().value);
+        }
         return out;
     }
 

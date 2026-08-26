@@ -303,20 +303,31 @@ export class AudioEngine {
     _swapConvolverBuffer(oscData, buffer) {
         oscData.pendingConvBuffer = buffer;
         if (oscData.convSwapTimer) return;
-        const now = this.context.currentTime;
-        const duck = oscData.convDuck.gain;
-        duck.cancelScheduledValues(now);
-        duck.setTargetAtTime(0, now, AudioEngine.CONV_DUCK_TAU);
+        // Rate-limit: assigning ConvolverNode.buffer allocates fresh FFT
+        // state (large for long IRs); a fundamental glide would otherwise
+        // do it every 10 cents on every voice. Wait out the interval first,
+        // then duck, swap to the latest pending buffer, and ramp back.
+        const wait = Math.max(0, (oscData.lastConvSwap ?? -Infinity) + AudioEngine.CONV_SWAP_MIN_MS - performance.now());
         oscData.convSwapTimer = setTimeout(() => {
-            oscData.convSwapTimer = null;
-            if (!oscData.convolver) return; // torn down meanwhile
-            oscData.convolver.buffer = oscData.pendingConvBuffer;
-            oscData.pendingConvBuffer = undefined;
-            const t = this.context.currentTime;
-            duck.cancelScheduledValues(t);
-            duck.setTargetAtTime(1, t, AudioEngine.CONV_DUCK_UP_TAU);
-        }, AudioEngine.CONV_DUCK_MS);
+            const now = this.context.currentTime;
+            const duck = oscData.convDuck.gain;
+            duck.cancelScheduledValues(now);
+            duck.setTargetAtTime(0, now, AudioEngine.CONV_DUCK_TAU);
+            oscData.convSwapTimer = setTimeout(() => {
+                oscData.convSwapTimer = null;
+                if (!oscData.convolver) return; // torn down meanwhile
+                oscData.convolver.buffer = oscData.pendingConvBuffer;
+                oscData.pendingConvBuffer = undefined;
+                oscData.lastConvSwap = performance.now();
+                const t = this.context.currentTime;
+                duck.cancelScheduledValues(t);
+                duck.setTargetAtTime(1, t, AudioEngine.CONV_DUCK_UP_TAU);
+            }, AudioEngine.CONV_DUCK_MS);
+        }, wait);
     }
+
+    /** Minimum interval between IR assignments on one voice (ms). */
+    static CONV_SWAP_MIN_MS = 120;
 
     // Duck timing is tuned to be barely perceptible: ~1 ms out (−40 dB by
     // 5 ms), the swap once two render quanta have passed, ~2 ms back —
