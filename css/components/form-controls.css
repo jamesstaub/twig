@@ -1,0 +1,160 @@
+/* Form controls: selects, sliders, number inputs, and the small layout
+   wrappers built specifically around them. */
+
+.control-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    height: 8px;
+    background: var(--surface-app);
+    border-radius: 4px;
+    margin-top: 0.5rem;
+    padding: 0;
+    cursor: pointer;
+    width: 100%;
+}
+
+.control-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    background: var(--accent-positive);
+    border-radius: 50%;
+    cursor: pointer;
+    box-shadow: var(--shadow-elevation-1);
+}
+
+.control-select {
+    background-color: var(--surface-app);
+    color: var(--text-primary);
+    border: 1px solid var(--border-default);
+    padding: 0.5rem;
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-md-alt);
+    cursor: pointer;
+    width: 100%;
+}
+
+/* Next/previous buttons flanking a select (dropdowns don't open in Max's jweb) */
+.select-stepper {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+}
+
+.select-stepper .control-select {
+    flex: 1;
+    min-width: 0;
+}
+
+.select-step-btn {
+    flex-shrink: 0;
+}
+
+.fundamental-input-group {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.fundamental-input {
+    background-color: var(--surface-app);
+    color: var(--text-primary);
+    border: 1px solid var(--border-default);
+    padding: 0.25rem 0.5rem;
+    border-radius: var(--radius-md);
+    width: 100px;
+    text-align: right;
+}
+
+/* The optional "start harmonic" field — shown only for systems that
+   support an arbitrary starting partial */
+.start-harmonic-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.start-harmonic-label {
+    font-size: var(--font-size-xs);
+    white-space: nowrap;
+}
+
+#start-harmonic-input {
+    width: 5rem;
+}
+
+.octave-control {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 1.5rem;
+}
+
+.octave-display {
+    font-weight: var(--font-weight-bold);
+    font-size: var(--font-size-lg);
+    color: var(--text-accent);
+}
+
+.system-description {
+    font-size: var(--font-size-xs);
+    line-height: 1.25rem;
+    /* Tailwind's gray-400 (OKLCH) — kept as the exact original value rather
+       than aliased to --text-muted, which is a visually close but distinct
+       hex shade used elsewhere; revisit during the aesthetic pass */
+    color: oklch(70.7% 0.022 261.325);
+    padding-block: 0.5rem;
+}
+
+/* Overtone/subharmonic toggle row's wrapper, beneath the system select */
+.overtone-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+@media (min-width: 48rem) {
+    .overtone-controls {
+        margin-top: 1rem;
+    }
+}
+
+/* Download button + routing-mode select. */
+.download-group {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border-light);
+    background-color: color-mix(in srgb, var(--surface-panel) 60%, transparent);
+}
+
+.routing-mode-group {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-left: 0.5rem;
+}
+
+/* Wavetable/result section: the row holding the canvas + action buttons */
+.result-row {
+    width: 100%;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.result-actions {
+    display: flex;
+    align-items: stretch;
+    justify-content: flex-end;
+    gap: 1rem;
+}
+
+/* Shared spacing for the 4 primary action buttons (create/download/reset/randomize) */
+.action-btn-spaced {
+    margin-inline: 0.25rem;
+}

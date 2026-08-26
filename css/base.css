@@ -12,4 +12,21 @@ html, body {
     background-color: var(--surface-app);
     color: var(--text-primary);
     font-family: 'Inter', sans-serif;
+    /* Clears the fixed navbar, which stacks taller on narrow viewports */
+    padding-top: var(--navbar-height-tall);
+}
+
+@media (min-width: 48rem) {
+    .app-container {
+        padding-top: var(--navbar-height);
+    }
+}
+
+/* Generic "not shown" utility — plain CSS, not a Tailwind holdover.
+   Shared by any element JS toggles visibility on (status toast, the
+   start-harmonic row, etc). */
+.hidden {
+    /* !important: must beat component rules like .labeled-control
+       { display: flex } that share single-class specificity */
+    display: none !important;
 }

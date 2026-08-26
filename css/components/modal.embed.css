@@ -23,7 +23,7 @@ body.embed .modal-dialog {
 body.embed .modal-close-btn {
     top: 0.25rem;
     right: 0.5rem;
-    font-size: 1.5rem;
+    font-size: var(--font-size-xl);
 }
 
 /* ---- MIDI mapping modal ---- */
@@ -36,7 +36,7 @@ body.embed .midi-modal {
 }
 
 body.embed .midi-modal-title {
-    font-size: 0.85rem;
+    font-size: var(--font-size-base);
     margin-bottom: 0;
 }
 
@@ -61,6 +61,6 @@ body.embed .midi-section-hint {
 }
 
 body.embed .midi-setting-row {
-    font-size: 0.75rem;
+    font-size: var(--font-size-sm);
     gap: 0.5rem;
 }

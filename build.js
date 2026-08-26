@@ -11,10 +11,12 @@ esbuild.build({
     logLevel: "info"
 }).catch(() => process.exit(1));
 
-// Minify the already-generated styles-compiled.css from Tailwind
+// Plain hand-written CSS, no framework: esbuild bundles css/styles.css by
+// resolving its @import chain (theme.css, base.css, every component file)
+// into one minified file — no separate compile step needed first.
 esbuild.build({
-    entryPoints: ["css/styles-compiled.css"],
-    bundle: false,
+    entryPoints: ["css/styles.css"],
+    bundle: true,
     outfile: "dist/styles-compiled.css",
     minify: true,
     logLevel: "info"

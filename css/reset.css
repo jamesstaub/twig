@@ -1,0 +1,98 @@
+/* ================================
+   RESET — replaces Tailwind's preflight
+   ================================
+   Every component rule in this app was written assuming Tailwind's
+   preflight had already run: box-sizing:border-box and zeroed margins
+   everywhere, transparent/no-radius native form controls, canvases as
+   block elements, inherited link/table colors, etc. Removing Tailwind
+   removes that silent foundation too, so it's reproduced here verbatim
+   (trimmed to the parts this app's markup actually touches) rather than
+   left as an implicit dependency. Must import first, before theme.css. */
+
+*, ::before, ::after {
+    box-sizing: border-box;
+    border: 0 solid;
+    margin: 0;
+    padding: 0;
+}
+
+html {
+    -webkit-text-size-adjust: 100%;
+    tab-size: 4;
+    line-height: 1.5;
+    font-family: ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+    -webkit-tap-highlight-color: transparent;
+}
+
+hr {
+    height: 0;
+    color: inherit;
+    border-top-width: 1px;
+}
+
+a {
+    color: inherit;
+    text-decoration: inherit;
+}
+
+b, strong {
+    font-weight: bolder;
+}
+
+code, kbd, samp, pre {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    font-size: 1em;
+}
+
+small {
+    font-size: 80%;
+}
+
+table {
+    text-indent: 0;
+    border-color: inherit;
+    border-collapse: collapse;
+}
+
+/* p5 canvases and any other replaced elements: block, not inline (inline
+   would leave a baseline whitespace gap beneath every canvas) */
+img, svg, video, canvas, audio, iframe, embed, object {
+    vertical-align: middle;
+    display: block;
+}
+
+img, video {
+    max-width: 100%;
+    height: auto;
+}
+
+/* Native form controls start invisible/unstyled so every button/select/
+   input's look comes entirely from this app's own component CSS */
+button, input, select, optgroup, textarea {
+    font: inherit;
+    letter-spacing: inherit;
+    color: inherit;
+    opacity: 1;
+    background-color: transparent;
+    border-radius: 0;
+}
+
+button, input:where([type="button"], [type="reset"], [type="submit"]) {
+    appearance: button;
+}
+
+::-webkit-inner-spin-button, ::-webkit-outer-spin-button {
+    height: auto;
+}
+
+::placeholder {
+    opacity: 1;
+}
+
+summary {
+    display: list-item;
+}
+
+ol, ul, menu {
+    list-style: none;
+}

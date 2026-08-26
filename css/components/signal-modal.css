@@ -17,7 +17,7 @@
 
 .signal-modal-title {
     font-size: 1rem;
-    font-weight: 700;
+    font-weight: var(--font-weight-bold);
     color: var(--text-label);
 }
 
@@ -36,8 +36,8 @@
     gap: 0.5rem;
     padding: 0.75rem;
     background-color: var(--surface-raised);
-    border-radius: 0.5rem;
-    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-recessed);
 }
 
 /* Section content below the title — a column on desktop; the embed layout
@@ -73,7 +73,7 @@
 
 /* Narrow (mobile) wrap: filter + pan side by side across the full width
    instead of a half-empty column */
-@media (max-width: theme(--breakpoint-sm)) {
+@media (max-width: 40rem) {
     .signal-side-col {
         flex: 1 1 100%;
         flex-direction: row;
@@ -81,8 +81,8 @@
 }
 
 .signal-section-title {
-    font-size: 0.8rem;
-    font-weight: 700;
+    font-size: var(--font-size-sm-alt);
+    font-weight: var(--font-weight-bold);
     color: var(--text-label);
     text-transform: uppercase;
     letter-spacing: 0.05em;
@@ -98,7 +98,7 @@
     display: flex;
     flex-direction: column;
     gap: 0.25rem;
-    font-size: 0.75rem;
+    font-size: var(--font-size-sm);
     color: var(--text-secondary);
 }
 
@@ -110,7 +110,7 @@
     background-color: var(--surface-app);
     color: var(--text-primary);
     border: 1px solid var(--border-default);
-    border-radius: 0.25rem;
+    border-radius: var(--radius-sm);
     padding: 0.25rem 0.5rem;
     font-family: monospace;
     letter-spacing: 0.2em;
@@ -122,7 +122,7 @@
    length ("3:1", "3^(11/13)", "oct.nom") — wrap anywhere rather than clip,
    and reserve two lines so toggling values never reflows the section. */
 .signal-vslider-value {
-    font-size: 0.7rem;
+    font-size: var(--font-size-xs);
     line-height: 1.25;
     color: var(--text-accent);
     text-align: center;
@@ -168,14 +168,14 @@
 }
 
 .signal-pulse-label {
-    font-size: 0.8rem;
-    font-weight: 600;
+    font-size: var(--font-size-sm-alt);
+    font-weight: var(--font-weight-semibold);
     color: var(--text-secondary);
     white-space: nowrap;
 }
 
 .signal-pulse-detail {
-    font-size: 0.7rem;
+    font-size: var(--font-size-xs);
     color: var(--text-accent);
     font-family: monospace;
     min-width: 0;
@@ -183,7 +183,7 @@
 }
 
 .signal-pulse-warning {
-    font-size: 0.7rem;
+    font-size: var(--font-size-xs);
     color: var(--status-warning);
 }
 
@@ -199,7 +199,7 @@
 .signal-shape-preview {
     width: 100%;
     height: 44px;
-    border-radius: 0.25rem;
+    border-radius: var(--radius-sm);
 }
 
 .signal-targets {
@@ -212,8 +212,8 @@
 }
 
 .signal-targets-heading {
-    font-size: 0.7rem;
-    font-weight: 700;
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-bold);
     color: var(--text-label);
     text-transform: uppercase;
     letter-spacing: 0.05em;
@@ -226,7 +226,7 @@
 }
 
 .signal-target-label {
-    font-size: 0.7rem;
+    font-size: var(--font-size-xs);
     color: var(--text-secondary);
     width: 5em;
     flex-shrink: 0;
@@ -239,7 +239,7 @@
 }
 
 .signal-target-value {
-    font-size: 0.7rem;
+    font-size: var(--font-size-xs);
     color: var(--text-accent);
     min-width: 3em;
     text-align: right;
@@ -255,11 +255,11 @@
 
 .signal-stretch-btn {
     padding: 0 0.5rem;
-    font-size: 0.75rem;
+    font-size: var(--font-size-sm);
 }
 
 .signal-stretch-label {
-    font-size: 0.75rem;
+    font-size: var(--font-size-sm);
     color: var(--text-accent);
     font-family: monospace;
     min-width: 2.5em;
@@ -286,6 +286,6 @@
 }
 
 .signal-dial-name {
-    font-size: 0.7rem;
+    font-size: var(--font-size-xs);
     color: var(--text-secondary);
 }

@@ -1,0 +1,32 @@
+/* Embed-mode overrides for layout.css. */
+
+/* Every section (oscillator, fundamental, overtone system, result) shrinks
+   to the row's height instead of stacking with its neighbors */
+body.embed .labeled-control {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    padding: 0.25rem 0.5rem;
+    min-width: 0;
+    flex: 0 0 auto;
+    height: 100%;
+    max-height: 100%;
+    margin: 0;
+    overflow: hidden;
+}
+
+body.embed .labeled-control label,
+body.embed .labeled-control > span {
+    font-size: var(--font-size-xs);
+    margin-bottom: 0;
+}
+
+body.embed .frequency-control-group {
+    gap: 0.25rem;
+}
+
+body.embed #result-control-root .control-row {
+    gap: 0.25rem;
+    flex: 1 1 auto;
+    min-height: 0;
+}

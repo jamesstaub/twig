@@ -7,10 +7,9 @@
   "scripts": {
     "start": "node server.js",
     "dev": "npm-run-all --parallel css:watch js:watch node-server",
-    "css:watch": "npx @tailwindcss/cli -i ./css/styles.css -o ./css/styles-compiled.css --watch",
+    "css:watch": "esbuild css/styles.css --bundle --outfile=dist/styles-compiled.css --watch",
     "js:watch": "esbuild js/app.js --bundle --outfile=dist/app.js --format=esm --watch",
-    "build": "npm-run-all css:prod js:build",
-    "css:prod": "npx @tailwindcss/cli -i ./css/styles.css -o ./css/styles-compiled.css --minify",
+    "build": "node build.js",
     "js:build": "node build.js",
     "node-server": "node server.js"
   },
@@ -33,7 +32,6 @@
     "eslint": "^9.39.1",
     "globals": "^16.5.0",
     "npm-run-all": "^4.1.5",
-    "p5": "^2.1.1",
-    "tailwindcss": "^4.1.17"
+    "p5": "^2.1.1"
   }
 }

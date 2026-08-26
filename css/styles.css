@@ -1,16 +1,25 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap');
-/* Scan only real sources for utility classes — never dist/ (the bundled
-   output would feed its own class strings back into the next build). */
-@import "tailwindcss" source(none);
-@source "../index.html";
-@source "../js";
+@import "./reset.css";
 
-/* Design tokens first, then base, then components. */
+/* Plain CSS — no build-time framework. Every class here is hand-written
+   and lives in exactly one of the files below; there's no utility-class
+   scanning step to keep in sync with index.html/js.
+
+   Design tokens first, then base, then components.
+   layout.css / page-arrangement.css are deliberately separate: layout.css
+   holds reusable panel/container primitives (card, labeled-control, row)
+   that don't know how they're arranged; page-arrangement.css holds only
+   today's specific grid/column placement of those panels, so a future
+   desktop relayout replaces that one file and leaves the rest alone. */
 @import "./theme.css";
 @import "./base.css";
+@import "./components/layout.css";
+@import "./components/page-arrangement.css";
 @import "./components/navbar.css";
 @import "./components/buttons.css";
-@import "./components/controls.css";
+@import "./components/form-controls.css";
+@import "./components/value-tip.css";
+@import "./components/cycle-stepper.css";
 @import "./components/slider.css";
 @import "./components/keyboard.css";
 @import "./components/toggle.css";
@@ -25,9 +34,11 @@
    here targets body.embed (a jump in specificity over its base-file
    sibling already, but source order is the belt to that suspenders). */
 @import "./embed.css";
+@import "./components/layout.embed.css";
 @import "./components/buttons.embed.css";
 @import "./components/navbar.embed.css";
-@import "./components/controls.embed.css";
+@import "./components/form-controls.embed.css";
+@import "./components/value-tip.embed.css";
 @import "./components/keyboard.embed.css";
 @import "./components/toggle.embed.css";
 @import "./components/drawbars.embed.css";

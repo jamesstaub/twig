@@ -5,8 +5,8 @@
     border: 1px solid var(--border-subtle);
     border-radius: 4px;
     padding: 2px 14px;
-    font-size: 0.95rem;
-    font-weight: 500;
+    font-size: var(--font-size-md);
+    font-weight: var(--font-weight-medium);
     transition: background 0.2s, color 0.2s;
     cursor: pointer;
 }
@@ -21,7 +21,7 @@
     background-color: var(--surface-app);
     color: var(--text-muted-warm);
     padding: 0.5rem 1rem;
-    font-weight: 700;
+    font-weight: var(--font-weight-bold);
 }
 
 .btn-octave:hover {

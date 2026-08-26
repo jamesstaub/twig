@@ -44,7 +44,7 @@ body.embed .drawbar-label {
     height: 12px;
     padding: 0;
     margin-bottom: 2px;
-    font-size: 0.6rem;
+    font-size: var(--font-size-2xs);
 }
 
 /* Reset/Randomize ride the header row (right of the view tabs) instead

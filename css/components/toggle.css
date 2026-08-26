@@ -34,7 +34,7 @@
 }
 
 .toggle-label {
-    font-weight: 700;
+    font-weight: var(--font-weight-bold);
     color: var(--text-primary);
     text-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
 }
@@ -52,6 +52,11 @@
 }
 
 .subharmonic-toggle-container {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 1rem;
+    padding-top: 0.5rem;
     border-top: 1px solid var(--border-default);
 }
 
@@ -67,7 +72,7 @@
 .toggle-sublabel {
     display: block;
     font-size: 0.7em;
-    font-weight: 400;
+    font-weight: var(--font-weight-normal);
     font-style: italic;
     opacity: 0.65;
     letter-spacing: 0.03em;

@@ -1,6 +1,11 @@
 /* Fixed top navbar (becomes a left column in embed mode — see embed.css). */
 
 .navbar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    padding-right: 5.5rem; /* clears the absolutely-positioned .logo */
     background: linear-gradient(to bottom right, var(--surface-navbar-from), var(--surface-navbar-to));
     border-bottom: 2px solid var(--border-strong);
     display: flex;
@@ -9,23 +14,91 @@
     box-shadow: 0 10px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
 }
 
+/* The navbar's single content row: play/MIDI/envelope on the left, master
+   gain/slew centered, stacked taller on narrow viewports (matches the
+   body's padding-top for the fixed navbar, see base.css) */
+.navbar-row {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 0.75rem;
+    padding-inline: 2rem;
+    padding-block: 1rem;
+    justify-content: center;
+    height: var(--navbar-height-tall);
+}
+
+@media (min-width: 48rem) {
+    .navbar-row {
+        justify-content: space-between;
+        height: var(--navbar-height);
+    }
+}
+
+.navbar-section {
+    display: flex;
+    flex-basis: auto;
+}
+
+.midi-btn {
+    margin-left: 0.5rem;
+}
+
+.envelope-mode-container {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-left: 1rem;
+}
+
+.navbar-section.center {
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    flex-basis: 33.3333%;
+    justify-content: center;
+}
+
+@media (min-width: 48rem) {
+    .navbar-section.center {
+        flex-wrap: nowrap;
+    }
+}
+
 .navbar-control-group {
     display: flex;
     align-items: center;
     gap: 1rem;
+    padding: 0.5rem;
     background-color: color-mix(in srgb, var(--surface-deep) 80%, transparent);
-    border-radius: 0.5rem;
+    border-radius: var(--radius-lg);
     border: 1px solid var(--border-subtle);
     min-width: 180px;
 }
 
 .play-toggle-container {
     display: flex;
+    flex-grow: 1;
+    flex-wrap: wrap;
     align-items: center;
     padding: 0.5rem 1rem;
     background-color: color-mix(in srgb, var(--surface-panel) 50%, transparent);
-    border-radius: 0.5rem;
+    border-radius: var(--radius-lg);
     border: 1px solid var(--border-strong);
+}
+
+#play-label {
+    width: 2rem;
+}
+
+.logo {
+    position: absolute;
+    right: 2rem;
+}
+
+.logo-text {
+    font-size: var(--font-size-lg);
+    line-height: calc(1.75 / 1.125);
+    font-weight: var(--font-weight-semibold);
+    color: var(--text-title);
 }
 
 /* Bespoke breakpoint (not on Tailwind's scale) — narrower than any

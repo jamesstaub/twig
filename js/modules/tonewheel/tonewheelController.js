@@ -65,15 +65,13 @@ export class TonewheelController extends BaseController {
         let fadeTimeout;
 
         const show = () => {
-            vizControls.classList.remove('opacity-0', 'pointer-events-none');
-            vizControls.classList.add('opacity-100', 'pointer-events-auto');
+            vizControls.classList.add('visible');
             clearTimeout(fadeTimeout);
             fadeTimeout = setTimeout(hide, 3000);
         };
 
         const hide = () => {
-            vizControls.classList.remove('opacity-100', 'pointer-events-auto');
-            vizControls.classList.add('opacity-0', 'pointer-events-none');
+            vizControls.classList.remove('visible');
         };
 
         ['mouseenter', 'mousemove', 'touchstart'].forEach(evt => {

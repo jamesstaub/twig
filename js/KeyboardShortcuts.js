@@ -22,9 +22,6 @@ const TRIGGER_KEYS = [
     'KeyO', 'KeyP', 'BracketLeft', 'BracketRight'
 ];
 
-// TODO: 
-// add CMD + left / right arrow to move fundament octave up/down
-
 export class KeyboardShortcuts {
     constructor() {
         this.heldTriggers = new Set();
@@ -36,32 +33,26 @@ export class KeyboardShortcuts {
         // Release everything if the window loses focus mid-hold, so a
         // cmd-tab away never leaves an envelope stuck at sustain
         window.addEventListener('blur', () => this.releaseAll());
+        // Deliberately NO cmd/ctrl+key overrides on the letter rows —
+        // those belong to the browser (cmd+W/Q/R/T…). Promote-to-
+        // fundamental rides shift+Q..] instead (see handleKeyDown).
+    }
 
-        // Q and W are ADSR trigger keys and cmd is the link-all modifier —
-        // one slip away from closing the tab (cmd+W) or quitting (cmd+Q).
-        // Swallow them where the environment allows (embedded webviews;
-        // regular browser tabs reserve these shortcuts and ignore this)…
-        document.addEventListener('keydown', (e) => {
-            if ((e.metaKey || e.ctrlKey) && (e.code === 'KeyW' || e.code === 'KeyQ')) {
-                e.preventDefault();
-                e.stopPropagation();
-            }
-        }, { capture: true });
+    /** True when keystrokes belong to a focused editable field. */
+    editableFocused(t) {
+        return Boolean(t && (
+            (t.tagName === 'INPUT' && t.type !== 'range') ||
+            t.tagName === 'TEXTAREA' ||
+            t.tagName === 'SELECT' ||
+            t.isContentEditable
+        ));
     }
 
     handleKeyDown(e) {
         // Never hijack typing: when an editable field has focus (text or
         // number inputs, selects, textareas), keystrokes belong to it.
         // Range inputs are excluded — drawbar arrow navigation needs them.
-        const t = e.target;
-        if (t && (
-            (t.tagName === 'INPUT' && t.type !== 'range') ||
-            t.tagName === 'TEXTAREA' ||
-            t.tagName === 'SELECT' ||
-            t.isContentEditable
-        )) {
-            return;
-        }
+        if (this.editableFocused(e.target)) return;
 
         // Space bar to toggle play/stop (held-key repeats would race
         // start/stop into overlapping voice banks)
@@ -79,6 +70,13 @@ export class KeyboardShortcuts {
 
         const voice = TRIGGER_KEYS.indexOf(e.code);
         if (voice !== -1) {
+            // Shift + Q..]: promote that overtone to the fundamental
+            // (same action as the drawbar context menu); plain keys gate
+            // the ADSR
+            if (e.shiftKey) {
+                if (!e.repeat) DrawbarsActions.setDrawbarAsFundamental(voice);
+                return;
+            }
             if (!e.repeat && !this.heldTriggers.has(voice)) {
                 this.heldTriggers.add(voice);
                 triggerHarmonicAttack(voice);
@@ -93,12 +91,13 @@ export class KeyboardShortcuts {
             if (e.defaultPrevented) return;
         }
 
-        // Ctrl/Meta + ArrowUp/Down: octave navigation
+        // Ctrl/Meta + arrows: octave navigation (up/right = up, down/left
+        // = down). preventDefault — cmd+left/right is browser history nav.
         if (e.ctrlKey || e.metaKey) {
-            if (e.code === 'ArrowUp') {
+            if (e.code === 'ArrowUp' || e.code === 'ArrowRight') {
                 e.preventDefault();
                 FundamentalActions.changeOctave(1);
-            } else if (e.code === 'ArrowDown') {
+            } else if (e.code === 'ArrowDown' || e.code === 'ArrowLeft') {
                 e.preventDefault();
                 FundamentalActions.changeOctave(-1);
             }

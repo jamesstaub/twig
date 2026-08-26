@@ -46,8 +46,10 @@ Presets:
 the tab view buttons should have a subtle indicator when they are in a "dirty" state
 
 
-doublecheck the filter cutoff slider options. desired behavior is for the slider to move through 
-frequency choices based on the currently selected overtone system where the fundamental is this particular overtone's frequency, not the main fundamental frequency of twig.
+
+Slider UI:
+  - in several places we have sliders that traverse the given overtone series (filter cutoff, convolution tuning). we need a consistent UI input element 
+- 
 
 - sequencer (deferred caveats)
     - gate/sequence phase has a constant arbitrary offset from the oscillator's
@@ -63,8 +65,10 @@ hover over the ADSR buttons to show the key mapping that controls it
 
 when you use the qwerty keys to trigger ADSR the trigger buttons should light up as if they were clicked.
 
-when you shift + click wave function on the sliders it shows the valueTip with the wave shape. this UI should let you switch the oscillator waveform instead of being locked to the main fundamental's oscillator shape. 
 
-in M4L view the drawbars should not collapse to scroll horizontally, always take full horizontal space for drawbars
+
 
 add "copy milisecond value" to the right click context menu of overtones
+
+
+

@@ -26,14 +26,14 @@ Make architectural decisions for the long term. Do not accept a stopgap that onl
 
 Web-audio additive synthesizer, also embedded in a Max4Live device (`twig.amxd`)
 via jweb, with a Node-for-Max `node.script` bridge. Vanilla ES modules, no
-framework; esbuild bundle; Tailwind v4 utilities plus hand-written component
-CSS under `css/components/`.
+framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
+@imports theme, base, and every `css/components/*` file — no Tailwind).
 
 ## Build & run
 
-- `npm run build` — Tailwind compile THEN esbuild bundle. **Required for any
-  CSS change.** Running `node build.js` alone only bundles JS and minifies the
-  previously-compiled CSS — a stale-CSS trap that has bitten before.
+- `npm run build` (= `node build.js`) — esbuild bundles `js/` to
+  `dist/app.js` and resolves `css/styles.css`'s @import chain into
+  `dist/styles-compiled.css`. One step covers JS and CSS changes.
 - `node server.js` (PORT env, default 3333) — static host + OSC/WebSocket
   bridge. The same file runs under `[node.script]` inside the M4L device,
   binding an ephemeral port announced via `[outlet port <n>]`.

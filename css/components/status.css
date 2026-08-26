@@ -6,15 +6,11 @@
     right: 1rem;
     color: white;
     padding: 0.75rem;
-    border-radius: 0.5rem;
+    border-radius: var(--radius-lg);
     box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
-    font-weight: 600;
+    font-weight: var(--font-weight-semibold);
     max-width: 300px;
     z-index: 1000;
-}
-
-.status-message.hidden {
-    display: none;
 }
 
 .status-message.error {

@@ -1,0 +1,11 @@
+/* Embed-mode overrides for value-tip.css. */
+
+/* Merged (column-height) tips: drop the small label row so the content
+   fits the short columns without clipping */
+body.embed .value-tip.attached-left {
+    gap: 0.15rem;
+}
+
+body.embed .value-tip.attached-left .value-tip-label {
+    display: none;
+}

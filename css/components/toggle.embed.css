@@ -8,7 +8,7 @@ body.embed .subharmonic-toggle-container {
 /* Every toggle's label shrinks in the compact column — not just the
    subharmonic pair, so play/ADSR labels don't look oversized beside it */
 body.embed .toggle-label {
-    font-size: 0.65rem;
+    font-size: var(--font-size-2xs-alt);
 }
 
 body.embed .toggle-switch {

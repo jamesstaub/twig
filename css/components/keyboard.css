@@ -20,7 +20,7 @@
     align-items: flex-end;
     justify-content: center;
     padding-bottom: 5px;
-    font-size: 0.75rem;
+    font-size: var(--font-size-sm);
 }
 
 .key.white {

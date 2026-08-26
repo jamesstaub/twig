@@ -94,4 +94,64 @@
        source of truth — CSS has no consumer of the raw number itself,
        only of the body.embed class it drives. */
     --embed-max-height: 220px;
+
+    /* ---- Breakpoints ----
+       Plain hand-written @media queries can't reference custom properties
+       (a real CSS limitation, not an oversight) — these document the
+       values every @media in the component files must match by hand. */
+    --breakpoint-sm: 40rem;   /* 640px */
+    --breakpoint-md: 48rem;   /* 768px */
+    --breakpoint-lg: 64rem;   /* 1024px */
+    --breakpoint-xl: 80rem;   /* 1280px */
+
+    /* ---- Typography scale ----
+       Named by role, valued at whatever's already in use (no rounding —
+       this is a lever for the next reskin, not a value change today).
+       Pair a -size with its matching -leading where one was already set;
+       omit -leading and the element's own line-height applies. */
+    --font-size-3xs: 0.55rem;
+    --font-size-2xs: 0.6rem;
+    --font-size-2xs-alt: 0.65rem;   /* a second ~2xs step already in use; not yet unified with --font-size-2xs */
+    --font-size-xs: 0.7rem;
+    --font-size-xs-alt: 0.72rem;   /* a second ~xs step already in use; not yet unified with --font-size-xs */
+    --font-size-sm: 0.75rem;
+    --font-size-sm-alt: 0.8rem;
+    --font-size-base: 0.85rem;
+    --font-size-md: 0.95rem;
+    --font-size-md-alt: 1rem;
+    --font-size-lg: 1.125rem;
+    --font-size-xl: 1.5rem;
+    --font-size-2xl: 2rem;
+
+    --font-weight-normal: 400;
+    --font-weight-medium: 500;
+    --font-weight-semibold: 600;
+    --font-weight-bold: 700;
+
+    --font-mono: monospace;
+
+    /* ---- Radius scale ---- */
+    --radius-sm: 0.25rem;
+    --radius-base: 0.3rem;
+    --radius-md: 0.375rem;
+    --radius-lg: 0.5rem;
+    --radius-xl: 0.75rem;
+    --radius-2xl: 1rem;
+
+    /* ---- Shadows ----
+       Recessed: inward, for sunken surfaces (cards, panels). Elevation:
+       outward drop shadows, roughly light → heavy. */
+    --shadow-recessed: inset 0 1px 3px rgba(0, 0, 0, 0.3);
+    --shadow-elevation-1: 0 1px 3px rgba(0, 0, 0, 0.5);
+    --shadow-elevation-2: 0 4px 10px rgba(0, 0, 0, 0.5);
+    --shadow-elevation-3: 0 4px 15px rgba(0, 0, 0, 0.3);
+    --shadow-elevation-4: 0 8px 24px rgba(0, 0, 0, 0.5);
+    --shadow-elevation-5: 0 8px 32px rgba(0, 0, 0, 0.4);
+    --shadow-glow-positive: 0 0 15px var(--accent-positive-strong);
+
+    /* ---- Transitions ---- */
+    --transition-fast: 0.1s;
+    --transition-base: 0.15s;
+    --transition-slow: 0.3s;
+    --ease-standard: ease;
 }

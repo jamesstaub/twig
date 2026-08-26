@@ -16,7 +16,7 @@ body.embed .signal-modal-header {
 }
 
 body.embed .signal-modal-title {
-    font-size: 0.8rem;
+    font-size: var(--font-size-sm-alt);
     white-space: nowrap;
 }
 
@@ -83,5 +83,5 @@ body.embed .signal-pulse-rows {
 
 body.embed .signal-pulse-label,
 body.embed .signal-pulse-detail {
-    font-size: 0.7rem;
+    font-size: var(--font-size-xs);
 }
