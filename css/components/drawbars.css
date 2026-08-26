@@ -427,9 +427,18 @@ body.adsr-mode .drawbar-trigger {
     outline: none;
 }
 
-.mini-dial-disabled {
+.mini-dial-disabled,
+.drawbar-disabled {
     opacity: 0.3;
     pointer-events: none;
+}
+
+/* Hint beside the view tabs (e.g. "create IR to use convolution") */
+.drawbars-note {
+    margin-left: 0.75rem;
+    font-size: 0.75rem;
+    opacity: 0.7;
+    font-weight: normal;
 }
 
 /* ---- Link-all mode (cmd/ctrl held): edits apply to every overtone ----

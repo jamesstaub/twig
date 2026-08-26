@@ -13,6 +13,7 @@ import {
 } from "../../events.js";
 import { BaseController } from "../base/BaseController.js";
 import { AppState } from "../../config.js";
+import { irManager } from "../../dsp/IRManager.js";
 
 const RESET_DRAWBARS_BUTTON_ID = "reset-drawbars-button";
 const RANDOMIZE_DRAWBARS_BUTTON_ID = "randomize-drawbars-button";
@@ -87,16 +88,28 @@ export class DrawbarsController extends BaseController {
                     .forEach((b) => b.classList.toggle("active", b === btn));
                 this.component.view = btn.dataset.view;
                 this.update();
+                this.refreshNote();
             });
         });
 
         // A new IR extends every column's IR stepper — re-render the view
         document.addEventListener(CONVOLUTION_IRS_CHANGED, () => {
             if (this.component.view === 'convolution') this.update();
+            this.refreshNote();
         });
+        this.refreshNote();
 
     }
 
+
+    /** Hint under the tabs: the convolution view is inert until an IR exists. */
+    refreshNote() {
+        const note = document.getElementById('drawbars-note');
+        if (!note) return;
+        const show = this.component.view === 'convolution' && irManager.list().length === 0;
+        note.textContent = show ? 'create IR to use convolution' : '';
+        note.classList.toggle('hidden', !show);
+    }
 
     getProps() {
         return {

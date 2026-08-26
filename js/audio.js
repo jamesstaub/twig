@@ -401,7 +401,12 @@ function harmonicSequencerPayload(index) {
     return {
         shape,
         stretch: seq.stretch || 1,
-        amounts: { gain: 1, freq: 0, res: 0, wet: 0, fb: 0, ...seq.amounts },
+        amounts: {
+            gain: 1, freq: 0, res: 0, ...seq.amounts,
+            // Convolution CVs are moot (and would dip the dry mix) without an IR
+            wet: harmonicHasIR(index) ? (seq.amounts?.wet ?? 0) : 0,
+            fb: harmonicHasIR(index) ? (seq.amounts?.fb ?? 0) : 0,
+        },
         ...(table !== undefined ? { table } : {}),
         config: {
             ratios: Array.from({ length: MAX_FILTER_PARTIALS }, (_, k) => filterPartialRatio(k + 1)),
@@ -524,6 +529,11 @@ export function updateHarmonicGate(index) {
     }
 }
 
+/** Whether a harmonic has a usable IR assigned (else its convolution is bypassed). */
+function harmonicHasIR(index) {
+    return Boolean(irManager.get(AppState.oscillatorConvolutions[index]?.ir ?? null));
+}
+
 /**
  * Convolution send of one harmonic. The IR is pitched to the voice (see
  * IRManager.pitched) so each overtone rings through the timbre transposed
@@ -536,7 +546,11 @@ function harmonicConvolutionPayload(index) {
     const voiceFreq = calculateFrequency(AppState.currentSystem.ratios[index]);
     const buffer = conv.ir ? irManager.pitched(conv.ir, voiceFreq, AppState.audioContext) : null;
     const tune = conv.tune ?? 0;
-    let delay = buffer ? buffer.duration : 0;
+    // No IR → bypass: fully dry, loop closed, whatever the send settings say
+    if (!buffer) {
+        return { wet: 0, feedback: 0, gain: conv.gain ?? 1, buffer: null, delay: 0 };
+    }
+    let delay = buffer.duration;
     if (tune > 0 && voiceFreq > 0) {
         // A feedback loop can't be shorter than two render quanta, so use
         // the smallest whole number of the partial's periods that clears
@@ -562,6 +576,8 @@ export function updateHarmonicConvolution(index) {
     const node = AppState.oscillators[index];
     if (node && node.key) {
         audioEngine.updateOscillatorConvolution(node.key, harmonicConvolutionPayload(index));
+        // The sequencer's wet/feedback CV depths follow the bypass state
+        updateHarmonicSequencer(index);
     }
 }
 

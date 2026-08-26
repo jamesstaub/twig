@@ -244,6 +244,21 @@ export class DrawbarsComponent extends BaseComponent {
     }
 
     /** External updates (modal edits, OSC/Max) → refresh visible controls. */
+    /**
+     * Convolution view: a column's wet slider and dials are disabled while
+     * it has no IR (the engine bypasses the stage). The IR stepper stays
+     * live so the column can be enabled.
+     */
+    applyConvEnabled(index, column = null) {
+        if (this.view !== "convolution") return;
+        const enabled = Boolean(OvertoneSignalActions.getConvolution(index).ir);
+        const col = column || this.el.querySelector(`.drawbar[data-index="${index}"]`);
+        const slider = col?.querySelector(".drawbar-slider");
+        if (slider) slider.disabled = !enabled;
+        col?.querySelector(".drawbar-input-wrapper")?.classList.toggle("drawbar-disabled", !enabled);
+        for (const key of ["convfb", "convgain", "convtune"]) this._dials[key][index]?.setDisabled(!enabled);
+    }
+
     syncSignal(index, kind) {
         if (kind === "pan") {
             this._dials.pan[index]?.setValue(getVoicePan(index));
@@ -253,6 +268,7 @@ export class DrawbarsComponent extends BaseComponent {
             this._dials.convgain[index]?.setValue(c.gain);
             this._dials.convtune[index]?.setValue(c.tune);
             this._irSteppers[index]?._refresh();
+            this.applyConvEnabled(index);
             if (this.view === "convolution" && this.sliders[index]) {
                 this.sliders[index].value = c.wet;
                 this.syncFill(this.sliders[index]);
@@ -352,6 +368,9 @@ export class DrawbarsComponent extends BaseComponent {
         }
 
         wrapper.appendChild(this.createAux(index));
+        // Without an IR the convolution chain is bypassed — the column's
+        // send controls read as inert until the stepper assigns one
+        this.applyConvEnabled(index, wrapper);
         return wrapper;
     }
 
