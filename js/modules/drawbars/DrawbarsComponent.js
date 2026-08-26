@@ -646,14 +646,14 @@ export class DrawbarsComponent extends BaseComponent {
             this._irSteppers[index] = irStepper;
             aux.appendChild(irStepper);
             const fb = new Dial({
-                min: 0, max: CONV_FEEDBACK_MAX, step: 0.01, value: conv.feedback, label: "feedback",
+                min: -CONV_FEEDBACK_MAX, max: CONV_FEEDBACK_MAX, step: 0.01, value: conv.feedback, label: "feedback",
                 color: "--accent-negative",
-                format: (v) => `fb ${Math.round(v * 100)}`,
+                format: (v) => `fb ${v < 0 ? "−" : ""}${Math.round(Math.abs(v) * 100)}`,
                 fineOnShift: false, // shift = shaped row
                 hostTip: (e) => e.shiftKey,
                 onChange: (v, e) => {
                     if (e?.shiftKey) {
-                        this.shapeDialRow(index, aux, v, 0, CONV_FEEDBACK_MAX, (i, val) =>
+                        this.shapeDialRow(index, aux, v, -CONV_FEEDBACK_MAX, CONV_FEEDBACK_MAX, (i, val) =>
                             OvertoneSignalActions.setConvolution(i, { feedback: val }));
                     } else {
                         voiceTargets(index, e).forEach((i) => OvertoneSignalActions.setConvolution(i, { feedback: v }));
@@ -661,14 +661,14 @@ export class DrawbarsComponent extends BaseComponent {
                 },
             });
             const cgain = new Dial({
-                min: -1, max: 1, step: 0.01, value: conv.gain, label: "gain",
+                min: 0, max: 1, step: 0.01, value: conv.gain, label: "gain",
                 color: "--accent-positive",
-                format: (v) => v.toFixed(2),
+                format: (v) => `${Math.round(v * 100)}%`,
                 fineOnShift: false, // shift = shaped row
                 hostTip: (e) => e.shiftKey,
                 onChange: (v, e) => {
                     if (e?.shiftKey) {
-                        this.shapeDialRow(index, aux, v, -1, 1, (i, val) =>
+                        this.shapeDialRow(index, aux, v, 0, 1, (i, val) =>
                             OvertoneSignalActions.setConvolution(i, { gain: val }));
                     } else {
                         voiceTargets(index, e).forEach((i) => OvertoneSignalActions.setConvolution(i, { gain: v }));

@@ -210,14 +210,13 @@ export class AudioEngine {
         // Per-voice convolution stage after the lowpass — created for every
         // voice so it can be enabled mid-playback without rewiring. "Off" is
         // passthrough: dry 1, wet 0, no IR buffer (a bufferless convolver is
-        // silent). Wet path: convolver → convGain (±1) → duck → convSum →
+        // silent). Wet path: convolver → convGain (0..1) → duck → convSum →
         // convWet (mix). Feedback is a delay line around the wet signal:
-        // convSum → convDelay → convFb (0..0.99) → convLoopGain (the same ±1)
-        // → convSum — so a negative gain inverts on the direct pass AND on
-        // every recirculation (alternating-sign passes: the comb moves to
-        // odd multiples of half the loop rate). The loop deliberately
-        // excludes the convolver — Chrome does not process a signal that
-        // reaches a ConvolverNode through a cycle.
+        // convSum → convDelay → convFb (−0.99..0.99) → convSum. Negative
+        // feedback inverts every recirculation (alternating-sign passes:
+        // the comb moves to odd multiples of half the loop rate). The loop
+        // deliberately excludes the convolver — Chrome does not process a
+        // signal that reaches a ConvolverNode through a cycle.
         const conv = options.convolution || {};
         const convolver = this.context.createConvolver();
         convolver.normalize = true;
@@ -227,7 +226,6 @@ export class AudioEngine {
         const convGain = this.context.createGain();
         const convSum = this.context.createGain();
         const convFb = this.context.createGain();
-        const convLoopGain = this.context.createGain();
         // Wet CV also drives dry by −1 so the mix stays complementary
         const convWetInv = this.context.createGain();
         convWetInv.gain.setValueAtTime(-1, this.context.currentTime);
@@ -244,7 +242,6 @@ export class AudioEngine {
         convDry.gain.setValueAtTime(1 - (conv.wet ?? 0), this.context.currentTime);
         convWet.gain.setValueAtTime(conv.wet ?? 0, this.context.currentTime);
         convGain.gain.setValueAtTime(conv.gain ?? 1, this.context.currentTime);
-        convLoopGain.gain.setValueAtTime(conv.gain ?? 1, this.context.currentTime);
         convFb.gain.setValueAtTime(conv.feedback ?? 0, this.context.currentTime);
 
         // Always stereo: use StereoPannerNode per oscillator
@@ -281,14 +278,13 @@ export class AudioEngine {
         convWet.connect(panner);
         convSum.connect(convDelay);
         convDelay.connect(convFb);
-        convFb.connect(convLoopGain);
-        convLoopGain.connect(convSum);
+        convFb.connect(convSum);
         panner.connect(this.compressor);
 
         return {
             oscillator, sourceTap, sourceNode: options.source || null,
             envNode, gainNode, gateNode, driveNode, filterNode,
-            convolver, convDry, convWet, convGain, convLoopGain, convSum, convFb, convDelay, convWetInv, convDuck,
+            convolver, convDry, convWet, convGain, convSum, convFb, convDelay, convWetInv, convDuck,
             panner, meter,
         };
     }
@@ -358,10 +354,7 @@ export class AudioEngine {
             oscData.convFb.gain.setTargetAtTime(feedback, now, tau);
             oscData.gateNode?.parameters.get('baseFb').setTargetAtTime(feedback, now, tau);
         }
-        if (gain !== undefined) {
-            oscData.convGain.gain.setTargetAtTime(gain, now, tau);
-            oscData.convLoopGain.gain.setTargetAtTime(gain, now, tau);
-        }
+        if (gain !== undefined) oscData.convGain.gain.setTargetAtTime(gain, now, tau);
         if (buffer !== undefined && (oscData.pendingConvBuffer ?? oscData.convolver.buffer) !== buffer) {
             this._swapConvolverBuffer(oscData, buffer);
         }
@@ -582,7 +575,7 @@ export class AudioEngine {
         for (const node of [
             oscData.sourceTap, oscData.envNode, oscData.gainNode, oscData.gateNode,
             oscData.driveNode, oscData.filterNode, oscData.convolver, oscData.convDry,
-            oscData.convWet, oscData.convGain, oscData.convLoopGain, oscData.convSum, oscData.convFb, oscData.convDelay, oscData.convWetInv, oscData.convDuck, oscData.panner, oscData.meter,
+            oscData.convWet, oscData.convGain, oscData.convSum, oscData.convFb, oscData.convDelay, oscData.convWetInv, oscData.convDuck, oscData.panner, oscData.meter,
         ]) {
             try { node?.disconnect(); } catch { /* already disconnected */ }
         }

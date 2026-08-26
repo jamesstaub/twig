@@ -146,7 +146,7 @@ class OvertoneGateProcessor extends AudioWorkletProcessor {
             { name: 'amtWet', defaultValue: 0, minValue: 0, maxValue: 1, automationRate: 'k-rate' },
             { name: 'amtFb', defaultValue: 0, minValue: 0, maxValue: 1, automationRate: 'k-rate' },
             { name: 'baseWet', defaultValue: 0, minValue: 0, maxValue: 1, automationRate: 'k-rate' },
-            { name: 'baseFb', defaultValue: 0, minValue: 0, maxValue: 0.99, automationRate: 'k-rate' },
+            { name: 'baseFb', defaultValue: 0, minValue: -0.99, maxValue: 0.99, automationRate: 'k-rate' },
         ];
     }
 
@@ -298,7 +298,9 @@ class OvertoneGateProcessor extends AudioWorkletProcessor {
             if (qCV) qCV[i] = off ? 0 : amtRes * s * Q_SPAN;
             // Convolution: contour adds to the base send, clamped to range
             if (wetCV) wetCV[i] = off ? 0 : Math.min(1, baseWet + amtWet * s) - baseWet;
-            if (fbCV) fbCV[i] = off ? 0 : Math.min(FB_MAX, baseFb + amtFb * s) - baseFb;
+            // Feedback may be negative (inverting loop): modulation pushes
+            // its magnitude toward the ceiling, keeping the sign
+            if (fbCV) fbCV[i] = off ? 0 : Math.max(-FB_MAX, Math.min(FB_MAX, baseFb + Math.sign(baseFb || 1) * amtFb * s)) - baseFb;
         }
         return true;
     }

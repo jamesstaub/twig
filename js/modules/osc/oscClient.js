@@ -28,7 +28,8 @@
  *   /twig/adcin [id|index|label]  ADC input device ('' = system default)
  *   /twig/adcchannel [i ch]       ADC input channel (0-based)
  *   /twig/conv/<n> [wet fb gain tune]  per-overtone convolution send (n=0 →
- *                                 all): wet 0-1, feedback 0-0.99, gain -1..1,
+ *                                 all): wet 0-1, feedback -0.99..0.99
+ *                                 (negative inverts each pass), gain 0-1,
  *                                 tune 0 = loop period is the IR's duration,
  *                                 1..24 = a series partial of the voice (the
  *                                 filter-cutoff convention) for the feedback

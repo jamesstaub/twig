@@ -22,8 +22,9 @@ export const DRIVE_MAX = 2.5;
 // dials and the OSC clamp.
 export const ENV_TIME_MAX = { a: 2, d: 2, r: 5 };
 
-// Convolution feedback ceiling (a loop gain of 1 would run away), shared
-// by the convolution view dial and the OSC clamp.
+// Convolution feedback magnitude ceiling (|loop gain| of 1 would run
+// away), shared by the convolution view dial and the OSC clamp. Negative
+// feedback inverts each recirculation.
 export const CONV_FEEDBACK_MAX = 0.99;
 
 export const OvertoneSignalActions = {
@@ -64,7 +65,7 @@ export const OvertoneSignalActions = {
     },
 
     /**
-     * Convolution send: { wet 0-1, feedback 0-CONV_FEEDBACK_MAX, gain -1..1,
+     * Convolution send: { wet 0-1, feedback ±CONV_FEEDBACK_MAX, gain 0-1,
      * ir: IRManager key | null, tune: 0 (loop period = IR duration) or a
      * 1-based series partial the feedback comb is tuned to }. Each overtone
      * picks its own IR.
@@ -77,8 +78,8 @@ export const OvertoneSignalActions = {
         const merged = { ...this.getConvolution(index), ...patch };
         AppState.oscillatorConvolutions[index] = {
             wet: Math.max(0, Math.min(1, Number(merged.wet) || 0)),
-            feedback: Math.max(0, Math.min(CONV_FEEDBACK_MAX, Number(merged.feedback) || 0)),
-            gain: Math.max(-1, Math.min(1, isFinite(Number(merged.gain)) ? Number(merged.gain) : 1)),
+            feedback: Math.max(-CONV_FEEDBACK_MAX, Math.min(CONV_FEEDBACK_MAX, Number(merged.feedback) || 0)),
+            gain: Math.max(0, Math.min(1, isFinite(Number(merged.gain)) ? Number(merged.gain) : 1)),
             ir: merged.ir && irManager.get(merged.ir) ? merged.ir : null,
             tune: Math.max(0, Math.min(MAX_FILTER_PARTIALS, Math.round(Number(merged.tune) || 0))),
         };
