@@ -71,7 +71,8 @@ CSS under `css/components/`.
   ADC/soundfile/pink/white) — voices keep their frequency identity so the
   pitch-tracked lowpasses (forced to multiplier 1 / Q 30 on entering an
   external mode) form a resonant filter bank. External modes hide the
-  sequencer, waveform picker, and fundamental UI.
+  sequencer, waveform picker, and wavetable actions; the fundamental stays
+  visible — it tunes the bank.
 - The gate worklet (`js/dsp/worklets/gate-processor.js`) is served
   **unbundled** — no imports allowed in that file. Arbitrary data (0/1
   sequences, shape tables) goes over `port.postMessage`, numbers go as
