@@ -227,6 +227,10 @@ export class AudioEngine {
         // Wet CV also drives dry by −1 so the mix stays complementary
         const convWetInv = this.context.createGain();
         convWetInv.gain.setValueAtTime(-1, this.context.currentTime);
+        // Duck on the wet output, ahead of the loop entry: ramped out around
+        // IR buffer swaps (a swap restarts the convolver with a
+        // discontinuity that the feedback loop would otherwise repeat)
+        const convDuck = this.context.createGain();
         // Feedback loops must contain a DelayNode or Web Audio silences the
         // cycle. The delay equals the IR's duration, so each pass replays
         // the convolved cycle right after the previous one — the loop is a
@@ -266,7 +270,8 @@ export class AudioEngine {
         convDry.connect(panner);
         filterNode.connect(convolver);
         convolver.connect(convGain);
-        convGain.connect(convSum);
+        convGain.connect(convDuck);
+        convDuck.connect(convSum);
         convSum.connect(convWet);
         convWet.connect(panner);
         convSum.connect(convDelay);
@@ -277,13 +282,44 @@ export class AudioEngine {
         return {
             oscillator, sourceTap, sourceNode: options.source || null,
             envNode, gainNode, gateNode, driveNode, filterNode,
-            convolver, convDry, convWet, convGain, convSum, convFb, convDelay, convWetInv,
+            convolver, convDry, convWet, convGain, convSum, convFb, convDelay, convWetInv, convDuck,
             panner, meter,
         };
     }
 
     /** Longest feedback delay (IR duration) the stage supports, seconds. */
     static CONV_MAX_DELAY = 10;
+
+    /**
+     * Swap a voice's IR without a click: duck the wet output (and so the
+     * loop entry) to silence, assign the buffer once the ramp has landed,
+     * then ramp back. Swaps arriving mid-duck coalesce onto the latest
+     * buffer. The timer only postpones the swap — if the main thread is
+     * throttled the duck just lasts longer; nothing audible depends on it
+     * firing on time.
+     */
+    _swapConvolverBuffer(oscData, buffer) {
+        oscData.pendingConvBuffer = buffer;
+        if (oscData.convSwapTimer) return;
+        const now = this.context.currentTime;
+        const duck = oscData.convDuck.gain;
+        duck.cancelScheduledValues(now);
+        duck.setTargetAtTime(0, now, AudioEngine.CONV_DUCK_TAU);
+        oscData.convSwapTimer = setTimeout(() => {
+            oscData.convSwapTimer = null;
+            if (!oscData.convolver) return; // torn down meanwhile
+            oscData.convolver.buffer = oscData.pendingConvBuffer;
+            oscData.pendingConvBuffer = undefined;
+            const t = this.context.currentTime;
+            duck.cancelScheduledValues(t);
+            duck.setTargetAtTime(1, t, AudioEngine.CONV_DUCK_TAU * 3);
+        }, AudioEngine.CONV_DUCK_MS);
+    }
+
+    /** Duck ramp time constant (s): ~−40 dB after five constants. */
+    static CONV_DUCK_TAU = 0.003;
+    /** Duck hold before an IR swap (ms) — past the ramp's −40 dB point. */
+    static CONV_DUCK_MS = 20;
 
     /**
      * DelayNode time for a wanted loop period in seconds. A DelayNode inside
@@ -317,8 +353,8 @@ export class AudioEngine {
             oscData.gateNode?.parameters.get('baseFb').setTargetAtTime(feedback, now, tau);
         }
         if (gain !== undefined) oscData.convGain.gain.setTargetAtTime(gain, now, tau);
-        if (buffer !== undefined && oscData.convolver.buffer !== buffer) {
-            oscData.convolver.buffer = buffer;
+        if (buffer !== undefined && (oscData.pendingConvBuffer ?? oscData.convolver.buffer) !== buffer) {
+            this._swapConvolverBuffer(oscData, buffer);
         }
         if (delay !== undefined) {
             oscData.convDelay.delayTime.setTargetAtTime(AudioEngine.loopDelayTime(delay, this.context), now, tau);
@@ -497,13 +533,33 @@ export class AudioEngine {
 
     /** Stop and disconnect one voice's node chain. */
     teardownVoice(oscData) {
+        clearTimeout(oscData.convSwapTimer);
+        oscData.convSwapTimer = null;
+        // Fade the voice — and its convolution loop — before cutting it.
+        // An abrupt stop is a click, and the feedback loop would repeat
+        // that click for as long as it decays.
+        const now = this.context.currentTime;
+        for (const g of [oscData.gainNode?.gain, oscData.convSum?.gain]) {
+            if (!g) continue;
+            g.cancelScheduledValues(now);
+            g.setTargetAtTime(0, now, AudioEngine.CONV_DUCK_TAU);
+        }
         if (oscData.oscillator) {
             try {
-                oscData.oscillator.stop(this.context.currentTime + 0.01); // Small delay to avoid clicks
+                oscData.oscillator.stop(now + AudioEngine.TEARDOWN_MS / 1000);
             } catch {
                 // Oscillator may already be stopped
             }
         }
+        // Unhook after the fade has landed. A throttled timer only delays
+        // the cleanup of an already-silent voice.
+        setTimeout(() => this._disconnectVoice(oscData), AudioEngine.TEARDOWN_MS);
+    }
+
+    /** Fade-to-cut time (ms) for voice teardown. */
+    static TEARDOWN_MS = 40;
+
+    _disconnectVoice(oscData) {
         // The shared external source outlives voices — unhook this voice's
         // tap from it so the tap subgraph can be collected
         if (oscData.sourceNode && oscData.sourceTap) {
@@ -517,7 +573,7 @@ export class AudioEngine {
         for (const node of [
             oscData.sourceTap, oscData.envNode, oscData.gainNode, oscData.gateNode,
             oscData.driveNode, oscData.filterNode, oscData.convolver, oscData.convDry,
-            oscData.convWet, oscData.convGain, oscData.convSum, oscData.convFb, oscData.convDelay, oscData.convWetInv, oscData.panner, oscData.meter,
+            oscData.convWet, oscData.convGain, oscData.convSum, oscData.convFb, oscData.convDelay, oscData.convWetInv, oscData.convDuck, oscData.panner, oscData.meter,
         ]) {
             try { node?.disconnect(); } catch { /* already disconnected */ }
         }
