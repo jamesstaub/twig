@@ -132,7 +132,7 @@ const COMMANDS = new Set([
     'waveform', 'source', 'adcin', 'adcchannel', 'subharmonic', 'play', 'reset', 'randomize',
     'setdrawbarfundamental', 'gate', 'filter', 'res', 'drive', 'pan', 'conv', 'convir', 'irring',
     'pulsemidi', 'pulseosc', 'midiclock',
-    'seqshape', 'seqgain', 'seqfreq', 'seqres', 'seqstretch',
+    'seqshape', 'seqgain', 'seqfreq', 'seqres', 'seqwet', 'seqfb', 'seqstretch',
     'adsr', 'envmode', 'midiout'
 ]);
 
@@ -140,7 +140,7 @@ const COMMANDS = new Set([
 // them (see the staleness check in bootstrap()).
 const TRANSIENT_COMMANDS = new Set(['reset', 'randomize', 'setdrawbarfundamental']);
 
-const SEQ_AMOUNT_TARGETS = { seqgain: 'gain', seqfreq: 'freq', seqres: 'res' };
+const SEQ_AMOUNT_TARGETS = { seqgain: 'gain', seqfreq: 'freq', seqres: 'res', seqwet: 'wet', seqfb: 'fb' };
 
 const GATE_MODES = {
     off: 0, 0: 0,
@@ -511,7 +511,9 @@ export class OscClient {
             }
             case 'seqgain':
             case 'seqfreq':
-            case 'seqres': {
+            case 'seqres':
+            case 'seqwet':
+            case 'seqfb': {
                 // /twig/seq<target>/<n> [amount] — modulation depths
                 const [n, rest] = perVoiceArgs(sub, args);
                 if (n === null || rest[0] === undefined) break;
@@ -681,6 +683,8 @@ export class OscClient {
                 this.emit(`seqgain/${n}`, [seq.amounts.gain]);
                 this.emit(`seqfreq/${n}`, [seq.amounts.freq]);
                 this.emit(`seqres/${n}`, [seq.amounts.res]);
+                this.emit(`seqwet/${n}`, [seq.amounts.wet]);
+                this.emit(`seqfb/${n}`, [seq.amounts.fb]);
             } else if (kind === 'pulse') {
                 const out = AppState.oscillatorPulseOuts[index] || {};
                 this.emit(`pulsemidi/${n}`, [out.midi ? 1 : 0]);

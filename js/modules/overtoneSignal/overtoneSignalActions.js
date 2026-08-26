@@ -125,7 +125,7 @@ export const OvertoneSignalActions = {
         return {
             shape: stored.shape || 'square',
             stretch: stored.stretch || 1,
-            amounts: { gain: 1, freq: 0, res: 0, ...stored.amounts },
+            amounts: { gain: 1, freq: 0, res: 0, wet: 0, fb: 0, ...stored.amounts },
         };
     },
 
@@ -148,7 +148,7 @@ export const OvertoneSignalActions = {
         this._changed(index, 'seq');
     },
 
-    /** Set a modulation amount: target 'gain' | 'freq' | 'res'. */
+    /** Set a modulation amount: target 'gain' | 'freq' | 'res' | 'wet' | 'fb'. */
     setSequencerAmount(index, target, value) {
         const seq = this.getSequencer(index);
         const clamped = target === 'freq'

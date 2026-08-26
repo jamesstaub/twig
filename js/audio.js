@@ -401,7 +401,7 @@ function harmonicSequencerPayload(index) {
     return {
         shape,
         stretch: seq.stretch || 1,
-        amounts: { gain: 1, freq: 0, res: 0, ...seq.amounts },
+        amounts: { gain: 1, freq: 0, res: 0, wet: 0, fb: 0, ...seq.amounts },
         ...(table !== undefined ? { table } : {}),
         config: {
             ratios: Array.from({ length: MAX_FILTER_PARTIALS }, (_, k) => filterPartialRatio(k + 1)),

@@ -58,12 +58,12 @@ const STATE_ORDER = [
     'system', 'waveform', 'source', 'adcin', 'adcchannel', 'subharmonic', 'note', 'freq',
     'gain', 'slew', 'drawbars', 'drawbar', 'gate', 'filter', 'res', 'drive', 'pan',
     'conv', 'convir', 'irring',
-    'adsr', 'seqshape', 'seqgain', 'seqfreq', 'seqres', 'seqstretch',
+    'adsr', 'seqshape', 'seqgain', 'seqfreq', 'seqres', 'seqwet', 'seqfb', 'seqstretch',
     'pulsemidi', 'pulseosc', 'midiclock', 'midiout', 'envmode', 'play'
 ];
 const PER_INDEX_COMMANDS = new Set([
     'drawbar', 'gate', 'filter', 'res', 'drive', 'pan', 'adsr', 'conv', 'convir',
-    'seqshape', 'seqgain', 'seqfreq', 'seqres', 'seqstretch',
+    'seqshape', 'seqgain', 'seqfreq', 'seqres', 'seqwet', 'seqfb', 'seqstretch',
     'pulsemidi', 'pulseosc'
 ]);
 const TRANSIENT_COMMANDS = new Set(['reset', 'randomize', 'setdrawbarfundamental']);
@@ -185,7 +185,7 @@ if (Max) {
         'system', 'startharmonic', 'stiffness', 'closedness', 'stretch', 'compress',
         'waveform', 'source', 'adcin', 'adcchannel', 'subharmonic', 'play', 'reset', 'randomize',
         'setdrawbarfundamental', 'gate', 'filter', 'res', 'drive', 'pan', 'conv', 'convir', 'irring',
-        'seqshape', 'seqgain', 'seqfreq', 'seqres', 'seqstretch',
+        'seqshape', 'seqgain', 'seqfreq', 'seqres', 'seqwet', 'seqfb', 'seqstretch',
         'pulsemidi', 'pulseosc', 'midiclock', 'adsr', 'envmode', 'midiout'
     ];
     for (const cmd of APP_COMMANDS) {

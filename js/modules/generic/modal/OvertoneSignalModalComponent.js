@@ -384,6 +384,8 @@ export default class OvertoneSignalModalComponent extends ModalComponent {
         addAmount('gain', 'gain', 0, 1);
         addAmount('freq', 'filter freq', -1, 1);
         addAmount('res', 'resonance', 0, 1);
+        addAmount('wet', 'conv wet/dry', 0, 1);
+        addAmount('fb', 'conv feedback', 0, 1);
 
         return wrap;
     }
