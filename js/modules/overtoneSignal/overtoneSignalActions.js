@@ -65,10 +65,12 @@ export const OvertoneSignalActions = {
 
     /**
      * Convolution send: { wet 0-1, feedback 0-CONV_FEEDBACK_MAX, gain -1..1,
-     * ir: IRManager key | null }. Each overtone picks its own IR.
+     * ir: IRManager key | null, tune: 0 (loop period = IR duration) or a
+     * 1-based series partial the feedback comb is tuned to }. Each overtone
+     * picks its own IR.
      */
     getConvolution(index) {
-        return { wet: 0, feedback: 0, gain: 1, ir: null, ...AppState.oscillatorConvolutions[index] };
+        return { wet: 0, feedback: 0, gain: 1, ir: null, tune: 0, ...AppState.oscillatorConvolutions[index] };
     },
 
     setConvolution(index, patch) {
@@ -78,6 +80,7 @@ export const OvertoneSignalActions = {
             feedback: Math.max(0, Math.min(CONV_FEEDBACK_MAX, Number(merged.feedback) || 0)),
             gain: Math.max(-1, Math.min(1, isFinite(Number(merged.gain)) ? Number(merged.gain) : 1)),
             ir: merged.ir && irManager.get(merged.ir) ? merged.ir : null,
+            tune: Math.max(0, Math.min(MAX_FILTER_PARTIALS, Math.round(Number(merged.tune) || 0))),
         };
         updateHarmonicConvolution(index);
         this._changed(index, 'conv');
@@ -215,7 +218,7 @@ export const OvertoneSignalActions = {
     /** Convolution sends fully dry, feedback off, gain unity; IRs kept. */
     resetConvolutions() {
         for (let i = 0; i < this._voiceCount(); i++) {
-            this.setConvolution(i, { wet: 0, feedback: 0, gain: 1 });
+            this.setConvolution(i, { wet: 0, feedback: 0, gain: 1, tune: 0 });
         }
     },
 

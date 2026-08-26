@@ -371,6 +371,7 @@ export const SOURCE_MODES = ['oscillators', 'adc', 'soundfile', 'pink', 'white']
 // Per-overtone lowpass resonance applied when an external source is
 // selected, turning the voice bank into a resonant filter bank
 export const FILTER_BANK_Q = 30;
+export const IR_RING_MAX_SECONDS = 4;
 // Partial count of the default system; systems may have more or fewer
 export const NUM_HARMONICS = spectralSystems[0].ratios.length;
 export const DEFAULT_MASTER_GAIN = 0.3;
@@ -411,6 +412,10 @@ export const AppState = {
     // Per-overtone convolution sends, sparse objects keyed by voice index:
     // { wet 0-1, feedback 0-0.99, gain -1..1, ir: IRManager key | null }
     oscillatorConvolutions: {},
+    // "Create IR" ring time in seconds: 0 bakes one loop of the timbre;
+    // longer tiles the loop with an exponential decay (−60 dB at the end),
+    // turning the IR into a modal resonator that rings like a struck bar
+    irRingSeconds: 0,
 
     // Spectral properties
     currentSystem: spectralSystems[0],

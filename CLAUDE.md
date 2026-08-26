@@ -60,8 +60,13 @@ CSS under `css/components/`.
 - Per-voice audio chain (`js/dsp/AudioEngine.js`): source → gain → gate
   worklet (3 outputs: audio, cutoff-CV, Q-CV into the biquad's AudioParams)
   → drive WaveShaper → lowpass biquad → convolution stage (dry/wet mix
-  around a ConvolverNode with ±gain and 0-0.99 feedback; IRs from
-  `js/dsp/IRManager.js`, baked via "Create IR") → panner → shared
+  around a ConvolverNode with ±gain; feedback is a delay line around the
+  wet signal — Chrome won't process a signal reaching a convolver through
+  a cycle, and a DelayNode in a cycle adds one render quantum, which is
+  subtracted; loop period = the IR's duration or a series partial ("tune",
+  filter-cutoff convention, ≥ 2 quanta via integer multiples). IRs from
+  `js/dsp/IRManager.js`, baked via "Create IR" with an optional ring/decay
+  time, and pitched per voice by voiceFreq / bakeFrequency) → panner → shared
   compressor → master gain → limiter. Every node exists for every voice so
   features can be enabled mid-playback without rewiring; "off" states are
   passthrough (null WaveShaper curve, 20 kHz cutoff, gate mode 0, conv

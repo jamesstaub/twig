@@ -228,7 +228,7 @@ export class AudioEngine {
         // the convolved cycle right after the previous one — the loop is a
         // resonator at the timbre's own period (see convDelayTime).
         const convDelay = this.context.createDelay(AudioEngine.CONV_MAX_DELAY);
-        convDelay.delayTime.setValueAtTime(AudioEngine.convDelayTime(conv.buffer, this.context), this.context.currentTime);
+        convDelay.delayTime.setValueAtTime(AudioEngine.loopDelayTime(conv.delay, this.context), this.context.currentTime);
         convDry.gain.setValueAtTime(1 - (conv.wet ?? 0), this.context.currentTime);
         convWet.gain.setValueAtTime(conv.wet ?? 0, this.context.currentTime);
         convGain.gain.setValueAtTime(conv.gain ?? 1, this.context.currentTime);
@@ -276,22 +276,23 @@ export class AudioEngine {
     static CONV_MAX_DELAY = 10;
 
     /**
-     * Feedback delay for an IR: its duration, so the loop repeats the cycle
-     * in phase. A DelayNode inside a cycle carries one extra render quantum
-     * of latency (the feedback edge is read from the previous quantum), so
-     * that quantum is subtracted; the floor is the quantum itself.
+     * DelayNode time for a wanted loop period in seconds. A DelayNode inside
+     * a cycle carries one extra render quantum of latency (the feedback
+     * edge is read from the previous quantum), so that quantum is
+     * subtracted; the floor is the quantum itself.
      */
-    static convDelayTime(buffer, context) {
+    static loopDelayTime(seconds, context) {
         const quantum = 128 / context.sampleRate;
-        const target = (buffer ? buffer.duration : 0) - quantum;
+        const target = (seconds || 0) - quantum;
         return Math.min(AudioEngine.CONV_MAX_DELAY, Math.max(quantum, target));
     }
 
     /**
      * Update a running voice's convolution stage. `buffer` (an AudioBuffer
-     * or null) swaps the IR; gains ramp to avoid zipper noise.
+     * or null) swaps the IR; `delay` is the feedback loop period in seconds;
+     * gains ramp to avoid zipper noise.
      */
-    updateOscillatorConvolution(key, { wet, feedback, gain, buffer } = {}, rampTime = 0.02) {
+    updateOscillatorConvolution(key, { wet, feedback, gain, buffer, delay } = {}, rampTime = 0.02) {
         const oscData = this.oscillators.get(key);
         if (!oscData || !oscData.convolver) return;
         const now = this.context.currentTime;
@@ -304,8 +305,9 @@ export class AudioEngine {
         if (gain !== undefined) oscData.convGain.gain.setTargetAtTime(gain, now, tau);
         if (buffer !== undefined && oscData.convolver.buffer !== buffer) {
             oscData.convolver.buffer = buffer;
-            oscData.convDelay.delayTime.setTargetAtTime(
-                AudioEngine.convDelayTime(buffer, this.context), now, tau);
+        }
+        if (delay !== undefined) {
+            oscData.convDelay.delayTime.setTargetAtTime(AudioEngine.loopDelayTime(delay, this.context), now, tau);
         }
     }
 

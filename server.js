@@ -57,7 +57,7 @@ const STATE_ORDER = [
     'startharmonic', 'stiffness', 'closedness', 'stretch', 'compress',
     'system', 'waveform', 'source', 'adcin', 'adcchannel', 'subharmonic', 'note', 'freq',
     'gain', 'slew', 'drawbars', 'drawbar', 'gate', 'filter', 'res', 'drive', 'pan',
-    'conv', 'convir',
+    'conv', 'convir', 'irring',
     'adsr', 'seqshape', 'seqgain', 'seqfreq', 'seqres', 'seqstretch',
     'pulsemidi', 'pulseosc', 'midiclock', 'midiout', 'envmode', 'play'
 ];
@@ -184,7 +184,7 @@ if (Max) {
         'drawbar', 'drawbars', 'gain', 'slew', 'note', 'freq',
         'system', 'startharmonic', 'stiffness', 'closedness', 'stretch', 'compress',
         'waveform', 'source', 'adcin', 'adcchannel', 'subharmonic', 'play', 'reset', 'randomize',
-        'setdrawbarfundamental', 'gate', 'filter', 'res', 'drive', 'pan', 'conv', 'convir',
+        'setdrawbarfundamental', 'gate', 'filter', 'res', 'drive', 'pan', 'conv', 'convir', 'irring',
         'seqshape', 'seqgain', 'seqfreq', 'seqres', 'seqstretch',
         'pulsemidi', 'pulseosc', 'midiclock', 'adsr', 'envmode', 'midiout'
     ];

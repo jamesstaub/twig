@@ -27,8 +27,14 @@
  *                                 2 soundfile, 3 pink, 4 white (or by name)
  *   /twig/adcin [id|index|label]  ADC input device ('' = system default)
  *   /twig/adcchannel [i ch]       ADC input channel (0-based)
- *   /twig/conv/<n> [wet fb gain]  per-overtone convolution send (n=0 → all):
- *                                 wet 0-1, feedback 0-0.99, gain -1..1
+ *   /twig/conv/<n> [wet fb gain tune]  per-overtone convolution send (n=0 →
+ *                                 all): wet 0-1, feedback 0-0.99, gain -1..1,
+ *                                 tune 0 = loop period is the IR's duration,
+ *                                 1..24 = a series partial of the voice (the
+ *                                 filter-cutoff convention) for the feedback
+ *                                 comb. IRs are pitched per voice.
+ *   /twig/irring [f seconds]      ring time for subsequent Create IR bakes
+ *                                 (0 = one loop, up to 4 s of decay)
  *   /twig/convir/<n> [i index]    per-overtone IR by creation index (n=0 →
  *                                 all; -1 = none; IRs are session-created)
  *   /twig/waveform [s name]       oscillator: square|sine|triangle|sawtooth|custom_*
@@ -116,14 +122,15 @@ import {
     OVERTONE_SIGNAL_CHANGED,
     ENVELOPE_MODE_CHANGED,
     MIDI_OUTPUT_CHANGED,
-    SOURCE_CHANGED
+    SOURCE_CHANGED,
+    IR_RING_CHANGED
 } from "../../events.js";
 
 const COMMANDS = new Set([
     'drawbar', 'drawbars', 'gain', 'slew', 'note', 'freq',
     'system', 'startharmonic', 'stiffness', 'closedness', 'stretch', 'compress',
     'waveform', 'source', 'adcin', 'adcchannel', 'subharmonic', 'play', 'reset', 'randomize',
-    'setdrawbarfundamental', 'gate', 'filter', 'res', 'drive', 'pan', 'conv', 'convir',
+    'setdrawbarfundamental', 'gate', 'filter', 'res', 'drive', 'pan', 'conv', 'convir', 'irring',
     'pulsemidi', 'pulseosc', 'midiclock',
     'seqshape', 'seqgain', 'seqfreq', 'seqres', 'seqstretch',
     'adsr', 'envmode', 'midiout'
@@ -452,9 +459,14 @@ export class OscClient {
                 const patch = { wet: Number(rest[0]) };
                 if (rest[1] !== undefined) patch.feedback = Number(rest[1]);
                 if (rest[2] !== undefined) patch.gain = Number(rest[2]);
+                if (rest[3] !== undefined) patch.tune = Number(rest[3]);
                 this.forVoices(n, (i) => OvertoneSignalActions.setConvolution(i, patch));
                 break;
             }
+            case 'irring':
+                // Ring time (s) for subsequent Create IR bakes; clamps 0..max
+                ConvolutionActions.setRingSeconds(args[0]);
+                break;
             case 'convir': {
                 // /twig/convir/<n> [i] (n = 0 → all): IR by creation index,
                 // -1 = none. IRs live in the browser session, so an unknown
@@ -636,6 +648,9 @@ export class OscClient {
             // Partial count/values can change with the system — resync all
             this.emit('drawbars', [...AppState.harmonicAmplitudes]);
         });
+        document.addEventListener(IR_RING_CHANGED, () => {
+            this.emit('irring', [AppState.irRingSeconds]);
+        });
         document.addEventListener(SOURCE_CHANGED, () => {
             this.emit('source', [SOURCE_MODES.indexOf(AppState.sourceMode)]);
             this.emit('adcin', [AppState.adcDeviceId ?? '']);
@@ -687,7 +702,7 @@ export class OscClient {
                 this.emit(`drive/${n}`, [OvertoneSignalActions.getDrive(index)]);
             } else if (kind === 'conv') {
                 const c = OvertoneSignalActions.getConvolution(index);
-                this.emit(`conv/${n}`, [c.wet, c.feedback, c.gain]);
+                this.emit(`conv/${n}`, [c.wet, c.feedback, c.gain, c.tune]);
                 this.emit(`convir/${n}`, [irManager.indexOf(c.ir)]);
             } else if (kind === 'envelope') {
                 const env = OvertoneSignalActions.getEnvelope(index);

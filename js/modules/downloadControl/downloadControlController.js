@@ -1,8 +1,9 @@
 import { BaseController } from "../base/BaseController.js";
 import { DownloadControlComponent } from "./DownloadControlComponent.js";
 import { DownloadControlActions } from "./downloadControlActions.js";
-import { AppState } from "../../config.js";
-import { ROUTING_MODE_CHANGED, SOURCE_CHANGED } from "../../events.js";
+import { AppState, IR_RING_MAX_SECONDS } from "../../config.js";
+import { IR_RING_CHANGED, ROUTING_MODE_CHANGED, SOURCE_CHANGED } from "../../events.js";
+import { Dial } from "../generic/dial/Dial.js";
 import { handleAddToWaveforms } from "../waveform/waveformActions.js";
 import { ConvolutionActions } from "../convolution/convolutionActions.js";
 
@@ -38,6 +39,19 @@ export class DownloadControlController extends BaseController {
         document.getElementById('create-ir-button')?.addEventListener('click', () => {
             ConvolutionActions.createIRFromCurrent();
         });
+
+        // Ring-time dial for the next Create IR: 0 = one loop, else seconds
+        // of exponential decay (a modal resonator)
+        const ringRoot = document.getElementById('ir-ring-root');
+        if (ringRoot) {
+            this._ringDial = new Dial({
+                min: 0, max: IR_RING_MAX_SECONDS, step: 0.1, value: AppState.irRingSeconds, size: 22, label: 'ring',
+                format: (v) => (v === 0 ? 'one loop' : `ring ${v.toFixed(1)}s`),
+                onChange: (v) => ConvolutionActions.setRingSeconds(v),
+            });
+            ringRoot.appendChild(this._ringDial.el);
+            document.addEventListener(IR_RING_CHANGED, () => this._ringDial.setValue(AppState.irRingSeconds));
+        }
     }
 
     bindExternalEvents() {

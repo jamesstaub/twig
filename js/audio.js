@@ -358,8 +358,17 @@ export function filterPartialRatio(step) {
 export function harmonicFilterCutoff(index, frequency) {
     const multiplier = AppState.oscillatorFilters[index]?.multiplier;
     if (!(multiplier > 0) || !(frequency > 0)) return 20000;
+    return Math.min(20000, Math.max(10, partialFrequency(frequency, multiplier)));
+}
+
+/**
+ * Frequency of the `step`-th series partial (1-based) above a voice's
+ * audible base — the series-relative convention shared by the filter
+ * cutoff and the convolution feedback tuning.
+ */
+export function partialFrequency(frequency, step) {
     const base = frequency * Math.max(1, Math.ceil(MIN_AUDIBLE_HZ / frequency));
-    return Math.min(20000, Math.max(10, base * filterPartialRatio(multiplier)));
+    return base * filterPartialRatio(step);
 }
 
 // Shape names → worklet shape indices (5 = custom table)
@@ -515,14 +524,33 @@ export function updateHarmonicGate(index) {
     }
 }
 
-/** Convolution send of one harmonic, with the globally selected IR. */
+/**
+ * Convolution send of one harmonic. The IR is pitched to the voice (see
+ * IRManager.pitched) so each overtone rings through the timbre transposed
+ * to its own frequency. Feedback period: the pitched IR's duration by
+ * default (tune 0), or a series-relative partial of the voice (tune ≥ 1,
+ * the filter cutoff's convention) for a comb on that partial.
+ */
 function harmonicConvolutionPayload(index) {
     const conv = AppState.oscillatorConvolutions[index] || {};
+    const voiceFreq = calculateFrequency(AppState.currentSystem.ratios[index]);
+    const buffer = conv.ir ? irManager.pitched(conv.ir, voiceFreq, AppState.audioContext) : null;
+    const tune = conv.tune ?? 0;
+    let delay = buffer ? buffer.duration : 0;
+    if (tune > 0 && voiceFreq > 0) {
+        // A feedback loop can't be shorter than two render quanta, so use
+        // the smallest whole number of the partial's periods that clears
+        // it — the comb still resonates on that partial (and below it)
+        const period = 1 / partialFrequency(voiceFreq, tune);
+        const minLoop = 256 / AppState.audioContext.sampleRate;
+        delay = Math.max(1, Math.ceil(minLoop / period)) * period;
+    }
     return {
         wet: conv.wet ?? 0,
         feedback: conv.feedback ?? 0,
         gain: conv.gain ?? 1,
-        buffer: irManager.get(conv.ir ?? null),
+        buffer,
+        delay,
     };
 }
 
@@ -648,6 +676,8 @@ function updateAudioPropertiesOscillators(rampTime) {
             newGain = 0;
         } else {
             audioEngine.updateOscillatorFrequency(node.key, newFreq, rampTime);
+            // Pitched IR and series-relative feedback period follow the voice
+            updateHarmonicConvolution(i);
             // The lowpass cutoff is relative to the voice's pitch — retarget
             // it so filters track fundamental glides and system changes
             audioEngine.updateOscillatorFilter(

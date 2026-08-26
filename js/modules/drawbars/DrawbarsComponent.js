@@ -2,7 +2,7 @@ import { AppState } from "../../config.js";
 import { partialColor, themeColor } from "../../theme.js";
 import BaseComponent from "../base/BaseComponent.js";
 import { calculateFrequency, formatHz, getVoicePan } from "../../utils.js";
-import { getVoiceLevel, harmonicFilterCutoff, triggerHarmonicAttack, triggerHarmonicRelease, MAX_FILTER_PARTIALS } from "../../audio.js";
+import { getVoiceLevel, partialFrequency, triggerHarmonicAttack, triggerHarmonicRelease, MAX_FILTER_PARTIALS } from "../../audio.js";
 import { DrawbarsActions } from "./drawbarsActions.js";
 import { OvertoneSignalActions, Q_MAX, DRIVE_MAX, CONV_FEEDBACK_MAX } from "../overtoneSignal/overtoneSignalActions.js";
 import { Dial } from "../generic/dial/Dial.js";
@@ -59,7 +59,7 @@ export class DrawbarsComponent extends BaseComponent {
         super(elementId);
         this.sliders = [];
         this.view = "gain";
-        this._dials = { pan: [], res: [], drive: [], x: [], y: [], convfb: [], convgain: [] };
+        this._dials = { pan: [], res: [], drive: [], x: [], y: [], convfb: [], convgain: [], convtune: [] };
         this._irSteppers = [];
         this._dots = [];
         this._dotLevels = [];
@@ -87,7 +87,7 @@ export class DrawbarsComponent extends BaseComponent {
         this.teardown();
         this.el.innerHTML = "";
         this.sliders = [];
-        this._dials = { pan: [], res: [], drive: [], x: [], y: [], convfb: [], convgain: [] };
+        this._dials = { pan: [], res: [], drive: [], x: [], y: [], convfb: [], convgain: [], convtune: [] };
         this._irSteppers = [];
         this._dots = [];
         this._waveSteppers = [];
@@ -247,6 +247,7 @@ export class DrawbarsComponent extends BaseComponent {
             const c = OvertoneSignalActions.getConvolution(index);
             this._dials.convfb[index]?.setValue(c.feedback);
             this._dials.convgain[index]?.setValue(c.gain);
+            this._dials.convtune[index]?.setValue(c.tune);
             this._irSteppers[index]?._refresh();
             if (this.view === "convolution" && this.sliders[index]) {
                 this.sliders[index].value = c.wet;
@@ -670,11 +671,28 @@ export class DrawbarsComponent extends BaseComponent {
                     }
                 },
             });
+            // Feedback comb tuning: 0 = the IR's own period, else a series
+            // partial of the voice (the filter cutoff's convention)
+            const tune = new Dial({
+                min: 0, max: MAX_FILTER_PARTIALS, step: 1, value: conv.tune, label: "tune",
+                format: (v) => (v === 0 ? "period" : this.filterTipText(index, v)),
+                fineOnShift: false, // shift = shaped row
+                hostTip: (e) => e.shiftKey,
+                onChange: (v, e) => {
+                    if (e?.shiftKey) {
+                        this.shapeDialRow(index, aux, v, 0, MAX_FILTER_PARTIALS, (i, val) =>
+                            OvertoneSignalActions.setConvolution(i, { tune: Math.round(val) }));
+                    } else {
+                        voiceTargets(index, e).forEach((i) => OvertoneSignalActions.setConvolution(i, { tune: v }));
+                    }
+                },
+            });
             this._dials.convfb[index] = fb;
             this._dials.convgain[index] = cgain;
+            this._dials.convtune[index] = tune;
             const dials = document.createElement("div");
             dials.className = "drawbar-aux-dials";
-            dials.append(fb.el, cgain.el);
+            dials.append(fb.el, cgain.el, tune.el);
             aux.appendChild(dials);
         }
 
@@ -977,7 +995,7 @@ export class DrawbarsComponent extends BaseComponent {
         const labels = AppState.currentSystem.labels;
         const label = step <= labels.length ? labels[step - 1] : `+${step - labels.length}`;
         const voiceFreq = calculateFrequency(AppState.currentSystem.ratios[index]);
-        return `${label} · ${formatHz(harmonicFilterCutoff(index, voiceFreq))}`;
+        return `${label} · ${formatHz(partialFrequency(voiceFreq, step))}`;
     }
 
     /**
