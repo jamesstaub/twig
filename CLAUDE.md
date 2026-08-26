@@ -60,8 +60,9 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
 - Per-voice audio chain (`js/dsp/AudioEngine.js`): source → gain → gate
   worklet (3 outputs: audio, cutoff-CV, Q-CV into the biquad's AudioParams)
   → drive WaveShaper → lowpass biquad → convolution stage (dry/wet mix
-  around a ConvolverNode with ±gain; feedback is a delay line around the
-  wet signal — Chrome won't process a signal reaching a convolver through
+  around a ConvolverNode with ±gain applied on the direct pass and again
+  inside the loop, so negative gain inverts per pass; feedback is a delay
+  line around the wet signal — Chrome won't process a signal reaching a convolver through
   a cycle, and a DelayNode in a cycle adds one render quantum, which is
   subtracted; loop period = the IR's duration or a series partial ("tune",
   filter-cutoff convention, ≥ 2 quanta via integer multiples). IRs from
