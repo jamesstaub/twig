@@ -314,14 +314,16 @@ export class AudioEngine {
             oscData.pendingConvBuffer = undefined;
             const t = this.context.currentTime;
             duck.cancelScheduledValues(t);
-            duck.setTargetAtTime(1, t, AudioEngine.CONV_DUCK_TAU * 3);
+            duck.setTargetAtTime(1, t, AudioEngine.CONV_DUCK_UP_TAU);
         }, AudioEngine.CONV_DUCK_MS);
     }
 
-    /** Duck ramp time constant (s): ~−40 dB after five constants. */
-    static CONV_DUCK_TAU = 0.003;
-    /** Duck hold before an IR swap (ms) — past the ramp's −40 dB point. */
-    static CONV_DUCK_MS = 20;
+    // Duck timing is tuned to be barely perceptible: ~1 ms out (−40 dB by
+    // 5 ms), the swap once two render quanta have passed, ~2 ms back —
+    // about a 12 ms dip in total.
+    static CONV_DUCK_TAU = 0.001;
+    static CONV_DUCK_UP_TAU = 0.002;
+    static CONV_DUCK_MS = 6;
 
     /**
      * DelayNode time for a wanted loop period in seconds. A DelayNode inside
@@ -544,7 +546,7 @@ export class AudioEngine {
         for (const g of [oscData.gainNode?.gain, oscData.convSum?.gain]) {
             if (!g) continue;
             g.cancelScheduledValues(now);
-            g.setTargetAtTime(0, now, AudioEngine.CONV_DUCK_TAU);
+            g.setTargetAtTime(0, now, AudioEngine.TEARDOWN_TAU);
         }
         if (oscData.oscillator) {
             try {
@@ -558,8 +560,9 @@ export class AudioEngine {
         setTimeout(() => this._disconnectVoice(oscData), AudioEngine.TEARDOWN_MS);
     }
 
-    /** Fade-to-cut time (ms) for voice teardown. */
-    static TEARDOWN_MS = 40;
+    /** Voice teardown: ~2 ms fade constant, nodes cut 15 ms later. */
+    static TEARDOWN_TAU = 0.002;
+    static TEARDOWN_MS = 15;
 
     _disconnectVoice(oscData) {
         // The shared external source outlives voices — unhook this voice's
