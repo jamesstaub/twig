@@ -522,7 +522,7 @@ function harmonicConvolutionPayload(index) {
         wet: conv.wet ?? 0,
         feedback: conv.feedback ?? 0,
         gain: conv.gain ?? 1,
-        buffer: irManager.get(AppState.convolutionIR),
+        buffer: irManager.get(conv.ir ?? null),
     };
 }
 
@@ -534,14 +534,6 @@ export function updateHarmonicConvolution(index) {
     const node = AppState.oscillators[index];
     if (node && node.key) {
         audioEngine.updateOscillatorConvolution(node.key, harmonicConvolutionPayload(index));
-    }
-}
-
-/** Apply the (globally selected) IR to every running voice. */
-export function updateAllHarmonicConvolutions() {
-    if (!AppState.isPlaying || !audioEngine) return;
-    for (let i = 0; i < AppState.oscillators.length; i++) {
-        updateHarmonicConvolution(i);
     }
 }
 

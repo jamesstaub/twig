@@ -210,7 +210,10 @@ export class AudioEngine {
         // voice so it can be enabled mid-playback without rewiring. "Off" is
         // passthrough: dry 1, wet 0, no IR buffer (a bufferless convolver is
         // silent). Wet path: convolver → convGain (±1, negative inverts) →
-        // convWet (mix); feedback: convGain → convFb (0..0.99) → convolver.
+        // convSum → convWet (mix). Feedback is a delay line around the wet
+        // signal: convSum → convDelay → convFb (0..0.99) → convSum. The loop
+        // deliberately excludes the convolver — Chrome does not process a
+        // signal that reaches a ConvolverNode through a cycle.
         const conv = options.convolution || {};
         const convolver = this.context.createConvolver();
         convolver.normalize = true;
@@ -218,7 +221,14 @@ export class AudioEngine {
         const convDry = this.context.createGain();
         const convWet = this.context.createGain();
         const convGain = this.context.createGain();
+        const convSum = this.context.createGain();
         const convFb = this.context.createGain();
+        // Feedback loops must contain a DelayNode or Web Audio silences the
+        // cycle. The delay equals the IR's duration, so each pass replays
+        // the convolved cycle right after the previous one — the loop is a
+        // resonator at the timbre's own period (see convDelayTime).
+        const convDelay = this.context.createDelay(AudioEngine.CONV_MAX_DELAY);
+        convDelay.delayTime.setValueAtTime(AudioEngine.convDelayTime(conv.buffer, this.context), this.context.currentTime);
         convDry.gain.setValueAtTime(1 - (conv.wet ?? 0), this.context.currentTime);
         convWet.gain.setValueAtTime(conv.wet ?? 0, this.context.currentTime);
         convGain.gain.setValueAtTime(conv.gain ?? 1, this.context.currentTime);
@@ -246,18 +256,35 @@ export class AudioEngine {
         convDry.connect(panner);
         filterNode.connect(convolver);
         convolver.connect(convGain);
-        convGain.connect(convWet);
+        convGain.connect(convSum);
+        convSum.connect(convWet);
         convWet.connect(panner);
-        convGain.connect(convFb);
-        convFb.connect(convolver);
+        convSum.connect(convDelay);
+        convDelay.connect(convFb);
+        convFb.connect(convSum);
         panner.connect(this.compressor);
 
         return {
             oscillator, sourceTap, sourceNode: options.source || null,
             envNode, gainNode, gateNode, driveNode, filterNode,
-            convolver, convDry, convWet, convGain, convFb,
+            convolver, convDry, convWet, convGain, convSum, convFb, convDelay,
             panner, meter,
         };
+    }
+
+    /** Longest feedback delay (IR duration) the stage supports, seconds. */
+    static CONV_MAX_DELAY = 10;
+
+    /**
+     * Feedback delay for an IR: its duration, so the loop repeats the cycle
+     * in phase. A DelayNode inside a cycle carries one extra render quantum
+     * of latency (the feedback edge is read from the previous quantum), so
+     * that quantum is subtracted; the floor is the quantum itself.
+     */
+    static convDelayTime(buffer, context) {
+        const quantum = 128 / context.sampleRate;
+        const target = (buffer ? buffer.duration : 0) - quantum;
+        return Math.min(AudioEngine.CONV_MAX_DELAY, Math.max(quantum, target));
     }
 
     /**
@@ -277,6 +304,8 @@ export class AudioEngine {
         if (gain !== undefined) oscData.convGain.gain.setTargetAtTime(gain, now, tau);
         if (buffer !== undefined && oscData.convolver.buffer !== buffer) {
             oscData.convolver.buffer = buffer;
+            oscData.convDelay.delayTime.setTargetAtTime(
+                AudioEngine.convDelayTime(buffer, this.context), now, tau);
         }
     }
 
@@ -470,7 +499,7 @@ export class AudioEngine {
         for (const node of [
             oscData.sourceTap, oscData.envNode, oscData.gainNode, oscData.gateNode,
             oscData.driveNode, oscData.filterNode, oscData.convolver, oscData.convDry,
-            oscData.convWet, oscData.convGain, oscData.convFb, oscData.panner, oscData.meter,
+            oscData.convWet, oscData.convGain, oscData.convSum, oscData.convFb, oscData.convDelay, oscData.panner, oscData.meter,
         ]) {
             try { node?.disconnect(); } catch { /* already disconnected */ }
         }

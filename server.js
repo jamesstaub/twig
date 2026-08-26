@@ -62,7 +62,7 @@ const STATE_ORDER = [
     'pulsemidi', 'pulseosc', 'midiclock', 'midiout', 'envmode', 'play'
 ];
 const PER_INDEX_COMMANDS = new Set([
-    'drawbar', 'gate', 'filter', 'res', 'drive', 'pan', 'adsr', 'conv',
+    'drawbar', 'gate', 'filter', 'res', 'drive', 'pan', 'adsr', 'conv', 'convir',
     'seqshape', 'seqgain', 'seqfreq', 'seqres', 'seqstretch',
     'pulsemidi', 'pulseosc'
 ]);

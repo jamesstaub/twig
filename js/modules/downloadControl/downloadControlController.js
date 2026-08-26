@@ -2,7 +2,7 @@ import { BaseController } from "../base/BaseController.js";
 import { DownloadControlComponent } from "./DownloadControlComponent.js";
 import { DownloadControlActions } from "./downloadControlActions.js";
 import { AppState } from "../../config.js";
-import { ROUTING_MODE_CHANGED } from "../../events.js";
+import { ROUTING_MODE_CHANGED, SOURCE_CHANGED } from "../../events.js";
 import { handleAddToWaveforms } from "../waveform/waveformActions.js";
 import { ConvolutionActions } from "../convolution/convolutionActions.js";
 
@@ -42,5 +42,15 @@ export class DownloadControlController extends BaseController {
 
     bindExternalEvents() {
         document.addEventListener(ROUTING_MODE_CHANGED, () => this.update());
+
+        // The wavetable preview/actions bake the oscillator bank — hidden
+        // in external source modes. Applied at init too (bridge bootstrap
+        // replays before controllers bind).
+        const applySourceGating = () => {
+            document.getElementById('result-control-root')
+                ?.classList.toggle('hidden', AppState.sourceMode !== 'oscillators');
+        };
+        document.addEventListener(SOURCE_CHANGED, applySourceGating);
+        applySourceGating();
     }
 }

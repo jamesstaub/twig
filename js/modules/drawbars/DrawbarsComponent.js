@@ -12,6 +12,7 @@ import { showStatus } from "../../domUtils.js";
 import OvertoneSignalModalComponent from "../generic/modal/OvertoneSignalModalComponent.js";
 import { openModal, closeModal } from "../generic/modal/modalActions.js";
 import { voiceTargets } from "../generic/linkAll.js";
+import { irManager } from "../../dsp/IRManager.js";
 
 const DRAWBAR_SLIDER_SELECTOR = ".drawbar-slider";
 
@@ -59,6 +60,7 @@ export class DrawbarsComponent extends BaseComponent {
         this.sliders = [];
         this.view = "gain";
         this._dials = { pan: [], res: [], drive: [], x: [], y: [], convfb: [], convgain: [] };
+        this._irSteppers = [];
         this._dots = [];
         this._dotLevels = [];
         this._meterRaf = null;
@@ -86,6 +88,7 @@ export class DrawbarsComponent extends BaseComponent {
         this.el.innerHTML = "";
         this.sliders = [];
         this._dials = { pan: [], res: [], drive: [], x: [], y: [], convfb: [], convgain: [] };
+        this._irSteppers = [];
         this._dots = [];
         this._waveSteppers = [];
         this._modeSteppers = [];
@@ -244,6 +247,7 @@ export class DrawbarsComponent extends BaseComponent {
             const c = OvertoneSignalActions.getConvolution(index);
             this._dials.convfb[index]?.setValue(c.feedback);
             this._dials.convgain[index]?.setValue(c.gain);
+            this._irSteppers[index]?._refresh();
             if (this.view === "convolution" && this.sliders[index]) {
                 this.sliders[index].value = c.wet;
                 this.syncFill(this.sliders[index]);
@@ -618,6 +622,24 @@ export class DrawbarsComponent extends BaseComponent {
             aux.appendChild(dials);
         } else if (this.view === "convolution") {
             const conv = OvertoneSignalActions.getConvolution(index);
+            // Per-overtone IR picker: ‹ IR n › stepper over the session IRs
+            // (buttons — native selects don't open inside jweb)
+            const irStepper = this.cycleStepper({
+                options: () => [null, ...irManager.list().map((ir) => ir.key)],
+                get: () => OvertoneSignalActions.getConvolution(index).ir,
+                set: (key, e) => {
+                    voiceTargets(index, e).forEach((i) => OvertoneSignalActions.setConvolution(i, { ir: key }));
+                    this._irSteppers.forEach((st) => st?._refresh());
+                },
+                className: "conv-ir-stepper",
+                render: (el, key) => {
+                    const i = irManager.indexOf(key);
+                    el.textContent = i < 0 ? "—" : `IR${i + 1}`;
+                    el.title = i < 0 ? "no IR" : irManager.list()[i].name;
+                },
+            });
+            this._irSteppers[index] = irStepper;
+            aux.appendChild(irStepper);
             const fb = new Dial({
                 min: 0, max: CONV_FEEDBACK_MAX, step: 0.01, value: conv.feedback, label: "feedback",
                 color: "--accent-negative",
@@ -971,7 +993,7 @@ export class DrawbarsComponent extends BaseComponent {
             : `${Math.round(value * 100)}%`;
         const point = this.columnTipPoint(bar);
         ValueTip.show(text, point.x, point.y, {
-            label: this.view === "filter" ? "cutoff" : "gain",
+            label: this.view === "filter" ? "cutoff" : this.view === "convolution" ? "wet/dry" : "gain",
             onExpand: () => this.openOvertoneSettings(Number(slider.dataset.index)),
         });
     }

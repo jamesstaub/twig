@@ -1,9 +1,10 @@
-import { sampleCurrentWaveform, updateAllHarmonicConvolutions } from '../../audio.js';
-import { AppState, updateAppState } from '../../config.js';
+import { sampleCurrentWaveform } from '../../audio.js';
+import { AppState } from '../../config.js';
 import { irManager } from '../../dsp/IRManager.js';
 import { showStatus } from '../../domUtils.js';
 import { CONVOLUTION_IRS_CHANGED } from '../../events.js';
 import { generateFilenameParts } from '../../utils.js';
+import { OvertoneSignalActions } from '../overtoneSignal/overtoneSignalActions.js';
 
 export const ConvolutionActions = {
 
@@ -12,7 +13,8 @@ export const ConvolutionActions = {
      * single-cycle render as the wavetable bake, resampled to real time at
      * the current fundamental (the buffer spans periodMultiplier periods of
      * f0), so the IR's resonances sit exactly on the sounding partials.
-     * The new IR is added to the menu and selected.
+     * The new IR joins the per-overtone menus and is assigned to every
+     * overtone (each can then pick its own).
      */
     async createIRFromCurrent() {
         const { buffer, periodMultiplier } = await sampleCurrentWaveform('mono', AppState.isSubharmonic);
@@ -38,21 +40,19 @@ export const ConvolutionActions = {
         const parts = generateFilenameParts();
         const name = `${parts.noteLetter}-${parts.systemName}-${parts.levels}`;
         const key = irManager.add(audioBuffer, name);
-        this.selectIR(key);
+        // Menus need the new entry before voices point at it
+        document.dispatchEvent(new CustomEvent(CONVOLUTION_IRS_CHANGED));
+        const count = AppState.currentSystem.ratios.length;
+        for (let i = 0; i < count; i++) {
+            OvertoneSignalActions.setConvolution(i, { ir: key });
+        }
         showStatus(`Created IR: ${name}`, 'success');
     },
 
-    /** Select an IR by key (or by creation index from the bridge). */
-    selectIR(selector) {
-        const key = typeof selector === 'number' ? irManager.keyAt(Math.round(selector)) : selector;
-        if (key !== null && !irManager.get(key)) return; // unknown key — no-op
-        if (key === AppState.convolutionIR) {
-            // Still announce list changes (a fresh IR can reuse selection flow)
-            document.dispatchEvent(new CustomEvent(CONVOLUTION_IRS_CHANGED));
-            return;
-        }
-        updateAppState({ convolutionIR: key });
-        updateAllHarmonicConvolutions();
-        document.dispatchEvent(new CustomEvent(CONVOLUTION_IRS_CHANGED));
+    /** Select one overtone's IR by key, or by creation index (bridge form). */
+    selectIR(index, selector) {
+        const key = typeof selector === 'number' ? irManager.keyAt(Math.round(selector)) : (selector || null);
+        if (key !== null && !irManager.get(key)) return; // unknown — no-op
+        OvertoneSignalActions.setConvolution(index, { ir: key });
     },
 };

@@ -1,6 +1,7 @@
 import { AppState, ENVELOPE_DEFAULTS, midiConfig } from "../../config.js";
 import { updateHarmonicGate, updateHarmonicFilter, updateHarmonicDrive, updateHarmonicConvolution, updateHarmonicPan, updateHarmonicPulse, updateHarmonicSequencer, updateAllHarmonicEnvelopeModes, MAX_FILTER_PARTIALS } from "../../audio.js";
 import { getVoicePan } from "../../utils.js";
+import { irManager } from "../../dsp/IRManager.js";
 import { OVERTONE_SIGNAL_CHANGED, ENVELOPE_MODE_CHANGED } from "../../events.js";
 
 /**
@@ -62,9 +63,12 @@ export const OvertoneSignalActions = {
         this._changed(index, 'drive');
     },
 
-    /** Convolution send: { wet 0-1, feedback 0-CONV_FEEDBACK_MAX, gain -1..1 }. */
+    /**
+     * Convolution send: { wet 0-1, feedback 0-CONV_FEEDBACK_MAX, gain -1..1,
+     * ir: IRManager key | null }. Each overtone picks its own IR.
+     */
     getConvolution(index) {
-        return { wet: 0, feedback: 0, gain: 1, ...AppState.oscillatorConvolutions[index] };
+        return { wet: 0, feedback: 0, gain: 1, ir: null, ...AppState.oscillatorConvolutions[index] };
     },
 
     setConvolution(index, patch) {
@@ -73,6 +77,7 @@ export const OvertoneSignalActions = {
             wet: Math.max(0, Math.min(1, Number(merged.wet) || 0)),
             feedback: Math.max(0, Math.min(CONV_FEEDBACK_MAX, Number(merged.feedback) || 0)),
             gain: Math.max(-1, Math.min(1, isFinite(Number(merged.gain)) ? Number(merged.gain) : 1)),
+            ir: merged.ir && irManager.get(merged.ir) ? merged.ir : null,
         };
         updateHarmonicConvolution(index);
         this._changed(index, 'conv');
@@ -204,6 +209,20 @@ export const OvertoneSignalActions = {
         for (let i = 0; i < this._voiceCount(); i++) {
             this.setFilter(i, { multiplier: 0, q: 0.707 });
             this.setDrive(i, 0);
+        }
+    },
+
+    /** Convolution sends fully dry, feedback off, gain unity; IRs kept. */
+    resetConvolutions() {
+        for (let i = 0; i < this._voiceCount(); i++) {
+            this.setConvolution(i, { wet: 0, feedback: 0, gain: 1 });
+        }
+    },
+
+    /** Random wet/dry per voice; feedback, gain, and IR (the aux controls) untouched. */
+    randomizeConvolutions() {
+        for (let i = 0; i < this._voiceCount(); i++) {
+            this.setConvolution(i, { wet: Math.round(Math.random() * 100) / 100 });
         }
     },
 

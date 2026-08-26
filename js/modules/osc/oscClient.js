@@ -29,7 +29,8 @@
  *   /twig/adcchannel [i ch]       ADC input channel (0-based)
  *   /twig/conv/<n> [wet fb gain]  per-overtone convolution send (n=0 → all):
  *                                 wet 0-1, feedback 0-0.99, gain -1..1
- *   /twig/convir [i index]        select IR by creation index (session IRs)
+ *   /twig/convir/<n> [i index]    per-overtone IR by creation index (n=0 →
+ *                                 all; -1 = none; IRs are session-created)
  *   /twig/waveform [s name]       oscillator: square|sine|triangle|sawtooth|custom_*
  *   /twig/subharmonic [i 0|1]     overtone/subharmonic mode
  *   /twig/play [i 0|1]            playback on/off
@@ -115,8 +116,7 @@ import {
     OVERTONE_SIGNAL_CHANGED,
     ENVELOPE_MODE_CHANGED,
     MIDI_OUTPUT_CHANGED,
-    SOURCE_CHANGED,
-    CONVOLUTION_IRS_CHANGED
+    SOURCE_CHANGED
 } from "../../events.js";
 
 const COMMANDS = new Set([
@@ -455,11 +455,16 @@ export class OscClient {
                 this.forVoices(n, (i) => OvertoneSignalActions.setConvolution(i, patch));
                 break;
             }
-            case 'convir':
-                // IR by creation index (0-based); IRs are created in the
-                // browser session, so an unknown index is a silent no-op
-                ConvolutionActions.selectIR(Math.round(args[0]));
+            case 'convir': {
+                // /twig/convir/<n> [i] (n = 0 → all): IR by creation index,
+                // -1 = none. IRs live in the browser session, so an unknown
+                // index is a silent no-op
+                const [n, rest] = perVoiceArgs(sub, args);
+                if (n === null || rest[0] === undefined) break;
+                const i = Math.round(Number(rest[0]));
+                this.forVoices(n, (v) => ConvolutionActions.selectIR(v, i < 0 ? null : i));
                 break;
+            }
             case 'pan': {
                 // /twig/pan/<n> [-1..1] or /twig/pan [n, v]; n = 0 → all
                 const [n, rest] = perVoiceArgs(sub, args);
@@ -636,9 +641,6 @@ export class OscClient {
             this.emit('adcin', [AppState.adcDeviceId ?? '']);
             this.emit('adcchannel', [AppState.adcChannel]);
         });
-        document.addEventListener(CONVOLUTION_IRS_CHANGED, () => {
-            this.emit('convir', [irManager.indexOf(AppState.convolutionIR)]);
-        });
         // Bulk amplitude changes: emit the full set so Max multisliders track
         document.addEventListener(DRAWBARS_RESET, () => {
             this.emit('drawbars', [...AppState.harmonicAmplitudes]);
@@ -686,6 +688,7 @@ export class OscClient {
             } else if (kind === 'conv') {
                 const c = OvertoneSignalActions.getConvolution(index);
                 this.emit(`conv/${n}`, [c.wet, c.feedback, c.gain]);
+                this.emit(`convir/${n}`, [irManager.indexOf(c.ir)]);
             } else if (kind === 'envelope') {
                 const env = OvertoneSignalActions.getEnvelope(index);
                 this.emit(`adsr/${n}`, [env.a, env.d, env.s, env.r]);
