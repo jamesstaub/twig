@@ -175,10 +175,11 @@ export class AudioEngine {
         // so gating can be enabled mid-playback without rewiring
         let gateNode = null;
         if (this.gateWorkletReady) {
-            // Output 0: gated audio; 1: cutoff CV (Hz delta); 2: resonance CV
+            // Output 0: gated audio; 1: cutoff CV (Hz delta); 2: resonance
+            // CV; 3: convolution wet CV; 4: convolution feedback CV
             gateNode = new AudioWorkletNode(this.context, 'overtone-gate', {
-                numberOfOutputs: 3,
-                outputChannelCount: [1, 1, 1],
+                numberOfOutputs: 5,
+                outputChannelCount: [1, 1, 1, 1, 1],
             });
             gateNode.parameters.get('frequency').setValueAtTime(frequency, this.context.currentTime);
             this.applyGateParams(gateNode, options.gate);
@@ -223,6 +224,9 @@ export class AudioEngine {
         const convGain = this.context.createGain();
         const convSum = this.context.createGain();
         const convFb = this.context.createGain();
+        // Wet CV also drives dry by −1 so the mix stays complementary
+        const convWetInv = this.context.createGain();
+        convWetInv.gain.setValueAtTime(-1, this.context.currentTime);
         // Feedback loops must contain a DelayNode or Web Audio silences the
         // cycle. The delay equals the IR's duration, so each pass replays
         // the convolved cycle right after the previous one — the loop is a
@@ -248,6 +252,12 @@ export class AudioEngine {
             // AudioParams (the params keep holding the base values)
             gateNode.connect(filterNode.frequency, 1);
             gateNode.connect(filterNode.Q, 2);
+            gateNode.connect(convWet.gain, 3);
+            gateNode.connect(convWetInv, 3);
+            convWetInv.connect(convDry.gain);
+            gateNode.connect(convFb.gain, 4);
+            gateNode.parameters.get('baseWet').setValueAtTime(conv.wet ?? 0, this.context.currentTime);
+            gateNode.parameters.get('baseFb').setValueAtTime(conv.feedback ?? 0, this.context.currentTime);
         } else {
             gainNode.connect(driveNode);
         }
@@ -267,7 +277,7 @@ export class AudioEngine {
         return {
             oscillator, sourceTap, sourceNode: options.source || null,
             envNode, gainNode, gateNode, driveNode, filterNode,
-            convolver, convDry, convWet, convGain, convSum, convFb, convDelay,
+            convolver, convDry, convWet, convGain, convSum, convFb, convDelay, convWetInv,
             panner, meter,
         };
     }
@@ -300,8 +310,12 @@ export class AudioEngine {
         if (wet !== undefined) {
             oscData.convDry.gain.setTargetAtTime(1 - wet, now, tau);
             oscData.convWet.gain.setTargetAtTime(wet, now, tau);
+            oscData.gateNode?.parameters.get('baseWet').setTargetAtTime(wet, now, tau);
         }
-        if (feedback !== undefined) oscData.convFb.gain.setTargetAtTime(feedback, now, tau);
+        if (feedback !== undefined) {
+            oscData.convFb.gain.setTargetAtTime(feedback, now, tau);
+            oscData.gateNode?.parameters.get('baseFb').setTargetAtTime(feedback, now, tau);
+        }
         if (gain !== undefined) oscData.convGain.gain.setTargetAtTime(gain, now, tau);
         if (buffer !== undefined && oscData.convolver.buffer !== buffer) {
             oscData.convolver.buffer = buffer;
@@ -403,7 +417,7 @@ export class AudioEngine {
 
     /**
      * Set sequencer shape/amounts/config on a gate worklet node.
-     * seq: { shape (0-5), amounts: {gain, freq, res}, table?, config? }
+     * seq: { shape (0-5), amounts: {gain, freq, res, wet, fb}, table?, config? }
      * config: { ratios: number[], baseStep } for the cutoff CV curve.
      */
     applySequencerParams(gateNode, seq) {
@@ -415,6 +429,8 @@ export class AudioEngine {
             gateNode.parameters.get('amtGain').setValueAtTime(seq.amounts.gain ?? 1, now);
             gateNode.parameters.get('amtFreq').setValueAtTime(seq.amounts.freq ?? 0, now);
             gateNode.parameters.get('amtRes').setValueAtTime(seq.amounts.res ?? 0, now);
+            gateNode.parameters.get('amtWet').setValueAtTime(seq.amounts.wet ?? 0, now);
+            gateNode.parameters.get('amtFb').setValueAtTime(seq.amounts.fb ?? 0, now);
         }
         if (seq.table !== undefined) {
             gateNode.port.postMessage({ type: 'shapetable', table: seq.table });
@@ -501,7 +517,7 @@ export class AudioEngine {
         for (const node of [
             oscData.sourceTap, oscData.envNode, oscData.gainNode, oscData.gateNode,
             oscData.driveNode, oscData.filterNode, oscData.convolver, oscData.convDry,
-            oscData.convWet, oscData.convGain, oscData.convSum, oscData.convFb, oscData.convDelay, oscData.panner, oscData.meter,
+            oscData.convWet, oscData.convGain, oscData.convSum, oscData.convFb, oscData.convDelay, oscData.convWetInv, oscData.panner, oscData.meter,
         ]) {
             try { node?.disconnect(); } catch { /* already disconnected */ }
         }

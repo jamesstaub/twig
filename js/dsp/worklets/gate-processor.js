@@ -42,6 +42,8 @@
  */
 
 const Q_SPAN = 24;
+// Convolution feedback ceiling (mirrors CONV_FEEDBACK_MAX in the actions)
+const FB_MAX = 0.99;
 const TWO_PI = Math.PI * 2;
 
 // Pulses only make sense in the LFO/rhythm regime; cap protects the port
@@ -138,6 +140,13 @@ class OvertoneGateProcessor extends AudioWorkletProcessor {
             { name: 'amtGain', defaultValue: 1, minValue: 0, maxValue: 1, automationRate: 'k-rate' },
             { name: 'amtFreq', defaultValue: 0, minValue: -1, maxValue: 1, automationRate: 'k-rate' },
             { name: 'amtRes', defaultValue: 0, minValue: 0, maxValue: 1, automationRate: 'k-rate' },
+            // Convolution send modulation. The CVs are deltas summed into
+            // the wet/feedback gains, so the bases are passed in to clamp
+            // the modulated values (feedback ≥ 1 would run away).
+            { name: 'amtWet', defaultValue: 0, minValue: 0, maxValue: 1, automationRate: 'k-rate' },
+            { name: 'amtFb', defaultValue: 0, minValue: 0, maxValue: 1, automationRate: 'k-rate' },
+            { name: 'baseWet', defaultValue: 0, minValue: 0, maxValue: 1, automationRate: 'k-rate' },
+            { name: 'baseFb', defaultValue: 0, minValue: 0, maxValue: 0.99, automationRate: 'k-rate' },
         ];
     }
 
@@ -213,6 +222,8 @@ class OvertoneGateProcessor extends AudioWorkletProcessor {
         if (!input || input.length === 0 || !output || output.length === 0) return true;
         const freqCV = outputs[1] && outputs[1][0];
         const qCV = outputs[2] && outputs[2][0];
+        const wetCV = outputs[3] && outputs[3][0];
+        const fbCV = outputs[4] && outputs[4][0];
 
         const freq = parameters.frequency;
         const mode = parameters.mode[0] | 0;
@@ -226,6 +237,10 @@ class OvertoneGateProcessor extends AudioWorkletProcessor {
         const amtGain = parameters.amtGain[0];
         const amtFreq = parameters.amtFreq[0];
         const amtRes = parameters.amtRes[0];
+        const amtWet = parameters.amtWet[0];
+        const amtFb = parameters.amtFb[0];
+        const baseWet = parameters.baseWet[0];
+        const baseFb = parameters.baseFb[0];
 
         if (this.gateTarget === null) {
             this.gateTarget = gateForCycle(this.patternState, 0, mode, x, y) ? 1 : 0;
@@ -281,6 +296,9 @@ class OvertoneGateProcessor extends AudioWorkletProcessor {
             // Targets: filter cutoff (Hz delta CV) and resonance (Q CV)
             if (freqCV) freqCV[i] = off ? 0 : this.freqDelta(f, s, amtFreq);
             if (qCV) qCV[i] = off ? 0 : amtRes * s * Q_SPAN;
+            // Convolution: contour adds to the base send, clamped to range
+            if (wetCV) wetCV[i] = off ? 0 : Math.min(1, baseWet + amtWet * s) - baseWet;
+            if (fbCV) fbCV[i] = off ? 0 : Math.min(FB_MAX, baseFb + amtFb * s) - baseFb;
         }
         return true;
     }
