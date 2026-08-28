@@ -43,10 +43,13 @@ function createWaveformSketch(component) {
         // Container reflows that aren't window resizes (panel gating,
         // layout settling after load) — keep the bitmap at the real width
         if (typeof ResizeObserver !== "undefined" && component.el) {
+            // Resizing the canvas inside the callback would itself change the
+            // observed box in the same frame ("ResizeObserver loop" errors) —
+            // defer to the next frame instead
             let last = component.el.clientWidth;
             new ResizeObserver(() => {
                 const w = component.el.clientWidth;
-                if (w && w !== last) { last = w; p.windowResized(); }
+                if (w && w !== last) { last = w; requestAnimationFrame(() => p.windowResized()); }
             }).observe(component.el);
         }
 
