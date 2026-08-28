@@ -60,10 +60,15 @@ export class WAVExporter {
     }
 
 
-    static createWAVBufferMulti(channelBuffers, sampleRate) {
+    /**
+     * Interleaved RIFF/WAVE bytes. 16-bit PCM by default; `{ float: true }`
+     * writes 32-bit IEEE float (format 3) — no clipping, for takes that
+     * may exceed full scale (pre-limiter stems).
+     */
+    static createWAVBufferMulti(channelBuffers, sampleRate, { float = false } = {}) {
         const numChannels = channelBuffers.length;
         const numFrames = channelBuffers[0].length;
-        const bytesPerSample = 2; // 16-bit PCM
+        const bytesPerSample = float ? 4 : 2;
         const blockAlign = numChannels * bytesPerSample;
         const byteRate = sampleRate * blockAlign;
 
@@ -80,7 +85,7 @@ export class WAVExporter {
 
         WAVExporter.writeString(view, offset, "fmt "); offset += 4;
         view.setUint32(offset, 16, true); offset += 4;
-        view.setUint16(offset, 1, true); offset += 2;
+        view.setUint16(offset, float ? 3 : 1, true); offset += 2;
         view.setUint16(offset, numChannels, true); offset += 2;
         view.setUint32(offset, sampleRate, true); offset += 4;
         view.setUint32(offset, byteRate, true); offset += 4;
@@ -93,9 +98,13 @@ export class WAVExporter {
         // Interleave channels ----------------------------------------------
         for (let i = 0; i < numFrames; i++) {
             for (let ch = 0; ch < numChannels; ch++) {
-                const sample = Math.max(-1, Math.min(1, channelBuffers[ch][i]));
-                view.setInt16(offset, sample * 0x7fff, true);
-                offset += 2;
+                if (float) {
+                    view.setFloat32(offset, channelBuffers[ch][i], true);
+                } else {
+                    const sample = Math.max(-1, Math.min(1, channelBuffers[ch][i]));
+                    view.setInt16(offset, sample * 0x7fff, true);
+                }
+                offset += bytesPerSample;
             }
         }
 
@@ -120,8 +129,8 @@ export class WAVExporter {
      * @param {DataView} arrayBuffer - File data as DataView
      * @param {string} filename - Filename for the download
      */
-    static downloadFile(arrayBuffer, filename) {
-        const blob = new Blob([arrayBuffer], { type: 'audio/wav' });
+    static downloadFile(arrayBuffer, filename, mimeType = 'audio/wav') {
+        const blob = new Blob([arrayBuffer], { type: mimeType });
         const url = URL.createObjectURL(blob);
 
         const link = document.createElement('a');
