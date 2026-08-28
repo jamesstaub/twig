@@ -40,3 +40,13 @@ export function pulseCycleBoundaryMs(ctx, pulse) {
     while (t < now) t += periodMs;
     return t;
 }
+
+/**
+ * Audio-clock time (seconds) of a pulse's cycle boundary — the click. The
+ * exact, un-held counterpart of pulseCycleBoundaryMs for consumers that
+ * log against the audio timeline instead of scheduling wall-clock events.
+ */
+export function pulseCycleBoundaryAudioTime(pulse) {
+    if (!(pulse?.frequency > 0) || !(pulse?.audioTime >= 0)) return pulse?.audioTime ?? 0;
+    return pulse.audioTime + 0.5 / pulse.frequency;
+}

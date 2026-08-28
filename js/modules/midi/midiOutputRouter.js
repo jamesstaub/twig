@@ -2,18 +2,14 @@ import { AppState, midiConfig } from "../../config.js";
 import { pulseBus } from "../pulse/pulseBus.js";
 import { audioTimeToPerformanceMs, pulseCycleBoundaryMs } from "../pulse/pulseTime.js";
 import { resolvePortSelector } from "./portUtils.js";
+import { blipForPulse, isClockVoice, CLOCK_PPQN } from "./pulseMidi.js";
 
 const NOTE_ON = 0x90;
 const NOTE_OFF = 0x80;
 const CLOCK_TICK = 0xf8;
 const CLOCK_START = 0xfa;
+const CLOCK_CONTINUE = 0xfb;
 const CLOCK_STOP = 0xfc;
-
-// Short blip: note-off follows note-on almost immediately. A small gap is
-// scheduled (Web MIDI accepts future timestamps) so receivers that ignore
-// zero-length notes still register it — nothing waits on a timer, so
-// note-offs can't be dropped by page throttling.
-const BLIP_MS = 50;
 
 /**
  * MidiOutputRouter — turns voice pulses into Web MIDI events.
@@ -112,25 +108,16 @@ export class MidiOutputRouter {
         this._pick();
     }
 
-    /**
-     * MIDI note for a voice: linear — overtone 1 sends note 1, overtone 12
-     * sends note 12 — reassignable per overtone in the MIDI modal. Pulses
-     * are triggers, not pitches, so identity beats frequency-matching.
-     */
-    static noteForVoice(index) {
-        const note = midiConfig.pulseNotes[index] ?? index + 1;
-        return Math.max(0, Math.min(127, Math.round(note)));
-    }
-
     onPulse(index, pulse) {
         if (this.output) {
-            const midiOn = AppState.oscillatorPulseOuts[index]?.midi ?? midiConfig.pulseMidiEnabled;
-            if (midiOn && pulse.gateOn) {
-                this.sendBlip(index, pulse);
-            }
+            const blip = blipForPulse(index, pulse);
+            // Scheduled onto the cycle boundary (the audible click) — Web
+            // MIDI future timestamps keep main-thread jitter away from the
+            // receiver
+            if (blip) this.sendNoteAt(blip, pulseCycleBoundaryMs(AppState.audioContext, pulse));
         }
         if (!this.clockOutput) return;
-        if (AppState.midiClockVoice === index) {
+        if (isClockVoice(index)) {
             this.sendClockTicks(pulse);
         } else if (this._clockRunning && AppState.midiClockVoice === null) {
             this.clockOutput.send([CLOCK_STOP]);
@@ -138,25 +125,21 @@ export class MidiOutputRouter {
         }
     }
 
-    sendBlip(index, pulse) {
-        const note = MidiOutputRouter.noteForVoice(index);
-        if (note === null) return;
-        // Velocity tracks the overtone's drawbar gain; silent drawbars
-        // (which you can't hear) send no note at all
-        const velocity = MidiOutputRouter.velocityForVoice(index);
-        if (velocity === 0) return;
-        const status = (midiConfig.outputChannel || 1) - 1;
-        // Scheduled onto the cycle boundary (the audible click) — Web MIDI
-        // future timestamps keep main-thread jitter away from the receiver
-        const at = pulseCycleBoundaryMs(AppState.audioContext, pulse);
-        this.output.send([NOTE_ON | status, note, velocity], at);
-        this.output.send([NOTE_OFF | status, note, 0], at + BLIP_MS);
+    /**
+     * A note on/off pair on the note-out port at wall-clock `atMs`
+     * (performance.now() timeline). The off is scheduled `durationMs`
+     * later — nothing waits on a timer, so page throttling can't drop it.
+     */
+    sendNoteAt({ note, velocity, channel, durationMs }, atMs) {
+        if (!this.output) return;
+        const status = Math.max(0, Math.min(15, (channel || 1) - 1));
+        this.output.send([NOTE_ON | status, note, velocity], atMs);
+        this.output.send([NOTE_OFF | status, note, 0], atMs + durationMs);
     }
 
-    /** 1-127 from the overtone's drawbar amplitude; 0 = drawbar silent. */
-    static velocityForVoice(index) {
-        const amp = AppState.harmonicAmplitudes[index] || 0;
-        return amp <= 0.001 ? 0 : Math.max(1, Math.round(amp * 127));
+    /** One clock tick on the clock port at wall-clock `atMs`. */
+    sendClockTickAt(atMs) {
+        this.clockOutput?.send([CLOCK_TICK], atMs);
     }
 
     sendClockTicks(pulse) {
@@ -172,8 +155,8 @@ export class MidiOutputRouter {
             this._clockRunning = true;
         }
         // 24 PPQN: one voice cycle = one quarter note
-        for (let k = 0; k < 24; k++) {
-            this.clockOutput.send([CLOCK_TICK], boundary + (k * periodMs) / 24);
+        for (let k = 0; k < CLOCK_PPQN; k++) {
+            this.clockOutput.send([CLOCK_TICK], boundary + (k * periodMs) / CLOCK_PPQN);
         }
     }
 
@@ -196,6 +179,16 @@ export class MidiOutputRouter {
             ? audioTimeToPerformanceMs(AppState.audioContext, atAudioTime)
             : window.performance.now();
         this.clockOutput.send([CLOCK_START], at);
+        this._clockRunning = true;
+    }
+
+    /** Transport continue (resume from a paused position) on the clock port. */
+    sendTransportContinue(atAudioTime = null) {
+        if (!this.clockOutput) return;
+        const at = atAudioTime != null
+            ? audioTimeToPerformanceMs(AppState.audioContext, atAudioTime)
+            : window.performance.now();
+        this.clockOutput.send([CLOCK_CONTINUE], at);
         this._clockRunning = true;
     }
 

@@ -4,7 +4,8 @@ import { calculateFrequency, formatHz } from '../../../utils.js';
 import { harmonicFilterCutoff, MAX_FILTER_PARTIALS } from '../../../audio.js';
 import { OvertoneSignalActions, Q_MAX, DRIVE_MAX, ENV_TIME_MAX } from '../../overtoneSignal/overtoneSignalActions.js';
 import { Dial } from '../dial/Dial.js';
-import { MidiOutputRouter, midiOutputRouter } from '../../midi/midiOutputRouter.js';
+import { midiOutputRouter } from '../../midi/midiOutputRouter.js';
+import { noteForVoice } from '../../midi/pulseMidi.js';
 import { oscClient } from '../../osc/oscClient.js';
 import { drawSequencePreview } from '../../overtoneSignal/sequencePreview.js';
 import { voiceTargets } from '../linkAll.js';
@@ -81,7 +82,7 @@ export default class OvertoneSignalModalComponent extends ModalComponent {
         el.sectionBody.appendChild(rows);
 
         // One MIDI note-on/off blip per audible cycle
-        const note = MidiOutputRouter.noteForVoice(index);
+        const note = noteForVoice(index);
         const midiAvailable = midiOutputRouter.available;
         rows.appendChild(this.pulseRow({
             text: 'MIDI out',
