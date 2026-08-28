@@ -477,9 +477,12 @@ export const AppState = {
     // channel per overtone); midiMode: single (one track/channel) | multi
     // (a track + channel per overtone). status: idle | armed | recording;
     // transport: stopped | playing | paused, for the selected recording.
+    // tempoMode: fixed (one tempo, notes at absolute time — survives DAWs
+    // that flatten imported tempo maps) | map (tempo changes as recorded).
     recorder: {
         audioMode: 'stereo',
         midiMode: 'single',
+        tempoMode: 'fixed',
         status: 'idle',
         selected: null,
         transport: 'stopped',

@@ -38,8 +38,11 @@ export function secondsToTicks(tempoMap, ppq, seconds) {
 
 /** Sorted, starting at time 0 (extrapolating the first tempo back to 0). */
 export function normalizeTempoMap(tempoMap) {
+    // Clamp rather than drop: a beat stamped a few microseconds before the
+    // take's start is still the first beat, not a missing tempo
     const map = (tempoMap || [])
-        .filter((t) => t && t.usPerBeat > 0 && t.time >= 0)
+        .filter((t) => t && t.usPerBeat > 0 && Number.isFinite(t.time))
+        .map((t) => ({ time: Math.max(0, t.time), usPerBeat: t.usPerBeat }))
         .sort((a, b) => a.time - b.time);
     if (map.length === 0) return [{ time: 0, usPerBeat: DEFAULT_US_PER_BEAT }];
     if (map[0].time > 0) map.unshift({ time: 0, usPerBeat: map[0].usPerBeat });
@@ -123,11 +126,19 @@ function metaEvent(tick, type, data, order = 0) {
 
 /**
  * Encode a MIDI document as a format-1 Standard MIDI File.
+ *
+ * `fixedTempo`: write only the document's initial tempo and place every
+ * event by absolute time under it. A DAW that flattens imported files to
+ * one tempo (Ableton Live outside an Arrangement-view import) then plays
+ * the notes at their recorded seconds; the price is that beats after a
+ * tempo change no longer sit on the DAW's grid. Without it the full tempo
+ * map is written, which tempo-aware imports reproduce exactly.
  * @returns {Uint8Array}
  */
-export function encodeMidiFile(doc) {
+export function encodeMidiFile(doc, { fixedTempo = false } = {}) {
     const ppq = doc.ppq || 960;
-    const tempoMap = normalizeTempoMap(doc.tempoMap);
+    const fullMap = normalizeTempoMap(doc.tempoMap);
+    const tempoMap = fixedTempo ? [fullMap[0]] : fullMap;
     const toTicks = (seconds) => secondsToTicks(tempoMap, ppq, seconds);
     const endTick = toTicks(doc.duration || 0);
 

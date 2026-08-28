@@ -144,7 +144,12 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
   the measured beat times (`tempoMapFromBeats`, runs averaged so
   sub-sample stamping jitter can't accumulate), so clock-voice notes land
   exactly on the 960-PPQ grid. No clock voice → flat 120 BPM, absolute
-  timing still correct.
+  timing still correct. Export default is `tempoMode: 'fixed'` — only the
+  initial tempo is written and notes are placed by absolute time under it,
+  because DAWs flatten imported tempo maps in most paths (Ableton only
+  builds tempo automation from an Arrangement-view import); `'map'`
+  writes every change. The document always keeps the true map (playback
+  clock follows it); the mode applies at download.
 - `pulseMidi.js` is the single pulse→MIDI mapping (note, velocity,
   channel, clock voice); both the live Web MIDI router and the file
   capture use it so a .mid holds exactly what external gear received.

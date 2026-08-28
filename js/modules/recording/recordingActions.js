@@ -35,6 +35,7 @@ import { recordingStore } from './RecordingStore.js';
 
 export const AUDIO_MODES = ['mono', 'stereo', 'multitrack'];
 export const MIDI_MODES = ['single', 'multi'];
+export const TEMPO_MODES = ['fixed', 'map'];
 
 // Arming waits this long for a clock beat before starting unaligned
 const ARM_TIMEOUT_MS = 3000;
@@ -120,6 +121,12 @@ export const RecordingActions = {
     setMidiMode(mode) {
         if (!MIDI_MODES.includes(mode) || AppState.recorder.midiMode === mode) return;
         setRecorder({ midiMode: mode });
+    },
+
+    /** Applies at export time, so an existing take can be re-downloaded either way. */
+    setTempoMode(mode) {
+        if (!TEMPO_MODES.includes(mode) || AppState.recorder.tempoMode === mode) return;
+        setRecorder({ tempoMode: mode });
     },
 
     /** Record button: idle → arm/start; armed or recording → stop. */
@@ -258,6 +265,7 @@ export const RecordingActions = {
     downloadMidi() {
         const recording = selectedRecording();
         if (!recording) return;
-        WAVExporter.downloadFile(encodeMidiFile(recording.midi), `${recording.base}.mid`, 'audio/midi');
+        const bytes = encodeMidiFile(recording.midi, { fixedTempo: AppState.recorder.tempoMode === 'fixed' });
+        WAVExporter.downloadFile(bytes, `${recording.base}.mid`, 'audio/midi');
     },
 };

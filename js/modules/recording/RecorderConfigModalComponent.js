@@ -1,10 +1,14 @@
 import ModalComponent from '../generic/modal/ModalComponent.js';
 import { AppState } from '../../config.js';
 import { RECORDER_CHANGED } from '../../events.js';
-import { RecordingActions, AUDIO_MODES, MIDI_MODES } from './recordingActions.js';
+import { RecordingActions, AUDIO_MODES, MIDI_MODES, TEMPO_MODES } from './recordingActions.js';
 
 const AUDIO_LABELS = { mono: 'Mono', stereo: 'Stereo', multitrack: 'Multitrack (one channel per overtone)' };
 const MIDI_LABELS = { single: 'Single channel', multi: 'Multi-channel (a track + channel per overtone)' };
+const TEMPO_LABELS = {
+    fixed: 'Fixed — initial clock tempo only; notes at their recorded time (works in any DAW / Session view)',
+    map: 'Tempo map — every clock change as recorded (Ableton: Arrangement-view import, say yes to "import tempo")',
+};
 
 /**
  * RecorderConfigModalComponent — recording settings: audio layout of the
@@ -45,7 +49,7 @@ export class RecorderConfigModalComponent extends ModalComponent {
     }
 
     render(props = {}) {
-        const { audioMode, midiMode } = AppState.recorder;
+        const { audioMode, midiMode, tempoMode } = AppState.recorder;
         const content = document.createElement('div');
         content.className = 'midi-modal rec-config-modal';
         const title = document.createElement('h2');
@@ -59,10 +63,13 @@ export class RecorderConfigModalComponent extends ModalComponent {
             this.section('MIDI (.mid)', this.radioGroup('rec-midi-mode', MIDI_MODES, MIDI_LABELS, midiMode,
                 (v) => RecordingActions.setMidiMode(v))),
         );
+        const tempo = this.section('Tempo in the .mid', this.radioGroup('rec-tempo-mode', TEMPO_MODES, TEMPO_LABELS, tempoMode,
+            (v) => RecordingActions.setTempoMode(v)));
+        tempo.classList.add('midi-section-wide');
         const note = document.createElement('p');
         note.className = 'rec-config-note';
-        note.textContent = 'One .wav and one .mid per take, sharing a timeline. Tempo comes from the overtone set as MIDI clock.';
-        content.append(title, row, note);
+        note.textContent = 'One .wav and one .mid per take, sharing a timeline. The beat comes from the overtone set as MIDI clock; the tempo setting applies when you download.';
+        content.append(title, row, tempo, note);
         super.render({ content, onClose: props.onClose });
 
         this._escHandler = (e) => { if (e.key === 'Escape') props.onClose?.(); };
@@ -73,9 +80,10 @@ export class RecorderConfigModalComponent extends ModalComponent {
 
     /** Reflect a mode changed elsewhere without rebuilding the dialog. */
     syncChecked() {
-        const { audioMode, midiMode } = AppState.recorder;
+        const { audioMode, midiMode, tempoMode } = AppState.recorder;
         for (const input of this.qAll('input[name="rec-audio-mode"]')) input.checked = input.value === audioMode;
         for (const input of this.qAll('input[name="rec-midi-mode"]')) input.checked = input.value === midiMode;
+        for (const input of this.qAll('input[name="rec-tempo-mode"]')) input.checked = input.value === tempoMode;
     }
 
     teardown() {
