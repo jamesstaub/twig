@@ -193,24 +193,20 @@
                             <label>
                                 Wavetable
                             </label>
-                            <div class="result-row">
-
-                                <div id="waveform-canvas-area" class="canvas-flex-area">
+                            <!-- Two rows: the time-domain wave with the wavetable
+                                 actions, then its spectrum with the convolution
+                                 (IR) actions -->
+                            <div class="result-grid">
+                                <div id="waveform-canvas-area" class="result-canvas">
                                     <!-- P5 canvas injected here -->
                                 </div>
                                 <div class="result-actions">
                                     <button id="add-wave-button" type="button" role="button"
-                                        class="action-btn focus-ring action-btn-spaced"
-                                        aria-label="Reset drawbars">Create Oscillator</button>
-                                    <button id="create-ir-button" type="button" role="button"
-                                        class="action-btn focus-ring action-btn-spaced"
-                                        aria-label="Create convolution impulse response">Create IR</button>
-                                    <!-- Ring time for the next Create IR (dial mounted by JS) -->
-                                    <span id="ir-ring-root" class="ir-ring-root" title="IR ring time"></span>
-
+                                        class="action-btn focus-ring"
+                                        aria-label="Create oscillator from the current timbre">Create Oscillator</button>
                                     <div id="routing-control-root" class="download-group">
                                         <button id="export-wav-button" type="button" role="button"
-                                            class="action-btn focus-ring action-btn-spaced"
+                                            class="action-btn focus-ring"
                                             aria-label="Download wav">Download</button>
                                         <div id="routing-mode-group" class="routing-mode-group">
                                             <select name="routing-mode" id="routing-mode-select" class="control-select">
@@ -220,8 +216,20 @@
                                             </select>
                                         </div>
                                     </div>
+                                </div>
 
-
+                                <div id="spectrum-canvas-area" class="result-canvas">
+                                    <!-- Spectrum canvas injected here -->
+                                </div>
+                                <div class="result-actions">
+                                    <button id="create-ir-button" type="button" role="button"
+                                        class="action-btn focus-ring"
+                                        aria-label="Create convolution impulse response">Create IR</button>
+                                    <!-- Ring time for the next Create IR (dial mounted by JS) -->
+                                    <span class="ir-ring-row">
+                                        <span class="start-harmonic-label">ring</span>
+                                        <span id="ir-ring-root" class="ir-ring-root" title="IR ring time"></span>
+                                    </span>
                                 </div>
                             </div>
                         </div>

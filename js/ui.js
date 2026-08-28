@@ -28,6 +28,7 @@ import { pulseBus } from './modules/pulse/pulseBus.js';
 import { midiOutputRouter } from './modules/midi/midiOutputRouter.js';
 import { setPulseHandler } from './audio.js';
 import { SourceController } from './modules/source/sourceController.js';
+import { SpectrumController } from './modules/spectrum/spectrumController.js';
 // ================================
 // INITIALIZATION
 // ================================
@@ -248,6 +249,10 @@ export function updateSystemDescription() {
 function setupWaveformSelector() {
     const sourceController = new SourceController('#oscillator-control-root');
     sourceController.init();
+
+    // Spectral view of the timbre as Create IR will bake it (ring-aware)
+    const spectrumController = new SpectrumController('#spectrum-canvas-area');
+    spectrumController.init();
 
     const waveformSelectorController = new WaveformSelectorController('#waveform-select');
     waveformSelectorController.init();
