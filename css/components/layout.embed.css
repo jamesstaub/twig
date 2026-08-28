@@ -1,7 +1,8 @@
 /* Embed-mode overrides for layout.css. */
 
-/* Every section (oscillator, fundamental, overtone system, result) shrinks
-   to the row's height instead of stacking with its neighbors */
+/* Every section (result) shrinks to the row's height instead of stacking
+   with its neighbors. #m4l-fundamental-source-panel's own children are
+   excluded — that group stacks vertically instead (rules below). */
 body.embed .labeled-control {
     display: flex;
     flex-direction: column;
@@ -21,12 +22,114 @@ body.embed .labeled-control > span {
     margin-bottom: 0;
 }
 
-body.embed .frequency-control-group {
-    gap: 0.25rem;
-}
-
 body.embed #result-control-root .control-row {
     gap: 0.25rem;
     flex: 1 1 auto;
     min-height: 0;
+}
+
+/* ================================
+   CONSOLIDATED M4L PANEL
+   ================================
+   Fundamental frequency, Source (+ its per-mode secondary controls), and
+   Overtone System (+ its secondary controls and the subharmonic toggle)
+   no longer render as three separate wide side-by-side sections — that
+   cost more horizontal room than the drawbars strip could afford. Instead
+   app.js physically moves #spectral-system-root into this wrapper
+   (relocateSpectralSystemPanel) so all three become one narrow vertical
+   stack; #fundamental-control-root and #oscillator-control-root already
+   live here in the markup (this wrapper IS their desktop `.control-row`,
+   id'd for this override — see page-arrangement.css, untouched by this
+   file). One shared card instead of three: the children give up their own
+   background/shadow/rounded corners and a divider line stands in for the
+   seam. */
+body.embed #m4l-fundamental-source-panel {
+    display: flex !important; /* overrides body.embed .embed-flatten's display:contents */
+    flex-direction: column;
+    /* .control-row's own flex-wrap:wrap, still in effect, would otherwise
+       wrap overflow into a second COLUMN (perpendicular to the main axis
+       in column-direction flex) instead of just scrolling vertically */
+    flex-wrap: nowrap;
+    gap: 0;
+    flex: 0 0 auto;
+    width: 175px;
+    height: 100%;
+    max-height: 100%;
+    overflow-y: auto;
+    overflow-x: hidden;
+    background-color: var(--surface-raised);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-recessed);
+    padding: 0.15rem 0.3rem;
+}
+
+body.embed #m4l-fundamental-source-panel > .labeled-control {
+    background: none;
+    box-shadow: none;
+    border-radius: 0;
+    padding: 0.05rem 0;
+    margin: 0;
+    height: auto;
+    max-height: none;
+    flex: 0 0 auto;
+    gap: 0.1rem;
+    overflow: visible;
+    border-bottom: 1px solid var(--border-subtle);
+    /* .col-half (page-arrangement.css) is a WIDTH breakpoint (48rem) — a
+       short-but-wide jweb viewport matches it same as desktop, resolving
+       50% against this 175px column instead of the old side-by-side row */
+    width: 100% !important;
+}
+
+body.embed #m4l-fundamental-source-panel > .labeled-control:last-child {
+    border-bottom: none;
+}
+
+body.embed #fundamental-control-root { order: 1; }
+body.embed #oscillator-control-root { order: 2; }
+body.embed #spectral-system-root {
+    order: 3;
+    /* Its own base rule (page-arrangement.css) demands min-width:24rem
+       from 48rem up — a viewport this SHORT is often still plenty WIDE,
+       so that media query matches here too; override for the narrow
+       stacked column. */
+    min-width: 0;
+}
+
+/* The real jweb budget is closer to 150px than the 170px this was first
+   tuned against — every row here has to give up more height. Scoped to
+   just this panel so other embed controls (routing-mode select, etc.)
+   keep their normal (already-compact) embed sizing. */
+body.embed #m4l-fundamental-source-panel .control-select,
+body.embed #m4l-fundamental-source-panel .fundamental-input,
+body.embed #m4l-fundamental-source-panel #start-harmonic-input {
+    padding: 0.05rem 0.2rem;
+    font-size: var(--font-size-2xs);
+    height: 16px;
+}
+
+body.embed #m4l-fundamental-source-panel .select-step-btn {
+    padding: 0 0.25rem;
+    font-size: var(--font-size-2xs);
+    line-height: 16px;
+}
+
+body.embed #m4l-fundamental-source-panel .start-harmonic-label {
+    font-size: var(--font-size-2xs);
+}
+
+body.embed #m4l-fundamental-source-panel .toggle-label {
+    font-size: var(--font-size-2xs);
+}
+
+/* Dropped from the m4l stack: the piano keyboard/octave stepper (MIDI/OSC
+   are the note-input path there), the oscillator waveform preview, and
+   every section's own text heading — the stack's fixed order (frequency,
+   then source, then overtone system) plus each row's distinct control
+   already identifies it, and the vertical budget can't afford three
+   heading lines on top of the controls themselves. */
+body.embed #fundamental-control-root .frequency-control-group,
+body.embed #oscillator-control-root #current-waveform-canvas-area,
+body.embed #m4l-fundamental-source-panel .control-label-text {
+    display: none;
 }

@@ -8,15 +8,18 @@ import {
     DRAWBARS_RANDOMIZED,
     DRAWBARS_RESET,
     OVERTONE_SIGNAL_CHANGED,
+    SOURCE_CHANGED,
     SPECTRAL_SYSTEM_CHANGED,
     SUBHARMONIC_TOGGLED
 } from "../../events.js";
 import { BaseController } from "../base/BaseController.js";
 import { AppState } from "../../config.js";
 import { irManager } from "../../dsp/IRManager.js";
+import { ConvolutionActions } from "../convolution/convolutionActions.js";
 
 const RESET_DRAWBARS_BUTTON_ID = "reset-drawbars-button";
 const RANDOMIZE_DRAWBARS_BUTTON_ID = "randomize-drawbars-button";
+const CREATE_IR_BUTTON_ID = "create-ir-button-drawbars";
 
 export class DrawbarsController extends BaseController {
 
@@ -75,6 +78,10 @@ export class DrawbarsController extends BaseController {
             this.randomize();
         });
 
+        document.getElementById(CREATE_IR_BUTTON_ID)?.addEventListener("click", () => {
+            ConvolutionActions.createIRFromCurrent();
+        });
+
         // Per-overtone signal edits from the modal or OSC → visible controls
         document.addEventListener(OVERTONE_SIGNAL_CHANGED, (e) => {
             const { index, kind } = e.detail || {};
@@ -97,6 +104,8 @@ export class DrawbarsController extends BaseController {
             if (this.component.view === 'convolution') this.update();
             this.refreshNote();
         });
+        // Create IR bakes the oscillator wavetable — only reachable there
+        document.addEventListener(SOURCE_CHANGED, () => this.refreshNote());
         this.refreshNote();
 
     }
@@ -105,10 +114,20 @@ export class DrawbarsController extends BaseController {
     /** Hint under the tabs: the convolution view is inert until an IR exists. */
     refreshNote() {
         const note = document.getElementById('drawbars-note');
-        if (!note) return;
-        const show = this.component.view === 'convolution' && irManager.list().length === 0;
-        note.textContent = show ? 'create IR to use convolution' : '';
-        note.classList.toggle('hidden', !show);
+        const createIrButton = document.getElementById('create-ir-button-drawbars');
+        const inConvolutionView = this.component.view === 'convolution';
+
+        if (note) {
+            const show = inConvolutionView && irManager.list().length === 0;
+            note.textContent = show ? 'create IR to use convolution' : '';
+            note.classList.toggle('hidden', !show);
+        }
+
+        // Baking an IR samples the oscillator wavetable — the button is a
+        // no-op (and hidden) for external sources, same gating as the
+        // Wavetable panel's own "Create IR" button
+        createIrButton?.classList.toggle('hidden',
+            !inConvolutionView || AppState.sourceMode !== 'oscillators');
     }
 
     getProps() {

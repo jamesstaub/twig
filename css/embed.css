@@ -40,10 +40,15 @@ body.embed #tonewheel-viz-controls {
     display: none;
 }
 
-/* --- Section order: main controls, fundamental, oscillator, system, drawbars, result, tonewheel ---
-   Drawbars has no fixed width: it grows to fill whatever room the other
-   (fixed-width) sections leave, and min-width:max-content lets it grow
-   PAST that if the partial count needs more — flex's own automatic
+/* --- Section order: main controls, consolidated panel, drawbars, result, tonewheel ---
+   Fundamental / Source / Overtone System no longer sit side by side as
+   three separate wide sections — app.js moves #spectral-system-root into
+   #m4l-fundamental-source-panel (a real DOM move, not CSS — see
+   relocateSpectralSystemPanel in app.js) so all three become one narrow
+   vertical stack; see form-controls.embed.css for that panel's own
+   layout. Drawbars has no fixed width: it grows to fill whatever room the
+   other (fixed-width) sections leave, and min-width:max-content lets it
+   grow PAST that if the partial count needs more — flex's own automatic
    content-based minimum doesn't reliably propagate up through this
    column→row→column chain, so it's given explicitly (see
    drawbars.embed.css for the rest of the "full width, no internal
@@ -51,9 +56,7 @@ body.embed #tonewheel-viz-controls {
    own overflow-x:auto (above) scrolls the entire app, not just this
    section. */
 body.embed .navbar { order: 1; }
-body.embed #fundamental-control-root { order: 2; width: 240px; }
-body.embed #oscillator-control-root { order: 3; width: 200px; }
-body.embed #spectral-system-root { order: 4; width: 260px; }
-body.embed #drawbars-control-root { order: 5; flex: 1 1 320px; min-width: max-content; }
-body.embed #result-control-root { order: 6; width: 300px; }
-body.embed #tonewheel-container { order: 7; }
+body.embed #m4l-fundamental-source-panel { order: 2; }
+body.embed #drawbars-control-root { order: 3; flex: 1 1 320px; min-width: max-content; }
+body.embed #result-control-root { order: 4; width: 300px; }
+body.embed #tonewheel-container { order: 5; }

@@ -15,6 +15,13 @@ body.embed .octave-control {
     gap: 0.75rem;
 }
 
+/* .overtone-controls's margin-top:1rem (form-controls.css) is a width-only
+   breakpoint (48rem) — a short-but-wide jweb viewport matches it same as
+   desktop, wasting space it can't spare in the consolidated m4l panel */
+body.embed .overtone-controls {
+    margin-top: 0;
+}
+
 body.embed .octave-display {
     font-size: var(--font-size-sm);
 }

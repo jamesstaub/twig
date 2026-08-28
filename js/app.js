@@ -32,7 +32,35 @@ function updateEmbedMode() {
     } else {
         embed = window.innerHeight > 0 && window.innerHeight <= themeNumber('--embed-max-height');
     }
+    const wasEmbed = document.body.classList.contains('embed');
     document.body.classList.toggle('embed', embed);
+    if (embed !== wasEmbed) relocateSpectralSystemPanel(embed);
+}
+
+// Where #spectral-system-root sits on desktop, so it can be moved back
+// exactly — { parent, next } for Node.insertBefore(section, next)
+let spectralSystemHome = null;
+
+/**
+ * In embed mode, the Overtone System section joins the consolidated m4l
+ * panel (fundamental + source + system, one narrow vertical stack) instead
+ * of pairing with the Wavetable panel — a real DOM move, not CSS, so the
+ * desktop card layout (`.system-result-row`'s 2-up grid) is completely
+ * unaffected; every id inside the section stays a descendant of the same
+ * root, so component code that queries by id (scoped to that root) never
+ * notices the move.
+ */
+function relocateSpectralSystemPanel(embed) {
+    const section = document.getElementById('spectral-system-root');
+    const m4lPanel = document.getElementById('m4l-fundamental-source-panel');
+    if (!section || !m4lPanel) return;
+    if (embed) {
+        spectralSystemHome = { parent: section.parentElement, next: section.nextElementSibling };
+        m4lPanel.appendChild(section);
+    } else if (spectralSystemHome) {
+        spectralSystemHome.parent.insertBefore(section, spectralSystemHome.next);
+        spectralSystemHome = null;
+    }
 }
 
 /**

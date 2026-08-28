@@ -89,11 +89,30 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
   — see `harmonicFilterCutoff` in `js/audio.js`.
 - To add a new bridged parameter, follow the checklist in
   `.claude/skills/add-bridged-param`.
-- Embed mode: `body.embed` is applied when the viewport is ≤ 220px tall or
-  `?embed=1`; `css/embed.css` (must stay the **last** import in styles.css)
-  reflows the app into one ~170px horizontal band. Modals become horizontal
-  scrolling bands there; `.signal-section-body` exists so section content can
-  flow column-on-desktop / row-in-embed with pure CSS.
+- Embed mode: `body.embed` is applied by `updateEmbedMode()` in `js/app.js`
+  when the viewport is ≤ `--embed-max-height` (theme.css, 220px) tall or
+  `?embed=1`; `css/embed.css` (must stay the **last** import in styles.css,
+  followed by each component's own `*.embed.css`) reflows the app into one
+  ~170px horizontal band that scrolls sideways if it doesn't fit — a jweb
+  viewport is often plenty WIDE even though short, so desktop's own
+  width-based breakpoints (e.g. `.col-half` at 48rem) still fire there and
+  need explicit embed overrides, not just narrow-viewport assumptions.
+  Sections become flex children of `body.embed` via `.embed-flatten`
+  (`display:contents` on intermediate wrapper divs) with `order:` per
+  section. Modals become horizontal scrolling bands there;
+  `.signal-section-body` exists so section content can flow
+  column-on-desktop / row-in-embed with pure CSS.
+- The Fundamental/Source/Overtone-System panel is embed-only and merges
+  three desktop-separate sections into one narrow vertical stack — CSS
+  alone can't do this (their real DOM homes are different desktop grids,
+  `this.q()` in components scopes lookups to their own root element, so
+  only *root* divs may move, not their descendants). `updateEmbedMode()`
+  physically reparents `#spectral-system-root` into
+  `#m4l-fundamental-source-panel` on the embed transition and restores its
+  exact desktop position on the way back (`relocateSpectralSystemPanel` in
+  `js/app.js`) — a real DOM move, not CSS, so desktop's `.system-result-row`
+  grid is untouched. Follow the same pattern for any future embed-only
+  regrouping across different desktop containers.
 
 ## Wavetable baking (DSP)
 

@@ -5,6 +5,19 @@ body.embed .subharmonic-toggle-container {
     gap: 0.5rem;
 }
 
+/* The m4l consolidated panel is narrower still and every row costs —
+   drop the Partch terminology sublabels (otonality/utonality) and the
+   divider, matching the rest of the panel's seam-via-border treatment */
+body.embed #m4l-fundamental-source-panel .subharmonic-toggle-container {
+    padding-top: 0;
+    border-top: none;
+    gap: 0.4rem;
+}
+
+body.embed #m4l-fundamental-source-panel .toggle-sublabel {
+    display: none;
+}
+
 /* Every toggle's label shrinks in the compact column — not just the
    subharmonic pair, so play/ADSR labels don't look oversized beside it */
 body.embed .toggle-label {
