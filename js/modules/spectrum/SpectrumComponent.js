@@ -95,6 +95,6 @@ export default class SpectrumComponent extends BaseComponent {
         ctx.fillStyle = themeColor("--viz-grid");
         ctx.font = "11px system-ui, sans-serif";
         ctx.textAlign = "right";
-        ctx.fillText(props.ringSeconds > 0 ? `ring ${props.ringSeconds.toFixed(1)} s` : "one loop", width - 6, 14);
+        ctx.fillText(props.ringSeconds > 0 ? `ring ${props.ringSeconds.toFixed(1)} s` : "one loop", width - 12, 16);
     }
 }
