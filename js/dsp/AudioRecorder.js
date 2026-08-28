@@ -25,6 +25,7 @@ export class AudioRecorder {
     constructor(ctx) {
         this.ctx = ctx;
         this.node = null;
+        this.taps = [];
         this.chunks = [];
         this.frames = 0;
         this.startTime = null;
@@ -60,6 +61,7 @@ export class AudioRecorder {
             channelInterpretation: 'speakers',
             processorOptions: { inputs: taps.length, channelsPerInput: channelsPerTap },
         });
+        this.taps = taps;
         taps.forEach((tap, i) => tap.connect(this.node, 0, i));
         // A silent output keeps the node in the rendering graph
         this.node.connect(ctx.destination);
@@ -91,6 +93,13 @@ export class AudioRecorder {
         return new Promise((resolve) => {
             this._stopped = () => {
                 const node = this.node;
+                // Unhook both ends: node.disconnect() only drops its own
+                // output; the taps' connections INTO it would otherwise
+                // keep every finished recorder node attached to the graph
+                for (const tap of this.taps) {
+                    try { tap.disconnect(node); } catch { /* already gone */ }
+                }
+                this.taps = [];
                 try { node.disconnect(); } catch { /* already gone */ }
                 this.node = null;
                 this.recording = false;
