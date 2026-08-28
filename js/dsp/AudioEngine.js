@@ -3,6 +3,7 @@
  * Manages Web Audio API context and oscillator-based synthesis only
  */
 
+import { AudioRecorder } from './AudioRecorder.js';
 import { WaveformGenerator } from './WaveformGenerator.js';
 
 export class AudioEngine {
@@ -37,9 +38,22 @@ export class AudioEngine {
         } catch (err) {
             console.warn('[audio] gate worklet unavailable — voices run ungated:', err);
         }
+        // Performance capture (see AudioRecorder)
+        this.recorderReady = false;
+        try {
+            await AudioRecorder.load(this.context);
+            this.recorderReady = true;
+        } catch (err) {
+            console.warn('[audio] recorder worklet unavailable — recording disabled:', err);
+        }
 
         // Create audio graph
         this.setupAudioGraph(masterGainValue);
+
+        // The master chain's look-ahead dynamics delay everything they pass
+        // by a fixed amount; measured once so recordings tapped after them
+        // can be re-aligned to the voices' own timeline.
+        this.masterLatencyFrames = await AudioEngine.measureMasterLatency(this.context.sampleRate);
 
         // Pre-generate standard waveforms
         this.generateStandardWaveforms();
@@ -66,30 +80,104 @@ export class AudioEngine {
      * @param {number} masterGainValue - Initial master gain value
      */
     setupAudioGraph(masterGainValue) {
-        // Create dynamics compressor (gentle pre-limiter compression)
-        this.compressor = this.context.createDynamicsCompressor();
-        this.compressor.threshold.setValueAtTime(-24, this.context.currentTime);
-        this.compressor.ratio.setValueAtTime(6, this.context.currentTime); // more aggressive
-        this.compressor.attack.setValueAtTime(0.01, this.context.currentTime);
-        this.compressor.release.setValueAtTime(0.20, this.context.currentTime);
+        const { compressor, limiter } = AudioEngine.createMasterDynamics(this.context);
+        this.compressor = compressor;
+        this.limiter = limiter;
 
-        // Create master gain node
+        // Master gain
         this.masterGain = this.context.createGain();
         this.masterGain.gain.setValueAtTime(masterGainValue, this.context.currentTime);
         this.masterGain.maxGain = 1.0;
 
-        // Fast final limiter
-        this.limiter = this.context.createDynamicsCompressor();
-        this.limiter.threshold.setValueAtTime(-6, this.context.currentTime); // more headroom
-        this.limiter.ratio.setValueAtTime(6, this.context.currentTime);
-        this.limiter.attack.setValueAtTime(0.005, this.context.currentTime); // much faster
-        this.limiter.release.setValueAtTime(0.15, this.context.currentTime); // less pumping
+        // Stable per-voice-index tap points for stem recording; voices come
+        // and go (system switches, restarts) but these persist
+        this.stemTaps = new Map();
 
         // mono or stereo: compressor to masterGain
         this.compressor.connect(this.masterGain);
 
         this.masterGain.connect(this.limiter);
         this.limiter.connect(this.context.destination);
+    }
+
+    /**
+     * The shared master dynamics: a gentle compressor feeding a fast
+     * limiter. One factory for the live graph and the latency probe so
+     * their settings can't drift apart.
+     */
+    static createMasterDynamics(ctx) {
+        const now = ctx.currentTime;
+        const compressor = ctx.createDynamicsCompressor();
+        compressor.threshold.setValueAtTime(-24, now);
+        compressor.ratio.setValueAtTime(6, now);
+        compressor.attack.setValueAtTime(0.01, now);
+        compressor.release.setValueAtTime(0.20, now);
+
+        const limiter = ctx.createDynamicsCompressor();
+        limiter.threshold.setValueAtTime(-6, now); // headroom
+        limiter.ratio.setValueAtTime(6, now);
+        limiter.attack.setValueAtTime(0.005, now);
+        limiter.release.setValueAtTime(0.15, now);
+        return { compressor, limiter };
+    }
+
+    /**
+     * Frames of delay the compressor → limiter chain adds (each
+     * DynamicsCompressor has a fixed look-ahead pre-delay). Rendered
+     * offline with an impulse: the output's peak position is the latency.
+     */
+    static async measureMasterLatency(sampleRate) {
+        try {
+            const length = 4096;
+            const offline = new OfflineAudioContext(1, length, sampleRate);
+            const impulse = offline.createBuffer(1, length, sampleRate);
+            impulse.getChannelData(0)[0] = 0.1; // well under threshold: no gain reduction
+            const source = offline.createBufferSource();
+            source.buffer = impulse;
+            const { compressor, limiter } = AudioEngine.createMasterDynamics(offline);
+            source.connect(compressor);
+            compressor.connect(limiter);
+            limiter.connect(offline.destination);
+            source.start(0);
+            const rendered = await offline.startRendering();
+            const data = rendered.getChannelData(0);
+            let peak = 0, at = 0;
+            for (let i = 0; i < data.length; i++) {
+                const v = Math.abs(data[i]);
+                if (v > peak) { peak = v; at = i; }
+            }
+            return peak > 0 ? at : 0;
+        } catch (err) {
+            console.warn('[audio] master latency probe failed — assuming 0:', err);
+            return 0;
+        }
+    }
+
+    /**
+     * Persistent mono tap carrying voice `index`'s post-processing signal
+     * (after drive/filter/convolution, before pan and the master chain).
+     */
+    stemTap(index) {
+        let tap = this.stemTaps.get(index);
+        if (!tap) {
+            tap = this.context.createGain();
+            this.stemTaps.set(index, tap);
+        }
+        return tap;
+    }
+
+    /**
+     * Graph nodes a recorder should capture for a mode: the limiter output
+     * (what reaches the speakers — lagging by masterLatencyFrames) or one
+     * stem tap per voice index.
+     * @returns {{taps: AudioNode[], channelsPerTap: number, latencyFrames: number}}
+     */
+    recordingTaps(mode, voiceCount = 0) {
+        if (mode === 'multitrack') {
+            const taps = Array.from({ length: voiceCount }, (_, i) => this.stemTap(i));
+            return { taps, channelsPerTap: 1, latencyFrames: 0 };
+        }
+        return { taps: [this.limiter], channelsPerTap: mode === 'mono' ? 1 : 2, latencyFrames: this.masterLatencyFrames || 0 };
     }
 
     /**
@@ -245,6 +333,9 @@ export class AudioEngine {
         convFb.gain.setValueAtTime(conv.feedback ?? 0, this.context.currentTime);
 
         // Always stereo: use StereoPannerNode per oscillator
+        // Mono sum of the dry + wet paths: the voice's finished signal,
+        // feeding the panner and (by index) the engine's stem tap
+        const stemOut = this.context.createGain();
         const panner = this.context.createStereoPanner();
         panner.pan.setValueAtTime(options.pan ?? 0, this.context.currentTime);
 
@@ -269,13 +360,15 @@ export class AudioEngine {
         }
         driveNode.connect(filterNode);
         filterNode.connect(convDry);
-        convDry.connect(panner);
+        convDry.connect(stemOut);
         filterNode.connect(convolver);
         convolver.connect(convGain);
         convGain.connect(convDuck);
         convDuck.connect(convSum);
         convSum.connect(convWet);
-        convWet.connect(panner);
+        convWet.connect(stemOut);
+        stemOut.connect(panner);
+        if (Number.isInteger(options.voiceIndex)) stemOut.connect(this.stemTap(options.voiceIndex));
         convSum.connect(convDelay);
         convDelay.connect(convFb);
         convFb.connect(convSum);
@@ -285,7 +378,7 @@ export class AudioEngine {
             oscillator, sourceTap, sourceNode: options.source || null,
             envNode, gainNode, gateNode, driveNode, filterNode,
             convolver, convDry, convWet, convGain, convSum, convFb, convDelay, convWetInv, convDuck,
-            panner, meter,
+            stemOut, panner, meter,
         };
     }
 
@@ -589,7 +682,7 @@ export class AudioEngine {
         for (const node of [
             oscData.sourceTap, oscData.envNode, oscData.gainNode, oscData.gateNode,
             oscData.driveNode, oscData.filterNode, oscData.convolver, oscData.convDry,
-            oscData.convWet, oscData.convGain, oscData.convSum, oscData.convFb, oscData.convDelay, oscData.convWetInv, oscData.convDuck, oscData.panner, oscData.meter,
+            oscData.convWet, oscData.convGain, oscData.convSum, oscData.convFb, oscData.convDelay, oscData.convWetInv, oscData.convDuck, oscData.stemOut, oscData.panner, oscData.meter,
         ]) {
             try { node?.disconnect(); } catch { /* already disconnected */ }
         }

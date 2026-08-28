@@ -222,6 +222,7 @@ function createHarmonicOscillator(i, ratio, gain) {
             cutoff: harmonicFilterCutoff(i, frequency),
             q: AppState.oscillatorFilters[i]?.q,
         },
+        voiceIndex: i,
         pulseOut: harmonicPulseEnabled(i),
         sequencer: harmonicSequencerPayload(i),
         convolution: harmonicConvolutionPayload(i),
