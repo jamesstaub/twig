@@ -16,6 +16,7 @@
 @import "./components/layout.css";
 @import "./components/page-arrangement.css";
 @import "./components/navbar.css";
+@import "./components/recorder.css";
 @import "./components/buttons.css";
 @import "./components/form-controls.css";
 @import "./components/value-tip.css";
@@ -37,6 +38,7 @@
 @import "./components/layout.embed.css";
 @import "./components/buttons.embed.css";
 @import "./components/navbar.embed.css";
+@import "./components/recorder.embed.css";
 @import "./components/form-controls.embed.css";
 @import "./components/value-tip.embed.css";
 @import "./components/keyboard.embed.css";

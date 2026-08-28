@@ -29,6 +29,7 @@ import { midiOutputRouter } from './modules/midi/midiOutputRouter.js';
 import { setPulseHandler } from './audio.js';
 import { SourceController } from './modules/source/sourceController.js';
 import { SpectrumController } from './modules/spectrum/spectrumController.js';
+import { RecorderController } from './modules/recording/recorderController.js';
 // ================================
 // INITIALIZATION
 // ================================
@@ -163,6 +164,7 @@ function setupMainButtons() {
     const playToggleController = new PlayToggleController('.play-toggle-container');
     playToggleController.init();
     setupEnvelopeModeToggle();
+    new RecorderController('#recorder-root').init();
 }
 
 /**

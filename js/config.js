@@ -472,6 +472,19 @@ export const AppState = {
     // Exclusive — at most one at a time.
     midiClockVoice: null,
 
+    // Performance recorder (browser-session only — recordings are not
+    // bridged to Max). audioMode: mono | stereo | multitrack (one mono
+    // channel per overtone); midiMode: single (one track/channel) | multi
+    // (a track + channel per overtone). status: idle | armed | recording;
+    // transport: stopped | playing | paused, for the selected recording.
+    recorder: {
+        audioMode: 'stereo',
+        midiMode: 'single',
+        status: 'idle',
+        selected: null,
+        transport: 'stopped',
+    },
+
     // Visualization properties
     visualizationFrequency: 5.25,
     spreadFactor: 0.2,

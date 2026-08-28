@@ -1,0 +1,93 @@
+/* Performance recorder strip in the navbar: ● ⚙ ‹ take › ▶ ⏮ wav mid.
+   Temporary home — the navbar is due for a redesign. */
+
+.recorder-root {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    margin-left: 1rem;
+    padding: 0.25rem 0.5rem;
+    background-color: color-mix(in srgb, var(--surface-deep) 80%, transparent);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border-subtle);
+}
+
+.rec-btn {
+    width: 1.75rem;
+    height: 1.75rem;
+    border-radius: 50%;
+    border: 1px solid var(--border-subtle);
+    background: none;
+    color: var(--accent-negative);
+    font-size: var(--font-size-md);
+    line-height: 1;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s;
+}
+
+.rec-btn:hover {
+    border-color: var(--accent-negative);
+}
+
+.rec-btn.armed {
+    border-color: var(--accent-negative);
+    animation: rec-blink 0.5s step-end infinite;
+}
+
+.rec-btn.recording {
+    background: var(--accent-negative);
+    border-color: var(--accent-negative);
+    color: var(--key-white);
+    animation: rec-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes rec-blink {
+    50% { color: transparent; }
+}
+
+@keyframes rec-pulse {
+    50% { background: var(--accent-negative-strong); }
+}
+
+.rec-icon-btn,
+.rec-save-btn,
+.rec-select .select-step-btn {
+    padding: 2px 8px;
+    font-size: var(--font-size-sm);
+    line-height: 1.4;
+}
+
+.rec-select-menu {
+    max-width: 8.5rem;
+    font-size: var(--font-size-sm);
+}
+
+.recorder-root button:disabled {
+    opacity: 0.4;
+    cursor: default;
+}
+
+/* Settings dialog */
+.rec-config-modal {
+    width: 32rem;
+}
+
+.rec-radio-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+}
+
+.rec-radio-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: var(--font-size-sm);
+    color: var(--text-label);
+    cursor: pointer;
+}
+
+.rec-config-note {
+    font-size: var(--font-size-xs);
+    color: var(--text-muted);
+}

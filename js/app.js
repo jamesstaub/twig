@@ -11,6 +11,8 @@ import { showStatus } from './domUtils.js';
 import { faviconService } from './modules/favicon/faviconService.js';
 import { getAudioEngine } from './audio.js';
 import { irManager } from './dsp/IRManager.js';
+import { recordingStore } from './modules/recording/RecordingStore.js';
+import { RecordingActions } from './modules/recording/recordingActions.js';
 import { oscClient, oscEnabled } from './modules/osc/oscClient.js';
 import { pulseBus } from './modules/pulse/pulseBus.js';
 import { themeNumber } from './theme.js';
@@ -212,6 +214,8 @@ window.TWIG = {
     getAudioCtx: () => getAudioEngine().getContext(),
     getAudioEngine: () => getAudioEngine(),
     getIRManager: () => irManager,
+    getRecordingStore: () => recordingStore,
+    recorder: RecordingActions,
 
     // Per-cycle voice pulses (subaudible clock taps): subscribe(voiceIndex |
     // '*', fn(index, {cycle, gateOn, frequency, audioTime})) → unsubscribe fn

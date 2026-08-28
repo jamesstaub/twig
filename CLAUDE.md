@@ -114,6 +114,46 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
   grid is untouched. Follow the same pattern for any future embed-only
   regrouping across different desktop containers.
 
+## Performance recording (audio + MIDI)
+
+- Navbar strip (`js/modules/recording/`): ● record, ⚙ settings (audio
+  mono/stereo/multitrack = one mono channel per overtone; MIDI single
+  channel/track vs a track + channel per overtone), take menu with
+  steppers, ▶/❚❚, ⏮, wav/mid downloads. One .wav + one .mid per take,
+  sharing a file stem. Browser-session only — not bridged to Max.
+- Layers, bottom-up: pure codecs (`js/dsp/midiFile.js` SMF format-1
+  writer + tempo-map math; `WAVExporter` with 32-bit float) → browser
+  capture/playback with no app knowledge (`js/dsp/AudioRecorder.js` +
+  unbundled `worklets/recorder-processor.js`; `js/dsp/RecordingPlayer.js`)
+  → app logic (`midiCapture.js` pulse-bus sink, `midiDocument.js` pure
+  log→document, `midiPlayback.js` look-ahead scheduler, `RecordingStore`,
+  `recordingActions.js` owning `AppState.recorder`) → UI. Keep it that
+  way: the DSP/codec files must stay portable to a native rewrite.
+- Alignment contract: audio sample 0 == MIDI time 0 on the AudioContext
+  clock. The worklet reports the exact frame it started; MIDI events are
+  the gate worklets' cycle-boundary times (`pulseCycleBoundaryAudioTime`),
+  so no wall-clock hop is involved. The master chain's two
+  DynamicsCompressors add a fixed look-ahead delay (12 ms — measured at
+  init by `AudioEngine.measureMasterLatency`, an offline impulse render)
+  which the recorder trims from master-tapped takes; stems (`stemTap(i)`,
+  a persistent per-index GainNode fed by each voice's `stemOut` before
+  the panner) have none. Verified to ~0.01 ms.
+- Tempo: the overtone set as MIDI clock defines the beat (one cycle = one
+  quarter note, as the live clock does). Arming waits for that voice's
+  next boundary so the take starts ON a beat; the tempo map comes from
+  the measured beat times (`tempoMapFromBeats`, runs averaged so
+  sub-sample stamping jitter can't accumulate), so clock-voice notes land
+  exactly on the 960-PPQ grid. No clock voice → flat 120 BPM, absolute
+  timing still correct.
+- `pulseMidi.js` is the single pulse→MIDI mapping (note, velocity,
+  channel, clock voice); both the live Web MIDI router and the file
+  capture use it so a .mid holds exactly what external gear received.
+- Playback: master takes go straight to `destination` (already through
+  the chain); multitrack takes are mixed down (`RecordingPlayer.mixdown`)
+  and fed into the live compressor so they sound as recorded. MIDI is
+  replayed through the output router with Web MIDI future timestamps
+  (1.5 s look-ahead) — events already handed off still fire after pause.
+
 ## Wavetable baking (DSP)
 
 - "Create oscillator" and WAV export are **coefficient-domain** — no
