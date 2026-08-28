@@ -35,6 +35,13 @@ export class SpectrumController extends BaseController {
             SUBHARMONIC_TOGGLED, CURRENT_WAVEFORM_CHANGED, FUNDAMENTAL_CHANGED, IR_RING_CHANGED]) {
             document.addEventListener(evt, () => this.scheduleUpdate());
         }
-        window.addEventListener("resize", () => this.scheduleUpdate());
+        // Re-render at the container's real width whenever the panel
+        // reflows (window resize, source-mode gating, embed) — the first
+        // render can land before layout settles
+        if (typeof ResizeObserver !== "undefined") {
+            new ResizeObserver(() => this.scheduleUpdate()).observe(this.component.el);
+        } else {
+            window.addEventListener("resize", () => this.scheduleUpdate());
+        }
     }
 }

@@ -26,9 +26,10 @@ export default class SpectrumComponent extends BaseComponent {
         const dpr = window.devicePixelRatio || 1;
         this.canvas.width = Math.round(width * dpr);
         this.canvas.height = Math.round(HEIGHT * dpr);
-        // The app's global `canvas { width: 100% !important }` rule would
-        // stretch the bitmap; pin the CSS size explicitly
-        this.canvas.style.setProperty("width", `${width}px`, "important");
+        // CSS width 100% like the wave preview's canvas, so both always span
+        // the panel exactly; the bitmap is re-rendered at the container's
+        // current width (see the controller's ResizeObserver) to stay crisp
+        this.canvas.style.setProperty("width", "100%", "important");
         this.canvas.style.setProperty("height", `${HEIGHT}px`, "important");
         this.canvas.style.setProperty("min-height", `${HEIGHT}px`, "important");
         this.dpr = dpr;

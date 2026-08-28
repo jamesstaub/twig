@@ -40,6 +40,15 @@ function createWaveformSketch(component) {
             p.resizeCanvas(width, height);
             p.redraw();
         };
+        // Container reflows that aren't window resizes (panel gating,
+        // layout settling after load) — keep the bitmap at the real width
+        if (typeof ResizeObserver !== "undefined" && component.el) {
+            let last = component.el.clientWidth;
+            new ResizeObserver(() => {
+                const w = component.el.clientWidth;
+                if (w && w !== last) { last = w; p.windowResized(); }
+            }).observe(component.el);
+        }
 
         p.draw = function () {
             const props = component.props;
