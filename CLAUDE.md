@@ -119,8 +119,11 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
 - Navbar strip (`js/modules/recording/`): ● record, ⚙ settings (audio
   mono/stereo/multitrack = one mono channel per overtone; MIDI single
   channel/track vs a track + channel per overtone), take menu with
-  steppers, ▶/❚❚, ⏮, wav/mid downloads. One .wav + one .mid per take,
-  sharing a file stem. Browser-session only — not bridged to Max.
+  steppers, ▶/❚❚, ⏮, wav/mid downloads — plus zip for multitrack takes:
+  the stems as one mono float .wav per overtone, named by each voice's
+  frequency at recording start, packed by the pure store-only writer
+  `js/dsp/zipStore.js`. One .wav + one .mid per take, sharing a file
+  stem. Browser-session only — not bridged to Max.
 - Layers, bottom-up: pure codecs (`js/dsp/midiFile.js` SMF format-1
   writer + tempo-map math; `WAVExporter` with 32-bit float) → browser
   capture/playback with no app knowledge (`js/dsp/AudioRecorder.js` +

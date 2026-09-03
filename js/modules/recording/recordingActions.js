@@ -25,6 +25,7 @@ import { AudioRecorder } from '../../dsp/AudioRecorder.js';
 import { RecordingPlayer } from '../../dsp/RecordingPlayer.js';
 import { WAVExporter } from '../../dsp/WAVExporter.js';
 import { encodeMidiFile } from '../../dsp/midiFile.js';
+import { buildZip } from '../../dsp/zipStore.js';
 import { pulseBus } from '../pulse/pulseBus.js';
 import { pulseCycleBoundaryAudioTime } from '../pulse/pulseTime.js';
 import { isClockVoice } from '../midi/pulseMidi.js';
@@ -47,6 +48,7 @@ const PLAY_LEAD_S = 0.08;
 const capture = new MidiCapture();
 let recorder = null;
 let takeStart = null;
+let takeFrequencies = [];  // per-voice Hz at the take's start
 let arm = null;            // { unsubscribe, timer, started }
 let player = null;
 let playerKey = null;
@@ -111,6 +113,19 @@ function ensurePlayer(recording) {
     return player;
 }
 
+/** "82.41Hz.wav" per stem — duplicates get a numeric suffix to stay distinct. */
+function stemNames(frequencies, count) {
+    const seen = new Map();
+    return Array.from({ length: count }, (_, i) => {
+        const hz = frequencies[i];
+        let stem = hz > 0 ? `${hz.toFixed(2).replace(/\.?0+$/, '')}Hz` : `overtone-${i + 1}`;
+        const n = (seen.get(stem) || 0) + 1;
+        seen.set(stem, n);
+        if (n > 1) stem += `_${n}`;
+        return `${stem}.wav`;
+    });
+}
+
 export const RecordingActions = {
 
     setAudioMode(mode) {
@@ -155,6 +170,9 @@ export const RecordingActions = {
             if (!arm || arm.started) return;
             arm.started = true;
             clearArm();
+            // Stem identity: each overtone's frequency as the take begins
+            // (it may glide later — the name records where it started)
+            takeFrequencies = AppState.currentSystem.ratios.map((r) => calculateFrequency(r));
             recorder.start({ ...taps, atTime }).then((startTime) => {
                 takeStart = startTime;
                 if (AppState.recorder.status === 'armed') setRecorder({ status: 'recording' });
@@ -193,6 +211,7 @@ export const RecordingActions = {
             base,
             audioMode: AppState.recorder.audioMode,
             audio: { sampleRate: take.sampleRate, channels: take.channels },
+            voiceFrequencies: takeFrequencies.slice(0, take.channels.length),
             midi,
             duration: take.duration,
         });
@@ -260,6 +279,21 @@ export const RecordingActions = {
         if (!recording) return;
         const bytes = WAVExporter.createWAVBufferMulti(recording.audio.channels, recording.audio.sampleRate, { float: true });
         WAVExporter.downloadFile(bytes, `${recording.base}.wav`, 'audio/wav');
+    },
+
+    /**
+     * Multitrack takes only: a .zip of one mono 32-bit-float .wav per
+     * overtone, each named by the voice's frequency at recording start.
+     */
+    downloadStems() {
+        const recording = selectedRecording();
+        if (!recording || recording.audioMode !== 'multitrack') return;
+        const names = stemNames(recording.voiceFrequencies || [], recording.audio.channels.length);
+        const entries = recording.audio.channels.map((channel, i) => ({
+            name: `${recording.base}/${names[i]}`,
+            data: new Uint8Array(WAVExporter.createWAVBufferMulti([channel], recording.audio.sampleRate, { float: true })),
+        }));
+        WAVExporter.downloadFile(buildZip(entries, new Date()), `${recording.base}-stems.zip`, 'application/zip');
     },
 
     downloadMidi() {

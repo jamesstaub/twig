@@ -9,7 +9,7 @@ import BaseComponent from '../base/BaseComponent.js';
  */
 export class RecorderComponent extends BaseComponent {
 
-    render({ status, transport, recordings, selected } = {}) {
+    render({ status, transport, recordings, selected, stemsAvailable } = {}) {
         this.el.innerHTML = '';
         const has = Boolean(selected);
         const recording = status === 'recording';
@@ -25,6 +25,7 @@ export class RecorderComponent extends BaseComponent {
             this.button('action-btn rec-icon-btn', '⏮', 'reset', 'Reset to start', !has),
             this.button('action-btn rec-save-btn', 'wav', 'wav', 'Download audio (.wav)', !has),
             this.button('action-btn rec-save-btn', 'mid', 'mid', 'Download MIDI (.mid)', !has),
+            this.button('action-btn rec-save-btn', 'zip', 'zip', 'Download stems (.zip of mono .wavs named by overtone frequency — multitrack takes)', !has || !stemsAvailable),
         );
     }
 
@@ -87,6 +88,7 @@ export class RecorderComponent extends BaseComponent {
             case 'reset': return this.onReset?.();
             case 'wav': return this.onDownload?.('wav');
             case 'mid': return this.onDownload?.('mid');
+            case 'zip': return this.onDownload?.('zip');
             default: return undefined;
         }
     }

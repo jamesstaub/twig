@@ -14,7 +14,11 @@ export class RecorderController extends BaseController {
 
     getProps() {
         const { status, transport, selected } = AppState.recorder;
-        return { status, transport, selected, recordings: recordingStore.list() };
+        return {
+            status, transport, selected,
+            recordings: recordingStore.list(),
+            stemsAvailable: recordingStore.get(selected)?.audioMode === 'multitrack',
+        };
     }
 
     bindComponentEvents() {
@@ -28,7 +32,11 @@ export class RecorderController extends BaseController {
         c.onSelectStep = (step) => RecordingActions.selectStep(step);
         c.onTogglePlay = () => RecordingActions.togglePlay();
         c.onReset = () => RecordingActions.reset();
-        c.onDownload = (kind) => (kind === 'wav' ? RecordingActions.downloadWav() : RecordingActions.downloadMidi());
+        c.onDownload = (kind) => {
+            if (kind === 'wav') RecordingActions.downloadWav();
+            else if (kind === 'mid') RecordingActions.downloadMidi();
+            else RecordingActions.downloadStems();
+        };
     }
 
     bindExternalEvents() {
