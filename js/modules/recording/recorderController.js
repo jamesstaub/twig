@@ -40,7 +40,27 @@ export class RecorderController extends BaseController {
     }
 
     bindExternalEvents() {
-        document.addEventListener(RECORDER_CHANGED, () => this.scheduleUpdate());
+        document.addEventListener(RECORDER_CHANGED, () => {
+            this.scheduleUpdate();
+            this._syncTicker();
+        });
         document.addEventListener(RECORDINGS_CHANGED, () => this.scheduleUpdate());
+    }
+
+    /**
+     * Elapsed-time ticker: runs only while a take is armed/recording and
+     * recomputes from the audio clock each tick, so a throttled background
+     * page shows a stale number briefly but never a wrong one.
+     */
+    _syncTicker() {
+        const active = AppState.recorder.status !== 'idle';
+        if (active && !this._ticker) {
+            this._ticker = setInterval(() => {
+                this.component.setElapsed(RecordingActions.recordingElapsed());
+            }, 250);
+        } else if (!active && this._ticker) {
+            clearInterval(this._ticker);
+            this._ticker = null;
+        }
     }
 }

@@ -49,6 +49,14 @@
     50% { background: var(--accent-negative-strong); }
 }
 
+.rec-elapsed {
+    min-width: 2.5rem;
+    text-align: center;
+    font-size: var(--font-size-sm);
+    font-variant-numeric: tabular-nums;
+    color: var(--accent-negative);
+}
+
 .rec-icon-btn,
 .rec-save-btn,
 .rec-select .select-step-btn {

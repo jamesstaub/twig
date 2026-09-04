@@ -296,7 +296,8 @@ export const RecordingActions = {
         active.onEnded = (take) => {
             if (recorder === active) finalizeTake(take);
         };
-        active.start({ ...taps, atTime: t0 + plan.duration, endTime: t0 + 2 * plan.duration }).then(() => {
+        active.start({ ...taps, atTime: t0 + plan.duration, endTime: t0 + 2 * plan.duration }).then((startTime) => {
+            takeStart = startTime;
             if (recorder === active && AppState.recorder.status === 'armed') setRecorder({ status: 'recording' });
         });
         showStatus(`Sync loop: ${plan.duration.toFixed(3)} s (${plan.periods} × fundamental period)`, 'info');
@@ -358,6 +359,15 @@ export const RecordingActions = {
         if (player) player.offset = 0;
         midiPlayback.stop();
         if (AppState.recorder.transport !== 'stopped') setRecorder({ transport: 'stopped' });
+    },
+
+    /**
+     * Seconds recorded so far, on the audio clock (0 while idle or armed —
+     * a sync loop's capture window may still lie ahead of "now").
+     */
+    recordingElapsed() {
+        if (AppState.recorder.status !== 'recording' || takeStart == null || !AppState.audioContext) return 0;
+        return Math.max(0, AppState.audioContext.currentTime - takeStart);
     },
 
     /** Playback position in seconds (0 when nothing is loaded). */

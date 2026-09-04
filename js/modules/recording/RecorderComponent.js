@@ -18,6 +18,14 @@ export class RecorderComponent extends BaseComponent {
         this.el.append(
             this.button('rec-btn' + (recording ? ' recording' : armed ? ' armed' : ''), '●', 'record',
                 recording ? 'Stop recording' : armed ? 'Waiting for beat — click to cancel' : 'Record'),
+        );
+        if (recording || armed) {
+            const elapsed = document.createElement('span');
+            elapsed.className = 'rec-elapsed';
+            elapsed.textContent = '0:00';
+            this.el.appendChild(elapsed);
+        }
+        this.el.append(
             this.button('action-btn rec-icon-btn', '⚙', 'config', 'Recording settings'),
             this.stepper(recordings, selected),
             this.button('action-btn rec-icon-btn', transport === 'playing' ? '❚❚' : '▶', 'toggle',
@@ -27,6 +35,14 @@ export class RecorderComponent extends BaseComponent {
             this.button('action-btn rec-save-btn', 'mid', 'mid', 'Download MIDI (.mid)', !has),
             this.button('action-btn rec-save-btn', 'zip', 'zip', 'Download stems (.zip of mono .wavs named by overtone frequency — multitrack takes)', !has || !stemsAvailable),
         );
+    }
+
+    /** Tick the elapsed readout in place — no re-render, so open menus survive. */
+    setElapsed(seconds) {
+        const el = this.q('.rec-elapsed');
+        if (!el) return;
+        const s = Math.floor(seconds);
+        el.textContent = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
     }
 
     button(className, text, action, title, disabled = false) {
