@@ -3,7 +3,8 @@
  * Contains UI event handlers, DOM manipulation, and interface logic
  */
 
-import { AppState, midiConfig, updateAppState } from './config.js';
+import { AppState, updateAppState } from './config.js';
+import { midiConfig } from './appConfig.js';
 import { MASTER_SLEW_CHANGED, ENVELOPE_MODE_CHANGED } from './events.js';
 import { OvertoneSignalActions } from './modules/overtoneSignal/overtoneSignalActions.js';
 import { updateText, updateValue } from './domUtils.js';

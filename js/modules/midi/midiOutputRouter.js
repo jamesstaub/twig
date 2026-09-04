@@ -1,4 +1,5 @@
-import { AppState, midiConfig } from "../../config.js";
+import { AppState } from "../../config.js";
+import { midiConfig } from "../../appConfig.js";
 import { pulseBus } from "../pulse/pulseBus.js";
 import { audioTimeToPerformanceMs, pulseCycleBoundaryMs } from "../pulse/pulseTime.js";
 import { resolvePortSelector } from "./portUtils.js";

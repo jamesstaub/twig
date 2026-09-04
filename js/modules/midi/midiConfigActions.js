@@ -1,6 +1,7 @@
 // midiConfigActions.js
 // Actions for updating midiConfig and propagating changes
-import { AppState, midiConfig } from '../../config.js';
+import { AppState } from '../../config.js';
+import { midiConfig, persistAppConfig } from '../../appConfig.js';
 import { midiInputRouter } from './midiInputRouter.js';
 import { midiOutputRouter } from './midiOutputRouter.js';
 import { OvertoneSignalActions } from '../overtoneSignal/overtoneSignalActions.js';
@@ -86,5 +87,6 @@ export function onMidiConfigChange(listener) {
 }
 
 function notifyListeners() {
+    persistAppConfig();
     listeners.forEach(fn => fn(midiConfig));
 }

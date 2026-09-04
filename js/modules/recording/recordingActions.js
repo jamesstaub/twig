@@ -17,6 +17,7 @@
  */
 
 import { AppState } from '../../config.js';
+import { recorderConfig, persistAppConfig } from '../../appConfig.js';
 import { RECORDER_CHANGED, RECORDINGS_CHANGED } from '../../events.js';
 import { initAudio, getAudioEngine, getFrequencyCorrection, startTone, stopTone } from '../../audio.js';
 import { calculateFrequency } from '../../utils.js';
@@ -63,6 +64,13 @@ let playerKey = null;
 function setRecorder(patch) {
     Object.assign(AppState.recorder, patch);
     document.dispatchEvent(new CustomEvent(RECORDER_CHANGED, { detail: { ...AppState.recorder } }));
+}
+
+/** Recorder configuration changes: persisted locally (see appConfig.js). */
+function setConfig(patch) {
+    Object.assign(recorderConfig, patch);
+    persistAppConfig();
+    document.dispatchEvent(new CustomEvent(RECORDER_CHANGED, { detail: { ...recorderConfig } }));
 }
 
 function clearArm() {
@@ -124,11 +132,11 @@ function finalizeTake(take) {
 
     const number = recordingStore.nextNumber();
     const base = `twig-rec-${pad2(number)}-${fileStamp(new Date())}`;
-    const midi = buildMidiDocument(log, take, { midiMode: AppState.recorder.midiMode, name: base });
+    const midi = buildMidiDocument(log, take, { midiMode: recorderConfig.midiMode, name: base });
     const key = recordingStore.add({
         name: `rec ${number} (${formatDuration(take.duration)})`,
         base,
-        audioMode: AppState.recorder.audioMode,
+        audioMode: recorderConfig.audioMode,
         audio: { sampleRate: take.sampleRate, channels: take.channels },
         voiceFrequencies: takeFrequencies.slice(0, take.channels.length),
         midi,
@@ -202,24 +210,20 @@ function stemNames(frequencies, count) {
 export const RecordingActions = {
 
     setAudioMode(mode) {
-        if (!AUDIO_MODES.includes(mode) || AppState.recorder.audioMode === mode) return;
-        setRecorder({ audioMode: mode });
+        if (AUDIO_MODES.includes(mode)) setConfig({ audioMode: mode });
     },
 
     setMidiMode(mode) {
-        if (!MIDI_MODES.includes(mode) || AppState.recorder.midiMode === mode) return;
-        setRecorder({ midiMode: mode });
+        if (MIDI_MODES.includes(mode)) setConfig({ midiMode: mode });
     },
 
     /** Applies at export time, so an existing take can be re-downloaded either way. */
     setTempoMode(mode) {
-        if (!TEMPO_MODES.includes(mode) || AppState.recorder.tempoMode === mode) return;
-        setRecorder({ tempoMode: mode });
+        if (TEMPO_MODES.includes(mode)) setConfig({ tempoMode: mode });
     },
 
     setLengthMode(mode) {
-        if (!LENGTH_MODES.includes(mode) || AppState.recorder.lengthMode === mode) return;
-        setRecorder({ lengthMode: mode });
+        if (LENGTH_MODES.includes(mode)) setConfig({ lengthMode: mode });
     },
 
     /** Record button: idle → arm/start; armed or recording → stop. */
@@ -237,7 +241,7 @@ export const RecordingActions = {
             return;
         }
         const ctx = AppState.audioContext;
-        const { audioMode } = AppState.recorder;
+        const { audioMode } = recorderConfig;
         const taps = engine.recordingTaps(audioMode, AppState.currentSystem.ratios.length);
         recorder = new AudioRecorder(ctx);
         takeStart = null;
@@ -257,7 +261,7 @@ export const RecordingActions = {
             });
         };
         arm = { started: false, unsubscribe: null, timer: null };
-        if (AppState.recorder.lengthMode === 'loop') {
+        if (recorderConfig.lengthMode === 'loop') {
             const plan = syncLoopPlan();
             if (plan) {
                 await this._startSyncLoop(recorder, taps, plan);
@@ -403,7 +407,7 @@ export const RecordingActions = {
         // The matching MIDI rides along so the bundle drops into a DAW whole
         entries.push({
             name: `${recording.base}/${recording.base}.mid`,
-            data: encodeMidiFile(recording.midi, { fixedTempo: AppState.recorder.tempoMode === 'fixed' }),
+            data: encodeMidiFile(recording.midi, { fixedTempo: recorderConfig.tempoMode === 'fixed' }),
         });
         WAVExporter.downloadFile(buildZip(entries, new Date()), `${recording.base}-stems.zip`, 'application/zip');
     },
@@ -411,7 +415,7 @@ export const RecordingActions = {
     downloadMidi() {
         const recording = selectedRecording();
         if (!recording) return;
-        const bytes = encodeMidiFile(recording.midi, { fixedTempo: AppState.recorder.tempoMode === 'fixed' });
+        const bytes = encodeMidiFile(recording.midi, { fixedTempo: recorderConfig.tempoMode === 'fixed' });
         WAVExporter.downloadFile(bytes, `${recording.base}.mid`, 'audio/midi');
     },
 };

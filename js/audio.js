@@ -10,7 +10,8 @@
  * WAV export compensates via the file's sample-rate header.
  */
 
-import { AppState, ENVELOPE_DEFAULTS, midiConfig, updateAppState, WAVETABLE_SIZE } from './config.js';
+import { AppState, ENVELOPE_DEFAULTS, updateAppState, WAVETABLE_SIZE } from './config.js';
+import { midiConfig } from './appConfig.js';
 import { calculateFrequency, generateFilenameParts, getVoicePan } from './utils.js';
 
 import { AudioEngine, WavetableManager, WAVExporter, WaveformGenerator } from './dsp/index.js';

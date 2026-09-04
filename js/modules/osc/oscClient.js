@@ -95,7 +95,8 @@
  * Live-native parameters. Inbound applications are not re-emitted.
  */
 
-import { AppState, midiConfig, SOURCE_MODES, updateAppState } from "../../config.js";
+import { AppState, SOURCE_MODES, updateAppState } from "../../config.js";
+import { midiConfig } from "../../appConfig.js";
 import { SourceActions } from "../source/sourceActions.js";
 import { ConvolutionActions } from "../convolution/convolutionActions.js";
 import { irManager } from "../../dsp/IRManager.js";

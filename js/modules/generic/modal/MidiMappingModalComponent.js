@@ -1,6 +1,6 @@
 
 import ModalComponent from './ModalComponent.js';
-import { midiConfig } from '../../../config.js';
+import { midiConfig } from '../../../appConfig.js';
 import { midiInputRouter } from '../../midi/midiInputRouter.js';
 import { midiOutputRouter } from '../../midi/midiOutputRouter.js';
 import {

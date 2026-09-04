@@ -2,7 +2,7 @@
 import { smoothUpdateMasterGain } from "../../utils.js";
 import { DrawbarsActions } from "../drawbars/drawbarsActions.js";
 import { FundamentalActions } from "../fundamental/fundamentalActions.js";
-import { midiConfig } from "../../config.js";
+import { midiConfig } from "../../appConfig.js";
 import { resolvePortSelector } from "./portUtils.js";
 import { showStatus } from "../../domUtils.js";
 

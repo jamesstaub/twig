@@ -1,4 +1,5 @@
-import { AppState, ENVELOPE_DEFAULTS, midiConfig } from "../../config.js";
+import { AppState, ENVELOPE_DEFAULTS } from "../../config.js";
+import { midiConfig } from "../../appConfig.js";
 import { updateHarmonicGate, updateHarmonicFilter, updateHarmonicDrive, updateHarmonicConvolution, updateHarmonicPan, updateHarmonicPulse, updateHarmonicSequencer, updateAllHarmonicEnvelopeModes, MAX_FILTER_PARTIALS } from "../../audio.js";
 import { getVoicePan } from "../../utils.js";
 import { irManager } from "../../dsp/IRManager.js";

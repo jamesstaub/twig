@@ -55,8 +55,12 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
   state change upstream over the WebSocket (so the Max patch can persist it
   in Live params); inbound bridge messages apply through the same actions
   behind an anti-echo flag. `server.js` caches state and serves `GET /state`,
-  which the app applies before first render (bootstrap — this is the only
-  persistence; there is no localStorage).
+  which the app applies before first render (bootstrap). Persistence is
+  split by kind: the bridge cache holds SYNTH state (everything bridged);
+  the user's local app configuration — `midiConfig` and `recorderConfig`
+  in `js/appConfig.js` (MIDI routing/mappings, recorder modes) — lives in
+  localStorage, loaded before bootstrap so bridged values win. Recordings
+  and IRs remain session-only.
 - Per-voice audio chain (`js/dsp/AudioEngine.js`): source → gain → gate
   worklet (3 outputs: audio, cutoff-CV, Q-CV into the biquad's AudioParams)
   → drive WaveShaper → lowpass biquad → convolution stage (dry/wet mix
@@ -247,10 +251,11 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
   (1–12 by default) can't retrigger the fundamental. A pulse note remapped
   above the floor on a shared port will still loop — the separate
   input/output channel settings cover that case.
-- `midiConfig` (channels, CC/note maps, note floor, input port `inputId`,
-  clock/transport port `clockOutputId`) is **not** bridged or persisted to
-  Max yet — browser-session only. Exception: the note-out port (`outputId`)
-  is bridged as `/twig/midiout` and persists. MIDI roles are split: note
+- `midiConfig` (js/appConfig.js: channels, CC/note maps, note floor, input
+  port `inputId`, clock/transport port `clockOutputId`) persists in
+  localStorage, not through Max. Exception: the note-out port (`outputId`)
+  is additionally bridged as `/twig/midiout`, and the bridge value wins at
+  boot. MIDI roles are split: note
   blips → `outputId`+`outputChannel`; clock ticks and play-toggle transport
   start/stop → `clockOutputId` (defaults to note-out port; channel-less by
   MIDI spec); note/CC in → `inputId` (null = all inputs) + `inputChannel`.

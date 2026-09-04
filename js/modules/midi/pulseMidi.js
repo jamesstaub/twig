@@ -6,7 +6,8 @@
  * the events external gear received.
  */
 
-import { AppState, midiConfig } from '../../config.js';
+import { AppState } from '../../config.js';
+import { midiConfig } from '../../appConfig.js';
 
 /** Note blip length: note-off follows note-on this much later. */
 export const BLIP_MS = 50;

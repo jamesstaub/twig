@@ -1,5 +1,5 @@
 import ModalComponent from '../generic/modal/ModalComponent.js';
-import { AppState } from '../../config.js';
+import { recorderConfig } from '../../appConfig.js';
 import { RECORDER_CHANGED } from '../../events.js';
 import { RecordingActions, AUDIO_MODES, MIDI_MODES, TEMPO_MODES, LENGTH_MODES } from './recordingActions.js';
 
@@ -53,7 +53,7 @@ export class RecorderConfigModalComponent extends ModalComponent {
     }
 
     render(props = {}) {
-        const { audioMode, midiMode, tempoMode, lengthMode } = AppState.recorder;
+        const { audioMode, midiMode, tempoMode, lengthMode } = recorderConfig;
         const content = document.createElement('div');
         content.className = 'midi-modal rec-config-modal';
         const title = document.createElement('h2');
@@ -87,7 +87,7 @@ export class RecorderConfigModalComponent extends ModalComponent {
 
     /** Reflect a mode changed elsewhere without rebuilding the dialog. */
     syncChecked() {
-        const { audioMode, midiMode, tempoMode, lengthMode } = AppState.recorder;
+        const { audioMode, midiMode, tempoMode, lengthMode } = recorderConfig;
         for (const input of this.qAll('input[name="rec-audio-mode"]')) input.checked = input.value === audioMode;
         for (const input of this.qAll('input[name="rec-midi-mode"]')) input.checked = input.value === midiMode;
         for (const input of this.qAll('input[name="rec-tempo-mode"]')) input.checked = input.value === tempoMode;

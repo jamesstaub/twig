@@ -4,6 +4,8 @@
  */
 
 import { AppState } from './config.js';
+import { loadAppConfig, midiConfig, recorderConfig } from './appConfig.js';
+import * as midiConfigActions from './modules/midi/midiConfigActions.js';
 import { momentumSmoother } from './momentum-smoother.js';
 
 import { initUI, updateUI } from './ui.js';
@@ -70,6 +72,10 @@ function relocateSpectralSystemPanel(embed) {
  */
 async function initApp() {
     try {
+        // Local app config (MIDI routing, recorder modes) first, then the
+        // bridge bootstrap — bridged values override the local copy
+        loadAppConfig();
+
         // Apply state pushed to the bridge (Live's plugin parameters)
         // BEFORE the UI renders, so the first paint shows that state
         if (oscEnabled()) {
@@ -216,6 +222,8 @@ window.TWIG = {
     getIRManager: () => irManager,
     getRecordingStore: () => recordingStore,
     recorder: RecordingActions,
+    getAppConfig: () => ({ midiConfig, recorderConfig }),
+    midiConfigActions,
 
     // Per-cycle voice pulses (subaudible clock taps): subscribe(voiceIndex |
     // '*', fn(index, {cycle, gateOn, frequency, audioTime})) → unsubscribe fn

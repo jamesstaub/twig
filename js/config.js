@@ -2,33 +2,17 @@
 // MIDI CONFIGURATION
 // ================================
 
-export const midiConfig = {
-    // --- Note/CC in ---
-    inputChannel: 1, // MIDI channel 1 by default (1-16)
-    // Input port id; null = listen on every input
-    inputId: null,
-    // Incoming notes below this are ignored. Default 13 keeps the pulse
-    // outputs' own notes (1..12) from feeding back into the fundamental
-    // when in and out share a port (e.g. an IAC loop).
-    inputNoteMin: 13,
-    drawbarsCC: [20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31], // Default CCs for 12 drawbars
-
-    // --- Note out (pulse blips) ---
-    outputChannel: 1, // channel for pulse note blips (1-16)
-    // Web MIDI output port id; null = first available
-    outputId: null,
-
-    // --- Clock/transport out ---
-    // Port for MIDI clock ticks and transport start/stop; null = same port
-    // as note out. Clock messages are system-realtime — no channel exists.
-    clockOutputId: null,
-
-    // Pulse outputs: note per overtone (linear 1..N by default, reassignable
-    // in the MIDI modal) and global master switches for the two pulse paths
-    pulseNotes: Array.from({ length: 16 }, (_, i) => i + 1),
-    pulseMidiEnabled: true,
-    pulseOscEnabled: true,
-};
+/**
+ * STATE TAXONOMY
+ *  - AppState (below): the synthesizer — audio params, overtone settings,
+ *    waveforms, sources, convolution, play state. Bridged over OSC so the
+ *    Max patch persists it in Live params; restored from GET /state.
+ *  - appConfig.js: the user's local app configuration — MIDI routing and
+ *    mappings, recorder modes. Persisted in localStorage, not bridged
+ *    (exception: the note-out port also rides /twig/midiout).
+ *  - Runtime references (audioContext, node handles, isPlaying, recorder
+ *    status) live in AppState for convenience but persist nowhere.
+ */
 /**
  * CONFIGURATION MODULE
  * Contains spectral systems, constants, and application state
@@ -472,20 +456,11 @@ export const AppState = {
     // Exclusive — at most one at a time.
     midiClockVoice: null,
 
-    // Performance recorder (browser-session only — recordings are not
-    // bridged to Max). audioMode: mono | stereo | multitrack (one mono
-    // channel per overtone); midiMode: single (one track/channel) | multi
-    // (a track + channel per overtone). status: idle | armed | recording;
-    // transport: stopped | playing | paused, for the selected recording.
-    // tempoMode: fixed (one tempo, notes at absolute time — survives DAWs
-    // that flatten imported tempo maps) | map (tempo changes as recorded).
-    // lengthMode: manual (record until stopped) | loop (restart oscillator
-    // phases together and stop exactly when they realign — see recordingActions).
+    // Performance recorder RUNTIME (its configuration — audio/MIDI/tempo/
+    // length modes — lives in appConfig.js). status: idle | armed |
+    // recording; transport: stopped | playing | paused, for the selected
+    // recording. Recordings themselves are session-only (RecordingStore).
     recorder: {
-        audioMode: 'stereo',
-        midiMode: 'single',
-        tempoMode: 'fixed',
-        lengthMode: 'manual',
         status: 'idle',
         selected: null,
         transport: 'stopped',
