@@ -1,11 +1,12 @@
 import BaseComponent from '../base/BaseComponent.js';
 
 /**
- * RecorderComponent — navbar strip: record, settings, take menu with
- * prev/next steppers (native selects don't open inside jweb), play/pause,
- * reset, and wav/mid downloads. Pure DOM; callbacks are set by the
- * controller: onRecord, onConfig, onSelect(key), onSelectStep(±1),
- * onTogglePlay, onReset, onDownload('wav'|'mid').
+ * RecorderComponent — navbar strip: record + elapsed, settings, take menu
+ * with prev/next steppers (native selects don't open inside jweb),
+ * play/pause, reset, and a ↓ button opening a download menu (custom DOM,
+ * not <select>, for the same jweb reason). Pure DOM; callbacks are set by
+ * the controller: onRecord, onConfig, onSelect(key), onSelectStep(±1),
+ * onTogglePlay, onReset, onDownload('wav'|'mid'|'zip').
  */
 export class RecorderComponent extends BaseComponent {
 
@@ -31,10 +32,36 @@ export class RecorderComponent extends BaseComponent {
             this.button('action-btn rec-icon-btn', transport === 'playing' ? '❚❚' : '▶', 'toggle',
                 transport === 'playing' ? 'Pause' : 'Play', !has),
             this.button('action-btn rec-icon-btn', '⏮', 'reset', 'Reset to start', !has),
-            this.button('action-btn rec-save-btn', 'wav', 'wav', 'Download audio (.wav)', !has),
-            this.button('action-btn rec-save-btn', 'mid', 'mid', 'Download MIDI (.mid)', !has),
-            this.button('action-btn rec-save-btn', 'zip', 'zip', 'Download stems (.zip of mono .wavs named by overtone frequency — multitrack takes)', !has || !stemsAvailable),
+            this.button('action-btn rec-icon-btn rec-download-btn', '↓', 'download', 'Download take…', !has),
         );
+        this.el.appendChild(this.downloadMenu(has, stemsAvailable));
+    }
+
+    /** The ↓ button's menu: one item per export format. */
+    downloadMenu(has, stemsAvailable) {
+        const menu = document.createElement('div');
+        menu.className = 'rec-menu hidden';
+        const items = [
+            ['wav', 'audio (.wav)', has],
+            ['mid', 'MIDI (.mid)', has],
+            ['zip', 'stems + MIDI (.zip)', has && stemsAvailable],
+        ];
+        for (const [kind, label, enabled] of items) {
+            const item = document.createElement('button');
+            item.type = 'button';
+            item.className = 'rec-menu-item';
+            item.dataset.kind = kind;
+            item.textContent = label;
+            item.disabled = !enabled;
+            if (kind === 'zip' && !stemsAvailable) item.title = 'multitrack takes only';
+            menu.appendChild(item);
+        }
+        return menu;
+    }
+
+    toggleMenu(open = null) {
+        const menu = this.q('.rec-menu');
+        menu?.classList.toggle('hidden', open === null ? undefined : !open);
     }
 
     /** Tick the elapsed readout in place — no re-render, so open menus survive. */
@@ -92,6 +119,22 @@ export class RecorderComponent extends BaseComponent {
             this.bindEvent(btn, 'click', () => this.dispatch(btn.dataset.action));
         }
         this.bindEvent(this.q('#recording-select'), 'change', (e) => this.onSelect?.(e.target.value));
+        for (const item of this.qAll('.rec-menu-item')) {
+            this.bindEvent(item, 'click', () => {
+                this.toggleMenu(false);
+                this.onDownload?.(item.dataset.kind);
+            });
+        }
+        // Close the menu from anywhere else: outside click or Escape
+        this.bindEvent(document, 'mousedown', (e) => {
+            if (!this.q('.rec-menu')?.classList.contains('hidden') &&
+                !e.target.closest('.rec-menu') && !e.target.closest('.rec-download-btn')) {
+                this.toggleMenu(false);
+            }
+        });
+        this.bindEvent(document, 'keydown', (e) => {
+            if (e.key === 'Escape') this.toggleMenu(false);
+        });
     }
 
     dispatch(action) {
@@ -102,9 +145,7 @@ export class RecorderComponent extends BaseComponent {
             case 'next': return this.onSelectStep?.(1);
             case 'toggle': return this.onTogglePlay?.();
             case 'reset': return this.onReset?.();
-            case 'wav': return this.onDownload?.('wav');
-            case 'mid': return this.onDownload?.('mid');
-            case 'zip': return this.onDownload?.('zip');
+            case 'download': return this.toggleMenu();
             default: return undefined;
         }
     }
