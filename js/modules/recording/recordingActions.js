@@ -113,6 +113,27 @@ function ensurePlayer(recording) {
     return player;
 }
 
+/**
+ * One shared export gain for a set of stems. Stems are tapped BEFORE the
+ * master compressor/limiter, and a resonant filter bank adds 20-30 dB at
+ * its peaks, so raw stem samples routinely exceed full scale. The float
+ * WAVs store those overs faithfully, but a DAW plays them clipped at
+ * 0 dBFS — a huge clipped sine reads as a raw square. Scaling every stem
+ * by the same factor puts the take's loudest peak at exactly full scale
+ * while keeping the stems' relative balance (and, being gain-only, the
+ * audio/MIDI alignment). Takes that already fit are left untouched.
+ */
+function stemExportGain(channels) {
+    let peak = 0;
+    for (const data of channels) {
+        for (let i = 0; i < data.length; i++) {
+            const a = Math.abs(data[i]);
+            if (a > peak) peak = a;
+        }
+    }
+    return peak > 1 ? 1 / peak : 1;
+}
+
 /** "82.41Hz.wav" per stem — duplicates get a numeric suffix to stay distinct. */
 function stemNames(frequencies, count) {
     const seen = new Map();
@@ -277,7 +298,10 @@ export const RecordingActions = {
     downloadWav() {
         const recording = selectedRecording();
         if (!recording) return;
-        const bytes = WAVExporter.createWAVBufferMulti(recording.audio.channels, recording.audio.sampleRate, { float: true });
+        // Multitrack takes are pre-master stems — normalize (see stemExportGain);
+        // mono/stereo takes are the finished master and stay untouched
+        const gain = recording.audioMode === 'multitrack' ? stemExportGain(recording.audio.channels) : 1;
+        const bytes = WAVExporter.createWAVBufferMulti(recording.audio.channels, recording.audio.sampleRate, { float: true, gain });
         WAVExporter.downloadFile(bytes, `${recording.base}.wav`, 'audio/wav');
     },
 
@@ -289,9 +313,10 @@ export const RecordingActions = {
         const recording = selectedRecording();
         if (!recording || recording.audioMode !== 'multitrack') return;
         const names = stemNames(recording.voiceFrequencies || [], recording.audio.channels.length);
+        const gain = stemExportGain(recording.audio.channels);
         const entries = recording.audio.channels.map((channel, i) => ({
             name: `${recording.base}/${names[i]}`,
-            data: new Uint8Array(WAVExporter.createWAVBufferMulti([channel], recording.audio.sampleRate, { float: true })),
+            data: new Uint8Array(WAVExporter.createWAVBufferMulti([channel], recording.audio.sampleRate, { float: true, gain })),
         }));
         WAVExporter.downloadFile(buildZip(entries, new Date()), `${recording.base}-stems.zip`, 'application/zip');
     },

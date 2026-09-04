@@ -63,9 +63,10 @@ export class WAVExporter {
     /**
      * Interleaved RIFF/WAVE bytes. 16-bit PCM by default; `{ float: true }`
      * writes 32-bit IEEE float (format 3) — no clipping, for takes that
-     * may exceed full scale (pre-limiter stems).
+     * may exceed full scale (pre-limiter stems). `gain` scales every
+     * sample on the way out (e.g. a common normalization factor).
      */
-    static createWAVBufferMulti(channelBuffers, sampleRate, { float = false } = {}) {
+    static createWAVBufferMulti(channelBuffers, sampleRate, { float = false, gain = 1 } = {}) {
         const numChannels = channelBuffers.length;
         const numFrames = channelBuffers[0].length;
         const bytesPerSample = float ? 4 : 2;
@@ -99,9 +100,9 @@ export class WAVExporter {
         for (let i = 0; i < numFrames; i++) {
             for (let ch = 0; ch < numChannels; ch++) {
                 if (float) {
-                    view.setFloat32(offset, channelBuffers[ch][i], true);
+                    view.setFloat32(offset, channelBuffers[ch][i] * gain, true);
                 } else {
-                    const sample = Math.max(-1, Math.min(1, channelBuffers[ch][i]));
+                    const sample = Math.max(-1, Math.min(1, channelBuffers[ch][i] * gain));
                     view.setInt16(offset, sample * 0x7fff, true);
                 }
                 offset += bytesPerSample;

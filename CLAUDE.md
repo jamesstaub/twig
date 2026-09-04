@@ -122,7 +122,11 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
   steppers, ▶/❚❚, ⏮, wav/mid downloads — plus zip for multitrack takes:
   the stems as one mono float .wav per overtone, named by each voice's
   frequency at recording start, packed by the pure store-only writer
-  `js/dsp/zipStore.js`. One .wav + one .mid per take, sharing a file
+  `js/dsp/zipStore.js`. Stem exports (zip and the multichannel .wav) are
+  normalized by ONE common gain when the take's global peak exceeds full
+  scale — stems are pre-master, and a resonant filter bank runs 20-30 dB
+  hot; unnormalized float overs play back clipped in DAWs (a clipped
+  resonant sine masquerades as a raw square). One .wav + one .mid per take, sharing a file
   stem. Browser-session only — not bridged to Max.
 - Layers, bottom-up: pure codecs (`js/dsp/midiFile.js` SMF format-1
   writer + tempo-map math; `WAVExporter` with 32-bit float) → browser
