@@ -126,7 +126,15 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
   normalized by ONE common gain when the take's global peak exceeds full
   scale — stems are pre-master, and a resonant filter bank runs 20-30 dB
   hot; unnormalized float overs play back clipped in DAWs (a clipped
-  resonant sine masquerades as a raw square). One .wav + one .mid per take, sharing a file
+  resonant sine masquerades as a raw square). The stems zip also carries
+  the take's .mid. Take-length setting: manual, or "sync loop" — the bank
+  restarts with every oscillator scheduled to phase 0 on one shared frame
+  and the recorder's end frame is enforced on the audio thread, capturing
+  the SECOND realignment period (t0+T..t0+2T, past the master-chain
+  transient) of exactly T = P/f0 seconds, P from choosePeriodMultiplier
+  (custom-wave period correction folded in). Exact for rational systems;
+  snapped-P residue is the audible seam for irrational ones. Gates and
+  sequencers keep running but their pattern periods are not folded into P. One .wav + one .mid per take, sharing a file
   stem. Browser-session only — not bridged to Max.
 - Layers, bottom-up: pure codecs (`js/dsp/midiFile.js` SMF format-1
   writer + tempo-map math; `WAVExporter` with 32-bit float) → browser

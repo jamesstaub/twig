@@ -479,10 +479,13 @@ export const AppState = {
     // transport: stopped | playing | paused, for the selected recording.
     // tempoMode: fixed (one tempo, notes at absolute time — survives DAWs
     // that flatten imported tempo maps) | map (tempo changes as recorded).
+    // lengthMode: manual (record until stopped) | loop (restart oscillator
+    // phases together and stop exactly when they realign — see recordingActions).
     recorder: {
         audioMode: 'stereo',
         midiMode: 'single',
         tempoMode: 'fixed',
+        lengthMode: 'manual',
         status: 'idle',
         selected: null,
         transport: 'stopped',

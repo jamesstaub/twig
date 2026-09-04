@@ -18,7 +18,7 @@
 
 import { AppState } from '../../config.js';
 import { RECORDER_CHANGED, RECORDINGS_CHANGED } from '../../events.js';
-import { initAudio, getAudioEngine } from '../../audio.js';
+import { initAudio, getAudioEngine, getFrequencyCorrection, startTone, stopTone } from '../../audio.js';
 import { calculateFrequency } from '../../utils.js';
 import { showStatus } from '../../domUtils.js';
 import { AudioRecorder } from '../../dsp/AudioRecorder.js';
@@ -26,6 +26,7 @@ import { RecordingPlayer } from '../../dsp/RecordingPlayer.js';
 import { WAVExporter } from '../../dsp/WAVExporter.js';
 import { encodeMidiFile } from '../../dsp/midiFile.js';
 import { buildZip } from '../../dsp/zipStore.js';
+import { choosePeriodMultiplier } from '../../dsp/PartialSpectrum.js';
 import { pulseBus } from '../pulse/pulseBus.js';
 import { pulseCycleBoundaryAudioTime } from '../pulse/pulseTime.js';
 import { isClockVoice } from '../midi/pulseMidi.js';
@@ -37,6 +38,7 @@ import { recordingStore } from './RecordingStore.js';
 export const AUDIO_MODES = ['mono', 'stereo', 'multitrack'];
 export const MIDI_MODES = ['single', 'multi'];
 export const TEMPO_MODES = ['fixed', 'map'];
+export const LENGTH_MODES = ['manual', 'loop'];
 
 // Arming waits this long for a clock beat before starting unaligned
 const ARM_TIMEOUT_MS = 3000;
@@ -44,6 +46,11 @@ const ARM_TIMEOUT_MS = 3000;
 const PULSE_MAX_HZ = 50;
 // Playback starts this far ahead so audio and MIDI schedule to one instant
 const PLAY_LEAD_S = 0.08;
+// Sync loop: longest realignment period worth waiting for, and the lead
+// given to rebuild the voice bank before its shared scheduled start
+const SYNC_MAX_SECONDS = 300;
+const SYNC_MAX_PERIOD = 4096;
+const SYNC_LEAD_S = 0.15;
 
 const capture = new MidiCapture();
 let recorder = null;
@@ -63,6 +70,27 @@ function clearArm() {
     arm.unsubscribe?.();
     clearTimeout(arm.timer);
     arm = null;
+}
+
+/**
+ * Sync-loop plan: the shortest time in which every oscillator returns to
+ * phase 0 together — P fundamental periods, P from the same period
+ * selector the wavetable bake uses (exact for rational systems, snapped
+ * within tolerance otherwise; the residual is the audible seam). A custom
+ * wavetable's own period multiplier is folded in via the frequency
+ * correction, since its table spans several fundamental periods.
+ * @returns {{periods: number, duration: number}|null} null = sync not applicable
+ */
+function syncLoopPlan() {
+    const f0 = AppState.fundamentalFrequency;
+    if (AppState.sourceMode !== 'oscillators' || !(f0 > 0)) return null;
+    const correction = getFrequencyCorrection(AppState.currentWaveform);
+    const ratios = AppState.currentSystem.ratios.filter((r) => r > 0).map((r) => r * correction);
+    if (ratios.length === 0) return null;
+    const maxPeriod = Math.max(1, Math.min(SYNC_MAX_PERIOD, Math.floor(SYNC_MAX_SECONDS * f0)));
+    const periods = choosePeriodMultiplier(ratios, maxPeriod);
+    const duration = periods / f0;
+    return duration <= SYNC_MAX_SECONDS ? { periods, duration } : null;
 }
 
 /** A clock voice is playing and slow enough to pulse — worth waiting for. */
@@ -85,6 +113,30 @@ function formatDuration(seconds) {
 function fileStamp(date) {
     return `${date.getFullYear()}${pad2(date.getMonth() + 1)}${pad2(date.getDate())}-` +
         `${pad2(date.getHours())}${pad2(date.getMinutes())}${pad2(date.getSeconds())}`;
+}
+
+/** Store a finished take (manual stop or a sync loop's auto end). */
+function finalizeTake(take) {
+    const log = capture.stop();
+    recorder = null;
+    setRecorder({ status: 'idle' });
+    if (!take || take.duration <= 0) return;
+
+    const number = recordingStore.nextNumber();
+    const base = `twig-rec-${pad2(number)}-${fileStamp(new Date())}`;
+    const midi = buildMidiDocument(log, take, { midiMode: AppState.recorder.midiMode, name: base });
+    const key = recordingStore.add({
+        name: `rec ${number} (${formatDuration(take.duration)})`,
+        base,
+        audioMode: AppState.recorder.audioMode,
+        audio: { sampleRate: take.sampleRate, channels: take.channels },
+        voiceFrequencies: takeFrequencies.slice(0, take.channels.length),
+        midi,
+        duration: take.duration,
+    });
+    document.dispatchEvent(new CustomEvent(RECORDINGS_CHANGED, { detail: { key } }));
+    RecordingActions.select(key);
+    showStatus(`Recorded ${formatDuration(take.duration)} — ${take.channels.length} ch audio, ${midi.tracks.reduce((n, t) => n + t.notes.length, 0)} MIDI notes`, 'success');
 }
 
 function selectedRecording() {
@@ -165,6 +217,11 @@ export const RecordingActions = {
         setRecorder({ tempoMode: mode });
     },
 
+    setLengthMode(mode) {
+        if (!LENGTH_MODES.includes(mode) || AppState.recorder.lengthMode === mode) return;
+        setRecorder({ lengthMode: mode });
+    },
+
     /** Record button: idle → arm/start; armed or recording → stop. */
     async toggleRecord() {
         if (AppState.recorder.status === 'idle') await this.startRecording();
@@ -200,6 +257,14 @@ export const RecordingActions = {
             });
         };
         arm = { started: false, unsubscribe: null, timer: null };
+        if (AppState.recorder.lengthMode === 'loop') {
+            const plan = syncLoopPlan();
+            if (plan) {
+                await this._startSyncLoop(recorder, taps, plan);
+                return;
+            }
+            showStatus('Sync loop needs the oscillators source — recording until stopped', 'warning');
+        }
         if (clockWillPulse()) {
             // Start exactly on the clock voice's next cycle boundary
             arm.unsubscribe = pulseBus.addSink((index, pulse) => {
@@ -213,33 +278,40 @@ export const RecordingActions = {
         }
     },
 
+    /**
+     * Sync loop: rebuild the voice bank so every oscillator starts at
+     * phase 0 on one shared frame (t0), then capture the SECOND
+     * realignment period — t0+T .. t0+2T — so the master chain has
+     * settled past the restart transient. The end frame is enforced on
+     * the audio thread, making the take's length sample-exact; the take
+     * lands through the recorder's onEnded.
+     */
+    async _startSyncLoop(active, taps, plan) {
+        clearArm();
+        const ctx = AppState.audioContext;
+        if (AppState.isPlaying) stopTone();
+        const t0 = ctx.currentTime + SYNC_LEAD_S;
+        await startTone({ startAt: t0 });
+        takeFrequencies = AppState.currentSystem.ratios.map((r) => calculateFrequency(r));
+        active.onEnded = (take) => {
+            if (recorder === active) finalizeTake(take);
+        };
+        active.start({ ...taps, atTime: t0 + plan.duration, endTime: t0 + 2 * plan.duration }).then(() => {
+            if (recorder === active && AppState.recorder.status === 'armed') setRecorder({ status: 'recording' });
+        });
+        showStatus(`Sync loop: ${plan.duration.toFixed(3)} s (${plan.periods} × fundamental period)`, 'info');
+    },
+
     async stopRecording() {
         const status = AppState.recorder.status;
         if (status === 'idle' || !recorder) return;
         clearArm();
-        const log = capture.stop();
         const active = recorder;
-        recorder = null;
         const take = active.recording ? await active.stop() : null;
-        setRecorder({ status: 'idle' });
-        if (!take || take.duration <= 0) return;
-
-        const number = recordingStore.nextNumber();
-        const base = `twig-rec-${pad2(number)}-${fileStamp(new Date())}`;
-        const midi = buildMidiDocument(log, take, { midiMode: AppState.recorder.midiMode, name: base });
-        const key = recordingStore.add({
-            name: `rec ${number} (${formatDuration(take.duration)})`,
-            base,
-            audioMode: AppState.recorder.audioMode,
-            audio: { sampleRate: take.sampleRate, channels: take.channels },
-            voiceFrequencies: takeFrequencies.slice(0, take.channels.length),
-            midi,
-            duration: take.duration,
-        });
-        document.dispatchEvent(new CustomEvent(RECORDINGS_CHANGED, { detail: { key } }));
-        this.select(key);
-        showStatus(`Recorded ${formatDuration(take.duration)} — ${take.channels.length} ch audio, ${midi.tracks.reduce((n, t) => n + t.notes.length, 0)} MIDI notes`, 'success');
+        finalizeTake(take);
     },
+
+
 
     // ---- Transport ----------------------------------------------------
 
@@ -318,6 +390,11 @@ export const RecordingActions = {
             name: `${recording.base}/${names[i]}`,
             data: new Uint8Array(WAVExporter.createWAVBufferMulti([channel], recording.audio.sampleRate, { float: true, gain })),
         }));
+        // The matching MIDI rides along so the bundle drops into a DAW whole
+        entries.push({
+            name: `${recording.base}/${recording.base}.mid`,
+            data: encodeMidiFile(recording.midi, { fixedTempo: AppState.recorder.tempoMode === 'fixed' }),
+        });
         WAVExporter.downloadFile(buildZip(entries, new Date()), `${recording.base}-stems.zip`, 'application/zip');
     },
 

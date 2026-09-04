@@ -9,10 +9,14 @@
  * reported back, so the main thread can place other audio-clock events
  * (MIDI blips) relative to sample 0 without guessing.
  *
- * Messages in:  {type:'start', frame|null}   {type:'stop'}
+ * Messages in:  {type:'start', frame|null, endFrame|null}   {type:'stop'}
  * Messages out: {type:'started', frame}
  *               {type:'data', channels: ArrayBuffer[], frames}   (transferred)
  *               {type:'stopped', frame}
+ *
+ * `endFrame` stops capture on the audio thread at that exact frame (used
+ * for sync-loop takes whose length must be sample-exact); without it,
+ * capture runs until the 'stop' message.
  */
 
 const DEFAULT_FLUSH_FRAMES = 16384;
@@ -42,6 +46,7 @@ class RecorderProcessor extends AudioWorkletProcessor {
         if (!msg) return;
         if (msg.type === 'start' && this.state === 'idle') {
             this.startAt = Number.isFinite(msg.frame) ? msg.frame : null;
+            this.endAt = Number.isFinite(msg.endFrame) ? msg.endFrame : null;
             this.state = 'armed';
         } else if (msg.type === 'stop') {
             if (this.state === 'recording') this._flush();
@@ -72,7 +77,8 @@ class RecorderProcessor extends AudioWorkletProcessor {
             this.port.postMessage({ type: 'started', frame: this.startFrame });
         }
 
-        for (let i = offset; i < blockFrames; i++) {
+        const last = this.endAt == null ? blockFrames : Math.min(blockFrames, this.endAt - currentFrame);
+        for (let i = offset; i < last; i++) {
             let ch = 0;
             for (let input = 0; input < this.inputCount; input++) {
                 const data = inputs[input] || [];
@@ -83,6 +89,13 @@ class RecorderProcessor extends AudioWorkletProcessor {
             }
             this.fill++;
             if (this.fill >= this.flushFrames) this._flush();
+        }
+        if (this.endAt != null && currentFrame + blockFrames >= this.endAt) {
+            this._flush();
+            this.port.postMessage({ type: 'stopped', frame: this.endAt });
+            this.state = 'idle';
+            this.alive = false;
+            return false;
         }
         return true;
     }

@@ -146,7 +146,7 @@ function resolveWaveform(waveformName) {
  * @param {string} waveformName - Waveform name from AppState (e.g., 'custom_1234567890')
  * @returns {number} Frequency correction factor (1/periodMultiplier for custom waves, 1 for standard waves)
  */
-function getFrequencyCorrection(waveformName) {
+export function getFrequencyCorrection(waveformName) {
     // Standard waveforms (sine, square, etc.) don't need correction
     if (!waveformName || !waveformName.startsWith('custom_')) {
         return 1;
@@ -178,17 +178,17 @@ function getFrequencyCorrection(waveformName) {
  */
 let startPending = false;
 
-export async function startTone() {
+export async function startTone({ startAt = null } = {}) {
     if (startPending) return;
     startPending = true;
     try {
         await initAudio();
         if (AppState.isPlaying) return;
-        await startToneWithOscillators();
+        await startToneWithOscillators(startAt);
         updateAppState({ isPlaying: true });
         // MIDI transport start on the clock port, scheduled to the voices'
-        // audible onset (they started at the current audio-clock time)
-        midiOutputRouter.sendTransportStart(AppState.audioContext.currentTime);
+        // audible onset
+        midiOutputRouter.sendTransportStart(startAt ?? AppState.audioContext.currentTime);
     } catch (error) {
         console.error('Failed to start synthesis:', error);
         throw error;
@@ -202,7 +202,7 @@ export async function startTone() {
  * oscillator, or a tap on the shared external source when one is passed.
  * Used at tone start and when a system switch adds partials mid-playback.
  */
-function createHarmonicOscillator(i, ratio, gain) {
+function createHarmonicOscillator(i, ratio, gain, startAt = null) {
     // In an external source mode, every voice taps the shared source node
     // (also covers voices created mid-playback by a system switch)
     const source = AppState.sourceMode !== 'oscillators' ? sourceManager.node : null;
@@ -215,6 +215,7 @@ function createHarmonicOscillator(i, ratio, gain) {
 
     const oscData = audioEngine.createOscillator(correctedFrequency, waveform, gain, {
         source,
+        startAt,
         pan: getVoicePan(i),
         gate: AppState.oscillatorGates[i],
         drive: AppState.oscillatorDrives[i] || 0,
@@ -240,7 +241,7 @@ function createHarmonicOscillator(i, ratio, gain) {
 /**
  * Individual oscillator-based synthesis with period multiplier frequency correction
  */
-async function startToneWithOscillators() {
+async function startToneWithOscillators(startAt = null) {
     // Clear any existing oscillators
     AppState.oscillators = [];
 
@@ -266,7 +267,7 @@ async function startToneWithOscillators() {
             const amplitude = AppState.harmonicAmplitudes[i] || 0;
             if (ratio > 0) {
                 try {
-                    createHarmonicOscillator(i, ratio, amplitude * AppState.masterGainValue);
+                    createHarmonicOscillator(i, ratio, amplitude * AppState.masterGainValue, startAt);
                 } catch (error) {
                     console.error(`Failed to create oscillator ${i}:`, error);
                     AppState.oscillators[i] = null;

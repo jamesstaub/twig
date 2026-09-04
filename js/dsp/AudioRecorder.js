@@ -41,9 +41,11 @@ export class AudioRecorder {
      * @param {number} [opts.channelsPerTap=1] - Channels kept per tap (explicit up/down-mix)
      * @param {number} [opts.latencyFrames=0] - Frames the taps lag the source timeline by
      * @param {number|null} [opts.atTime=null] - Audio-clock time to start at (null = next block)
+     * @param {number|null} [opts.endTime=null] - Audio-clock time to stop at, enforced
+     *   sample-exactly on the audio thread; the take then arrives via `onEnded`
      * @returns {Promise<number>} the actual start time (audio clock, seconds)
      */
-    start({ taps, channelsPerTap = 1, latencyFrames = 0, atTime = null }) {
+    start({ taps, channelsPerTap = 1, latencyFrames = 0, atTime = null, endTime = null }) {
         if (this.recording) throw new Error('AudioRecorder already recording');
         const ctx = this.ctx;
         this.chunks = [];
@@ -76,11 +78,14 @@ export class AudioRecorder {
                     this.chunks.push(msg.channels.map((b) => new Float32Array(b)));
                     this.frames += msg.frames;
                 } else if (msg.type === 'stopped') {
-                    this._stopped?.(msg.frame / ctx.sampleRate);
+                    this._onStopped();
                 }
             };
             const frame = atTime == null ? null : Math.round(atTime * ctx.sampleRate);
-            this.node.port.postMessage({ type: 'start', frame });
+            // The head trim (look-ahead latency) shortens the take; capture
+            // that many extra frames so a fixed-length take stays exact
+            const endFrame = endTime == null ? null : Math.round(endTime * ctx.sampleRate) + this.latencyFrames;
+            this.node.port.postMessage({ type: 'start', frame, endFrame });
         });
     }
 
@@ -91,22 +96,32 @@ export class AudioRecorder {
     stop() {
         if (!this.recording || !this.node) return Promise.resolve(null);
         return new Promise((resolve) => {
-            this._stopped = () => {
-                const node = this.node;
-                // Unhook both ends: node.disconnect() only drops its own
-                // output; the taps' connections INTO it would otherwise
-                // keep every finished recorder node attached to the graph
-                for (const tap of this.taps) {
-                    try { tap.disconnect(node); } catch { /* already gone */ }
-                }
-                this.taps = [];
-                try { node.disconnect(); } catch { /* already gone */ }
-                this.node = null;
-                this.recording = false;
-                resolve(this._assemble());
-            };
+            this._stopped = resolve;
             this.node.port.postMessage({ type: 'stop' });
         });
+    }
+
+    /**
+     * The worklet finished — by 'stop' or by reaching its end frame.
+     * Resolves a pending stop(); an unprompted end goes to `onEnded`.
+     */
+    _onStopped() {
+        const node = this.node;
+        // Unhook both ends: node.disconnect() only drops its own output;
+        // the taps' connections INTO it would otherwise keep every
+        // finished recorder node attached to the graph
+        for (const tap of this.taps) {
+            try { tap.disconnect(node); } catch { /* already gone */ }
+        }
+        this.taps = [];
+        try { node.disconnect(); } catch { /* already gone */ }
+        this.node = null;
+        this.recording = false;
+        const take = this._assemble();
+        const resolve = this._stopped;
+        this._stopped = null;
+        if (resolve) resolve(take);
+        else this.onEnded?.(take);
     }
 
     _assemble() {

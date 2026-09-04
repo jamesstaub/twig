@@ -376,6 +376,7 @@ export class AudioEngine {
 
         return {
             oscillator, sourceTap, sourceNode: options.source || null,
+            startAt: options.startAt ?? null,
             envNode, gainNode, gateNode, driveNode, filterNode,
             convolver, convDry, convWet, convGain, convSum, convFb, convDelay, convWetInv, convDuck,
             stemOut, panner, meter,
@@ -702,7 +703,9 @@ export class AudioEngine {
 
         // Start the oscillator (external-source voices have none — the
         // shared source is already running)
-        oscData.oscillator?.start(this.context.currentTime);
+        // A shared future startAt puts every voice of a bank at phase 0 on
+        // the same frame (sync-loop recording); default is "now"
+        oscData.oscillator?.start(Math.max(oscData.startAt ?? 0, this.context.currentTime));
 
         // Cycle pulses from the gate worklet → whoever registered onPulse
         // (the pulse bus). Set up here so every voice reports under its key.
