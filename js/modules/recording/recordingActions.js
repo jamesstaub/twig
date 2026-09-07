@@ -51,7 +51,9 @@ const PLAY_LEAD_S = 0.08;
 // given to rebuild the voice bank before its shared scheduled start
 const SYNC_MAX_SECONDS = 300;
 const SYNC_MAX_PERIOD = 4096;
-const SYNC_LEAD_S = 0.15;
+const SYNC_LEAD_S = 0.25;
+// Capture must begin comfortably in the future when the worklet arms
+const SYNC_WINDOW_MARGIN_S = 0.05;
 // Loops at most this long capture the SECOND realignment period (a cheap
 // wait that keeps the master chain's restart transient out of the loop);
 // longer ones record from the restart itself — sitting "armed" through a
@@ -121,6 +123,9 @@ function pad2(n) {
 }
 
 function formatDuration(seconds) {
+    // Sub-10 s takes (sync loops are often a fraction of a second) would
+    // all round to "0:00" in m:ss
+    if (seconds < 9.95) return `${seconds.toFixed(1)}s`;
     const s = Math.round(seconds);
     return `${Math.floor(s / 60)}:${pad2(s % 60)}`;
 }
@@ -317,6 +322,15 @@ export const RecordingActions = {
         } else {
             const settle = plan.duration <= SYNC_SETTLE_MAX_S ? 1 : 0;
             atTime = t0 + settle * plan.duration;
+            if (settle) {
+                // Building the bank may have eaten the lead, leaving the
+                // window partly in the past — a truncated (near-zero) take.
+                // Any whole-period shift is still a loop boundary: slide
+                // until capture starts comfortably ahead. (Long loops take
+                // the other branch; a late start there only trims the head
+                // by the overrun instead of waiting out another period.)
+                while (atTime < ctx.currentTime + SYNC_WINDOW_MARGIN_S) atTime += plan.duration;
+            }
             endTime = atTime + plan.duration;
             showStatus(`Sync loop: ${plan.duration.toFixed(3)} s (${plan.periods} × fundamental period)`, 'info');
         }
