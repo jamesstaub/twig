@@ -52,6 +52,11 @@ const PLAY_LEAD_S = 0.08;
 const SYNC_MAX_SECONDS = 300;
 const SYNC_MAX_PERIOD = 4096;
 const SYNC_LEAD_S = 0.15;
+// Loops at most this long capture the SECOND realignment period (a cheap
+// wait that keeps the master chain's restart transient out of the loop);
+// longer ones record from the restart itself — sitting "armed" through a
+// long first period reads as a hang
+const SYNC_SETTLE_MAX_S = 2;
 
 const capture = new MidiCapture();
 let recorder = null;
@@ -87,7 +92,9 @@ function clearArm() {
  * within tolerance otherwise; the residual is the audible seam). A custom
  * wavetable's own period multiplier is folded in via the frequency
  * correction, since its table spans several fundamental periods.
- * @returns {{periods: number, duration: number}|null} null = sync not applicable
+ * @returns {{periods: number, duration: number|null}|null} null = sync not
+ *   applicable; duration null = no realignment within reach (record
+ *   open-ended from the phase-aligned restart instead)
  */
 function syncLoopPlan() {
     const f0 = AppState.fundamentalFrequency;
@@ -98,7 +105,7 @@ function syncLoopPlan() {
     const maxPeriod = Math.max(1, Math.min(SYNC_MAX_PERIOD, Math.floor(SYNC_MAX_SECONDS * f0)));
     const periods = choosePeriodMultiplier(ratios, maxPeriod);
     const duration = periods / f0;
-    return duration <= SYNC_MAX_SECONDS ? { periods, duration } : null;
+    return { periods, duration: duration <= SYNC_MAX_SECONDS ? duration : null };
 }
 
 /** A clock voice is playing and slow enough to pulse — worth waiting for. */
@@ -284,11 +291,14 @@ export const RecordingActions = {
 
     /**
      * Sync loop: rebuild the voice bank so every oscillator starts at
-     * phase 0 on one shared frame (t0), then capture the SECOND
-     * realignment period — t0+T .. t0+2T — so the master chain has
-     * settled past the restart transient. The end frame is enforced on
-     * the audio thread, making the take's length sample-exact; the take
-     * lands through the recorder's onEnded.
+     * phase 0 on one shared frame (t0), then capture exactly one
+     * realignment period T. Short loops (≤ SYNC_SETTLE_MAX_S) capture the
+     * SECOND period — t0+T .. t0+2T — keeping the master chain's restart
+     * transient out; longer ones record the first, starting the moment
+     * the bank restarts. No reachable T at all (stubborn irrational
+     * stack): record open-ended from t0 until stopped — the phases were
+     * still resynced at sample 0. Timed takes' end frames are enforced on
+     * the audio thread (sample-exact) and land through onEnded.
      */
     async _startSyncLoop(active, taps, plan) {
         clearArm();
@@ -300,11 +310,20 @@ export const RecordingActions = {
         active.onEnded = (take) => {
             if (recorder === active) finalizeTake(take);
         };
-        active.start({ ...taps, atTime: t0 + plan.duration, endTime: t0 + 2 * plan.duration }).then((startTime) => {
+        let atTime = t0;
+        let endTime = null;
+        if (plan.duration == null) {
+            showStatus(`Sync: phases restarted — no realignment within ${SYNC_MAX_SECONDS / 60} min, recording until stopped`, 'warning');
+        } else {
+            const settle = plan.duration <= SYNC_SETTLE_MAX_S ? 1 : 0;
+            atTime = t0 + settle * plan.duration;
+            endTime = atTime + plan.duration;
+            showStatus(`Sync loop: ${plan.duration.toFixed(3)} s (${plan.periods} × fundamental period)`, 'info');
+        }
+        active.start({ ...taps, atTime, endTime }).then((startTime) => {
             takeStart = startTime;
             if (recorder === active && AppState.recorder.status === 'armed') setRecorder({ status: 'recording' });
         });
-        showStatus(`Sync loop: ${plan.duration.toFixed(3)} s (${plan.periods} × fundamental period)`, 'info');
     },
 
     async stopRecording() {

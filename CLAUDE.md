@@ -97,26 +97,111 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
   when the viewport is ≤ `--embed-max-height` (theme.css, 220px) tall or
   `?embed=1`; `css/embed.css` (must stay the **last** import in styles.css,
   followed by each component's own `*.embed.css`) reflows the app into one
-  ~170px horizontal band that scrolls sideways if it doesn't fit — a jweb
+  ~150px horizontal band that scrolls sideways if it doesn't fit — a jweb
   viewport is often plenty WIDE even though short, so desktop's own
-  width-based breakpoints (e.g. `.col-half` at 48rem) still fire there and
+  width-based breakpoints (e.g. `.col-third` at 64rem) still fire there and
   need explicit embed overrides, not just narrow-viewport assumptions.
   Sections become flex children of `body.embed` via `.embed-flatten`
   (`display:contents` on intermediate wrapper divs) with `order:` per
   section. Modals become horizontal scrolling bands there;
   `.signal-section-body` exists so section content can flow
   column-on-desktop / row-in-embed with pure CSS.
-- The Fundamental/Source/Overtone-System panel is embed-only and merges
-  three desktop-separate sections into one narrow vertical stack — CSS
-  alone can't do this (their real DOM homes are different desktop grids,
-  `this.q()` in components scopes lookups to their own root element, so
-  only *root* divs may move, not their descendants). `updateEmbedMode()`
-  physically reparents `#spectral-system-root` into
-  `#m4l-fundamental-source-panel` on the embed transition and restores its
-  exact desktop position on the way back (`relocateSpectralSystemPanel` in
-  `js/app.js`) — a real DOM move, not CSS, so desktop's `.system-result-row`
-  grid is untouched. Follow the same pattern for any future embed-only
-  regrouping across different desktop containers.
+- Desktop page structure (`index.html`, one `.control-card`): row 1 is
+  `#m4l-fundamental-source-panel` (Source, Fundamental, Overtone System —
+  `.col-third`, three across from 64rem, see page-arrangement.css); row 2
+  is `.wavetable-tonewheel-row` (Wavetable + Tonewheel, 2:1 grid from
+  80rem); row 3 is `#drawbars-control-root`, full width and the one
+  flexible row (below). Because Source/Fundamental/Overtone-System already
+  share one markup group on desktop, embed mode's narrow vertical stack
+  for that trio is a **pure CSS** override (`layout.embed.css`) — no DOM
+  move needed; `this.q()` in components scopes lookups to their own root
+  element, so only ever move a *root* div if a future embed-only
+  regrouping spans containers desktop keeps separate (there is no such
+  case currently).
+- `.page-shell`/`.page-content`/`.control-card` are a flex chain filling
+  the viewport below the fixed navbar (`.page-shell`'s `min-height:
+  calc(100vh - navbar-height)`, `.control-card{flex:1}`) so leftover
+  vertical space goes somewhere instead of leaving dead space under the
+  card. Rows 1-2 stay `flex:0 0 auto` (natural content height);
+  `#drawbars-control-root{flex:1}` is the one that absorbs it, and the
+  actual sliders grow to match via `--drawbar-track-length` — a CSS var
+  DrawbarsComponent.syncTrackLengths() publishes from each column's
+  measured post-layout height (a rotated `<input type=range>`'s
+  PRE-rotation `width` becomes its visual length, and CSS can't derive
+  one axis from the other on a rotated element). That mechanism used to
+  be embed-only; it's now read by the base (desktop) `.drawbar-slider`
+  rule too, with a `min-height` FLOOR (not 0) on `.drawbar-input-wrapper`
+  so a squeeze (mobile, where the stacked page is naturally taller than
+  the viewport and flex has no spare space to hand out) can't collapse
+  the sliders toward nothing — always give a flex-grow chain like this a
+  real min-height at the layer that's actually visible, not `min-height:0`
+  all the way down. `--drawbar-track-length` is kept live with a
+  ResizeObserver on each `.drawbar-input-wrapper` (not just a
+  window-resize listener) — the wrapper's available height now depends on
+  sibling rows too (a system switch adding a param-dial row, a late
+  web-font swap reflowing label text, …), none of which fire a resize
+  event; a stale cached length shows up as the slider's actual draggable
+  range (and its focus ring) covering less than the visible groove drawn
+  by `.drawbar-track` (which is plain `height:100%`, always current).
+  Separately, `.drawbar-slider` needs `flex-shrink:0`: it's a flex child
+  of `.drawbar-input-wrapper`, whose own WIDTH is a fixed 26px (the
+  slider's thin axis, pre-rotation) — every desired track length
+  "overflows" that 26px main axis, and without `flex-shrink:0` the
+  browser's default flex-shrink plus a range input's own `min-width:auto`
+  floor silently clamps the rendered length to the input's intrinsic
+  min-content size (~129px in Chromium) instead of the requested value,
+  regardless of what `--drawbar-track-length` says. This is exactly the
+  same symptom (slider length disagreeing with the drawn track) as the
+  stale-var problem above but from a completely different cause — check
+  both if it recurs.
+- Canvas heights are capped in CSS so they can't dictate a row's height on
+  their own (`.result-canvas canvas`, `#current-waveform-canvas-area
+  canvas`) — the spectrum canvas's matching cap is a JS constant (`HEIGHT`
+  in `SpectrumComponent.js`, written as an inline `!important` style that
+  CSS cannot override), so keep both in sync by hand if either changes.
+  The Wavetable panel's two canvases sit side by side (`.result-grid` is
+  `display:grid; grid-auto-flow:column` over the flat `canvas, actions,
+  canvas, actions` markup — auto-flow:column NEEDS an explicit
+  `grid-template-rows` to know when to wrap into the next column, or all
+  4 items just spread across 4 implicit columns in one row instead).
+  `#tonewheel-container` shares `.labeled-control`'s background/padding so
+  it reads as one more panel, and stretches (`align-items:stretch`,
+  page 2's default) to match the Wavetable panel's height. The tonewheel's
+  own p5 sketch (`tonewheelActions.js`) sizes its square canvas from
+  `Math.min(container.clientWidth, container.clientHeight)`, not just
+  width — with a wide-but-short container (2:1 next to a compact
+  Wavetable panel) sizing from width alone reproduces exactly the old
+  "canvas forces the row tall" bug, just via a different path. The
+  injected `#tonewheel-canvas` div (TonewheelComponent creates it fresh
+  each render) is `position:absolute; inset:0`, not flexed — an empty
+  flex child with flex-grow but no intrinsic content is a circular sizing
+  dependency against a grid-stretched ancestor (the grid needs content
+  height to size the row; the flex child needs the row already sized to
+  know its own height), and Chromium resolves that circularity by
+  quietly falling back to the child's WIDTH — recreating the very bug the
+  square-fit fix above was meant to solve. Absolute positioning removes
+  it from intrinsic-size contribution entirely. When a flex/grid row's
+  height doesn't respond to editing the content you expect, suspect one
+  of these two circularities first; temporarily setting
+  `align-items:flex-start` via devtools can mislead here too — an
+  already-created canvas doesn't retroactively shrink just because
+  alignment changed after the fact, so re-load the page after any such
+  experiment rather than trusting a live toggle.
+- The Overtone System's description is shown from a "?" button
+  (`#system-info-btn`) via `ValueTip.show(html, x, y, {html: true, wrap:
+  true, interactive: true})` — click-toggled with an outside-mousedown
+  dismiss handler (`SpectralSystemComponent.bindInfoButton`), not hover
+  (jweb/touch have no reliable hover). `ValueTip`'s `html` option renders
+  trusted, internally-authored content only (config.js description
+  strings — never anything from the bridge or user input); `wrap` switches
+  it from the default single-line centered readout to a left-aligned
+  wrapping block. Start harmonic and the current system's tunable params
+  (stretch, stiffness, …) render as one inline row of Dials
+  (`#system-dials-row`, `SpectralSystemComponent.renderDials`), each with
+  its name ABOVE it — a different convention from the label-below dials
+  used elsewhere (e.g. OvertoneSignalModalComponent), kept local to this
+  component rather than unified, since the two call sites want opposite
+  layouts on purpose.
 
 ## Performance recording (audio + MIDI)
 
@@ -134,9 +219,13 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
   the take's .mid. Take-length setting: manual, or "sync loop" — the bank
   restarts with every oscillator scheduled to phase 0 on one shared frame
   and the recorder's end frame is enforced on the audio thread, capturing
-  the SECOND realignment period (t0+T..t0+2T, past the master-chain
-  transient) of exactly T = P/f0 seconds, P from choosePeriodMultiplier
-  (custom-wave period correction folded in). Exact for rational systems;
+  exactly T = P/f0 seconds, P from choosePeriodMultiplier (custom-wave
+  period correction folded in). Loops ≤ 2 s capture the SECOND
+  realignment period (t0+T..t0+2T, past the master-chain transient);
+  longer ones record the FIRST, from the restart itself — waiting out a
+  long first period looked like a hang (irrational systems at high start
+  harmonics reach minutes). No reachable T within 5 min → open-ended
+  take from the phase-aligned restart. Exact for rational systems;
   snapped-P residue is the audible seam for irrational ones. Gates and
   sequencers keep running but their pattern periods are not folded into P. One .wav + one .mid per take, sharing a file
   stem. Browser-session only — not bridged to Max.
