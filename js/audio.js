@@ -10,6 +10,7 @@
  * WAV export compensates via the file's sample-rate header.
  */
 
+import { PLAY_STATE_CHANGED } from './events.js';
 import { AppState, ENVELOPE_DEFAULTS, updateAppState, WAVETABLE_SIZE } from './config.js';
 import { midiConfig } from './appConfig.js';
 import { calculateFrequency, generateFilenameParts, getVoicePan } from './utils.js';
@@ -190,6 +191,10 @@ export async function startTone({ startAt = null } = {}) {
         // MIDI transport start on the clock port, scheduled to the voices'
         // audible onset
         midiOutputRouter.sendTransportStart(startAt ?? AppState.audioContext.currentTime);
+        // Dispatched here — not by the play button — so every start path
+        // (toggle, bridge, sync-record restart) keeps the UI and the
+        // upstream bridge in step
+        document.dispatchEvent(new CustomEvent(PLAY_STATE_CHANGED, { detail: { isPlaying: true } }));
     } catch (error) {
         console.error('Failed to start synthesis:', error);
         throw error;
@@ -302,6 +307,7 @@ export function stopTone() {
         oscillators: [],
         isPlaying: false
     });
+    document.dispatchEvent(new CustomEvent(PLAY_STATE_CHANGED, { detail: { isPlaying: false } }));
 }
 
 /**
