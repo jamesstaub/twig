@@ -35,20 +35,19 @@ body.embed .embed-flatten {
 
 /* Chrome that doesn't fit in 170px */
 body.embed .navbar-section.logo,
-body.embed #system-description,
 body.embed #tonewheel-viz-controls {
     display: none;
 }
 
 /* --- Section order: main controls, consolidated panel, drawbars, result, tonewheel ---
-   Fundamental / Source / Overtone System no longer sit side by side as
-   three separate wide sections — app.js moves #spectral-system-root into
-   #m4l-fundamental-source-panel (a real DOM move, not CSS — see
-   relocateSpectralSystemPanel in app.js) so all three become one narrow
-   vertical stack; see form-controls.embed.css for that panel's own
-   layout. Drawbars has no fixed width: it grows to fill whatever room the
-   other (fixed-width) sections leave, and min-width:max-content lets it
-   grow PAST that if the partial count needs more — flex's own automatic
+   Fundamental / Source / Overtone System live together in one markup
+   group on desktop too now (a three-across row — see page-arrangement.css
+   .col-third), so embed mode just needs to turn that SAME group into a
+   narrow vertical stack instead of a wide row — a pure CSS override, no
+   DOM move required (see layout.embed.css for that panel's own layout).
+   Drawbars has no fixed width: it grows to fill whatever room the other
+   (fixed-width) sections leave, and min-width:max-content lets it grow
+   PAST that if the partial count needs more — flex's own automatic
    content-based minimum doesn't reliably propagate up through this
    column→row→column chain, so it's given explicitly (see
    drawbars.embed.css for the rest of the "full width, no internal

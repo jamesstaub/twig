@@ -1,5 +1,6 @@
 import BaseComponent from "../base/BaseComponent.js";
 import { Dial } from "../generic/dial/Dial.js";
+import { ValueTip } from "../generic/valueTip.js";
 import {
     COMPRESS_A_MAX, COMPRESS_A_MIN, DEFAULT_COMPRESS_A,
     DEFAULT_STIFFNESS_B, DEFAULT_STRETCH_A, DEFAULT_TUBE_CLOSEDNESS,
@@ -66,6 +67,11 @@ export class SpectralSystemComponent extends BaseComponent {
         this.onSubharmonicToggle = null;
         this.onStartHarmonicChange = null;
         this.onParamChange = null;
+        // The current system's description (HTML) — shown in a ValueTip from
+        // the "?" button rather than as an always-visible block, which used
+        // to cost every system ~50px of the row's height regardless of
+        // whether anyone was reading it.
+        this._description = '';
     }
 
     /**
@@ -73,7 +79,6 @@ export class SpectralSystemComponent extends BaseComponent {
      */
     render({ systems, currentSystem, currentSystemIndex, isSubharmonic, startHarmonic, systemParams }) {
         const selectEl = this.q('#ratio-system-select');
-        const descriptionEl = this.q('#system-description');
 
         if (!selectEl) return;
 
@@ -90,13 +95,9 @@ export class SpectralSystemComponent extends BaseComponent {
             selectEl.appendChild(option);
         });
 
-        // --- Description (HTML allowed) ---
-        this.updateContent(descriptionEl, currentSystem?.description || '', {
-            asHTML: true
-        });
+        this._description = currentSystem?.description || '';
 
-        this.renderStartHarmonic({ currentSystem, startHarmonic });
-        this.renderSystemParams({ currentSystem, systemParams });
+        this.renderDials({ currentSystem, startHarmonic, systemParams });
 
         // --- Subharmonic toggle ---
         this.renderSubharmonicToggle({ isSubharmonic });
@@ -107,33 +108,47 @@ export class SpectralSystemComponent extends BaseComponent {
         if (!selectEl) return;
 
         if (currentSystemIndex >= 0) selectEl.value = currentSystemIndex;
-        this.renderStartHarmonic({ currentSystem, startHarmonic });
-        this.renderSystemParams({ currentSystem, systemParams });
+        this._description = currentSystem?.description || '';
+        this.renderDials({ currentSystem, startHarmonic, systemParams });
     }
 
     /**
-     * Dials for the current system's tunable params. Dial instances are
-     * rebuilt only when the param list changes (system switch) — external
-     * updates (bridge, reload) sync through setValue, which doesn't echo,
-     * so an in-progress drag is never torn down under the pointer.
+     * Start harmonic (generative systems only) and the current system's
+     * tunable params (stiffness, stretch, …) as one inline row of dials,
+     * each with its name above it. Dial instances are rebuilt only when the
+     * set of visible dials changes (system switch) — external updates
+     * (bridge, reload) sync through setValue, which doesn't echo, so an
+     * in-progress drag is never torn down under the pointer.
      */
-    renderSystemParams({ currentSystem, systemParams }) {
-        const row = this.q('#system-params-row');
+    renderDials({ currentSystem, startHarmonic, systemParams }) {
+        const row = this.q('#system-dials-row');
         if (!row) return;
 
-        const keys = (currentSystem?.params || []).filter((k) => SYSTEM_PARAM_DIALS[k]);
-        row.classList.toggle('hidden', keys.length === 0);
+        const hasStartHarmonic = Boolean(currentSystem?.generate);
+        const paramKeys = (currentSystem?.params || []).filter((k) => SYSTEM_PARAM_DIALS[k]);
+        row.classList.toggle('hidden', !hasStartHarmonic && paramKeys.length === 0);
 
-        const signature = keys.join(',');
-        if (this._paramSignature !== signature) {
-            this._paramSignature = signature;
+        const signature = `${hasStartHarmonic}|${paramKeys.join(',')}`;
+        if (this._dialSignature !== signature) {
+            this._dialSignature = signature;
+            this._startHarmonicDial = null;
             this._paramDials = {};
             row.innerHTML = '';
-            for (const key of keys) {
+
+            if (hasStartHarmonic) {
+                const dial = new Dial({
+                    min: 1, max: 64, step: 1, size: 26,
+                    value: startHarmonic ?? 1,
+                    label: 'start harmonic',
+                    format: (v) => String(Math.round(v)),
+                    onChange: (v) => this.onStartHarmonicChange?.(Math.round(v)),
+                });
+                this._startHarmonicDial = dial;
+                row.appendChild(this.dialColumn('start harmonic', dial));
+            }
+
+            for (const key of paramKeys) {
                 const def = SYSTEM_PARAM_DIALS[key];
-                const label = document.createElement('label');
-                label.className = 'start-harmonic-label';
-                label.textContent = def.label;
                 const dial = new Dial({
                     min: 0, max: 1, step: 0.005, size: 26,
                     value: def.toPosition(systemParams?.[key]),
@@ -142,11 +157,14 @@ export class SpectralSystemComponent extends BaseComponent {
                     onChange: (t) => this.onParamChange?.(key, def.toValue(t)),
                 });
                 this._paramDials[key] = dial;
-                row.append(label, dial.el);
+                row.appendChild(this.dialColumn(def.label, dial));
             }
             return;
         }
 
+        if (this._startHarmonicDial && this._startHarmonicDial.value !== (startHarmonic ?? 1)) {
+            this._startHarmonicDial.setValue(startHarmonic ?? 1);
+        }
         for (const [key, dial] of Object.entries(this._paramDials || {})) {
             const pos = SYSTEM_PARAM_DIALS[key].toPosition(systemParams?.[key]);
             // Tolerance beats the dial step so a value that round-tripped
@@ -155,20 +173,15 @@ export class SpectralSystemComponent extends BaseComponent {
         }
     }
 
-    /**
-     * Show the start-harmonic input only for generative systems (those with
-     * a generate() — fixed measured/historical tables can't be shifted).
-     * Skips writing the value while the user is typing in the field.
-     */
-    renderStartHarmonic({ currentSystem, startHarmonic }) {
-        const row = this.q('#start-harmonic-row');
-        const input = this.q('#start-harmonic-input');
-        if (!row || !input) return;
-
-        row.classList.toggle('hidden', !currentSystem?.generate);
-        if (document.activeElement !== input) {
-            input.value = startHarmonic ?? 1;
-        }
+    /** Dial with its name ABOVE it (not beside), matching this row's layout. */
+    dialColumn(label, dial) {
+        const col = document.createElement('div');
+        col.className = 'system-dial-col';
+        const name = document.createElement('span');
+        name.className = 'system-dial-name';
+        name.textContent = label;
+        col.append(name, dial.el);
+        return col;
     }
 
     /**
@@ -194,17 +207,53 @@ export class SpectralSystemComponent extends BaseComponent {
         };
         selectEl.addEventListener('change', this._selectChangeHandler);
 
-        const startInput = this.q('#start-harmonic-input');
-        if (startInput) {
-            if (this._startHarmonicHandler) {
-                startInput.removeEventListener('change', this._startHarmonicHandler);
-            }
-            this._startHarmonicHandler = (e) => {
-                this.onStartHarmonicChange?.(parseInt(e.target.value, 10));
-            };
-            startInput.addEventListener('change', this._startHarmonicHandler);
+        this.bindInfoButton();
+    }
+
+    /**
+     * "?" button: click-toggles a ValueTip holding the system's (HTML)
+     * description. Click-to-toggle rather than hover, since jweb/touch
+     * contexts have no reliable hover — dismissed by clicking anywhere
+     * else, same convention as the drawbar context menu.
+     */
+    bindInfoButton() {
+        const btn = this.q('#system-info-btn');
+        if (!btn) return;
+
+        if (this._infoBtnHandler) {
+            btn.removeEventListener('click', this._infoBtnHandler);
+        }
+        if (this._infoDismiss) {
+            document.removeEventListener('mousedown', this._infoDismiss);
         }
 
+        this._infoBtnHandler = (e) => {
+            e.stopPropagation();
+            if (this._infoOpen) {
+                ValueTip.hide();
+                this._infoOpen = false;
+                return;
+            }
+            const r = btn.getBoundingClientRect();
+            ValueTip.show(this._description || 'No description.', r.left + r.width / 2, r.top, {
+                autoHideMs: 0,
+                interactive: true,
+                html: true,
+                wrap: true,
+            });
+            this._infoOpen = true;
+        };
+        btn.addEventListener('click', this._infoBtnHandler);
+
+        // Dismiss on outside click (deferred so this same click doesn't
+        // immediately close what it just opened)
+        this._infoDismiss = (e) => {
+            if (this._infoOpen && e.target !== btn && !e.target.closest('.value-tip')) {
+                ValueTip.hide();
+                this._infoOpen = false;
+            }
+        };
+        document.addEventListener('mousedown', this._infoDismiss);
     }
 
 
@@ -224,7 +273,7 @@ export class SpectralSystemComponent extends BaseComponent {
             subharmonicToggle.removeEventListener('click', this._subharmonicToggleHandler);
         }
         // Create and store a named handler
-        this._subharmonicToggleHandler = (e) => {
+        this._subharmonicToggleHandler = () => {
             this.onSubharmonicToggle?.();
         };
         subharmonicToggle.addEventListener('click', this._subharmonicToggleHandler);

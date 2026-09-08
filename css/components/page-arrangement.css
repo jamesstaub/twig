@@ -15,20 +15,43 @@
 
 /* Oscillator + Fundamental Frequency: full width stacked, half width
    side by side from md up (was Tailwind's `w-full md:w-1/2 lg:w-1/2`;
-   lg repeated the same value as md, so one breakpoint covers both) */
+   lg repeated the same value as md, so one breakpoint covers both).
+   flex-basis, not width: .labeled-control's own `flex:1` sets
+   flex-basis:0%, which takes priority over `width` for a flex item's
+   main-axis size — a plain `width` here would be silently ignored and
+   every column would just split the row evenly at ANY viewport width.
+   calc() subtracts .control-row's own gap (0.75rem) from the basis —
+   without it, N even shares of 100% leave no room for the (N-1) gaps
+   between them, and flex-wrap:wrap silently drops the last column onto
+   its own line the moment the row can't fit all of them plus the gaps. */
 .col-half {
-    width: 100%;
+    flex-basis: 100%;
 }
 
 @media (min-width: 48rem) {
     .col-half {
-        width: 50%;
+        flex-basis: calc((100% - 0.75rem) / 2);
     }
 }
 
-/* Overtone System + Wavetable: column stacked, row from md, 2-up grid
-   from xl */
-.system-result-row {
+/* Source + Fundamental + Overtone System: column stacked below lg, three
+   across from lg up — a third column needs more room to breathe than a
+   half does, hence the higher breakpoint than .col-half's. */
+.col-third {
+    flex-basis: 100%;
+}
+
+@media (min-width: 64rem) {
+    .col-third {
+        flex-basis: calc((100% - 1.5rem) / 3);
+    }
+}
+
+/* Wavetable + Tonewheel: column stacked, row from md, 2-up grid from xl.
+   (Formerly Overtone System's slot — Overtone System joined the row
+   above with Source/Fundamental, so this pairing is now purely the two
+   visualization/output panels.) */
+.wavetable-tonewheel-row {
     width: 100%;
     display: flex;
     flex-direction: column;
@@ -36,59 +59,32 @@
 }
 
 @media (min-width: 48rem) {
-    .system-result-row {
+    .wavetable-tonewheel-row {
         flex-direction: row;
         gap: 1rem;
     }
 }
 
 @media (min-width: 80rem) {
-    .system-result-row {
+    .wavetable-tonewheel-row {
         display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
+        /* Wavetable 2/3, tonewheel 1/3. Now that the wave/spectrum canvases
+           sit side by side instead of stacked (form-controls.css's
+           .result-grid), the Wavetable panel's natural height is small and
+           IT drives the row — the tonewheel just stretches (align-items'
+           default) to match, matching background/height like every other
+           panel instead of floating at its own capped size. */
+        grid-template-columns: 2fr 1fr;
         gap: 1.5rem;
     }
 }
 
-/* xl:col-span-1 existed on both #spectral-system-root and the result
-   section's inner row in the original markup, but span-1 is a grid
-   item's implicit default in this 2-column grid — both were no-ops,
-   so intentionally not carried forward. */
-#spectral-system-root {
-    width: 100%;
-    padding: 0.5rem;
-}
-
-@media (min-width: 48rem) {
-    #spectral-system-root {
-        min-width: 24rem;
-    }
-}
-
-/* Drawbars + Tonewheel: single column, 4-column grid from lg (drawbars
-   take 3, tonewheel takes 1). The column spans themselves were NOT
-   behind the lg: prefix in the original markup — they applied from the
-   smallest viewport up, and are only visible once the grid actually has
-   4 columns (below lg it's 1 column and a span clamps to what's
-   available), so they stay unconditional here too rather than nested in
-   the lg media query above. */
-.drawbars-tonewheel-row {
-    display: grid;
-    grid-template-columns: repeat(1, minmax(0, 1fr));
-    gap: 1rem;
-}
-
-@media (min-width: 64rem) {
-    .drawbars-tonewheel-row {
-        grid-template-columns: repeat(4, minmax(0, 1fr));
-    }
-}
-
+/* Drawbars: its own full-width row beneath — no longer sharing a grid
+   with the tonewheel, which moved up to pair with the Wavetable. Now the
+   flexible one that grows to fill whatever height rows 1-2 don't need
+   (see .control-card's flex:1 in layout.css) — the flex-grow/min-height
+   values for that live in drawbars.css alongside the rest of its sizing
+   behavior, not here (this file only places panels). */
 #drawbars-control-root {
-    max-width: 55rem;
-    grid-column: span 3 / span 3;
-}
-
-#tonewheel-container {
-    grid-column: span 1 / span 1;
+    width: 100%;
 }

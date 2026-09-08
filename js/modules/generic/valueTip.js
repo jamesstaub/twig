@@ -51,7 +51,7 @@ export const ValueTip = {
      * `extra` embeds an element under the value (e.g. the live sequence
      * preview canvas while adjusting sequencer dials).
      */
-    show(text, x, y, { autoHideMs = 700, label = '', extra = null, interactive: interactiveOpt = false, holdWhile: holdWhileOpt = null, placement = 'above', attachTo = null, onExpand = null } = {}) {
+    show(text, x, y, { autoHideMs = 700, label = '', extra = null, interactive: interactiveOpt = false, holdWhile: holdWhileOpt = null, placement = 'above', attachTo = null, onExpand = null, html = false, wrap = false } = {}) {
         const tip = ensure();
         interactive = Boolean(interactiveOpt);
         expandable = Boolean(onExpand);
@@ -67,6 +67,9 @@ export const ValueTip = {
             attached.classList.add('value-tip-attached');
         }
         tip.classList.toggle('interactive', interactive);
+        // wrap: a longer, left-aligned block (e.g. a system description)
+        // instead of the default single-line centered value readout
+        tip.classList.toggle('value-tip-wrap', Boolean(wrap));
         tip.textContent = '';
         if (label) {
             const labelEl = document.createElement('span');
@@ -76,7 +79,10 @@ export const ValueTip = {
         }
         const valueEl = document.createElement('span');
         valueEl.className = 'value-tip-value';
-        valueEl.textContent = text;
+        // `html` is only ever passed static, internally-authored content
+        // (system descriptions from config.js) — never external/user input
+        if (html) valueEl.innerHTML = text;
+        else valueEl.textContent = text;
         tip.appendChild(valueEl);
         if (extra) tip.appendChild(extra);
         if (onExpand) {
@@ -138,7 +144,7 @@ export const ValueTip = {
         // for whatever control is underneath.
         interactive = false;
         expandable = false;
-        el?.classList.remove('visible', 'interactive', 'attached-left');
+        el?.classList.remove('visible', 'interactive', 'attached-left', 'value-tip-wrap');
     },
 
     /**

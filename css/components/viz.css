@@ -9,6 +9,14 @@
     display: block;
 }
 
+/* Small preview only — this drives the whole Source/Fundamental/Overtone
+   System row's height via align-items:stretch otherwise, since it's the
+   one column with no other natural height cap. */
+#current-waveform-canvas-area canvas {
+    height: 64px !important;
+    min-height: 0;
+}
+
 /* The two p5 canvas-area wrappers (oscillator preview, summed wavetable)
    both just claim the remaining space in their row */
 .canvas-flex-area {
@@ -68,6 +76,23 @@
     display: flex;
     align-items: stretch;
     justify-content: stretch;
+}
+
+/* TonewheelComponent injects this empty div for p5 to mount into.
+   Absolutely positioned (filling #tonewheel-container, which is
+   position:relative) rather than flexed: an empty flex child with
+   flex-grow but no intrinsic content creates a circular sizing dependency
+   against a GRID-stretched ancestor (the grid needs the row's content
+   height to size the row, but the flex child needs the row already sized
+   to know its own height) — Chromium resolves that circularity by
+   quietly falling back to this div's WIDTH, recreating the exact
+   width-driven-height bug tonewheelActions.js's squareSizeFor was meant
+   to fix. Absolute positioning removes it from intrinsic-size
+   contribution entirely, so the grid row sizes from the Wavetable
+   panel's real (small, side-by-side-canvases) content instead. */
+#tonewheel-canvas {
+    position: absolute;
+    inset: 0;
 }
 
 canvas {

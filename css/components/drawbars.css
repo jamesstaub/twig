@@ -3,12 +3,20 @@
 
 .drawbar-container {
     display: flex;
-    padding: 10px 0 10px 1.5rem; /* extra left padding for scroll */
+    padding: 6px 0 6px 1.5rem; /* extra left padding for scroll */
     overflow-x: auto;
     max-width: 100%;
     scroll-padding-left: 1.5rem;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
+    /* #drawbars-control-root now absorbs whatever height rows 1-2 don't
+       need (page-arrangement.css) — this is the child that spends it.
+       min-height matches .drawbar-input-wrapper's own floor (not 0) so a
+       squeeze (mobile, where the stacked page is naturally taller than
+       the viewport) can't collapse the sliders toward nothing — the page
+       just scrolls instead, same as any other section would. */
+    flex: 1 1 auto;
+    min-height: 100px;
 }
 
 /* Hide native scrollbar for drawbar container */
@@ -23,6 +31,9 @@
     align-items: center;
     width: 64px;
     flex-shrink: 0;
+    /* Stretches (align-items:stretch, .drawbar-container's default) to
+       match the container's now-flexible height */
+    height: auto;
 }
 
 .drawbar-label {
@@ -31,7 +42,7 @@
     font-weight: var(--font-weight-medium);
     text-align: center;
     height: 20px;
-    padding: 1rem 0;
+    padding: 0.35rem 0;
     margin-bottom: 5px;
     /* Tinted by the drawbar's consonance color, lifted toward white so the
        dark (dissonant) end of the ramp stays readable on the card */
@@ -40,8 +51,20 @@
 .drawbar-input-wrapper {
     position: relative;
     width: 26px;
-    height: 140px;
-    margin: 10px 0;
+    /* Fills whatever height .drawbar has to give (see --drawbar-track-length
+       below — DrawbarsComponent.syncTrackLengths measures this box's
+       resolved height post-layout and publishes it as a CSS var, since a
+       rotated slider's PRE-rotation width has to equal that same number
+       and CSS can't derive one axis from the other on a rotated element).
+       min-height is a real floor, not 0 — on mobile, where everything
+       stacks and the page is naturally taller than the viewport, flex has
+       no extra space to hand out and would otherwise shrink this toward
+       nothing instead of just letting the page scroll. */
+    flex: 1 1 auto;
+    height: auto;
+    min-height: 100px;
+    max-height: 280px;
+    margin: 4px 0;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -109,12 +132,25 @@
  * Invisible range input rotated vertical
  */
 .drawbar-slider {
-    --drawbar-thumb-length: 37px;
+    --drawbar-thumb-length: 26px;
 
     appearance: none;
     -webkit-appearance: none;
 
-    width: 140px;
+    /* Pre-rotation width = post-rotation visual length = the wrapper's
+       actual (now flexible) height; see .drawbar-input-wrapper above and
+       DrawbarsComponent.syncTrackLengths, which publishes this variable
+       for both desktop and embed. flex-shrink:0 is required: the WRAPPER
+       is only 26px wide (the slider's short/thin axis, pre-rotation), so
+       as an ordinary flex child this element's specified width always
+       "overflows" that 26px main axis — with the flex-shrink default (1)
+       and the browser's own min-width:auto floor for range inputs, the
+       slider silently clamps to its intrinsic min-content size (~129px)
+       and ignores this width entirely, no matter what it's set to. The
+       rotation makes that overflow purely a pre-rotation layout-box
+       concern, not a visual clipping one, so it's safe to allow. */
+    width: var(--drawbar-track-length, 80px);
+    flex-shrink: 0;
     height: 26px;
 
     margin: 0;
@@ -382,9 +418,14 @@ body.adsr-mode .drawbar-trigger {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 0.45rem;
-    height: 160px;
-    margin: 10px 0;
+    gap: 0.4rem;
+    /* Matches .drawbar-input-wrapper's now-flexible sizing so switching to
+       the sequence view doesn't change the column's height */
+    flex: 1 1 auto;
+    height: auto;
+    min-height: 108px;
+    max-height: 280px;
+    margin: 4px 0;
 }
 
 /* x/y dials side by side under the steppers */

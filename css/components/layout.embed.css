@@ -33,14 +33,11 @@ body.embed #result-control-root .control-row {
    ================================
    Fundamental frequency, Source (+ its per-mode secondary controls), and
    Overtone System (+ its secondary controls and the subharmonic toggle)
-   no longer render as three separate wide side-by-side sections — that
-   cost more horizontal room than the drawbars strip could afford. Instead
-   app.js physically moves #spectral-system-root into this wrapper
-   (relocateSpectralSystemPanel) so all three become one narrow vertical
-   stack; #fundamental-control-root and #oscillator-control-root already
-   live here in the markup (this wrapper IS their desktop `.control-row`,
-   id'd for this override — see page-arrangement.css, untouched by this
-   file). One shared card instead of three: the children give up their own
+   already share one markup group on desktop too (id'd for this override
+   — see page-arrangement.css's `.col-third`, a real three-across row
+   there). Embed mode just needs that SAME group to stack narrow-and-tall
+   instead of wide-and-short — a pure CSS override, no DOM move. One
+   shared card instead of three: the children give up their own
    background/shadow/rounded corners and a divider line stands in for the
    seam. */
 body.embed #m4l-fundamental-source-panel {
@@ -75,9 +72,9 @@ body.embed #m4l-fundamental-source-panel > .labeled-control {
     gap: 0.1rem;
     overflow: visible;
     border-bottom: 1px solid var(--border-subtle);
-    /* .col-half (page-arrangement.css) is a WIDTH breakpoint (48rem) — a
+    /* .col-third (page-arrangement.css) is a WIDTH breakpoint (64rem) — a
        short-but-wide jweb viewport matches it same as desktop, resolving
-       50% against this 175px column instead of the old side-by-side row */
+       33.333% against this 175px column instead of the desktop 3-up row */
     width: 100% !important;
 }
 
@@ -87,25 +84,25 @@ body.embed #m4l-fundamental-source-panel > .labeled-control:last-child {
 
 body.embed #fundamental-control-root { order: 1; }
 body.embed #oscillator-control-root { order: 2; }
-body.embed #spectral-system-root {
-    order: 3;
-    /* Its own base rule (page-arrangement.css) demands min-width:24rem
-       from 48rem up — a viewport this SHORT is often still plenty WIDE,
-       so that media query matches here too; override for the narrow
-       stacked column. */
-    min-width: 0;
-}
+body.embed #spectral-system-root { order: 3; }
 
 /* The real jweb budget is closer to 150px than the 170px this was first
    tuned against — every row here has to give up more height. Scoped to
    just this panel so other embed controls (routing-mode select, etc.)
    keep their normal (already-compact) embed sizing. */
 body.embed #m4l-fundamental-source-panel .control-select,
-body.embed #m4l-fundamental-source-panel .fundamental-input,
-body.embed #m4l-fundamental-source-panel #start-harmonic-input {
+body.embed #m4l-fundamental-source-panel .fundamental-input {
     padding: 0.05rem 0.2rem;
     font-size: var(--font-size-2xs);
     height: 16px;
+}
+
+body.embed #m4l-fundamental-source-panel .system-dials-row {
+    gap: 0.4rem;
+}
+
+body.embed #m4l-fundamental-source-panel .system-dial-name {
+    font-size: var(--font-size-3xs);
 }
 
 body.embed #m4l-fundamental-source-panel .select-step-btn {
@@ -130,6 +127,7 @@ body.embed #m4l-fundamental-source-panel .toggle-label {
    heading lines on top of the controls themselves. */
 body.embed #fundamental-control-root .frequency-control-group,
 body.embed #oscillator-control-root #current-waveform-canvas-area,
-body.embed #m4l-fundamental-source-panel .control-label-text {
+body.embed #m4l-fundamental-source-panel .control-label-text,
+body.embed #system-info-btn {
     display: none;
 }

@@ -40,6 +40,22 @@ export const TonewheelActions = {
     }
 };
 
+/**
+ * The tonewheel is always drawn as a circle, so its canvas is always
+ * square — sized to whichever of the container's own dimensions is
+ * smaller, so a wide-but-short container (paired with the Wavetable
+ * panel, which sets the row's height) yields a circle that fits the
+ * height instead of one that assumes width is always the binding
+ * dimension and forces the container tall to match.
+ */
+function squareSizeFor(container) {
+    if (!container) return window.innerWidth < 640 ? 320 : 800;
+    const w = container.clientWidth;
+    const h = container.clientHeight;
+    const size = w > 0 && h > 0 ? Math.min(w, h) : (w || h);
+    return size > 0 ? size : (window.innerWidth < 640 ? 320 : 800);
+}
+
 function createVisualizationSketch() {
     return function (p) {
         AppState.p5Instance = p;
@@ -53,14 +69,8 @@ function createVisualizationSketch() {
 
         p.setup = function () {
             const container = document.getElementById('tonewheel-canvas');
-            let w = container ? container.clientWidth : 800;
-            let h = w;
-            if (w === 0) {
-                w = window.innerWidth < 640 ? 320 : 800;
-                h = w;
-                console.warn('Canvas container width was 0, using fallback width:', w);
-            }
-            p.createCanvas(w, h).parent(container ? 'tonewheel-canvas' : 'body');
+            const size = squareSizeFor(container);
+            p.createCanvas(size, size).parent(container ? 'tonewheel-canvas' : 'body');
             p.angleMode(p.RADIANS);
             updateDimensions();
         };
@@ -206,13 +216,8 @@ function createVisualizationSketch() {
 
         p.windowResized = function () {
             const container = document.getElementById('tonewheel-canvas');
-            let w = container ? container.clientWidth : 800;
-            let h = w;
-            if (w === 0) {
-                w = window.innerWidth < 640 ? 320 : 800;
-                h = w;
-            }
-            p.resizeCanvas(w, h);
+            const size = squareSizeFor(container);
+            p.resizeCanvas(size, size);
             updateDimensions();
         };
     };

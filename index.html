@@ -84,7 +84,7 @@
                     <!-- Signal source: oscillator bank or an external signal
                          through the resonant filter bank. Drop a sound file
                          anywhere on this section to load it. -->
-                    <div id="oscillator-control-root" class="labeled-control col-half">
+                    <div id="oscillator-control-root" class="labeled-control col-third">
                         <label for="source-mode-select">
                             <span class="control-label-text">Source</span>
                         </label>
@@ -121,7 +121,7 @@
                     </div>
 
                     <!-- Fundamental & Waveform Controls Row -->
-                    <div id="fundamental-control-root" class="labeled-control col-half">
+                    <div id="fundamental-control-root" class="labeled-control col-third">
                         <label for="fundamental-input">
                             <span class="control-label-text">Fundamental Frequency</span>
                             <span class="fundamental-input-group">
@@ -148,134 +148,90 @@
                             </div>
                         </div>
                     </div>
-                </div>
-            </div>
 
-            <div class="control-card embed-flatten">
-                <div class="control-row embed-flatten">
-                    <div class="system-result-row embed-flatten">
-                        <!-- Overtone System (title + select) -->
-                        <div id="spectral-system-root" class="system-selector labeled-control">
-                            <label for="ratio-system-select">
-                                <span class="control-label-text">Overtone System</span>
-                            </label>
-                            <div class="select-stepper">
-                                <button type="button" class="action-btn select-step-btn" data-target="ratio-system-select"
-                                    data-step="-1" aria-label="Previous overtone system">&lt;-</button>
-                                <select id="ratio-system-select" class="control-select">
-                                    <!-- Options will be populated by JavaScript -->
-                                </select>
-                                <button type="button" class="action-btn select-step-btn" data-target="ratio-system-select"
-                                    data-step="1" aria-label="Next overtone system">-&gt;</button>
-                            </div>
-                            <div id="start-harmonic-row" class="start-harmonic-row hidden">
-                                <label for="start-harmonic-input" class="start-harmonic-label">Start harmonic</label>
-                                <input type="number" id="start-harmonic-input" class="fundamental-input"
-                                    value="1" min="1" max="64" step="1" autocomplete="off"
-                                    aria-label="First partial of the overtone system">
-                            </div>
-                            <!-- Dials for the current system's tunable params (stiffness B, …) -->
-                            <div id="system-params-row" class="start-harmonic-row hidden"></div>
-                            <div id="system-description" class="system-description"></div>
-                            <!-- Overtone controls for md/lg screens -->
-                            <div class="overtone-controls">
-                                <div class="subharmonic-toggle-container">
-                                    <span class="toggle-label overtone">Overtone
-                                        <small class="toggle-sublabel">otonality</small></span>
-                                    <div id="subharmonic-toggle" class="toggle-switch" role="switch"
-                                        aria-checked="false" aria-label="Subharmonic/Overtone control"></div>
-                                    <span id="subharmonic-label" class="toggle-label inactive">Subharmonic
-                                        <small class="toggle-sublabel">utonality</small></span>
-                                </div>
-                            </div>
+                    <!-- Overtone System (title + select) -->
+                    <div id="spectral-system-root" class="system-selector labeled-control col-third">
+                        <label for="ratio-system-select">
+                            <span class="control-label-text">Overtone System</span>
+                            <button type="button" id="system-info-btn" class="info-icon"
+                                aria-label="About this overtone system">?</button>
+                        </label>
+                        <div class="select-stepper">
+                            <button type="button" class="action-btn select-step-btn" data-target="ratio-system-select"
+                                data-step="-1" aria-label="Previous overtone system">&lt;-</button>
+                            <select id="ratio-system-select" class="control-select">
+                                <!-- Options will be populated by JavaScript -->
+                            </select>
+                            <button type="button" class="action-btn select-step-btn" data-target="ratio-system-select"
+                                data-step="1" aria-label="Next overtone system">-&gt;</button>
                         </div>
-
-                        <!-- Waveform + controls -->
-                        <div id="result-control-root" class="labeled-control">
-                            <label>
-                                Wavetable
-                            </label>
-                            <!-- Two rows: the time-domain wave with the wavetable
-                                 actions, then its spectrum with the convolution
-                                 (IR) actions -->
-                            <div class="result-grid">
-                                <div id="waveform-canvas-area" class="result-canvas">
-                                    <!-- P5 canvas injected here -->
-                                </div>
-                                <div class="result-actions">
-                                    <button id="add-wave-button" type="button" role="button"
-                                        class="action-btn focus-ring"
-                                        aria-label="Create oscillator from the current timbre">Create Oscillator</button>
-                                    <div id="routing-control-root" class="download-group">
-                                        <button id="export-wav-button" type="button" role="button"
-                                            class="action-btn focus-ring"
-                                            aria-label="Download wav">Download</button>
-                                        <div id="routing-mode-group" class="routing-mode-group">
-                                            <select name="routing-mode" id="routing-mode-select" class="control-select">
-                                                <option value="mono" selected>Mono</option>
-                                                <option value="stereo">Stereo</option>
-                                                <option value="multichannel">Multichannel</option>
-                                            </select>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div id="spectrum-canvas-area" class="result-canvas">
-                                    <!-- Spectrum canvas injected here -->
-                                </div>
-                                <div class="result-actions">
-                                    <button id="create-ir-button" type="button" role="button"
-                                        class="action-btn focus-ring"
-                                        aria-label="Create convolution impulse response">Create IR</button>
-                                    <!-- Ring time for the next Create IR (dial mounted by JS) -->
-                                    <span class="ir-ring-row">
-                                        <span class="start-harmonic-label">ring</span>
-                                        <span id="ir-ring-root" class="ir-ring-root" title="IR ring time"></span>
-                                    </span>
-                                </div>
+                        <!-- Start harmonic + any system-specific dials (stiffness,
+                             stretch, …), always laid out inline together -->
+                        <div id="system-dials-row" class="system-dials-row hidden"></div>
+                        <!-- Overtone controls for md/lg screens -->
+                        <div class="overtone-controls">
+                            <div class="subharmonic-toggle-container">
+                                <span class="toggle-label overtone">Overtone
+                                    <small class="toggle-sublabel">otonality</small></span>
+                                <div id="subharmonic-toggle" class="toggle-switch" role="switch"
+                                    aria-checked="false" aria-label="Subharmonic/Overtone control"></div>
+                                <span id="subharmonic-label" class="toggle-label inactive">Subharmonic
+                                    <small class="toggle-sublabel">utonality</small></span>
                             </div>
                         </div>
                     </div>
                 </div>
-                <div class="drawbars-tonewheel-row embed-flatten">
 
-                    <!-- Drawbars -->
-                    <div id="drawbars-control-root" class="labeled-control">
-                        <span>
-                            Drawbars
-                            <span id="drawbars-tabs" class="drawbars-tabs">
-                                <button type="button" class="drawbars-tab active" data-view="gain">gain</button>
-                                <button type="button" class="drawbars-tab" data-view="filter">filter</button>
-                                <button type="button" class="drawbars-tab" data-view="sequence">sequence</button>
-                                <button type="button" class="drawbars-tab" data-view="convolution">convolution</button>
-                            </span>
-                            <span id="drawbars-note" class="drawbars-note hidden"></span>
-                        </span>
-                        <div id="drawbars" class="drawbar-container">
-                            <!-- Drawbars will be generated by JavaScript -->
-                        </div>
-                        <div class="drawbars-actions">
-                            <!-- Convolution view only: baking an IR needs the
-                                 oscillator wavetable, but the Wavetable panel
-                                 that normally hosts "Create IR" can be a
-                                 whole section away (hidden entirely for
-                                 external sources) — a shortcut here saves
-                                 the trip while dialing in per-voice IRs. -->
-                            <button id="create-ir-button-drawbars" type="button" role="button"
-                                class="action-btn focus-ring action-btn-spaced hidden"
-                                aria-label="Create convolution impulse response">Create IR</button>
-                            <button id="reset-drawbars-button" type="button" role="button"
-                                class="action-btn focus-ring action-btn-spaced"
-                                aria-label="Reset drawbars">Reset</button>
-                            <button id="randomize-drawbars-button" type="button" role="button"
-                                class="action-btn focus-ring action-btn-spaced"
-                                aria-label="Randomize drawbars">Randomize</button>
+                <!-- Wavetable + Tonewheel: paired visualization/output panels -->
+                <div class="wavetable-tonewheel-row embed-flatten">
+                    <!-- Waveform + controls -->
+                    <div id="result-control-root" class="labeled-control">
+                        <label>
+                            Wavetable
+                        </label>
+                        <!-- Two rows: the time-domain wave with the wavetable
+                             actions, then its spectrum with the convolution
+                             (IR) actions -->
+                        <div class="result-grid">
+                            <div id="waveform-canvas-area" class="result-canvas">
+                                <!-- P5 canvas injected here -->
+                            </div>
+                            <div class="result-actions">
+                                <button id="add-wave-button" type="button" role="button"
+                                    class="action-btn focus-ring"
+                                    aria-label="Create oscillator from the current timbre">Create Oscillator</button>
+                                <div id="routing-control-root" class="download-group">
+                                    <button id="export-wav-button" type="button" role="button"
+                                        class="action-btn focus-ring"
+                                        aria-label="Download wav">Download</button>
+                                    <div id="routing-mode-group" class="routing-mode-group">
+                                        <select name="routing-mode" id="routing-mode-select" class="control-select">
+                                            <option value="mono" selected>Mono</option>
+                                            <option value="stereo">Stereo</option>
+                                            <option value="multichannel">Multichannel</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
 
+                            <div id="spectrum-canvas-area" class="result-canvas">
+                                <!-- Spectrum canvas injected here -->
+                            </div>
+                            <div class="result-actions">
+                                <button id="create-ir-button" type="button" role="button"
+                                    class="action-btn focus-ring"
+                                    aria-label="Create convolution impulse response">Create IR</button>
+                                <!-- Ring time for the next Create IR (dial mounted by JS) -->
+                                <span class="ir-ring-row">
+                                    <span class="start-harmonic-label">ring</span>
+                                    <span id="ir-ring-root" class="ir-ring-root" title="IR ring time"></span>
+                                </span>
+                            </div>
                         </div>
                     </div>
 
                     <!-- Main Tonewheel Canvas -->
-                    <div id="tonewheel-container">
+                    <div id="tonewheel-container" class="labeled-control">
                         <!-- Main tonewheel p5.js canvas will be injected here -->
                         <div class="controls-overlay">
                             <!-- Responsive Visualization Overlay Controls -->
@@ -285,8 +241,41 @@
                             </div>
                         </div>
                     </div>
+                </div>
 
+                <!-- Drawbars: full width, its own row -->
+                <div id="drawbars-control-root" class="labeled-control">
+                    <span>
+                        Drawbars
+                        <span id="drawbars-tabs" class="drawbars-tabs">
+                            <button type="button" class="drawbars-tab active" data-view="gain">gain</button>
+                            <button type="button" class="drawbars-tab" data-view="filter">filter</button>
+                            <button type="button" class="drawbars-tab" data-view="sequence">sequence</button>
+                            <button type="button" class="drawbars-tab" data-view="convolution">convolution</button>
+                        </span>
+                        <span id="drawbars-note" class="drawbars-note hidden"></span>
+                    </span>
+                    <div id="drawbars" class="drawbar-container">
+                        <!-- Drawbars will be generated by JavaScript -->
+                    </div>
+                    <div class="drawbars-actions">
+                        <!-- Convolution view only: baking an IR needs the
+                             oscillator wavetable, but the Wavetable panel
+                             that normally hosts "Create IR" can be a
+                             whole section away (hidden entirely for
+                             external sources) — a shortcut here saves
+                             the trip while dialing in per-voice IRs. -->
+                        <button id="create-ir-button-drawbars" type="button" role="button"
+                            class="action-btn focus-ring action-btn-spaced hidden"
+                            aria-label="Create convolution impulse response">Create IR</button>
+                        <button id="reset-drawbars-button" type="button" role="button"
+                            class="action-btn focus-ring action-btn-spaced"
+                            aria-label="Reset drawbars">Reset</button>
+                        <button id="randomize-drawbars-button" type="button" role="button"
+                            class="action-btn focus-ring action-btn-spaced"
+                            aria-label="Randomize drawbars">Randomize</button>
 
+                    </div>
                 </div>
             </div>
         </div>

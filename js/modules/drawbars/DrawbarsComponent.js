@@ -66,6 +66,7 @@ export class DrawbarsComponent extends BaseComponent {
         this._meterRaf = null;
         this._waveSteppers = [];
         this._modeSteppers = [];
+        this._trackResizeObserver = null;
         // Shift+drag row sculpting: shape period in row-widths, the last
         // gesture so the tip controls can re-apply it, and an optional
         // contour override (null = follow the main oscillator waveform)
@@ -202,20 +203,39 @@ export class DrawbarsComponent extends BaseComponent {
 
         this.startMeterLoop();
         this.syncTrackLengths();
-        this.bindEvent(window, "resize", () => this.syncTrackLengths());
+        // A plain window-resize listener isn't enough: on both desktop and
+        // embed, #drawbars-control-root's available height now depends on
+        // the OTHER rows (full-height flex chain, page-arrangement.css) —
+        // a system switch adding a param-dial row, a late web-font swap
+        // reflowing label text, etc. all change it with no window resize
+        // at all. Left stale, the visible track (.drawbar-track, height:
+        // 100% of the wrapper — always current) and the slider's actual
+        // draggable length (.drawbar-slider, sized from the cached
+        // --drawbar-track-length var) drift apart: the focus ring lands on
+        // the OLD, shorter length while the groove is drawn at the new
+        // one. ResizeObserver watches the wrapper's box directly, however
+        // it changes.
+        if (window.ResizeObserver) {
+            this._trackResizeObserver?.disconnect();
+            this._trackResizeObserver = new ResizeObserver(() => this.syncTrackLengths());
+            this.qAll(".drawbar-input-wrapper").forEach((wrapper) => {
+                this._trackResizeObserver.observe(wrapper);
+            });
+        } else {
+            this.bindEvent(window, "resize", () => this.syncTrackLengths());
+        }
     }
 
     /**
      * Publishes each column's actual rendered track length as
      * --drawbar-track-length, a CSS custom property on the wrapper
      * (inherited by its slider child) — the same JS↔CSS contract as
-     * --drawbar-thumb-length. Runs unconditionally; only the embed
-     * stylesheet reads it (the desktop slider keeps a fixed length), so
-     * this component stays unaware of which layout is active. A rotated
-     * slider's pre-rotation width becomes its visual length after the
-     * -90deg transform — CSS alone can't derive that from a flex/grid-
-     * stretched wrapper's height (percentages resolve against the same
-     * axis, not the transposed one), so this measures post-layout instead.
+     * --drawbar-thumb-length, read by both the desktop and embed
+     * `.drawbar-slider` rules. A rotated slider's pre-rotation width
+     * becomes its visual length after the -90deg transform — CSS alone
+     * can't derive that from a flex/grid-stretched wrapper's height
+     * (percentages resolve against the same axis, not the transposed
+     * one), so this measures post-layout instead.
      */
     syncTrackLengths() {
         this.qAll(".drawbar-input-wrapper").forEach((wrapper) => {
@@ -1164,6 +1184,10 @@ export class DrawbarsComponent extends BaseComponent {
         if (this._meterRaf) {
             cancelAnimationFrame(this._meterRaf);
             this._meterRaf = null;
+        }
+        if (this._trackResizeObserver) {
+            this._trackResizeObserver.disconnect();
+            this._trackResizeObserver = null;
         }
         super.teardown();
     }

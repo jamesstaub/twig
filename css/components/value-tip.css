@@ -47,6 +47,25 @@
     pointer-events: auto;
 }
 
+/* Longer, left-aligned block content (e.g. a system description) instead
+   of the default single-line centered value readout */
+.value-tip.value-tip-wrap {
+    align-items: flex-start;
+    white-space: normal;
+    max-width: 20rem;
+    padding: 0.4rem 0.6rem;
+    font-family: 'Inter', sans-serif;
+    line-height: 1.35;
+}
+
+.value-tip.value-tip-wrap .value-tip-value {
+    text-align: left;
+}
+
+.value-tip.value-tip-wrap .value-tip-value a {
+    color: var(--text-accent);
+}
+
 /* Corner expand button: opens the full overtone settings modal */
 .value-tip-expand {
     position: absolute;

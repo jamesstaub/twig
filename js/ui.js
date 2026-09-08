@@ -7,7 +7,7 @@ import { AppState, updateAppState } from './config.js';
 import { midiConfig } from './appConfig.js';
 import { MASTER_SLEW_CHANGED, ENVELOPE_MODE_CHANGED } from './events.js';
 import { OvertoneSignalActions } from './modules/overtoneSignal/overtoneSignalActions.js';
-import { updateText, updateValue } from './domUtils.js';
+import { updateValue } from './domUtils.js';
 import { DrawbarsController } from './modules/drawbars/drawbarsController.js';
 import { SpectralSystemController } from './modules/spectralSystem/spectralSystemController.js';
 import { WaveformController } from './modules/waveform/waveformController.js';
@@ -239,10 +239,6 @@ function setupControlSliders() {
 
 
 
-export function updateSystemDescription() {
-    updateText('system-description', AppState.currentSystem.description, true);
-}
-
 // ================================
 
 // ================================
@@ -284,8 +280,6 @@ function setupSelectSteppers() {
  * TODO: remove this and use individual components
  */
 export function updateUI() {
-
-    updateSystemDescription();
 
     // Update waveform selector
     updateValue('waveform-select', AppState.currentWaveform);
