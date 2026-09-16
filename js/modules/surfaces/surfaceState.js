@@ -15,15 +15,16 @@ import { layoutMode } from '../layout/layoutMode.js';
  */
 
 export const SURFACES = [
-    // The fundamental strip (pitch, octave, keyboard) over the pad grid
-    { id: 'play', label: 'Play', roots: ['fundamental-control-root', 'pad-grid-root'] },
+    // The fundamental strip (pitch, octave, keyboard) and the source
+    // picker over the pad grid
+    { id: 'play', label: 'Play', roots: ['fundamental-control-root', 'oscillator-control-root', 'pad-grid-root'] },
     { id: 'mix', label: 'Mix', roots: ['drawbars-control-root'] },
     // The inspector, full width (inspectorState picks the overtone)
     { id: 'voice', label: 'Voice', roots: ['voice-control-root'] },
-    { id: 'source', label: 'Source', roots: ['oscillator-control-root'] },
     { id: 'system', label: 'System', roots: ['spectral-system-root'] },
     { id: 'wavetable', label: 'Wavetable', roots: ['result-control-root', 'tonewheel-container'] },
-    { id: 'settings', label: 'Settings', roots: ['settings-control-root'] },
+    // dock: false — a settings form has no use for the canvases beside it
+    { id: 'settings', label: 'Settings', roots: ['settings-control-root'], dock: false },
 ];
 
 /** Panels the viz dock keeps visible beside any active surface. */
@@ -58,6 +59,11 @@ export const surfaceState = {
     get dock() {
         return state.dock ?? dockDefault();
     },
+    /** The dock toggle is on AND the active surface admits the dock. */
+    get dockShown() {
+        const active = SURFACES.find((s) => s.id === this.active);
+        return this.dock && active?.dock !== false;
+    },
 
     /** Make `id` the (only) visible surface. Unknown ids are ignored. */
     show(id) {
@@ -83,7 +89,7 @@ export const surfaceState = {
         for (const s of SURFACES) {
             if (state.visible.has(s.id)) s.roots.forEach((r) => ids.add(r));
         }
-        if (this.dock) DOCK_ROOTS.forEach((r) => ids.add(r));
+        if (this.dockShown) DOCK_ROOTS.forEach((r) => ids.add(r));
         return ids;
     },
 

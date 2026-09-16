@@ -53,13 +53,6 @@ body.embed .inspector-title-voice {
     font-size: var(--font-size-sm-alt);
 }
 
-/* Row again — inspector.css stacks the sections inside the sheet */
-body.embed .inspector-sheet .inspector-sections {
-    flex-direction: row;
-    flex-wrap: nowrap;
-    gap: 0.5rem;
-    align-items: stretch;
-}
 
 body.embed .inspector-section {
     flex: 0 0 auto;
@@ -74,10 +67,25 @@ body.embed .inspector-section-body {
     gap: 0.75rem;
 }
 
-body.embed .inspector-side-col {
+/* The two columns become one row of cards */
+body.embed .inspector-sheet .inspector-sections {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    gap: 0.5rem;
+    align-items: stretch;
+}
+
+body.embed .inspector-main,
+body.embed .inspector-aside {
     flex: 0 0 auto;
     flex-direction: row;
+    flex-wrap: nowrap;
     gap: 0.5rem;
+}
+
+body.embed .inspector-section-level {
+    flex-basis: auto;
 }
 
 body.embed .inspector-gate-mode {
@@ -99,14 +107,7 @@ body.embed .inspector-targets {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 0.125rem 0.75rem;
-    margin-top: 0;
-    padding-top: 0;
-    border-top: none;
     min-width: 20rem;
-}
-
-body.embed .inspector-targets-heading {
-    grid-column: 1 / -1;
 }
 
 body.embed .inspector-target-label {

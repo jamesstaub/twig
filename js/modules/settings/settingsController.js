@@ -29,20 +29,33 @@ export class SettingsController {
         document.addEventListener(MIDI_OUTPUT_CHANGED, () => this.midi.render());
         document.addEventListener(RECORDER_CHANGED, () => this.recorder.syncChecked());
         this.root.querySelector('.settings-close')?.addEventListener('click', () => this.close());
+        this.root.querySelectorAll('.settings-tab').forEach((btn) => {
+            btn.addEventListener('click', () => this.selectTab(btn.dataset.tab));
+        });
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape' && document.body.classList.contains('settings-open')) this.close();
         });
     }
 
-    /** Show the settings; `section` ('midi' | 'recorder') scrolls it into view. */
-    open(section) {
+    /** One tab at a time: 'midi' | 'recorder'. */
+    selectTab(tab) {
+        this.tab = tab === 'recorder' ? 'recorder' : 'midi';
+        this.root.querySelector('#midi-settings').hidden = this.tab !== 'midi';
+        this.root.querySelector('#recorder-settings').hidden = this.tab !== 'recorder';
+        this.root.querySelectorAll('.settings-tab').forEach((btn) => {
+            btn.setAttribute('aria-pressed', String(btn.dataset.tab === this.tab));
+        });
+        this.root.scrollTop = 0;
+    }
+
+    /** Show the settings on the given tab ('midi' | 'recorder'). */
+    open(tab) {
         if (layoutMode.isEmbed) {
             document.body.classList.add('settings-open');
         } else {
             surfaceState.show('settings');
         }
-        const target = section === 'recorder' ? '#recorder-settings' : '#midi-settings';
-        this.root.querySelector(target)?.scrollIntoView({ block: 'start' });
+        this.selectTab(tab);
     }
 
     /** Embed overlay only — on the surfaces shell, another surface is the way out. */

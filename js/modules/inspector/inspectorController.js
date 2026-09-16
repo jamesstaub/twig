@@ -3,8 +3,12 @@ import { InspectorComponent } from './InspectorComponent.js';
 import { inspectorState } from './inspectorState.js';
 import { surfaceState } from '../surfaces/surfaceState.js';
 import { layoutMode } from '../layout/layoutMode.js';
+import { triggerHarmonicAttack, triggerHarmonicRelease } from '../../audio.js';
 import {
     CONVOLUTION_IRS_CHANGED,
+    DRAWBAR_CHANGE,
+    DRAWBARS_RANDOMIZED,
+    DRAWBARS_RESET,
     ENVELOPE_MODE_CHANGED,
     INSPECTOR_CHANGED,
     LAYOUT_MODE_CHANGED,
@@ -69,6 +73,8 @@ export class InspectorController extends BaseController {
         this.component.onClose = () => inspectorState.close();
         this.component.onStep = (delta) => inspectorState.step(delta);
         this.component.onExpand = () => surfaceState.show('voice');
+        this.component.onTriggerAttack = (index) => triggerHarmonicAttack(index);
+        this.component.onTriggerRelease = (index) => triggerHarmonicRelease(index);
     }
 
     bindExternalEvents() {
@@ -87,6 +93,14 @@ export class InspectorController extends BaseController {
             if (e.detail?.index !== inspectorState.index) return;
             this.scheduleUpdate();
         });
+        // The gain dial mirrors the drawbar
+        document.addEventListener(DRAWBAR_CHANGE, (e) => {
+            if (this.component.writing) return;
+            if (e.detail?.index !== inspectorState.index) return;
+            this.scheduleUpdate();
+        });
+        document.addEventListener(DRAWBARS_RESET, () => this.scheduleUpdate());
+        document.addEventListener(DRAWBARS_RANDOMIZED, () => this.scheduleUpdate());
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape' && !this.sheetEl.hidden) inspectorState.close();
         });

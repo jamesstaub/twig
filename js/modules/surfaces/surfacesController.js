@@ -26,6 +26,7 @@ export class SurfacesController extends BaseController {
             surfaces: SURFACES,
             active: surfaceState.active,
             dock: surfaceState.dock,
+            dockShown: surfaceState.dockShown,
             embed: layoutMode.isEmbed,
             visibleRoots: surfaceState.visibleRoots(),
             allRoots: surfaceState.allRoots(),

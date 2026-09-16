@@ -55,13 +55,8 @@ body.embed .settings-close {
     cursor: pointer;
 }
 
-/* Group titles turn sideways between the groups */
-body.embed .settings-group-title {
-    flex: 0 0 auto;
-    writing-mode: vertical-rl;
-    transform: rotate(180deg);
-    margin: 0;
-    text-align: center;
+body.embed .settings-tabs {
+    flex-direction: column;
 }
 
 body.embed #midi-settings,

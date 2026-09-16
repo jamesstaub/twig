@@ -157,7 +157,6 @@ function setupSurfaces() {
     // recorder's ⚙ both land here
     settingsController = new SettingsController('#settings-control-root');
     settingsController.init();
-    document.getElementById('open-midi-mapping-btn')?.addEventListener('click', () => settingsController.open('midi'));
 }
 
 function setupMainButtons() {
@@ -183,10 +182,8 @@ function setupEnvelopeModeToggle() {
         toggle.classList.toggle('active', adsr);
         toggle.setAttribute('aria-checked', String(adsr));
         document.body.classList.toggle('adsr-mode', adsr);
-        document.getElementById('env-open-label')?.classList.toggle('inactive', adsr);
-        document.getElementById('env-open-label')?.classList.toggle('active', !adsr);
-        document.getElementById('env-adsr-label')?.classList.toggle('inactive', !adsr);
-        document.getElementById('env-adsr-label')?.classList.toggle('active', adsr);
+        const label = document.getElementById('envelope-mode-label');
+        if (label) label.textContent = adsr ? 'ADSR' : 'Open';
     };
 
     toggle.addEventListener('click', () => {

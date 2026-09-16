@@ -139,7 +139,10 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
   `[hidden]{display:none!important}`), collapses the row wrappers whose
   children are all hidden, and exposes `body[data-surface="…"]` +
   `body.viz-dock`, then dispatches a synthetic window `resize` so canvases
-  re-measure. `SurfacesController` mounts LAST in `initUI()` so every
+  re-measure. Surfaces: play (fundamental + source + pads), mix, voice,
+  system, wavetable, settings — a registry entry's `dock: false`
+  (settings) keeps the canvases off that surface even with the dock
+  toggle on (`surfaceState.dockShown` vs the toggle's `dock`). `SurfacesController` mounts LAST in `initUI()` so every
   panel has sized itself while visible. `css/components/page-arrangement.css`
   arranges whatever is left showing (single centered panel for
   Source/Fundamental/System; 2:1 Wavetable+Tonewheel; dock = second grid
@@ -169,9 +172,13 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
   immediately but defers setup to page load), so it early-returns until
   `canvasReady` — any synthetic resize before load would otherwise throw
   on `p.height`.
-- Inspector (`js/modules/inspector/`): the full per-overtone editor
-  (sequence gate + shape + modulation targets, filter & drive, pan,
-  envelope, pulse outs) — it replaced the overtone modal. `inspectorState`
+- Inspector (`js/modules/inspector/`): the full per-overtone editor —
+  left column: gain & pan (the gain dial IS the drawbar, via
+  `DrawbarsActions.setDrawbar`, mirrored on `DRAWBAR_CHANGE`), filter &
+  drive, convolution, ADSR envelope with a hold-to-trigger pad, pulse
+  outs; right column: sequence (gate + shape) and modulation depths
+  (`.inspector-main` / `.inspector-aside`; one column in the sheet, one
+  row in embed). It replaced the overtone modal. `inspectorState`
   (UI-only: selected index + sheet open, emits `INSPECTOR_CHANGED`) is
   the model; `InspectorComponent` renders from AppState via the actions;
   `InspectorController` homes the ONE component instance in either the
@@ -233,8 +240,9 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
   `MIDI_OUTPUT_CHANGED` since ports arrive late) and
   `RecorderSettingsComponent` (wav/mid layout, take length, tempo mode;
   `syncChecked` on `RECORDER_CHANGED`), both in place — the modal layer
-  (ModalComponent/modalActions/`#modal-root`) is gone. The navbar MIDI
-  button and the recorder's ⚙ call `SettingsController.open(section)`:
+  (ModalComponent/modalActions/`#modal-root`) is gone. MIDI | Recording
+  are tabs (`selectTab`); the toolbar's Settings button and the
+  recorder's ⚙ (`SettingsController.open(tab)`) get there:
   on the surfaces shell that is `surfaceState.show('settings')` (+
   scrollIntoView of the section); in embed the same root becomes a
   full-band overlay (`body.settings-open`, settings.embed.css) with its
@@ -249,8 +257,9 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
   portrait tablets — one row of everything needs ~1100px) it becomes a
   STATIC, WRAPPING block at the top of a full-height flex column
   (`body.surfaces.app-container`, page-arrangement.css; rows in
-  navbar.css: Play·MIDI·Open/ADSR, recorder, Gain·Slew — the recorder
-  joins row 1 from 48rem). A wrapping navbar has no known height, which
+  navbar.css: Play·Open/ADSR, recorder, Gain·Slew — the recorder joins
+  row 1 from 48rem). The Open/ADSR switch is styled like Play/Stop: one
+  label (`#envelope-mode-label`) naming the current state. A wrapping navbar has no known height, which
   is why the fixed-navbar + padding scheme can't be used there; the
   logo is dropped. The Gain/Slew groups and their range inputs must be
   allowed to shrink (`min-width:0; flex:1 1 0`) — a range input's

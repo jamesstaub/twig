@@ -29,12 +29,37 @@
     display: none;
 }
 
-.settings-group-title {
-    font-size: var(--font-size-sm-alt);
-    font-weight: var(--font-weight-bold);
-    color: var(--text-label);
-    letter-spacing: 0.02em;
-    margin: 0.25rem 0 0.375rem;
+/* MIDI | Recording tabs (one group showing at a time — the two together
+   were a long scroll) */
+.settings-tabs {
+    display: inline-flex;
+    gap: 0.25rem;
+}
+
+.settings-tab {
+    padding: 0.15rem 0.8rem;
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    color: var(--text-muted);
+    background: none;
+    border: 1px solid var(--border-subtle);
+    border-radius: 999px;
+    cursor: pointer;
+    transition: color 0.15s, border-color 0.15s, background-color 0.15s;
+}
+
+.settings-tab:hover {
+    color: var(--text-accent);
+}
+
+.settings-tab[aria-pressed="true"] {
+    color: var(--text-accent);
+    border-color: var(--accent-primary);
+    background-color: color-mix(in srgb, var(--accent-primary) 18%, transparent);
+}
+
+body.coarse .settings-tab {
+    padding: 0.4rem 1rem;
 }
 
 /* Cards side by side, wide ones (mapping tables) on their own rows */

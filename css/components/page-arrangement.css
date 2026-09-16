@@ -120,16 +120,23 @@ body.surfaces #drawbars-control-root {
     overflow-y: auto;
 }
 
-/* Play surface: the fundamental strip spans the width (it's the big
-   pitch control, not a centered form) and the pad grid takes the rest */
+/* Play surface: the fundamental strip and the source picker share the
+   top row (wrapping on narrow screens), the pad grid takes the rest */
 body.surfaces[data-surface="play"] #m4l-fundamental-source-panel {
     flex: 0 0 auto;
+    flex-wrap: wrap;
+    gap: 0.4rem;
 }
 
 body.surfaces[data-surface="play"] #m4l-fundamental-source-panel > .labeled-control {
-    flex: 1 1 auto;
+    flex: 1 1 22rem;
     max-width: none;
     margin: 0;
+}
+
+/* Pitch first, source beside it (the markup order is the embed band's) */
+body.surfaces[data-surface="play"] #fundamental-control-root {
+    order: -1;
 }
 
 body.surfaces #pad-grid-root {

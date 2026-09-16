@@ -17,7 +17,7 @@ const WRAPPERS = ['#m4l-fundamental-source-panel', '.wavetable-tonewheel-row', '
 
 export class SurfaceShellComponent extends BaseComponent {
 
-    render({ embed, active, dock, visibleRoots, allRoots }) {
+    render({ embed, active, dockShown, visibleRoots, allRoots }) {
         for (const id of allRoots) {
             const el = document.getElementById(id);
             if (el) el.hidden = !embed && !visibleRoots.has(id);
@@ -32,7 +32,7 @@ export class SurfaceShellComponent extends BaseComponent {
             document.body.classList.remove('viz-dock');
         } else {
             document.body.dataset.surface = active;
-            document.body.classList.toggle('viz-dock', dock);
+            document.body.classList.toggle('viz-dock', dockShown);
         }
         // Panels that were display:none while their canvases initialized
         // (p5 tonewheel, waveform previews) size themselves on window

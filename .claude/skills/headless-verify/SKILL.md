@@ -38,8 +38,11 @@ description: Verify twig changes end-to-end in a headless browser — screenshot
   (`body[data-surface="voice"]`, editor inside `#voice-control-root`),
   `.inspector-close` / Escape closes. Also reachable from the drawbar
   context menu item "Inspect Overtone". Dials inside are
-  `.inspector-dial-col .mini-dial canvas` (order: cutoff, resonance,
-  drive, pan, attack, decay, sustain, release).
+  `.inspector-dial-col .mini-dial canvas` (order: gain, pan, cutoff,
+  resonance, drive, conv feedback, conv gain, tune, attack, decay,
+  sustain, release); `.inspector-trigger` is the ADSR hold pad.
+  Surfaces: `.surface-toolbar-btn[data-surface="play|mix|voice|system|
+  wavetable|settings|dock"]` (Source lives on Play).
 - **Mix modes**: `#drawbar-shape-toggle` (then a plain press on any bar
   sculpts the row; panel in `#drawbars-shape-dock` with
   `.drawbar-shape-btn` ÷2/×2 and a `.cycle-stepper-arrow` contour
@@ -61,9 +64,10 @@ description: Verify twig changes end-to-end in a headless browser — screenshot
 - **Surfaces**: `.surface-toolbar-btn[data-surface="play|mix|voice|source|
   system|wavetable|dock"]`; `?coarse=1` previews touch density,
   portrait viewports put the viz dock on top and the sheet at the bottom.
-- Settings: `#open-midi-mapping-btn` (navbar) or the recorder's ⚙ →
-  the Settings surface (`body[data-surface="settings"]`,
-  `#midi-settings` / `#recorder-settings`); in embed it's an overlay
+- Settings: the toolbar's `[data-surface="settings"]` or the recorder's
+  ⚙ → the Settings surface (`body[data-surface="settings"]`, tabs
+  `.settings-tab[data-tab="midi|recorder"]` over `#midi-settings` /
+  `#recorder-settings`; no viz dock there); in embed it's an overlay
   (`body.settings-open`, `.settings-close`). Drawbar view tabs: click the
   `.drawbars-tab` whose text is `gain|filter|sequence`.
 

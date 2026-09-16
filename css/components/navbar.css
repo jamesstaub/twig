@@ -39,17 +39,6 @@
     flex-basis: auto;
 }
 
-.midi-btn {
-    margin-left: 0.5rem;
-}
-
-.envelope-mode-container {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    margin-left: 1rem;
-}
-
 .navbar-section.center {
     flex-wrap: wrap;
     gap: 0.75rem;
@@ -74,11 +63,15 @@
     min-width: 180px;
 }
 
-.play-toggle-container {
+/* Play/Stop and Open/ADSR: the same framed "label + switch" control, the
+   label naming the current state */
+.play-toggle-container,
+.envelope-mode-container {
     display: flex;
     flex-grow: 1;
     flex-wrap: wrap;
     align-items: center;
+    gap: 0.5rem;
     padding: 0.5rem 1rem;
     background-color: color-mix(in srgb, var(--surface-panel) 50%, transparent);
     border-radius: var(--radius-lg);
@@ -87,6 +80,10 @@
 
 #play-label {
     width: 2rem;
+}
+
+#envelope-mode-label {
+    width: 2.9rem;
 }
 
 .logo {
@@ -131,15 +128,10 @@
         flex-basis: 100%;
     }
 
-    /* Play · MIDI · Open/ADSR fit one 390px row only without the desktop
-       side margins; and the play toggle must not grow, or it fills the
-       row alone and pushes everything after it down */
-    body.surfaces .midi-btn,
+    /* The toggles must not grow, or they fill the row alone and push
+       everything after them down */
+    body.surfaces .play-toggle-container,
     body.surfaces .envelope-mode-container {
-        margin-left: 0;
-    }
-
-    body.surfaces .play-toggle-container {
         flex-grow: 0;
     }
 

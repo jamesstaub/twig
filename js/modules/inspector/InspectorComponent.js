@@ -4,6 +4,7 @@ import { calculateFrequency, formatHz } from '../../utils.js';
 import { harmonicFilterCutoff, partialFrequency, MAX_FILTER_PARTIALS } from '../../audio.js';
 import { OvertoneSignalActions, Q_MAX, DRIVE_MAX, ENV_TIME_MAX, CONV_FEEDBACK_MAX } from '../overtoneSignal/overtoneSignalActions.js';
 import { irManager } from '../../dsp/IRManager.js';
+import { DrawbarsActions } from '../drawbars/drawbarsActions.js';
 import { Dial } from '../generic/dial/Dial.js';
 import { midiOutputRouter } from '../midi/midiOutputRouter.js';
 import { noteForVoice } from '../midi/pulseMidi.js';
@@ -46,7 +47,7 @@ const ICON_CLOSE = '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" s
  * a dial mid-drag would destroy the dial).
  *
  * Callbacks (assigned by the controller): onClose(), onStep(delta),
- * onExpand().
+ * onExpand(), onTriggerAttack(index), onTriggerRelease(index).
  */
 export class InspectorComponent extends BaseComponent {
 
@@ -56,6 +57,9 @@ export class InspectorComponent extends BaseComponent {
         this.onClose = null;
         this.onStep = null;
         this.onExpand = null;
+        this.onTriggerAttack = null;
+        this.onTriggerRelease = null;
+        this._releaseTrigger = null;
     }
 
     render({ index, host, dialSize }) {
@@ -123,15 +127,25 @@ export class InspectorComponent extends BaseComponent {
     }
 
     buildSections(index) {
-        // Filter and pan are dial-sized — stacked in one column so the
-        // sequence and pulse sections get the width instead
-        const side = document.createElement('div');
-        side.className = 'inspector-side-col';
-        side.append(this.buildFilterSection(index), this.buildConvolutionSection(index), this.buildPanSection(index));
+        // Dial cards on the left (gain & pan leading), sequence and
+        // modulation as their own column on the right
+        const main = document.createElement('div');
+        main.className = 'inspector-main';
+        main.append(
+            this.buildLevelSection(index),
+            this.buildFilterSection(index),
+            this.buildConvolutionSection(index),
+            this.buildEnvelopeSection(index),
+            this.buildPulseSection(index),
+        );
+
+        const aside = document.createElement('div');
+        aside.className = 'inspector-aside';
+        aside.append(this.buildGateSection(index), this.buildModulationSection(index));
 
         const sections = document.createElement('div');
         sections.className = 'inspector-sections';
-        sections.append(this.buildGateSection(index), side, this.buildEnvelopeSection(index), this.buildPulseSection(index));
+        sections.append(main, aside);
         return sections;
     }
 
@@ -250,7 +264,14 @@ export class InspectorComponent extends BaseComponent {
         });
         renderParams();
 
-        el.sectionBody.append(this.buildShapeControls(index), this.buildTargetControls(index));
+        el.sectionBody.append(this.buildShapeControls(index));
+        return el;
+    }
+
+    /** The sequence's modulation depth per target. */
+    buildModulationSection(index) {
+        const el = this.section('Modulation');
+        el.sectionBody.appendChild(this.buildTargetControls(index));
         return el;
     }
 
@@ -322,11 +343,6 @@ export class InspectorComponent extends BaseComponent {
     buildTargetControls(index) {
         const wrap = document.createElement('div');
         wrap.className = 'inspector-targets';
-
-        const heading = document.createElement('div');
-        heading.className = 'inspector-targets-heading';
-        heading.textContent = 'Modulation Target';
-        wrap.appendChild(heading);
 
         const seq = OvertoneSignalActions.getSequencer(index);
         const addAmount = (target, labelText, min, max) => {
@@ -496,7 +512,7 @@ export class InspectorComponent extends BaseComponent {
     // ---------------------------------------------------------------
 
     buildEnvelopeSection(index) {
-        const el = this.section('Envelope');
+        const el = this.section('ADSR Envelope');
         const fmtTime = (v) => (v >= 1 ? `${v.toFixed(2)} s` : `${Math.round(v * 1000)} ms`);
 
         const row = document.createElement('div');
@@ -520,6 +536,10 @@ export class InspectorComponent extends BaseComponent {
         );
         el.sectionBody.appendChild(row);
 
+        // Trigger pad: hold = attack/sustain, let go = release — the same
+        // gate as the strip's small pads and the Q–] keys
+        el.sectionBody.appendChild(this.createTriggerPad(index));
+
         if (OvertoneSignalActions.getEnvelopeMode() !== 'adsr') {
             const hint = document.createElement('div');
             hint.className = 'inspector-hint';
@@ -529,26 +549,63 @@ export class InspectorComponent extends BaseComponent {
         return el;
     }
 
+    createTriggerPad(index) {
+        const pad = document.createElement('button');
+        pad.type = 'button';
+        pad.className = 'inspector-trigger';
+        pad.textContent = 'hold to trigger';
+        pad.setAttribute('aria-label', `Trigger overtone ${index + 1} envelope`);
+        const release = () => {
+            if (this._releaseTrigger !== release) return;
+            this._releaseTrigger = null;
+            pad.classList.remove('held');
+            this.onTriggerRelease?.(index);
+        };
+        this.bindEvent(pad, 'pointerdown', (e) => {
+            if (e.button !== 0) return;
+            e.preventDefault();
+            try {
+                pad.setPointerCapture(e.pointerId);
+            } catch { /* synthetic pointer — hold still works */ }
+            this._releaseTrigger = release;
+            pad.classList.add('held');
+            this.onTriggerAttack?.(index);
+            pad.addEventListener('pointerup', release, { once: true });
+            pad.addEventListener('pointercancel', release, { once: true });
+        });
+        return pad;
+    }
+
     // ---------------------------------------------------------------
-    // Pan
+    // Gain & pan — the voice's place in the mix
     // ---------------------------------------------------------------
 
-    buildPanSection(index) {
-        const el = this.section('Pan');
-        const format = (v) => (Math.abs(v) < 0.005 ? 'C' : (v < 0 ? `L${Math.round(-v * 100)}` : `R${Math.round(v * 100)}`));
+    buildLevelSection(index) {
+        const el = this.section('Gain & Pan');
+        el.classList.add('inspector-section-level');
+        const panText = (v) => (Math.abs(v) < 0.005 ? 'C' : (v < 0 ? `L${Math.round(-v * 100)}` : `R${Math.round(v * 100)}`));
 
         const row = document.createElement('div');
         row.className = 'inspector-dial-row';
-        let value = OvertoneSignalActions.getPan(index);
-        row.appendChild(this.dialColumn({
-            label: 'pan',
-            dial: { min: -1, max: 1, step: 0.01, value },
-            text: () => format(value),
-            onChange: (v, e) => {
-                value = v;
-                this.apply(index, e, (i) => OvertoneSignalActions.setPan(i, v));
-            },
-        }));
+        let pan = OvertoneSignalActions.getPan(index);
+        row.append(
+            // The drawbar itself, as a dial
+            this.dialColumn({
+                label: 'gain', color: '--accent-positive',
+                dial: { min: 0, max: 1, step: 0.01, value: AppState.harmonicAmplitudes?.[index] ?? 0 },
+                text: () => `${Math.round((AppState.harmonicAmplitudes?.[index] ?? 0) * 100)}%`,
+                onChange: (v, e) => this.apply(index, e, (i) => DrawbarsActions.setDrawbar(i, Math.round(v * 100) / 100)),
+            }),
+            this.dialColumn({
+                label: 'pan',
+                dial: { min: -1, max: 1, step: 0.01, value: pan },
+                text: () => panText(pan),
+                onChange: (v, e) => {
+                    pan = v;
+                    this.apply(index, e, (i) => OvertoneSignalActions.setPan(i, v));
+                },
+            })
+        );
         el.sectionBody.appendChild(row);
         return el;
     }
@@ -654,6 +711,8 @@ export class InspectorComponent extends BaseComponent {
     }
 
     teardown() {
+        // A re-render mid-hold must not strand a gated voice
+        this._releaseTrigger?.();
         super.teardown();
         this._redrawSeqPreview = null;
     }

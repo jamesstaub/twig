@@ -36,3 +36,21 @@ html, body {
 [hidden] {
     display: none !important;
 }
+
+/* An instrument, not a document: a drag on a bar, dial or pad must never
+   start selecting text. Only the info boxes and text fields keep it. */
+body {
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+input,
+textarea,
+select,
+.system-description,
+.settings-hint,
+.inspector-hint,
+.pad-grid-hint {
+    user-select: text;
+    -webkit-user-select: text;
+}
