@@ -6,8 +6,8 @@ import { OvertoneSignalActions } from './overtoneSignalActions.js';
 /**
  * Shared sequence-preview rendering: the pattern × shape × stretch control
  * signal a voice's sequencer produces, drawn in the app's viz style.
- * Used by the Overtone Settings modal and the drawbar sequence view's
- * floating value tip, plus PNG icon generation for waveform selectors.
+ * Used by the inspector, the drawbar strip's shape panel, plus PNG icon
+ * generation for waveform steppers.
  */
 
 /**
@@ -140,6 +140,29 @@ const iconCache = new Map();
  * Small PNG icon (data URL) of a waveform's cycle contour, rendered from
  * a canvas at 2× and cached per shape/size/color.
  */
+/** A waveform's 0-1 contour tiled `cycles` times across the canvas. */
+export function drawShapeContour(canvas, shapeName, cycles = 1) {
+    const ctx = canvas.getContext('2d');
+    const { width: w, height: h } = canvas;
+    ctx.fillStyle = themeColor('--viz-bg');
+    ctx.fillRect(0, 0, w, h);
+    ctx.strokeStyle = themeColor('--viz-grid');
+    ctx.lineWidth = 1;
+    ctx.strokeRect(0.5, 0.5, w - 1, h - 1);
+
+    const sample = shapeSampler(shapeName);
+    ctx.strokeStyle = themeColor('--viz-trace');
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    for (let i = 0; i <= w; i++) {
+        const s = sample(((i / w) * cycles) % 1);
+        const y = 3 + (1 - s) * (h - 6);
+        if (i === 0) ctx.moveTo(i, y);
+        else ctx.lineTo(i, y);
+    }
+    ctx.stroke();
+}
+
 export function shapeIconDataURL(shapeName, { width = 16, height = 10, color = '--text-secondary' } = {}) {
     const key = `${shapeName}|${width}x${height}|${color}`;
     if (iconCache.has(key)) return iconCache.get(key);

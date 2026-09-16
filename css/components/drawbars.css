@@ -380,6 +380,128 @@
     color: var(--text-accent);
 }
 
+/* ---- Header mode toggles: shape | link ---- */
+
+/* The header row wraps on narrow screens: the toggles drop to a second
+   line instead of widening the whole panel past the viewport (a wider-
+   than-viewport centered card shifts LEFT and takes everything with it) */
+#drawbars-control-root > span {
+    flex-wrap: wrap;
+    row-gap: 0.25rem;
+}
+
+.drawbars-modes {
+    display: inline-flex;
+    gap: 0.25rem;
+    margin-left: auto;
+}
+
+.drawbars-mode-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.05rem 0.6rem;
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-medium);
+    color: var(--text-muted);
+    background: none;
+    border: 1px solid var(--border-subtle);
+    border-radius: 999px;
+    cursor: pointer;
+    transition: color 0.15s, border-color 0.15s, background-color 0.15s;
+}
+
+.drawbars-mode-btn svg {
+    width: 1rem;
+    height: 1rem;
+}
+
+.drawbars-mode-btn:hover {
+    color: var(--text-accent);
+}
+
+.drawbars-mode-btn[aria-pressed="true"] {
+    color: var(--text-accent);
+    border-color: var(--accent-primary);
+    background-color: color-mix(in srgb, var(--accent-primary) 18%, transparent);
+}
+
+body.coarse .drawbars-mode-btn {
+    padding: 0.3rem 0.8rem;
+    font-size: var(--font-size-sm);
+}
+
+/* ---- Shape panel: docked in the band between the header and the bars
+       while shape mode is on (#drawbars-shape-dock — the strip itself
+       scrolls sideways and would clip it). One row: title, contour
+       preview, contour stepper, cycle buttons; all re-apply the last
+       gesture. The bars below re-fit to the remaining height. ---- */
+
+.drawbars-shape-dock {
+    display: flex;
+    justify-content: center;
+    margin: 0 0 0.25rem;
+}
+
+.drawbar-shape-panel {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    max-width: 100%; /* never wider than the dock: a centered overflow would slide off-screen */
+    box-sizing: border-box;
+    gap: 0.5rem 1rem;
+    padding: 0.4rem 0.9rem;
+    background-color: var(--surface-deep);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+}
+
+.drawbar-shape-title {
+    font-size: var(--font-size-3xs);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+
+.drawbar-shape-preview {
+    display: block;
+    min-height: 0 !important;
+    max-width: none !important;
+    border: 1px solid var(--border-subtle) !important;
+    border-radius: 3px !important;
+    box-shadow: none !important;
+}
+
+.drawbar-shape-cycles {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+}
+
+.drawbar-shape-cycles-label {
+    font-family: var(--font-mono);
+    font-size: var(--font-size-sm);
+    color: var(--text-accent);
+    min-width: 2.5em;
+    text-align: center;
+}
+
+.drawbar-shape-btn {
+    padding: 0 0.5rem;
+    font-size: var(--font-size-sm);
+}
+
+/* Bars read as row-linked while shape mode is on (same idea as the
+   link-all tint below, a different accent) */
+.drawbar-container.shape-mode .drawbar-slider::-webkit-slider-thumb {
+    box-shadow: 0 0 0 2px var(--accent-positive);
+}
+
+.drawbar-container.shape-mode .drawbar-slider::-moz-range-thumb {
+    box-shadow: 0 0 0 2px var(--accent-positive);
+}
+
 /* ---- Per-column aux row: live amplitude dot + view dial ---- */
 
 .drawbar-aux {

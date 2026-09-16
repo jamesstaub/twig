@@ -108,9 +108,9 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
   every drawbar has a `.drawbar-value` under the bar kept current by
   `syncFill`. `Dial` calls `onChange` BEFORE `draw()` so a `format` that
   reads host state (the inspector's cutoff "φ^2 · 660 Hz") renders the new
-  value. The floating `ValueTip` now serves only the interactive editor
-  tips (sequencer, shape) and the "?" popover — all slated to retire into
-  the inspector. Gotcha: layout.css's `.labeled-control span` restyles
+  value. The floating `ValueTip` now serves only the Overtone System "?"
+  popover (retires with it in overhaul phase 5); `Dial` has no tip
+  options left. Gotcha: layout.css's `.labeled-control span` restyles
   every span in a panel as a flex heading; widget text inside panels must
   out-specify it (dial.css uses `.mini-dial > …`).
 - Embed mode: `body.embed` (see layout mode above) when the viewport is
@@ -180,6 +180,27 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
   button; Escape closes the sheet. DrawbarsComponent only calls
   `onInspect(index)` — ui.js wires that to `inspectorState.open`, so
   the strip never imports the inspector.
+- Mix header modes (`#drawbar-shape-toggle` / `#drawbar-link-toggle`,
+  wired in drawbarsController; both UI-only, both dropped on leaving the
+  Mix surface via `SURFACE_CHANGED`). **Shape** = `DrawbarsComponent.
+  shapeMode`: every bar or dial drag sculpts the whole row, exactly what
+  a shift-drag does (`isShapeGesture(e)`); the math is the pure
+  `rowShape.js` `shapedRow()` (0-1 positions; the component maps them
+  back into each parameter's range so a shaped filter row sets series
+  steps). The panel (contour preview, contour stepper, ÷2/×2 cycles —
+  each re-applies the remembered last gesture) is BUILT by the strip
+  (`shapePanel()`, once) but DOCKED by the controller in
+  `#drawbars-shape-dock`, the band between the header and the bars: the
+  strip is a sideways-scrolling row and clips anything appended to it
+  (and in portrait `justify-content:center` overflow slides it
+  off-screen left). **Link** = `linkLock` in `linkAll.js`
+  (`isLinkAll(e)` = lock || cmd/ctrl; emits `LINK_ALL_CHANGED`) — the
+  touch stand-in for the modifier, honored by the inspector too. Gate
+  contours: `square` is constant-on by design, so shaping with it
+  flattens the row — the panel's stepper picks another. On phone
+  portrait the header (title, tabs, toggles) wraps to three lines — a
+  wider-than-viewport centered card shifts LEFT and takes every child
+  with it, so header content must always be allowed to wrap.
 - `.page-shell`/`.page-content`/`.control-card` are a flex chain filling
   the viewport below the fixed navbar (`.page-shell`'s `min-height:
   calc(100vh - navbar-height)`, `.control-card{flex:1}`) so leftover

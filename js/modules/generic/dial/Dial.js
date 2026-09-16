@@ -1,5 +1,4 @@
 import { themeColor } from '../../../theme.js';
-import { ValueTip } from '../valueTip.js';
 
 /**
  * Dial — minimal rotary control for tight spaces (drawbar columns).
@@ -11,9 +10,7 @@ import { ValueTip } from '../valueTip.js';
  *
  * Its name and current value are part of the widget — a caption above the
  * arc and a readout below it, always visible, always in the same place.
- * Nothing floats or follows the pointer. (`tipExtra` hosts still get the
- * interactive ValueTip while that mechanism exists; that's the host's
- * editor, not this control's readout.)
+ * Nothing floats or follows the pointer.
  *
  * const dial = new Dial({ min: -1, max: 1, value: 0, label: 'pan',
  *                         onChange: (v) => … });
@@ -31,14 +28,7 @@ export class Dial {
         color = '--accent-primary',
         format = null,
         onChange = null,
-        tipExtra = null,
-        tipAnchor = null,
         fineOnShift = true,
-        hostTip = null,
-        grabFocus = false,
-        tipHold = null,
-        tipPlacement = 'above',
-        onExpand = null,
     } = {}) {
         this.min = min;
         this.max = max;
@@ -50,21 +40,9 @@ export class Dial {
         this.color = color;
         this.format = format;
         this.onChange = onChange;
-        this.tipExtra = tipExtra; // () => HTMLElement embedded in the tip
-        this.tipAnchor = tipAnchor; // Element | (dial) => Element to pin the tip to
         // Hosts that give shift-drag their own meaning (shaped row apply)
         // pass false so shift moves at normal speed
         this.fineOnShift = fineOnShift;
-        // (e) => true when the host shows its own tip for this gesture —
-        // the dial then skips its readout so it can't overwrite the host's
-        this.hostTip = hostTip;
-        // grabFocus: focus the canvas on grab so "focused" is meaningful
-        // for dials; tipHold: () => bool keeping the tip open while the
-        // host's controls stay engaged (see ValueTip holdWhile)
-        this.grabFocus = grabFocus;
-        this.tipHold = tipHold;
-        this.tipPlacement = tipPlacement; // 'left' keeps interactive tips clear of the control
-        this.onExpand = onExpand; // tip corner ⤢ → host's full editor
 
         this.el = document.createElement('div');
         this.el.className = 'mini-dial';
@@ -119,7 +97,6 @@ export class Dial {
                 this.onChange?.(this.value, e);
                 this.draw();
             }
-            if (this.tipExtra && !this.hostTip?.(e)) this._showTip();
         };
 
         this.canvas.addEventListener('pointerdown', (e) => {
@@ -127,19 +104,12 @@ export class Dial {
             e.preventDefault();
             startY = e.clientY;
             startValue = this.value;
-            if (this.grabFocus) this.canvas.focus({ preventScroll: true });
-            // Only hosts with embedded editor content get a floating tip;
-            // the plain readout is the in-DOM caption/value
-            if (this.tipExtra && !this.hostTip?.(e)) this._showTip();
             try {
                 this.canvas.setPointerCapture(e.pointerId);
             } catch { /* synthetic or already-released pointer — drag still works */ }
             this.canvas.addEventListener('pointermove', onMove);
             this.canvas.addEventListener('pointerup', () => {
                 this.canvas.removeEventListener('pointermove', onMove);
-                // Grace period instead of instant hide, so interactive tip
-                // content (e.g. the stretch buttons) stays reachable
-                if (this.tipExtra) ValueTip.release();
             }, { once: true });
         });
 
@@ -162,33 +132,6 @@ export class Dial {
     setDisabled(disabled) {
         this.disabled = Boolean(disabled);
         this.el.classList.toggle('mini-dial-disabled', this.disabled);
-    }
-
-    /**
-     * Interactive tip for hosts with embedded editor content (`tipExtra`).
-     * Anchored above the dial itself, or wherever `tipAnchor` says — an
-     * Element, an {x, y} viewport point, or a function of this dial
-     * returning either — so a host can pin every tip to one spot clear of
-     * the controls (e.g. the top of a drawbar column).
-     */
-    _showTip() {
-        const anchor = (typeof this.tipAnchor === 'function' ? this.tipAnchor(this) : this.tipAnchor) || this.canvas;
-        let point = anchor;
-        if (typeof anchor.x !== 'number') {
-            const r = anchor.getBoundingClientRect();
-            point = { x: r.left + r.width / 2, y: r.top };
-        }
-        ValueTip.show(this._display(this.value), point.x, point.y, {
-            label: this.label,
-            autoHideMs: 0,
-            extra: this.tipExtra ? this.tipExtra() : null,
-            // Embedded content (seq preview + buttons) must be reachable
-            // after release, and stays open while the host is engaged
-            interactive: Boolean(this.tipExtra),
-            holdWhile: this.tipHold,
-            placement: this.tipPlacement,
-            onExpand: this.onExpand,
-        });
     }
 
     _display(v) {

@@ -1,4 +1,4 @@
-/* Floating value readout (drawbar sliders, dials) — see js/modules/generic/valueTip.js */
+/* Floating popover (the Overtone System "?" description) — see js/modules/generic/valueTip.js */
 
 .value-tip {
     position: fixed;
@@ -21,7 +21,6 @@
     white-space: nowrap;
 }
 
-/* Control name above the value (dials have no room for an inline label) */
 .value-tip-label {
     font-size: var(--font-size-3xs);
     letter-spacing: 0.04em;
@@ -32,23 +31,13 @@
     opacity: 1;
 }
 
-.value-tip canvas.value-tip-preview {
-    display: block;
-    min-height: 0 !important;
-    max-width: none !important;
-    border: 1px solid var(--border-subtle) !important;
-    border-radius: 3px !important;
-    box-shadow: none !important;
-    margin-top: 0.15rem;
-}
-
-/* Interactive tips (embedded stretch buttons) accept the pointer */
+/* Interactive popovers accept the pointer (text selection, links) */
 .value-tip.interactive {
     pointer-events: auto;
 }
 
-/* Longer, left-aligned block content (e.g. a system description) instead
-   of the default single-line centered value readout */
+/* Longer, left-aligned block content (a system description) instead of
+   the default single-line centered readout */
 .value-tip.value-tip-wrap {
     align-items: flex-start;
     white-space: normal;
@@ -64,63 +53,4 @@
 
 .value-tip.value-tip-wrap .value-tip-value a {
     color: var(--text-accent);
-}
-
-/* Corner expand button: opens the full overtone settings modal */
-.value-tip-expand {
-    position: absolute;
-    top: 0;
-    right: 1px;
-    padding: 0 3px;
-    font-size: var(--font-size-xs);
-    line-height: 1.3;
-    color: var(--text-secondary);
-    background: none;
-    border: none;
-    cursor: pointer;
-    pointer-events: auto;
-}
-
-.value-tip-expand:hover {
-    color: var(--text-accent);
-}
-
-/* The control a left-placed tip is merged with: same surface and outline
-   as the tip, so the pair reads as one connected panel */
-.value-tip-attached {
-    background: color-mix(in srgb, var(--surface-deep) 90%, transparent);
-    outline: 1px solid var(--border-subtle);
-    border-radius: 0 var(--radius-base) var(--radius-base) 0;
-}
-
-/* Merged tips are sized to the attached control (exact top + height);
-   box-sizing: border-box (set above) keeps padding/border inside it */
-.value-tip.attached-left {
-    justify-content: center;
-    overflow: hidden;
-    border-radius: var(--radius-base) 0 0 var(--radius-base);
-}
-
-/* Merged tips: the embedded content centers and fills the matched height */
-.value-tip.attached-left .value-tip-seq {
-    flex: 1;
-    align-self: stretch;
-    min-height: 0;
-    justify-content: space-evenly;
-    align-items: center;
-}
-
-/* 0/1 pattern input inside the sequencer tip (gate mode: sequence) */
-.tip-seq-input {
-    width: 100%;
-    box-sizing: border-box;
-    padding: 0.1rem 0.3rem;
-    font-size: var(--font-size-2xs-alt);
-}
-
-.value-tip-seq {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 0.25rem;
 }

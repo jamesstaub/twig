@@ -26,3 +26,5 @@ export const LAYOUT_MODE_CHANGED = 'layout-mode-changed';
 export const SURFACE_CHANGED = 'surface-changed';
 // Inspector selection / sheet open state (UI-only) — detail: { index, open }
 export const INSPECTOR_CHANGED = 'inspector-changed';
+// The link-all lock toggled (UI-only) — detail: { locked }
+export const LINK_ALL_CHANGED = 'link-all-changed';

@@ -1,13 +1,13 @@
 import { AppState } from "../../config.js";
-import { partialColor, themeColor } from "../../theme.js";
+import { partialColor } from "../../theme.js";
 import BaseComponent from "../base/BaseComponent.js";
 import { calculateFrequency, formatHz, getVoicePan } from "../../utils.js";
 import { getVoiceLevel, partialFrequency, triggerHarmonicAttack, triggerHarmonicRelease, MAX_FILTER_PARTIALS } from "../../audio.js";
 import { DrawbarsActions } from "./drawbarsActions.js";
 import { OvertoneSignalActions, Q_MAX, DRIVE_MAX, CONV_FEEDBACK_MAX } from "../overtoneSignal/overtoneSignalActions.js";
 import { Dial } from "../generic/dial/Dial.js";
-import { ValueTip } from "../generic/valueTip.js";
-import { drawSequencePreview, shapeIconDataURL, shapeSampler } from "../overtoneSignal/sequencePreview.js";
+import { drawShapeContour, shapeIconDataURL } from "../overtoneSignal/sequencePreview.js";
+import { shapedRow, stepShapeCycles } from "./rowShape.js";
 import { showStatus } from "../../domUtils.js";
 import { voiceTargets } from "../generic/linkAll.js";
 import { irManager } from "../../dsp/IRManager.js";
@@ -65,17 +65,51 @@ export class DrawbarsComponent extends BaseComponent {
         this._waveSteppers = [];
         this._modeSteppers = [];
         this._trackResizeObserver = null;
-        // Shift+drag row sculpting: shape period in row-widths, the last
-        // gesture so the tip controls can re-apply it, and an optional
-        // contour override (null = follow the main oscillator waveform)
+        // Row sculpting ("shape"): on while the Mix header's shape toggle
+        // is pressed — every drag then shapes the whole row — or for the
+        // duration of a shift-drag. Shape period in row-widths, the last
+        // gesture so the panel's controls can re-apply it, and an optional
+        // contour override (null = follow the main oscillator waveform).
+        this.shapeMode = false;
         this._shapeCycles = 1;
         this._lastShaped = null;
         this._rowShape = null;
+        this._shapePanel = null;
+        // Assigned by the controller
+        this.onInspect = null;
+        this.onShapeModeChange = null;
     }
 
-    /** Contour used for shift+drag sculpting. */
+    /** Contour used for row sculpting. */
     rowShapeName() {
         return this._rowShape || AppState.currentWaveform;
+    }
+
+    /** Does this gesture sculpt the row? The toggle, or shift held. */
+    isShapeGesture(e) {
+        return this.shapeMode || Boolean(e?.shiftKey);
+    }
+
+    /**
+     * Shape mode on/off. Marks the strip so CSS can flag the bars as
+     * row-linked, and hands the panel to the controller, which docks it
+     * above the strip (this scrolling row is no place for it):
+     * onShapeModeChange(on, panelEl | null).
+     */
+    setShapeMode(on) {
+        on = Boolean(on);
+        if (on === this.shapeMode) return;
+        this.shapeMode = on;
+        this.el.classList.toggle("shape-mode", on);
+        this.onShapeModeChange?.(on, on ? this.shapePanel() : null);
+    }
+
+    /** Back to defaults (one cycle, the oscillator's own contour) — leaving the Mix surface. */
+    resetShape() {
+        this.setShapeMode(false);
+        this._shapeCycles = 1;
+        this._rowShape = null;
+        this._lastShaped = null;
     }
 
     render(props = {}) {
@@ -94,6 +128,9 @@ export class DrawbarsComponent extends BaseComponent {
 
         this.setupDrawbars();
         this.updateDrawbarLabels(props.isSubharmonic);
+        // Re-renders keep shape mode (and the docked panel, which lives
+        // outside this element) — only the strip's marker needs restating
+        this.el.classList.toggle("shape-mode", this.shapeMode);
     }
 
     /**
@@ -148,11 +185,11 @@ export class DrawbarsComponent extends BaseComponent {
                 const newValue = Math.round((min + t * (max - min)) / step) * step;
                 if (String(newValue) !== slider.value) {
                     slider.value = newValue;
-                    if (e.shiftKey && this.view !== "sequence") {
-                        // Shift+drag: sculpt the whole row with the current
-                        // oscillator waveform, peak on the dragged column.
-                        // Gain shapes amplitudes, convolution shapes wet/dry,
-                        // filter shapes series steps.
+                    if (this.isShapeGesture(e) && this.view !== "sequence") {
+                        // Shape: sculpt the whole row with the contour, peak
+                        // on the dragged column. Gain shapes amplitudes,
+                        // convolution shapes wet/dry, filter shapes series
+                        // steps.
                         const idx = Number(slider.dataset.index);
                         const v = Number(slider.value);
                         if (this.view === "gain") {
@@ -169,7 +206,6 @@ export class DrawbarsComponent extends BaseComponent {
                                 }));
                         }
                         slider.setAttribute("aria-valuenow", slider.value);
-                        this.showShapeTip(slider);
                     } else {
                         // The pointer event carries the cmd/ctrl link modifier
                         this.handleDrawbarChange({ target: slider }, e);
@@ -185,25 +221,12 @@ export class DrawbarsComponent extends BaseComponent {
                     wrapper.setPointerCapture(e.pointerId);
                 } catch { /* synthetic pointer — drag still works */ }
                 applyPointer(e);
-                if (e.shiftKey && this.view !== "sequence") {
-                    this.showShapeTip(slider);
-                }
                 const onMove = (ev) => applyPointer(ev);
                 wrapper.addEventListener("pointermove", onMove);
                 wrapper.addEventListener("pointerup", () => {
                     wrapper.removeEventListener("pointermove", onMove);
                 }, { once: true });
             });
-        });
-
-        // Shift alone (before any drag) previews the shape tip over the
-        // hovered column, so the gesture is discoverable and the cycle
-        // buttons are reachable without committing a drag first
-        this.bindEvent(document, "keydown", (e) => {
-            if (e.key === "Shift" && !e.repeat && this.view !== "sequence") {
-                const bar = this.el.querySelector(".drawbar:hover");
-                if (bar) this.showShapeTip(bar);
-            }
         });
 
         this.startMeterLoop();
@@ -427,100 +450,6 @@ export class DrawbarsComponent extends BaseComponent {
     }
 
     /** Sequence view: X and Y pattern-parameter dials fill the column. */
-    /**
-     * Interactive tip content for the sequence view: the live sequence
-     * preview with the ×2/÷2 stretch buttons beneath it. One shared
-     * instance — only one control is adjusted at a time; button handlers
-     * follow this._tipIndex.
-     */
-    seqTipContent(index) {
-        this._tipIndex = index;
-        if (!this._tipContent) {
-            const wrap = document.createElement("div");
-            wrap.className = "value-tip-seq";
-
-            const canvas = document.createElement("canvas");
-            canvas.className = "value-tip-preview";
-            canvas.width = 160;
-            canvas.height = 36;
-            // Escape the global viz-canvas sizing, same as the dials
-            canvas.style.setProperty("width", "160px", "important");
-            canvas.style.setProperty("height", "36px", "important");
-            wrap.appendChild(canvas);
-
-            // 0/1 pattern input — only meaningful (and shown) in sequence
-            // gate mode; the drawbar view otherwise has no way to type it
-            const seqInput = document.createElement("input");
-            seqInput.type = "text";
-            seqInput.inputMode = "numeric";
-            seqInput.className = "signal-seq-input tip-seq-input";
-            seqInput.placeholder = "e.g. 10110";
-            seqInput.addEventListener("input", () => {
-                const clean = seqInput.value.replace(/[^01]/g, "");
-                if (clean !== seqInput.value) seqInput.value = clean;
-                const g = OvertoneSignalActions.getGate(this._tipIndex);
-                OvertoneSignalActions.setGate(this._tipIndex, { ...g, seq: clean.split("").map(Number) });
-                drawSequencePreview(canvas, this._tipIndex);
-            });
-            wrap.appendChild(seqInput);
-
-            // No waveform stepper here — the column's own stepper covers it
-            const row = document.createElement("div");
-            row.className = "signal-stretch-row";
-            const label = document.createElement("span");
-            label.className = "signal-stretch-label";
-            const fmt = (v) => (v >= 1 ? `×${v}` : `÷${1 / v}`);
-            const refresh = () => {
-                label.textContent = fmt(OvertoneSignalActions.getSequencer(this._tipIndex).stretch);
-                const gate = OvertoneSignalActions.getGate(this._tipIndex);
-                seqInput.style.display = gate.mode === 4 ? "" : "none";
-                // Don't clobber in-progress typing
-                if (document.activeElement !== seqInput) {
-                    seqInput.value = (gate.seq || []).join("");
-                }
-                drawSequencePreview(canvas, this._tipIndex);
-            };
-            const mkBtn = (text, factor) => {
-                const b = document.createElement("button");
-                b.type = "button";
-                b.className = "action-btn signal-stretch-btn";
-                b.textContent = text;
-                b.addEventListener("click", () => {
-                    const current = OvertoneSignalActions.getSequencer(this._tipIndex).stretch;
-                    OvertoneSignalActions.setSequencerStretch(this._tipIndex, current * factor);
-                    refresh();
-                });
-                return b;
-            };
-            row.append(mkBtn("÷2", 0.5), label, mkBtn("×2", 2));
-            wrap.appendChild(row);
-
-            this._tipContent = { wrap, refresh };
-        }
-        this._tipContent.refresh();
-        return this._tipContent.wrap;
-    }
-
-    /**
-     * Interactive tip (preview + stretch) BESIDE the column — interactive
-     * tips must never cover the controls they describe (in the embed band
-     * "above" clamps down onto them and steals the pointer).
-     */
-    showSeqTip(el, label, text, index) {
-        const bar = el.closest(".drawbar") || el;
-        const r = bar.getBoundingClientRect();
-        ValueTip.show(text, r.left, r.top + r.height / 2, {
-            label,
-            interactive: true,
-            autoHideMs: 1600,
-            placement: "left",
-            attachTo: bar,
-            holdWhile: this.seqEngaged,
-            onExpand: () => this.openOvertoneSettings(index),
-            extra: this.seqTipContent(index),
-        });
-    }
-
     /** Apply mode-specific labels to a column's x/y dials, disabling unused ones. */
     applyModeToDials(index, mode) {
         const [xLabel, yLabel] = SEQ_PARAM_LABELS[mode] || [null, null];
@@ -540,14 +469,14 @@ export class DrawbarsComponent extends BaseComponent {
         const stack = document.createElement("div");
         stack.className = "drawbar-dial-stack";
         const gate = OvertoneSignalActions.getGate(index);
-        const tipExtra = () => this.seqTipContent(index);
 
-        // Vertical stack: waveform stepper, mode stepper, then x/y dials
+        // Vertical stack: waveform stepper, mode stepper, then x/y dials.
+        // Stretch, the 0/1 pattern and the modulation amounts are the
+        // inspector's (column label opens it).
         const wave = this.waveStepper(
             () => OvertoneSignalActions.getSequencer(index).shape,
             (name, e) => {
                 voiceTargets(index, e).forEach((i) => OvertoneSignalActions.setSequencerShape(i, name));
-                this.showSeqTip(wave, "wave", name, index);
             },
             "seq-stepper"
         );
@@ -560,7 +489,6 @@ export class DrawbarsComponent extends BaseComponent {
                 voiceTargets(index, e).forEach((i) =>
                     OvertoneSignalActions.setGate(i, { ...OvertoneSignalActions.getGate(i), mode: m }));
                 this.applyModeToDials(index, m);
-                this.showSeqTip(mode, "mode", SEQ_MODE_NAMES[m], index);
             },
             className: "seq-stepper",
             render: (el, m) => {
@@ -574,16 +502,9 @@ export class DrawbarsComponent extends BaseComponent {
         dials.className = "drawbar-seq-controls";
         const gateDial = (key, label, getValue) => new Dial({
             min: 0, max: 32, step: 1, value: getValue, label,
-            tipExtra,
-            tipAnchor: this.dialTipAnchorLeft,
-            tipPlacement: "left",
-            grabFocus: true,
-            tipHold: this.seqEngaged,
             fineOnShift: false, // shift = shaped row
-            hostTip: (e) => e.shiftKey,
-            onExpand: () => this.openOvertoneSettings(index),
             onChange: (v, e) => {
-                if (e?.shiftKey) {
+                if (this.isShapeGesture(e)) {
                     this.shapeDialRow(index, stack, v, 0, 32, (i, val) =>
                         OvertoneSignalActions.setGate(i, { ...OvertoneSignalActions.getGate(i), [key]: Math.round(val) }));
                 } else {
@@ -621,13 +542,10 @@ export class DrawbarsComponent extends BaseComponent {
             const pan = new Dial({
                 min: -1, max: 1, step: 0.01, value: getVoicePan(index), label: "pan",
                 format: (v) => (Math.abs(v) < 0.005 ? "C" : v < 0 ? `L${Math.round(-v * 100)}` : `R${Math.round(v * 100)}`),
-                tipAnchor: this.dialTipAnchor,
                 fineOnShift: false, // shift = shaped row
-                hostTip: (e) => e.shiftKey, // shape tip owns shift gestures
-                onExpand: () => this.openOvertoneSettings(index),
                 onChange: (v, e) => {
-                    if (e?.shiftKey) {
-                        this.shapeDialRow(index, aux, v, -1, 1, (i, val) => OvertoneSignalActions.setPan(i, val));
+                    if (this.isShapeGesture(e)) {
+                        this.shapeDialRow(index, v, -1, 1, (i, val) => OvertoneSignalActions.setPan(i, val));
                     } else {
                         voiceTargets(index, e).forEach((i) => OvertoneSignalActions.setPan(i, v));
                     }
@@ -641,11 +559,9 @@ export class DrawbarsComponent extends BaseComponent {
                 color: "--accent-negative",
                 format: (v) => `Q ${v.toFixed(2)}`,
                 fineOnShift: false, // shift = shaped row
-                hostTip: (e) => e.shiftKey, // shape tip owns shift gestures
-                onExpand: () => this.openOvertoneSettings(index),
                 onChange: (v, e) => {
-                    if (e?.shiftKey) {
-                        this.shapeDialRow(index, aux, v, 0.1, Q_MAX, (i, val) =>
+                    if (this.isShapeGesture(e)) {
+                        this.shapeDialRow(index, v, 0.1, Q_MAX, (i, val) =>
                             OvertoneSignalActions.setFilter(i, { ...OvertoneSignalActions.getFilter(i), q: val }));
                     } else {
                         voiceTargets(index, e).forEach((i) =>
@@ -658,11 +574,9 @@ export class DrawbarsComponent extends BaseComponent {
                 color: "--accent-positive",
                 format: (v) => (v > 0 ? `${Math.round(v * 100)}%` : "clean"),
                 fineOnShift: false, // shift = shaped row
-                hostTip: (e) => e.shiftKey, // shape tip owns shift gestures
-                onExpand: () => this.openOvertoneSettings(index),
                 onChange: (v, e) => {
-                    if (e?.shiftKey) {
-                        this.shapeDialRow(index, aux, v, 0, DRIVE_MAX, (i, val) => OvertoneSignalActions.setDrive(i, val));
+                    if (this.isShapeGesture(e)) {
+                        this.shapeDialRow(index, v, 0, DRIVE_MAX, (i, val) => OvertoneSignalActions.setDrive(i, val));
                     } else {
                         voiceTargets(index, e).forEach((i) => OvertoneSignalActions.setDrive(i, v));
                     }
@@ -699,10 +613,9 @@ export class DrawbarsComponent extends BaseComponent {
                 color: "--accent-negative",
                 format: (v) => `fb ${v < 0 ? "−" : ""}${Math.round(Math.abs(v) * 100)}`,
                 fineOnShift: false, // shift = shaped row
-                hostTip: (e) => e.shiftKey,
                 onChange: (v, e) => {
-                    if (e?.shiftKey) {
-                        this.shapeDialRow(index, aux, v, -CONV_FEEDBACK_MAX, CONV_FEEDBACK_MAX, (i, val) =>
+                    if (this.isShapeGesture(e)) {
+                        this.shapeDialRow(index, v, -CONV_FEEDBACK_MAX, CONV_FEEDBACK_MAX, (i, val) =>
                             OvertoneSignalActions.setConvolution(i, { feedback: val }));
                     } else {
                         voiceTargets(index, e).forEach((i) => OvertoneSignalActions.setConvolution(i, { feedback: v }));
@@ -714,10 +627,9 @@ export class DrawbarsComponent extends BaseComponent {
                 color: "--accent-positive",
                 format: (v) => `${Math.round(v * 100)}%`,
                 fineOnShift: false, // shift = shaped row
-                hostTip: (e) => e.shiftKey,
                 onChange: (v, e) => {
-                    if (e?.shiftKey) {
-                        this.shapeDialRow(index, aux, v, 0, 1, (i, val) =>
+                    if (this.isShapeGesture(e)) {
+                        this.shapeDialRow(index, v, 0, 1, (i, val) =>
                             OvertoneSignalActions.setConvolution(i, { gain: val }));
                     } else {
                         voiceTargets(index, e).forEach((i) => OvertoneSignalActions.setConvolution(i, { gain: v }));
@@ -730,10 +642,9 @@ export class DrawbarsComponent extends BaseComponent {
                 min: 0, max: MAX_FILTER_PARTIALS, step: 1, value: conv.tune, label: "tune",
                 format: (v) => (v === 0 ? "period" : this.filterTipText(index, v)),
                 fineOnShift: false, // shift = shaped row
-                hostTip: (e) => e.shiftKey,
                 onChange: (v, e) => {
-                    if (e?.shiftKey) {
-                        this.shapeDialRow(index, aux, v, 0, MAX_FILTER_PARTIALS, (i, val) =>
+                    if (this.isShapeGesture(e)) {
+                        this.shapeDialRow(index, v, 0, MAX_FILTER_PARTIALS, (i, val) =>
                             OvertoneSignalActions.setConvolution(i, { tune: Math.round(val) }));
                     } else {
                         voiceTargets(index, e).forEach((i) => OvertoneSignalActions.setConvolution(i, { tune: v }));
@@ -753,49 +664,26 @@ export class DrawbarsComponent extends BaseComponent {
     }
 
     /**
-     * Shift+drag row sculpting: the dragged control tracks the pointer
-     * exactly; every other voice blends between the oscillator waveform's
-     * contour (its peak anchored on the dragged column, same 0-1 shapes the
-     * sequencer uses) and that contour's inverse. Dragging to the top draws
-     * the shape itself; to the bottom its negative; mid positions flatten
-     * toward an even row.
-     *
-     * Works on normalized 0-1 POSITIONS: `t` is the dragged control's
-     * position within its range, and `setNorm(i, ti)` maps each voice's
-     * shaped position back into the parameter — so a shaped filter row sets
-     * series steps (each voice's own Hz follows), not absolute outputs.
+     * Row sculpting (see rowShape.js): `t` is the dragged control's 0-1
+     * position within its range; `setNorm(i, ti)` maps each voice's shaped
+     * position back into the parameter. The gesture is remembered so the
+     * shape panel's contour/cycle controls can re-apply it live.
      */
     applyShapedRow(index, t, setNorm) {
-        const count = AppState.currentSystem.ratios.length;
-        const sample = shapeSampler(this.rowShapeName());
-
-        // Anchor the contour's maximum on the dragged column
-        let maxPhase = 0;
-        let maxVal = -Infinity;
-        for (let i = 0; i < 128; i++) {
-            const s = sample(i / 128);
-            if (s > maxVal) {
-                maxVal = s;
-                maxPhase = i / 128;
-            }
-        }
-
-        for (let i = 0; i < count; i++) {
-            const phase = ((maxPhase + ((i - index) / count) * this._shapeCycles) % 1 + 1) % 1;
-            const s = sample(phase);
-            setNorm(i, s * t + (1 - s) * (1 - t));
-        }
+        const positions = shapedRow({
+            count: AppState.currentSystem.ratios.length,
+            index, t,
+            cycles: this._shapeCycles,
+            shapeName: this.rowShapeName(),
+        });
+        positions.forEach((ti, i) => setNorm(i, ti));
         this._lastShaped = { index, t, setNorm };
     }
 
-    /**
-     * Shift-drag handler for a voice dial: normalize the dial value into
-     * its range, shape the row, and show the interactive shape tip.
-     */
-    shapeDialRow(index, anchorEl, value, min, max, set) {
+    /** Shape gesture on a voice dial: normalize its value into its range and shape the row. */
+    shapeDialRow(index, value, min, max, set) {
         const t = (value - min) / (max - min || 1);
         this.applyShapedRow(index, t, (i, ti) => set(i, min + ti * (max - min)));
-        this.showShapeTip(anchorEl);
     }
 
     /**
@@ -857,34 +745,41 @@ export class DrawbarsComponent extends BaseComponent {
     }
 
     /**
-     * Interactive tip for the shape gesture: the waveform contour at the
-     * current cycle count, a ‹›-stepper picking the sculpt contour (defaults
-     * to the oscillator waveform, without touching it), and the same ÷2/×2
-     * stretch controls as the sequencer tip.
+     * Shape panel — docked in the strip while shape mode is on: the
+     * contour tiled at the current cycle count, a ‹›-stepper picking the
+     * sculpt contour (defaults to the oscillator waveform, without touching
+     * it), and ÷2/×2 cycle buttons. Changing either re-applies the last
+     * gesture, so the row follows live. Built once; its state is the
+     * gesture's, so it survives strip re-renders. The controller docks it
+     * above the strip (see setShapeMode).
      */
-    shapeTipContent() {
-        if (!this._shapeTip) {
-            const wrap = document.createElement("div");
-            wrap.className = "value-tip-seq";
+    shapePanel() {
+        if (!this._shapePanel) {
+            const el = document.createElement("div");
+            el.className = "drawbar-shape-panel";
+
+            const title = document.createElement("span");
+            title.className = "drawbar-shape-title";
+            title.textContent = "shape row";
 
             const canvas = document.createElement("canvas");
-            canvas.className = "value-tip-preview";
+            canvas.className = "drawbar-shape-preview";
             canvas.width = 160;
-            canvas.height = 36;
+            canvas.height = 44;
+            // Escape the global viz-canvas sizing, same as the dials
             canvas.style.setProperty("width", "160px", "important");
-            canvas.style.setProperty("height", "36px", "important");
-            wrap.appendChild(canvas);
+            canvas.style.setProperty("height", "44px", "important");
 
-            const row = document.createElement("div");
-            row.className = "signal-stretch-row";
+            const cycles = document.createElement("div");
+            cycles.className = "drawbar-shape-cycles";
             const label = document.createElement("span");
-            label.className = "signal-stretch-label";
+            label.className = "drawbar-shape-cycles-label";
             const fmt = (v) => (v >= 1 ? `×${v}` : `÷${1 / v}`);
             let stepper;
             const refresh = () => {
                 label.textContent = fmt(this._shapeCycles);
                 stepper?._refresh();
-                this.drawShapeTip(canvas);
+                drawShapeContour(canvas, this.rowShapeName(), this._shapeCycles);
             };
             const reapply = () => {
                 if (this._lastShaped) {
@@ -898,70 +793,29 @@ export class DrawbarsComponent extends BaseComponent {
                     this._rowShape = name;
                     refresh();
                     reapply();
-                }
+                },
+                "drawbar-shape-stepper"
             );
             const mkBtn = (text, factor) => {
                 const b = document.createElement("button");
                 b.type = "button";
-                b.className = "action-btn signal-stretch-btn";
+                b.className = "action-btn drawbar-shape-btn";
                 b.textContent = text;
+                b.title = text === "×2" ? "twice as many cycles across the row" : "half as many cycles across the row";
                 b.addEventListener("click", () => {
-                    this._shapeCycles = Math.max(0.25, Math.min(8, this._shapeCycles * factor));
+                    this._shapeCycles = stepShapeCycles(this._shapeCycles, factor);
                     refresh();
                     reapply();
                 });
                 return b;
             };
-            // Stepper and stretch controls vertically stacked
-            row.append(mkBtn("÷2", 0.5), label, mkBtn("×2", 2));
-            wrap.append(stepper, row);
+            cycles.append(mkBtn("÷2", 0.5), label, mkBtn("×2", 2));
+            el.append(title, canvas, stepper, cycles);
 
-            this._shapeTip = { wrap, refresh };
+            this._shapePanel = { el, refresh };
         }
-        this._shapeTip.refresh();
-        return this._shapeTip.wrap;
-    }
-
-    /** The oscillator waveform's contour, tiled at the current cycle count. */
-    drawShapeTip(canvas) {
-        const ctx = canvas.getContext("2d");
-        const { width: w, height: h } = canvas;
-        ctx.fillStyle = themeColor("--viz-bg");
-        ctx.fillRect(0, 0, w, h);
-        ctx.strokeStyle = themeColor("--viz-grid");
-        ctx.lineWidth = 1;
-        ctx.strokeRect(0.5, 0.5, w - 1, h - 1);
-
-        const sample = shapeSampler(this.rowShapeName());
-        ctx.strokeStyle = themeColor("--viz-trace");
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        for (let i = 0; i <= w; i++) {
-            const s = sample(((i / w) * this._shapeCycles) % 1);
-            const y = 3 + (1 - s) * (h - 6);
-            if (i === 0) ctx.moveTo(i, y);
-            else ctx.lineTo(i, y);
-        }
-        ctx.stroke();
-    }
-
-    /**
-     * Beside (left of) the gestured column, not above it: the interactive
-     * tip must never cover the slider being dragged — in the short embed
-     * band "above" clamps down onto the controls and steals the pointer.
-     */
-    showShapeTip(el) {
-        const bar = el.closest(".drawbar") || el;
-        const r = bar.getBoundingClientRect();
-        ValueTip.show(this.rowShapeName(), r.left, r.top + r.height / 2, {
-            label: "shape row",
-            interactive: true,
-            autoHideMs: 1600,
-            placement: "left", // TODO: should auto choose L or R depending on space
-            attachTo: bar,
-            onExpand: () => this.openOvertoneSettings(Number(bar.dataset.index) || 0),
-            extra: this.shapeTipContent(),
-        });
+        this._shapePanel.refresh();
+        return this._shapePanel.el;
     }
 
     /**
@@ -1067,51 +921,6 @@ export class DrawbarsComponent extends BaseComponent {
         return `${label} · ${formatHz(partialFrequency(voiceFreq, step))}`;
     }
 
-    /**
-     * Where a column's pinned tip goes: centered, at the top of the column —
-     * except in the sequence view, where the controls sit vertically centered
-     * inside the fixed-height dial stack; there the tip hugs the topmost
-     * visible control instead of floating high above the empty space.
-     */
-    columnTipPoint(bar) {
-        const rect = bar.getBoundingClientRect();
-        let top = rect.top;
-        const stack = bar.querySelector(".drawbar-dial-stack");
-        if (stack) {
-            const items = stack.querySelectorAll(".cycle-stepper, .mini-dial");
-            const tops = Array.from(items, (el) => el.getBoundingClientRect().top);
-            if (tops.length) top = Math.min(...tops);
-        }
-        return { x: rect.left + rect.width / 2, y: top };
-    }
-
-    /** Pins a dial's tip to its column's tip point (see columnTipPoint). */
-    dialTipAnchor = (dial) => {
-        const bar = dial.el.closest(".drawbar");
-        return bar ? this.columnTipPoint(bar) : null;
-    };
-
-    /** Left-center of the dial's column — for left-placed interactive tips. */
-    dialTipAnchorLeft = (dial) => {
-        const bar = dial.el.closest(".drawbar");
-        if (!bar) return null;
-        const r = bar.getBoundingClientRect();
-        return { x: r.left, y: r.top + r.height / 2 };
-    };
-
-    /**
-     * True while any sequence-view control (x/y dial, mode button, wave
-     * icon) or the tip itself holds focus — the seq tip stays open for as
-     * long as this does. Focus lands on the buttons via click and on the
-     * dials via grabFocus.
-     */
-    seqEngaged = () => {
-        const a = document.activeElement;
-        if (!a || a === document.body) return false;
-        if (a.closest?.(".value-tip")) return true;
-        return this.el.contains(a) && Boolean(a.closest(".drawbar-dial-stack"));
-    };
-
     setValue(index, value) {
         if (this.view === "gain" && this.sliders[index]) {
             this.sliders[index].value = value;
@@ -1119,7 +928,7 @@ export class DrawbarsComponent extends BaseComponent {
         }
     }
 
-    /** Full per-overtone editor (the inspector) — label click, context menu, tip corners. */
+    /** Full per-overtone editor (the inspector) — label click, context menu. */
     openOvertoneSettings(index) {
         this.onInspect?.(index);
     }

@@ -7,19 +7,25 @@ import {
     DRAWBAR_CHANGE,
     DRAWBARS_RANDOMIZED,
     DRAWBARS_RESET,
+    LINK_ALL_CHANGED,
     OVERTONE_SIGNAL_CHANGED,
     SOURCE_CHANGED,
     SPECTRAL_SYSTEM_CHANGED,
-    SUBHARMONIC_TOGGLED
+    SUBHARMONIC_TOGGLED,
+    SURFACE_CHANGED
 } from "../../events.js";
 import { BaseController } from "../base/BaseController.js";
 import { AppState } from "../../config.js";
 import { irManager } from "../../dsp/IRManager.js";
 import { ConvolutionActions } from "../convolution/convolutionActions.js";
+import { linkLock } from "../generic/linkAll.js";
 
 const RESET_DRAWBARS_BUTTON_ID = "reset-drawbars-button";
 const RANDOMIZE_DRAWBARS_BUTTON_ID = "randomize-drawbars-button";
 const CREATE_IR_BUTTON_ID = "create-ir-button-drawbars";
+const SHAPE_TOGGLE_ID = "drawbar-shape-toggle";
+const LINK_TOGGLE_ID = "drawbar-link-toggle";
+const SHAPE_DOCK_ID = "drawbars-shape-dock";
 
 export class DrawbarsController extends BaseController {
 
@@ -39,6 +45,27 @@ export class DrawbarsController extends BaseController {
         // Assigned by ui.js (this.onInspect) so the strip doesn't know
         // where the editor lives.
         this.component.onInspect = (index) => this.onInspect?.(index);
+        // The strip builds the shape panel; it docks in the band above the
+        // bars (the strip itself scrolls sideways and would clip it)
+        this.component.onShapeModeChange = (on, panel) => {
+            const dock = document.getElementById(SHAPE_DOCK_ID);
+            if (dock) {
+                dock.innerHTML = "";
+                if (on && panel) dock.appendChild(panel);
+                dock.hidden = !on;
+            }
+            this.syncModeButtons();
+        };
+    }
+
+    /**
+     * Mix header modes: shape (row sculpting — the toggle stands in for
+     * holding shift) and link (every edit to all overtones — stands in for
+     * cmd/ctrl). Both are tools of this surface: leaving Mix drops them.
+     */
+    syncModeButtons() {
+        document.getElementById(SHAPE_TOGGLE_ID)?.setAttribute("aria-pressed", String(this.component.shapeMode));
+        document.getElementById(LINK_TOGGLE_ID)?.setAttribute("aria-pressed", String(linkLock.on));
     }
 
     updateDrawbar({ index, value }) {
@@ -85,6 +112,19 @@ export class DrawbarsController extends BaseController {
         document.getElementById(CREATE_IR_BUTTON_ID)?.addEventListener("click", () => {
             ConvolutionActions.createIRFromCurrent();
         });
+
+        document.getElementById(SHAPE_TOGGLE_ID)?.addEventListener("click", () => {
+            this.component.setShapeMode(!this.component.shapeMode);
+        });
+        document.getElementById(LINK_TOGGLE_ID)?.addEventListener("click", () => linkLock.toggle());
+        document.addEventListener(LINK_ALL_CHANGED, () => this.syncModeButtons());
+        document.addEventListener(SURFACE_CHANGED, (e) => {
+            if (e.detail?.active !== "mix") {
+                this.component.resetShape();
+                linkLock.set(false);
+            }
+        });
+        this.syncModeButtons();
 
         // Per-overtone signal edits from the modal or OSC → visible controls
         document.addEventListener(OVERTONE_SIGNAL_CHANGED, (e) => {
