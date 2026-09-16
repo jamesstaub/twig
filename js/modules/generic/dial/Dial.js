@@ -9,6 +9,12 @@ import { ValueTip } from '../valueTip.js';
  *   reset to the initial value. Exposes .el (mount it anywhere) and
  *   .setValue() for external state sync (no onChange echo).
  *
+ * Its name and current value are part of the widget — a caption above the
+ * arc and a readout below it, always visible, always in the same place.
+ * Nothing floats or follows the pointer. (`tipExtra` hosts still get the
+ * interactive ValueTip while that mechanism exists; that's the host's
+ * editor, not this control's readout.)
+ *
  * const dial = new Dial({ min: -1, max: 1, value: 0, label: 'pan',
  *                         onChange: (v) => … });
  * parent.appendChild(dial.el);
@@ -63,6 +69,11 @@ export class Dial {
         this.el = document.createElement('div');
         this.el.className = 'mini-dial';
 
+        this.labelEl = document.createElement('span');
+        this.labelEl.className = 'mini-dial-label';
+        this.labelEl.textContent = label;
+        this.el.appendChild(this.labelEl);
+
         // Backing store at device resolution; drawn through an explicit DPR
         // transform every frame so strokes stay crisp on any display
         this.dpr = window.devicePixelRatio || 1;
@@ -75,6 +86,10 @@ export class Dial {
         this.canvas.style.setProperty('height', `${size}px`, 'important');
         if (this.grabFocus) this.canvas.tabIndex = -1;
         this.el.appendChild(this.canvas);
+
+        this.valueEl = document.createElement('span');
+        this.valueEl.className = 'mini-dial-value';
+        this.el.appendChild(this.valueEl);
 
         this._bindDrag();
         this.draw();
@@ -96,12 +111,15 @@ export class Dial {
             const next = this._quantize(startValue + (startY - e.clientY) * scale);
             if (next !== this.value) {
                 this.value = next;
-                this.draw();
-                // The event rides along so hosts can read gesture modifiers
-                // (cmd/ctrl-drag = apply to all overtones)
+                // Host first, then draw: a `format` that reads host state
+                // (the modal's cutoff → "φ^2 · 660 Hz") must see the new
+                // value when the readout renders. The event rides along so
+                // hosts can read gesture modifiers (cmd/ctrl-drag = apply
+                // to all overtones).
                 this.onChange?.(this.value, e);
+                this.draw();
             }
-            if (!this.hostTip?.(e)) this._showTip();
+            if (this.tipExtra && !this.hostTip?.(e)) this._showTip();
         };
 
         this.canvas.addEventListener('pointerdown', (e) => {
@@ -110,8 +128,9 @@ export class Dial {
             startY = e.clientY;
             startValue = this.value;
             if (this.grabFocus) this.canvas.focus({ preventScroll: true });
-            // Show the tip on grab: the control's name lives here, not in the DOM
-            if (!this.hostTip?.(e)) this._showTip();
+            // Only hosts with embedded editor content get a floating tip;
+            // the plain readout is the in-DOM caption/value
+            if (this.tipExtra && !this.hostTip?.(e)) this._showTip();
             try {
                 this.canvas.setPointerCapture(e.pointerId);
             } catch { /* synthetic or already-released pointer — drag still works */ }
@@ -120,20 +139,22 @@ export class Dial {
                 this.canvas.removeEventListener('pointermove', onMove);
                 // Grace period instead of instant hide, so interactive tip
                 // content (e.g. the stretch buttons) stays reachable
-                ValueTip.release();
+                if (this.tipExtra) ValueTip.release();
             }, { once: true });
         });
 
         this.canvas.addEventListener('dblclick', (e) => {
             if (this.disabled) return;
-            this.setValue(this.initialValue);
+            this.value = this._quantize(this.initialValue);
             this.onChange?.(this.value, e);
+            this.draw();
         });
     }
 
     /** Rename the control (e.g. mode-specific sequencer param names). */
     setLabel(text) {
         this.label = text;
+        this.labelEl.textContent = text;
         this.draw(); // refreshes the hover title
     }
 
@@ -144,11 +165,11 @@ export class Dial {
     }
 
     /**
-     * Floating readout: control name over current value. Anchored above the
-     * dial itself, or wherever `tipAnchor` says — an Element, an {x, y}
-     * viewport point, or a function of this dial returning either — so a
-     * host can pin every tip to one spot clear of the controls (e.g. the
-     * top of a drawbar column).
+     * Interactive tip for hosts with embedded editor content (`tipExtra`).
+     * Anchored above the dial itself, or wherever `tipAnchor` says — an
+     * Element, an {x, y} viewport point, or a function of this dial
+     * returning either — so a host can pin every tip to one spot clear of
+     * the controls (e.g. the top of a drawbar column).
      */
     _showTip() {
         const anchor = (typeof this.tipAnchor === 'function' ? this.tipAnchor(this) : this.tipAnchor) || this.canvas;
@@ -218,6 +239,8 @@ export class Dial {
         ctx.lineTo(c + Math.cos(angle) * r, c + Math.sin(angle) * r);
         ctx.stroke();
 
-        this.canvas.title = this._display(this.value);
+        const text = this._display(this.value);
+        this.valueEl.textContent = text;
+        this.canvas.title = text;
     }
 }

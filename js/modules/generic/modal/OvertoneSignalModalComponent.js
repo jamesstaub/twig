@@ -455,28 +455,17 @@ export default class OvertoneSignalModalComponent extends ModalComponent {
     dialColumn({ label, color, dial, text, onChange }) {
         const col = document.createElement('div');
         col.className = 'signal-dial-col';
-
-        const valueEl = document.createElement('span');
-        valueEl.className = 'signal-vslider-value';
-        valueEl.textContent = text();
-
+        // The Dial renders its own caption and readout; `text` may be
+        // two-line ("φ^2\n660 Hz") and the readout preserves the break
         const d = new Dial({
             ...dial,
             size: 32,
             label,
             ...(color ? { color } : {}),
-            format: () => text().replace('\n', ' · '),
-            onChange: (v, e) => {
-                onChange(v, e);
-                valueEl.textContent = text();
-            },
+            format: text,
+            onChange,
         });
-
-        const name = document.createElement('span');
-        name.className = 'signal-dial-name';
-        name.textContent = label;
-
-        col.append(d.el, name, valueEl);
+        col.appendChild(d.el);
         return col;
     }
 

@@ -18,3 +18,9 @@ export const CONVOLUTION_IRS_CHANGED = 'convolution-irs-changed';
 export const IR_RING_CHANGED = 'ir-ring-changed';
 export const RECORDER_CHANGED = 'recorder-changed';
 export const RECORDINGS_CHANGED = 'recordings-changed';
+// Shell (embed | surfaces) or pointer density (coarse) changed — see
+// js/modules/layout/layoutMode.js. detail: { shell, coarse }
+export const LAYOUT_MODE_CHANGED = 'layout-mode-changed';
+// Active surface or viz-dock flag changed — see js/modules/surfaces/
+// surfaceState.js. detail: { active, dock }
+export const SURFACE_CHANGED = 'surface-changed';

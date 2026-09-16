@@ -116,26 +116,13 @@
     border-color: var(--text-accent);
 }
 
-/* Start harmonic + system-param dials: always one inline row, name above
-   each dial rather than beside it. */
+/* Start harmonic + system-param dials: always one inline row (each Dial
+   carries its own caption above and readout below). */
 .system-dials-row {
     display: flex;
     flex-wrap: wrap;
     align-items: flex-start;
     gap: 0.75rem;
-}
-
-.system-dial-col {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 0.15rem;
-}
-
-.system-dial-name {
-    font-size: var(--font-size-3xs);
-    color: var(--text-secondary);
-    white-space: nowrap;
 }
 
 /* Overtone/subharmonic toggle row's wrapper, beneath the system select */

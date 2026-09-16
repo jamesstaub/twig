@@ -67,11 +67,18 @@ function createVisualizationSketch() {
             return spreadFactor;
         };
 
+        // p5 subscribes to window resize as soon as the instance exists but
+        // defers setup() (and so the canvas) until the page has loaded; a
+        // resize arriving in between — the surfaces shell dispatches one
+        // synthetically during init — must not touch p.width/height yet.
+        let canvasReady = false;
+
         p.setup = function () {
             const container = document.getElementById('tonewheel-canvas');
             const size = squareSizeFor(container);
             p.createCanvas(size, size).parent(container ? 'tonewheel-canvas' : 'body');
             p.angleMode(p.RADIANS);
+            canvasReady = true;
             updateDimensions();
         };
 
@@ -215,6 +222,7 @@ function createVisualizationSketch() {
         };
 
         p.windowResized = function () {
+            if (!canvasReady) return;
             const container = document.getElementById('tonewheel-canvas');
             const size = squareSizeFor(container);
             p.resizeCanvas(size, size);

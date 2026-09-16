@@ -14,6 +14,7 @@
 @import "./theme.css";
 @import "./base.css";
 @import "./components/layout.css";
+@import "./components/surfaces.css";
 @import "./components/page-arrangement.css";
 @import "./components/navbar.css";
 @import "./components/recorder.css";
@@ -21,6 +22,7 @@
 @import "./components/form-controls.css";
 @import "./components/value-tip.css";
 @import "./components/cycle-stepper.css";
+@import "./components/dial.css";
 @import "./components/slider.css";
 @import "./components/keyboard.css";
 @import "./components/toggle.css";
@@ -43,6 +45,7 @@
 @import "./components/value-tip.embed.css";
 @import "./components/keyboard.embed.css";
 @import "./components/toggle.embed.css";
+@import "./components/dial.embed.css";
 @import "./components/drawbars.embed.css";
 @import "./components/viz.embed.css";
 @import "./components/modal.embed.css";

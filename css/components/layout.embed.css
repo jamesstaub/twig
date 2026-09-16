@@ -101,10 +101,6 @@ body.embed #m4l-fundamental-source-panel .system-dials-row {
     gap: 0.4rem;
 }
 
-body.embed #m4l-fundamental-source-panel .system-dial-name {
-    font-size: var(--font-size-3xs);
-}
-
 body.embed #m4l-fundamental-source-panel .select-step-btn {
     padding: 0 0.25rem;
     font-size: var(--font-size-2xs);

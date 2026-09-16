@@ -31,6 +31,7 @@ import { setPulseHandler } from './audio.js';
 import { SourceController } from './modules/source/sourceController.js';
 import { SpectrumController } from './modules/spectrum/spectrumController.js';
 import { RecorderController } from './modules/recording/recorderController.js';
+import { SurfacesController } from './modules/surfaces/surfacesController.js';
 // ================================
 // INITIALIZATION
 // ================================
@@ -84,6 +85,7 @@ export function initUI() {
     setupWaveforms();
     setupRoutingControl();
     setupFundamental();
+    setupSurfaces();
 
 
     // Initialize keyboard shortcuts
@@ -160,6 +162,12 @@ function setupFundamental() {
 // ================================
 // MAIN CONTROL BUTTONS
 // ================================
+
+function setupSurfaces() {
+    // After every panel is mounted (and its canvases sized while visible),
+    // so the shell can hide the ones the default surface doesn't show
+    new SurfacesController('#surface-toolbar', '.page-content').init();
+}
 
 function setupMainButtons() {
     const playToggleController = new PlayToggleController('.play-toggle-container');

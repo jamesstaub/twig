@@ -1,0 +1,8 @@
+/* Embed-mode overrides for dial.css. The 150px band has no room for a
+   readout under each dial (it never had one); captions stay where the
+   band already showed them (the m4l panel's system dials) and are hidden
+   by drawbars.embed.css inside the strip, which never had them. */
+
+body.embed .mini-dial-value {
+    display: none;
+}

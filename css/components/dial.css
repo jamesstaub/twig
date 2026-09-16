@@ -1,0 +1,74 @@
+/* Dial widget (js/modules/generic/dial/Dial.js): caption above the arc,
+   value readout below — the control carries its own name and value, in
+   the same place every time, nothing floats. Look and feel comes from
+   theme.css tokens only. */
+
+.mini-dial {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1px;
+}
+
+/* Child-combinator selectors on purpose: layout.css styles every `span`
+   inside a .labeled-control as a flex heading (display:flex, label color,
+   medium weight, bottom margin) — these must out-specify that so the
+   widget owns its own text wherever it's mounted. */
+.mini-dial > .mini-dial-label,
+.mini-dial > .mini-dial-value {
+    display: block;
+    margin: 0;
+    font-size: var(--font-size-3xs);
+    font-weight: var(--font-weight-normal);
+    line-height: 1.2;
+    text-align: center;
+    white-space: pre-line;    /* multi-line readouts ("φ^2\n660 Hz") */
+    overflow-wrap: anywhere;
+    max-width: 100%;
+}
+
+.mini-dial > .mini-dial-label {
+    color: var(--text-secondary);
+    letter-spacing: 0.02em;
+}
+
+.mini-dial > .mini-dial-label:empty {
+    display: none;
+}
+
+.mini-dial > .mini-dial-value {
+    font-family: var(--font-mono);
+    color: var(--text-accent);
+}
+
+/* Escape the global viz-canvas styling (100% width, dark panel, border,
+   min-height) — a dial is a control, not a visualization surface. */
+.mini-dial canvas {
+    display: block;
+    flex-shrink: 0;
+    min-height: 0 !important;
+    max-width: none !important;
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    background: transparent !important;
+    object-fit: fill !important;
+    cursor: ns-resize;
+    touch-action: none;
+}
+
+/* grabFocus dials take focus so the seq tip knows they're engaged —
+   the dial's own arc is the affordance, no ring needed */
+.mini-dial canvas:focus {
+    outline: none;
+}
+
+.mini-dial-disabled {
+    opacity: 0.3;
+    pointer-events: none;
+}
+
+/* Link-all mode (cmd/ctrl held): a subtle accent glow signals the lock */
+body.link-all .mini-dial:not(.mini-dial-disabled) canvas {
+    filter: drop-shadow(0 0 2px var(--accent-primary));
+}

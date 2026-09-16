@@ -30,3 +30,9 @@ html, body {
        { display: flex } that share single-class specificity */
     display: none !important;
 }
+
+/* The `hidden` attribute (used by the surface shell on panel roots) has
+   the same problem: the UA's display:none loses to any author display */
+[hidden] {
+    display: none !important;
+}

@@ -48,6 +48,19 @@
        dark (dissonant) end of the ramp stays readable on the card */
     color: color-mix(in srgb, var(--drawbar-color, var(--drawbar-label)) 55%, var(--text-primary));
 }
+
+/* The bar's current value, under the bar — always visible, never
+   following the pointer. Fixed height so a value appearing/changing
+   never reflows the column. */
+.drawbar-value {
+    height: 1.2em;
+    font-size: var(--font-size-2xs);
+    line-height: 1.2;
+    font-family: var(--font-mono);
+    color: var(--text-accent);
+    text-align: center;
+    white-space: nowrap;
+}
 .drawbar-input-wrapper {
     position: relative;
     width: 26px;
@@ -405,10 +418,14 @@ body.adsr-mode .drawbar-trigger {
     border-color: var(--drawbar-color, var(--accent-primary));
 }
 
-/* Filter view: resonance + drive dials side by side under the column */
+/* Filter view (res + drive) / convolution view (fb + gain + tune) aux
+   dials, stacked under the column — each Dial carries a caption and
+   readout now, and side by side they'd wrap in a 64px column. The
+   drawbars row is the page's flexible one, so the height is there. */
 .drawbar-aux-dials {
     display: flex;
-    gap: 4px;
+    flex-direction: column;
+    gap: 2px;
 }
 
 /* ---- Sequence view: wave stepper, mode stepper, x/y dials stacked ---- */
@@ -437,38 +454,8 @@ body.adsr-mode .drawbar-trigger {
     gap: 0.4rem;
 }
 
-/* ---- Mini dial widget ---- */
+/* (Dial widget styles live in dial.css) */
 
-.mini-dial {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 1px;
-}
-
-/* Escape the global viz-canvas styling (100% width, dark panel, border,
-   min-height) — a dial is a control, not a visualization surface. */
-.mini-dial canvas {
-    display: block;
-    flex-shrink: 0;
-    min-height: 0 !important;
-    max-width: none !important;
-    border: none !important;
-    border-radius: 0 !important;
-    box-shadow: none !important;
-    background: transparent !important;
-    object-fit: fill !important;
-    cursor: ns-resize;
-    touch-action: none;
-}
-
-/* grabFocus dials take focus so the seq tip knows they're engaged —
-   the dial's own arc is the affordance, no ring needed */
-.mini-dial canvas:focus {
-    outline: none;
-}
-
-.mini-dial-disabled,
 .drawbar-disabled {
     opacity: 0.3;
     pointer-events: none;
@@ -483,11 +470,8 @@ body.adsr-mode .drawbar-trigger {
 }
 
 /* ---- Link-all mode (cmd/ctrl held): edits apply to every overtone ----
-   A subtle accent glow on the linkable controls signals the lock. */
-
-body.link-all .mini-dial:not(.mini-dial-disabled) canvas {
-    filter: drop-shadow(0 0 2px var(--accent-primary));
-}
+   A subtle accent glow on the linkable controls signals the lock.
+   (The dial's glow lives in dial.css.) */
 
 body.link-all .drawbar-slider::-webkit-slider-thumb {
     outline: 1px solid color-mix(in srgb, var(--accent-primary) 75%, transparent);

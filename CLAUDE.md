@@ -93,37 +93,78 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
   — see `harmonicFilterCutoff` in `js/audio.js`.
 - To add a new bridged parameter, follow the checklist in
   `.claude/skills/add-bridged-param`.
-- Embed mode: `body.embed` is applied by `updateEmbedMode()` in `js/app.js`
-  when the viewport is ≤ `--embed-max-height` (theme.css, 220px) tall or
-  `?embed=1`; `css/embed.css` (must stay the **last** import in styles.css,
+- Layout mode (`js/modules/layout/layoutMode.js`, UI-only, never bridged):
+  the **shell** is `embed` (viewport ≤ `--embed-max-height`, theme.css
+  220px, or `?embed=1`) or `surfaces` (everything else — desktop and touch
+  share it), exposed as `body.embed` | `body.surfaces`; **coarse**
+  (`pointer: coarse`, or `?coarse=1` to preview touch density with a
+  mouse) is `body.coarse` and swaps control density without changing the
+  shell. Changes dispatch `LAYOUT_MODE_CHANGED`. This is the foundation
+  of the touch/surface UI overhaul (see the memory file
+  `project_touch_ui_overhaul` for the plan and phase status).
+- Readouts are inline, never floating: `Dial` renders its own caption
+  above the arc and value below it (`.mini-dial-label` / `.mini-dial-value`,
+  css/components/dial.css — hosts must NOT add their own captions), and
+  every drawbar has a `.drawbar-value` under the bar kept current by
+  `syncFill`. `Dial` calls `onChange` BEFORE `draw()` so a `format` that
+  reads host state (the modal's cutoff "φ^2 · 660 Hz") renders the new
+  value. The floating `ValueTip` now serves only the interactive editor
+  tips (sequencer, shape) and the "?" popover — all slated to retire into
+  the inspector. Gotcha: layout.css's `.labeled-control span` restyles
+  every span in a panel as a flex heading; widget text inside panels must
+  out-specify it (dial.css uses `.mini-dial > …`).
+- Embed mode: `body.embed` (see layout mode above) when the viewport is
+  ≤ `--embed-max-height` (theme.css, 220px) tall or `?embed=1`;
+  `css/embed.css` (must stay the **last** import in styles.css,
   followed by each component's own `*.embed.css`) reflows the app into one
   ~150px horizontal band that scrolls sideways if it doesn't fit — a jweb
   viewport is often plenty WIDE even though short, so desktop's own
-  width-based breakpoints (e.g. `.col-third` at 64rem) still fire there and
-  need explicit embed overrides, not just narrow-viewport assumptions.
+  width-based breakpoints (e.g. the Wavetable row's 48rem/80rem) still
+  fire there and need explicit embed overrides, not just narrow-viewport
+  assumptions. The surface toolbar is hidden and every panel root stays
+  visible (the shell skips embed entirely).
   Sections become flex children of `body.embed` via `.embed-flatten`
   (`display:contents` on intermediate wrapper divs) with `order:` per
   section. Modals become horizontal scrolling bands there;
   `.signal-section-body` exists so section content can flow
   column-on-desktop / row-in-embed with pure CSS.
-- Desktop page structure (`index.html`, one `.control-card`): row 1 is
-  `#m4l-fundamental-source-panel` (Source, Fundamental, Overtone System —
-  `.col-third`, three across from 64rem, see page-arrangement.css); row 2
-  is `.wavetable-tonewheel-row` (Wavetable + Tonewheel, 2:1 grid from
-  80rem); row 3 is `#drawbars-control-root`, full width and the one
-  flexible row (below). Because Source/Fundamental/Overtone-System already
-  share one markup group on desktop, embed mode's narrow vertical stack
-  for that trio is a **pure CSS** override (`layout.embed.css`) — no DOM
-  move needed; `this.q()` in components scopes lookups to their own root
-  element, so only ever move a *root* div if a future embed-only
-  regrouping spans containers desktop keeps separate (there is no such
-  case currently).
+- Surfaces shell (`body.surfaces`, i.e. everything but embed):
+  `js/modules/surfaces/` — `surfaceState.js` is the UI-only registry
+  (`SURFACES`: play/mix/source/system/wavetable → panel-root element ids;
+  `DOCK_ROOTS`; visible set + viz-dock flag, emits `SURFACE_CHANGED`),
+  `ToolbarComponent` is the left icon rail (`#surface-toolbar`),
+  `SurfaceShellComponent` applies state to the DOM: sets `hidden` on every
+  panel root the active surface doesn't include (base.css has
+  `[hidden]{display:none!important}`), collapses the row wrappers whose
+  children are all hidden, and exposes `body[data-surface="…"]` +
+  `body.viz-dock`, then dispatches a synthetic window `resize` so canvases
+  re-measure. `SurfacesController` mounts LAST in `initUI()` so every
+  panel has sized itself while visible. `css/components/page-arrangement.css`
+  arranges whatever is left showing (single centered panel for
+  Source/Fundamental/System; 2:1 Wavetable+Tonewheel; dock = second grid
+  column beside the surface, or a `--dock-height` band on top in
+  portrait). The dock defaults ON for fine pointers and OFF for
+  `body.coarse` — that default is read lazily (`dockDefault()`), NOT at
+  module import, because `layoutMode.init()` runs later than imports.
+  Sizing a panel for a shell position belongs in page-arrangement.css,
+  not the component's CSS (a viz.css mobile `min-width` on
+  `#tonewheel-container` once fought the dock band). The Wavetable/
+  Tonewheel row is column below 48rem, row above, grid from 80rem; the
+  `.result-grid` canvases are side by side except in the narrow side
+  dock where they stack. Panel DOM never moves between shells — the
+  `#m4l-fundamental-source-panel` group exists for the embed band, and
+  `this.q()` in components scopes lookups to their own root element, so
+  only ever move a *root* div. p5 gotcha: the tonewheel sketch's
+  `windowResized` can run before `setup()` (p5 subscribes to resize
+  immediately but defers setup to page load), so it early-returns until
+  `canvasReady` — any synthetic resize before load would otherwise throw
+  on `p.height`.
 - `.page-shell`/`.page-content`/`.control-card` are a flex chain filling
   the viewport below the fixed navbar (`.page-shell`'s `min-height:
   calc(100vh - navbar-height)`, `.control-card{flex:1}`) so leftover
   vertical space goes somewhere instead of leaving dead space under the
-  card. Rows 1-2 stay `flex:0 0 auto` (natural content height);
-  `#drawbars-control-root{flex:1}` is the one that absorbs it, and the
+  card. On the Mix surface `#drawbars-control-root{flex:1}` absorbs it
+  (the other surfaces' wrappers grow the same way), and the
   actual sliders grow to match via `--drawbar-track-length` — a CSS var
   DrawbarsComponent.syncTrackLengths() publishes from each column's
   measured post-layout height (a rotated `<input type=range>`'s

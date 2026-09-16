@@ -17,27 +17,7 @@ import { recordingStore } from './modules/recording/RecordingStore.js';
 import { RecordingActions } from './modules/recording/recordingActions.js';
 import { oscClient, oscEnabled } from './modules/osc/oscClient.js';
 import { pulseBus } from './modules/pulse/pulseBus.js';
-import { themeNumber } from './theme.js';
-
-
-/**
- * EMBED MODE (Max4Live / jweb)
- * The jweb object in a Max4Live device gives us ~170px of height, so the app
- * collapses into a single horizontal row (see css/embed.css). Detected from
- * viewport height against --embed-max-height (css/theme.css — the single
- * source of truth for the boundary between the two UI designs), or forced
- * with ?embed=1 / disabled with ?embed=0.
- */
-function updateEmbedMode() {
-    const embedParam = new URLSearchParams(window.location.search).get('embed');
-    let embed;
-    if (embedParam !== null) {
-        embed = embedParam !== '0' && embedParam !== 'false';
-    } else {
-        embed = window.innerHeight > 0 && window.innerHeight <= themeNumber('--embed-max-height');
-    }
-    document.body.classList.toggle('embed', embed);
-}
+import { layoutMode } from './modules/layout/layoutMode.js';
 
 /**
  * Main application initialization function
@@ -173,8 +153,7 @@ function startup() {
     setupCleanup();
 
     // Apply embed (Max4Live) layout before components measure their containers
-    updateEmbedMode();
-    window.addEventListener('resize', updateEmbedMode);
+    layoutMode.init();
 
     // Initialize the application
     initApp();

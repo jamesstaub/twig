@@ -114,11 +114,12 @@ export class SpectralSystemComponent extends BaseComponent {
 
     /**
      * Start harmonic (generative systems only) and the current system's
-     * tunable params (stiffness, stretch, …) as one inline row of dials,
-     * each with its name above it. Dial instances are rebuilt only when the
-     * set of visible dials changes (system switch) — external updates
-     * (bridge, reload) sync through setValue, which doesn't echo, so an
-     * in-progress drag is never torn down under the pointer.
+     * tunable params (stiffness, stretch, …) as one inline row of dials
+     * (each Dial carries its own caption and readout). Dial instances are
+     * rebuilt only when the set of visible dials changes (system switch) —
+     * external updates (bridge, reload) sync through setValue, which
+     * doesn't echo, so an in-progress drag is never torn down under the
+     * pointer.
      */
     renderDials({ currentSystem, startHarmonic, systemParams }) {
         const row = this.q('#system-dials-row');
@@ -144,7 +145,7 @@ export class SpectralSystemComponent extends BaseComponent {
                     onChange: (v) => this.onStartHarmonicChange?.(Math.round(v)),
                 });
                 this._startHarmonicDial = dial;
-                row.appendChild(this.dialColumn('start harmonic', dial));
+                row.appendChild(dial.el);
             }
 
             for (const key of paramKeys) {
@@ -157,7 +158,7 @@ export class SpectralSystemComponent extends BaseComponent {
                     onChange: (t) => this.onParamChange?.(key, def.toValue(t)),
                 });
                 this._paramDials[key] = dial;
-                row.appendChild(this.dialColumn(def.label, dial));
+                row.appendChild(dial.el);
             }
             return;
         }
@@ -171,17 +172,6 @@ export class SpectralSystemComponent extends BaseComponent {
             // through the taper doesn't jitter the knob mid-drag
             if (Math.abs(pos - dial.value) > 0.004) dial.setValue(pos);
         }
-    }
-
-    /** Dial with its name ABOVE it (not beside), matching this row's layout. */
-    dialColumn(label, dial) {
-        const col = document.createElement('div');
-        col.className = 'system-dial-col';
-        const name = document.createElement('span');
-        name.className = 'system-dial-name';
-        name.textContent = label;
-        col.append(name, dial.el);
-        return col;
     }
 
     /**

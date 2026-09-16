@@ -73,10 +73,6 @@ body.embed .signal-dial-row {
     flex-wrap: nowrap; /* the embed band scrolls sideways instead */
 }
 
-body.embed .signal-vslider-value {
-    min-height: 0;
-}
-
 body.embed .signal-pulse-rows {
     gap: 0.25rem;
 }

@@ -33,18 +33,21 @@ body.embed .embed-flatten {
     display: contents;
 }
 
-/* Chrome that doesn't fit in 170px */
+/* Chrome that doesn't fit in 170px — including the surface toolbar: the
+   band shows every panel at once, there is nothing to switch between */
 body.embed .navbar-section.logo,
-body.embed #tonewheel-viz-controls {
+body.embed #tonewheel-viz-controls,
+body.embed .surface-toolbar {
     display: none;
 }
 
 /* --- Section order: main controls, consolidated panel, drawbars, result, tonewheel ---
    Fundamental / Source / Overtone System live together in one markup
-   group on desktop too now (a three-across row — see page-arrangement.css
-   .col-third), so embed mode just needs to turn that SAME group into a
-   narrow vertical stack instead of a wide row — a pure CSS override, no
-   DOM move required (see layout.embed.css for that panel's own layout).
+   group in the surfaces shell too (where one of them shows at a time —
+   see page-arrangement.css), so embed mode just needs to turn that SAME
+   group into a narrow vertical stack showing all three — a pure CSS
+   override, no DOM move required (see layout.embed.css for that panel's
+   own layout).
    Drawbars has no fixed width: it grows to fill whatever room the other
    (fixed-width) sections leave, and min-width:max-content lets it grow
    PAST that if the partial count needs more — flex's own automatic

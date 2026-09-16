@@ -77,6 +77,8 @@
     <div id="modal-root"></div>
 
     <div class="page-shell embed-flatten">
+        <!-- Surface toolbar (rendered by ToolbarComponent); hidden in the embed band -->
+        <nav id="surface-toolbar" class="surface-toolbar" aria-label="Surfaces"></nav>
         <div class="page-content embed-flatten">
             <!-- Main Controls -->
             <div class="control-card embed-flatten">
@@ -84,7 +86,7 @@
                     <!-- Signal source: oscillator bank or an external signal
                          through the resonant filter bank. Drop a sound file
                          anywhere on this section to load it. -->
-                    <div id="oscillator-control-root" class="labeled-control col-third">
+                    <div id="oscillator-control-root" class="labeled-control">
                         <label for="source-mode-select">
                             <span class="control-label-text">Source</span>
                         </label>
@@ -121,7 +123,7 @@
                     </div>
 
                     <!-- Fundamental & Waveform Controls Row -->
-                    <div id="fundamental-control-root" class="labeled-control col-third">
+                    <div id="fundamental-control-root" class="labeled-control">
                         <label for="fundamental-input">
                             <span class="control-label-text">Fundamental Frequency</span>
                             <span class="fundamental-input-group">
@@ -150,7 +152,7 @@
                     </div>
 
                     <!-- Overtone System (title + select) -->
-                    <div id="spectral-system-root" class="system-selector labeled-control col-third">
+                    <div id="spectral-system-root" class="system-selector labeled-control">
                         <label for="ratio-system-select">
                             <span class="control-label-text">Overtone System</span>
                             <button type="button" id="system-info-btn" class="info-icon"

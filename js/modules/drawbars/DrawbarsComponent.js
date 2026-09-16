@@ -180,8 +180,6 @@ export class DrawbarsComponent extends BaseComponent {
                 applyPointer(e);
                 if (e.shiftKey && this.view !== "sequence") {
                     this.showShapeTip(slider);
-                } else {
-                    this.showSliderTip(slider);
                 }
                 const onMove = (ev) => applyPointer(ev);
                 wrapper.addEventListener("pointermove", onMove);
@@ -385,6 +383,11 @@ export class DrawbarsComponent extends BaseComponent {
                     : { min: 0, max: 1, step: 0.01, value };
             wrapper.appendChild(this.createSliderWrap(index, conf));
             wrapper.style.setProperty("--drawbar-fill", (conf.value - conf.min) / (conf.max - conf.min || 1));
+            // Always-visible readout under the bar; syncFill keeps it current
+            const readout = document.createElement("span");
+            readout.className = "drawbar-value";
+            readout.textContent = this.barValueText(index, conf.value);
+            wrapper.appendChild(readout);
         }
 
         wrapper.appendChild(this.createAux(index));
@@ -984,12 +987,29 @@ export class DrawbarsComponent extends BaseComponent {
         return pad;
     }
 
-    /** Keep the track's meter fill in sync with a slider's value. */
+    /** Keep the track's meter fill and the under-bar readout in sync with a slider's value. */
     syncFill(slider) {
         const min = parseFloat(slider.min) || 0;
         const max = parseFloat(slider.max) || 1;
-        const t = (parseFloat(slider.value) - min) / (max - min || 1);
-        slider.closest(".drawbar")?.style.setProperty("--drawbar-fill", t);
+        const value = parseFloat(slider.value);
+        const bar = slider.closest(".drawbar");
+        if (!bar) return;
+        bar.style.setProperty("--drawbar-fill", (value - min) / (max - min || 1));
+        const readout = bar.querySelector(".drawbar-value");
+        if (readout) readout.textContent = this.barValueText(Number(slider.dataset.index), value);
+    }
+
+    /**
+     * Short readout for the active view's bar value — fits under a 64px
+     * column. The filter view shows the series partial the cutoff sits on
+     * (its Hz belongs to the inspector, not a one-line label).
+     */
+    barValueText(index, value) {
+        if (this.view !== "filter") return `${Math.round(value * 100)}%`;
+        const step = Math.round(value);
+        if (step === 0) return "open";
+        const labels = AppState.currentSystem.labels;
+        return step <= labels.length ? labels[step - 1] : `+${step - labels.length}`;
     }
 
     updateSingleDrawbar(index, value) {
@@ -1025,7 +1045,6 @@ export class DrawbarsComponent extends BaseComponent {
         }
         e.target.setAttribute("aria-valuenow", value);
         this.syncFill(e.target);
-        this.showSliderTip(e.target);
     }
 
     /**
@@ -1039,24 +1058,6 @@ export class DrawbarsComponent extends BaseComponent {
         const label = step <= labels.length ? labels[step - 1] : `+${step - labels.length}`;
         const voiceFreq = calculateFrequency(AppState.currentSystem.ratios[index]);
         return `${label} · ${formatHz(partialFrequency(voiceFreq, step))}`;
-    }
-
-    /**
-     * Floating readout (parameter name over value), pinned to one spot per
-     * column (see columnTipPoint) so it never covers the controls.
-     */
-    showSliderTip(slider) {
-        const bar = slider.closest(".drawbar");
-        if (!bar) return;
-        const value = parseFloat(slider.value);
-        const text = this.view === "filter"
-            ? this.filterTipText(Number(slider.dataset.index), Math.round(value))
-            : `${Math.round(value * 100)}%`;
-        const point = this.columnTipPoint(bar);
-        ValueTip.show(text, point.x, point.y, {
-            label: this.view === "filter" ? "cutoff" : this.view === "convolution" ? "wet/dry" : "gain",
-            onExpand: () => this.openOvertoneSettings(Number(slider.dataset.index)),
-        });
     }
 
     /**

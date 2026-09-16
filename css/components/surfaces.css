@@ -1,0 +1,73 @@
+/* Surface toolbar — the left rail (js/modules/surfaces/ToolbarComponent.js):
+   one button per surface plus the viz-dock toggle. Look and feel from
+   theme.css tokens only; icons are inline SVG in currentColor. */
+
+.surface-toolbar {
+    flex: 0 0 var(--toolbar-width);
+    width: var(--toolbar-width);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.5rem 0;
+    background-color: var(--surface-navbar-from);
+    border-right: 1px solid var(--border-subtle);
+}
+
+.surface-toolbar-btn {
+    width: 2.75rem;
+    height: 2.75rem;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    color: var(--text-muted);
+    background: none;
+    border: 1px solid transparent;
+    border-radius: var(--radius-lg);
+    cursor: pointer;
+    transition:
+        color var(--transition-fast),
+        background-color var(--transition-fast),
+        border-color var(--transition-fast);
+}
+
+.surface-toolbar-btn svg {
+    display: block;
+    width: 1.25rem;
+    height: 1.25rem;
+}
+
+.surface-toolbar-label {
+    font-size: var(--font-size-3xs);
+    line-height: 1;
+    letter-spacing: 0.02em;
+}
+
+.surface-toolbar-btn:hover {
+    color: var(--text-accent);
+    background-color: var(--surface-panel);
+}
+
+.surface-toolbar-btn[aria-pressed="true"] {
+    color: var(--text-accent);
+    border-color: var(--accent-primary);
+    background-color: color-mix(in srgb, var(--accent-primary) 14%, transparent);
+}
+
+.surface-toolbar-btn:focus-visible {
+    outline: 2px solid var(--accent-primary);
+    outline-offset: 1px;
+}
+
+.surface-toolbar-spacer {
+    flex: 1;
+}
+
+/* Finger-sized targets */
+body.coarse .surface-toolbar-btn {
+    width: 3rem;
+    height: 3rem;
+}

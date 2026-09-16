@@ -97,6 +97,13 @@ body.embed .drawbar-aux {
     min-height: 0;
 }
 
+/* No room for a per-bar readout or per-dial captions in the band — and as
+   display:none elements they stay out of the two-row column grid below */
+body.embed .drawbar-value,
+body.embed .drawbar .mini-dial-label {
+    display: none;
+}
+
 /* Aux dials (gain: pan; filter: res/drive) ride BESIDE the slider — the
    column becomes a two-row grid (label spanning row 1) since stacking
    below the slider would need more height than the row has. Row 2 gets

@@ -107,12 +107,7 @@ canvas {
     object-fit: contain;
 }
 
-/* Responsive canvas layout - mobile/tablet only */
-@media (max-width: 48rem) {
-    #tonewheel-container {
-        flex: none;
-        max-width: none;
-        min-width: 300px;
-        width: 100%;
-    }
-}
+/* No narrow-viewport sizing here: where the tonewheel sits and how big
+   its box is belongs to the surfaces shell (page-arrangement.css) — the
+   portrait viz dock in particular hands it a fixed band-height box that a
+   component-level min-width would fight. */
