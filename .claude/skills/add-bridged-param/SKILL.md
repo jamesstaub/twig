@@ -34,8 +34,7 @@ in the getter, not in the store. Document the range in the comment.
 - Export shared range constants here (like `Q_MAX`, `DRIVE_MAX`) — one
   number used by every dial and the OSC clamp.
 - Consider the bulk ops: should view-scoped Reset/Randomize
-  (`resetFilters` etc.) and the modal's "Copy settings to"
-  (`copySettingsTo` in OvertoneSignalModalComponent) include it?
+  (`resetFilters` etc.) include it?
 
 ## 4. OSC bridge — `js/modules/osc/oscClient.js` AND `server.js`
 
@@ -59,10 +58,14 @@ state cache (param then fails to persist across page reloads).
 
 ## 5. UI
 
-- Modal dial: `dialColumn()` in `OvertoneSignalModalComponent.js`.
+- Inspector control: a `dialColumn()` (or slider row) in the matching
+  `build…Section()` of `js/modules/inspector/InspectorComponent.js`; write
+  through `this.apply(index, e, (i) => …)` so the controller can tell
+  the inspector's own writes from external ones.
 - Drawbar view control: `createAux()` / `createDrawbar()` in
   `DrawbarsComponent.js`, plus a `syncSignal(index, kind)` branch so
-  external updates (modal edits, inbound OSC) refresh the visible control.
+  external updates (inspector edits, inbound OSC) refresh the visible
+  control.
 - Register any new Dial in `this._dials` so syncSignal can reach it.
 
 ## Verify

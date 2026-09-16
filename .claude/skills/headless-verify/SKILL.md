@@ -32,9 +32,17 @@ description: Verify twig changes end-to-end in a headless browser — screenshot
   dispatched on the canvas — `pointerdown` at center, `pointermove` upward
   (full range ≈ 128px of travel), `pointerup`. `page.mouse` drags do not
   register.
-- **Signal modal**: open via the drawbar context menu — dispatch a
-  `contextmenu` MouseEvent on `.drawbar[data-index="N"]`, then click the
-  `.drawbar-context-menu-item` containing "Overtone Settings".
+- **Inspector** (per-overtone editor): click `#drawbar-label-N` — opens
+  the sheet `#inspector-sheet` (`body.inspector-open`) beside the current
+  surface; its `.inspector-expand` button switches to the Voice surface
+  (`body[data-surface="voice"]`, editor inside `#voice-control-root`),
+  `.inspector-close` / Escape closes. Also reachable from the drawbar
+  context menu item "Inspect Overtone". Dials inside are
+  `.inspector-dial-col .mini-dial canvas` (order: cutoff, resonance,
+  drive, pan, attack, decay, sustain, release).
+- **Surfaces**: `.surface-toolbar-btn[data-surface="play|mix|voice|source|
+  system|wavetable|dock"]`; `?coarse=1` previews touch density,
+  portrait viewports put the viz dock on top and the sheet at the bottom.
 - MIDI modal: `#open-midi-mapping-btn`. Drawbar view tabs: click the
   `.drawbars-tab` whose text is `gain|filter|sequence`.
 

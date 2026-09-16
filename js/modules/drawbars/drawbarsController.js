@@ -35,6 +35,10 @@ export class DrawbarsController extends BaseController {
         this.component.onChange = (index, value) => {
             DrawbarsActions.setDrawbar(index, value);
         };
+        // Column label click / context menu → the overtone inspector.
+        // Assigned by ui.js (this.onInspect) so the strip doesn't know
+        // where the editor lives.
+        this.component.onInspect = (index) => this.onInspect?.(index);
     }
 
     updateDrawbar({ index, value }) {

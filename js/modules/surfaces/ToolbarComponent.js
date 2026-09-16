@@ -10,6 +10,7 @@ import BaseComponent from '../base/BaseComponent.js';
 const ICONS = {
     play: '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2.5" y="4" width="15" height="12" rx="1.5"/><path d="M6.5 4v7M10 4v7M13.5 4v7"/></svg>',
     mix: '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M4 16V6M8 16v-3M12 16V9M16 16v-6"/></svg>',
+    voice: '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="10" cy="10" r="3"/><path d="M10 2.5v3M10 14.5v3M2.5 10h3M14.5 10h3"/></svg>',
     source: '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2.5 10c2-6 4-6 6 0s4 6 6 0 2-6 3 0"/></svg>',
     system: '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M3 4h14M3 8.5h14M3 11.5h14M3 13.5h14M3 15h14"/></svg>',
     wavetable: '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M3 17V7M6.5 17v-4M10 17v-7M13.5 17V9M17 17v-3"/><path d="M3 5c3 0 4 8 14 9"/></svg>',

@@ -19,6 +19,8 @@ export const SURFACES = [
     // phase 4); for now it hosts the fundamental panel.
     { id: 'play', label: 'Play', roots: ['fundamental-control-root'] },
     { id: 'mix', label: 'Mix', roots: ['drawbars-control-root'] },
+    // The inspector, full width (inspectorState picks the overtone)
+    { id: 'voice', label: 'Voice', roots: ['voice-control-root'] },
     { id: 'source', label: 'Source', roots: ['oscillator-control-root'] },
     { id: 'system', label: 'System', roots: ['spectral-system-root'] },
     { id: 'wavetable', label: 'Wavetable', roots: ['result-control-root', 'tonewheel-container'] },

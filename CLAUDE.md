@@ -107,7 +107,7 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
   css/components/dial.css — hosts must NOT add their own captions), and
   every drawbar has a `.drawbar-value` under the bar kept current by
   `syncFill`. `Dial` calls `onChange` BEFORE `draw()` so a `format` that
-  reads host state (the modal's cutoff "φ^2 · 660 Hz") renders the new
+  reads host state (the inspector's cutoff "φ^2 · 660 Hz") renders the new
   value. The floating `ValueTip` now serves only the interactive editor
   tips (sequencer, shape) and the "?" popover — all slated to retire into
   the inspector. Gotcha: layout.css's `.labeled-control span` restyles
@@ -125,9 +125,10 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
   visible (the shell skips embed entirely).
   Sections become flex children of `body.embed` via `.embed-flatten`
   (`display:contents` on intermediate wrapper divs) with `order:` per
-  section. Modals become horizontal scrolling bands there;
-  `.signal-section-body` exists so section content can flow
-  column-on-desktop / row-in-embed with pure CSS.
+  section. The MIDI modal and the inspector sheet become full-band
+  horizontal scrolling overlays there; `.inspector-section-body` exists
+  so section content can flow column-normally / row-in-embed with pure
+  CSS.
 - Surfaces shell (`body.surfaces`, i.e. everything but embed):
   `js/modules/surfaces/` — `surfaceState.js` is the UI-only registry
   (`SURFACES`: play/mix/source/system/wavetable → panel-root element ids;
@@ -159,6 +160,26 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
   immediately but defers setup to page load), so it early-returns until
   `canvasReady` — any synthetic resize before load would otherwise throw
   on `p.height`.
+- Inspector (`js/modules/inspector/`): the full per-overtone editor
+  (sequence gate + shape + modulation targets, filter & drive, pan,
+  envelope, pulse outs) — it replaced the overtone modal. `inspectorState`
+  (UI-only: selected index + sheet open, emits `INSPECTOR_CHANGED`) is
+  the model; `InspectorComponent` renders from AppState via the actions;
+  `InspectorController` homes the ONE component instance in either the
+  Voice surface's panel (`#voice-control-root`, when that surface is
+  active) or the sheet (`#inspector-sheet`, beside any other surface
+  while open — an in-flow side column in landscape, an overlay bottom
+  sheet in portrait, a full-band overlay in embed; inspector.css /
+  inspector.embed.css, `--sheet-width` / `--sheet-height` tokens). It
+  re-renders on `OVERTONE_SIGNAL_CHANGED` for the selected index EXCEPT
+  for its own writes: every handler goes through `component.apply()`
+  which sets `component.writing` while the actions run, and the
+  controller skips those — re-rendering under a dial mid-drag would
+  destroy the dial. Opened from a drawbar column label click (the one
+  always-present tap target), the context menu, or the Voice toolbar
+  button; Escape closes the sheet. DrawbarsComponent only calls
+  `onInspect(index)` — ui.js wires that to `inspectorState.open`, so
+  the strip never imports the inspector.
 - `.page-shell`/`.page-content`/`.control-card` are a flex chain filling
   the viewport below the fixed navbar (`.page-shell`'s `min-height:
   calc(100vh - navbar-height)`, `.control-card{flex:1}`) so leftover
@@ -238,11 +259,8 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
   it from the default single-line centered readout to a left-aligned
   wrapping block. Start harmonic and the current system's tunable params
   (stretch, stiffness, …) render as one inline row of Dials
-  (`#system-dials-row`, `SpectralSystemComponent.renderDials`), each with
-  its name ABOVE it — a different convention from the label-below dials
-  used elsewhere (e.g. OvertoneSignalModalComponent), kept local to this
-  component rather than unified, since the two call sites want opposite
-  layouts on purpose.
+  (`#system-dials-row`, `SpectralSystemComponent.renderDials`), each a
+  plain `Dial` (caption above, readout below, like every dial).
 
 ## Performance recording (audio + MIDI)
 

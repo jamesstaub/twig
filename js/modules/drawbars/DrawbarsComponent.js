@@ -9,8 +9,6 @@ import { Dial } from "../generic/dial/Dial.js";
 import { ValueTip } from "../generic/valueTip.js";
 import { drawSequencePreview, shapeIconDataURL, shapeSampler } from "../overtoneSignal/sequencePreview.js";
 import { showStatus } from "../../domUtils.js";
-import OvertoneSignalModalComponent from "../generic/modal/OvertoneSignalModalComponent.js";
-import { openModal, closeModal } from "../generic/modal/modalActions.js";
 import { voiceTargets } from "../generic/linkAll.js";
 import { irManager } from "../../dsp/IRManager.js";
 
@@ -110,6 +108,15 @@ export class DrawbarsComponent extends BaseComponent {
             if (!drawbar || drawbar.dataset.index === undefined) return;
             e.preventDefault();
             this.showContextMenu(Number(drawbar.dataset.index), e.clientX, e.clientY);
+        });
+
+        // Column label: open that overtone in the inspector (touch has no
+        // right-click; the label is the one always-present tap target)
+        this.bindEvent(this.el, "click", (e) => {
+            const label = e.target.closest(".drawbar-label");
+            const drawbar = label?.closest(".drawbar");
+            if (!drawbar || drawbar.dataset.index === undefined) return;
+            this.openOvertoneSettings(Number(drawbar.dataset.index));
         });
 
         this.sliders.forEach(slider => {
@@ -1112,10 +1119,9 @@ export class DrawbarsComponent extends BaseComponent {
         }
     }
 
-    /** Full per-overtone editor — context menu and every tip's corner. */
+    /** Full per-overtone editor (the inspector) — label click, context menu, tip corners. */
     openOvertoneSettings(index) {
-        const modal = new OvertoneSignalModalComponent(document.createElement('div'));
-        openModal(modal, { index, onClose: () => closeModal() });
+        this.onInspect?.(index);
     }
 
     showContextMenu(index, x, y) {
@@ -1143,7 +1149,7 @@ export class DrawbarsComponent extends BaseComponent {
 
         addItem(`Copy Frequency (${freqLabel})`, () => copyFrequency(freq));
         addItem("Set as Fundamental", () => DrawbarsActions.setDrawbarAsFundamental(index));
-        addItem("Overtone Settings", () => this.openOvertoneSettings(index));
+        addItem("Inspect Overtone", () => this.openOvertoneSettings(index));
 
         // Body-attached + fixed so the drawbar strip's overflow can't clip it
         document.body.appendChild(menu);

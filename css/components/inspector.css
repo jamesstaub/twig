@@ -1,0 +1,406 @@
+/* ================================
+   INSPECTOR — one overtone's full signal-chain editor
+   ================================
+   Two homes for the same markup: the Voice surface panel
+   (#voice-control-root, full width, sections tile) and the inspector
+   sheet (#inspector-sheet: an in-flow side column in landscape, an
+   overlay bottom sheet in portrait — see the sheet rules at the end).
+   Section internals are the same in both; only the container differs. */
+
+.inspector {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    width: 100%;
+    min-width: 0;
+}
+
+/* ---- Header: ‹ Overtone N · label · Hz ›  [expand] [close] ---- */
+
+.inspector-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-width: 0;
+}
+
+.inspector-title {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    line-height: 1.15;
+}
+
+.inspector-title-voice {
+    font-size: var(--font-size-base);
+    font-weight: var(--font-weight-bold);
+    color: var(--text-label-strong);
+    white-space: nowrap;
+}
+
+.inspector-title-detail {
+    font-size: var(--font-size-xs);
+    color: var(--text-accent);
+    font-family: monospace;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.inspector-header-spacer {
+    flex: 1;
+}
+
+.inspector-step,
+.inspector-icon-btn {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    padding: 0;
+    color: var(--text-secondary);
+    background: none;
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: color 0.15s, border-color 0.15s, background-color 0.15s;
+}
+
+.inspector-step {
+    font-size: 1.4rem;
+    line-height: 1;
+}
+
+.inspector-icon-btn svg {
+    width: 1.1rem;
+    height: 1.1rem;
+}
+
+.inspector-step:hover,
+.inspector-icon-btn:hover {
+    color: var(--text-accent);
+    border-color: var(--accent-primary);
+}
+
+body.coarse .inspector-step,
+body.coarse .inspector-icon-btn {
+    width: 2.75rem;
+    height: 2.75rem;
+}
+
+/* ---- Sections ---- */
+
+.inspector-sections {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    align-items: stretch;
+}
+
+.inspector-section {
+    flex: 1 1 0;
+    min-width: 10rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 0.75rem;
+    background-color: var(--surface-raised);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-recessed);
+}
+
+/* Section content below the title — a column normally; the embed layout
+   flows it into a row instead */
+.inspector-section-body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    min-width: 0;
+}
+
+.inspector-section-title {
+    font-size: var(--font-size-sm-alt);
+    font-weight: var(--font-weight-bold);
+    color: var(--text-label);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+/* Filter + pan stacked: dials need little width, so together they take a
+   single column beside the sequence and pulse sections */
+.inspector-side-col {
+    flex: 0 1 11rem;
+    min-width: 9rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.inspector-side-col .inspector-section {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.inspector-hint {
+    font-size: var(--font-size-xs);
+    color: var(--text-muted);
+}
+
+/* ---- Gate ---- */
+
+.inspector-gate-mode {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.inspector-gate-params {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.inspector-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
+}
+
+.inspector-field input[type="number"] {
+    width: 5em;
+}
+
+.inspector-seq-input {
+    background-color: var(--surface-app);
+    color: var(--text-primary);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-sm);
+    padding: 0.25rem 0.5rem;
+    font-family: monospace;
+    letter-spacing: 0.2em;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+/* ---- Shape + modulation targets ---- */
+
+.inspector-shape {
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+    margin-top: 0.5rem;
+}
+
+.inspector-shape-preview {
+    width: 100%;
+    height: 44px;
+    border-radius: var(--radius-sm);
+}
+
+.inspector-stretch-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+}
+
+.inspector-stretch-btn {
+    padding: 0 0.5rem;
+    font-size: var(--font-size-sm);
+}
+
+.inspector-stretch-label {
+    font-size: var(--font-size-sm);
+    color: var(--text-accent);
+    font-family: monospace;
+    min-width: 2.5em;
+    text-align: center;
+}
+
+.inspector-targets {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    margin-top: 0.5rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid var(--border-subtle);
+}
+
+.inspector-targets-heading {
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-bold);
+    color: var(--text-label);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.inspector-target-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.inspector-target-label {
+    font-size: var(--font-size-xs);
+    color: var(--text-secondary);
+    width: 5em;
+    flex-shrink: 0;
+}
+
+.inspector-target-slider {
+    flex: 1;
+    min-width: 0;
+    accent-color: var(--accent-primary);
+}
+
+body.coarse .inspector-target-slider {
+    height: 2rem;
+}
+
+.inspector-target-value {
+    font-size: var(--font-size-xs);
+    color: var(--text-accent);
+    min-width: 3em;
+    text-align: right;
+    font-family: monospace;
+}
+
+/* ---- Dial rows (filter / pan / envelope) ---- */
+
+/* Wrap freely: a squeezed section (the four ADSR dials) flows its dials
+   onto extra rows instead of spilling into the neighboring cards */
+.inspector-dial-row {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.75rem 1.25rem;
+    margin-top: 0.5rem;
+}
+
+.inspector-dial-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+/* The cutoff readout is two lines (system label + frequency) and "open"
+   is one — reserve two so toggling never reflows the section */
+.inspector-dial-col .mini-dial-value {
+    min-height: 2.4em;
+}
+
+/* ---- Pulse outputs ---- */
+
+.inspector-pulse-rows {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.inspector-pulse-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.25rem 0.5rem;
+}
+
+.inspector-pulse-row-disabled {
+    opacity: 0.45;
+    pointer-events: none;
+}
+
+.inspector-pulse-toggle {
+    min-width: 38px;
+    height: 22px;
+}
+
+.inspector-pulse-toggle::before {
+    width: 16px;
+    height: 16px;
+}
+
+.inspector-pulse-toggle.active::before {
+    transform: translateX(16px);
+}
+
+.inspector-pulse-label {
+    font-size: var(--font-size-sm-alt);
+    font-weight: var(--font-weight-semibold);
+    color: var(--text-secondary);
+    white-space: nowrap;
+}
+
+.inspector-pulse-detail {
+    font-size: var(--font-size-xs);
+    color: var(--text-accent);
+    font-family: monospace;
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.inspector-pulse-warning {
+    font-size: var(--font-size-xs);
+    color: var(--status-warning);
+}
+
+/* ================================
+   THE SHEET — where the inspector sits beside another surface
+   ================================ */
+
+.inspector-sheet {
+    display: flex;
+    flex-direction: column;
+    padding: 0.75rem;
+    background-color: var(--surface-card);
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+/* Landscape: an in-flow column at the right edge of the page shell
+   ([toolbar][content][sheet]); the surface gives up the width */
+body.surfaces .inspector-sheet {
+    flex: 0 0 var(--sheet-width);
+    width: var(--sheet-width);
+    min-width: 0;
+    max-height: calc(100vh - var(--navbar-height));
+    position: sticky;
+    top: var(--navbar-height);
+    border-left: 1px solid var(--border-subtle);
+}
+
+/* Stacked in the sheet: one section per row */
+.inspector-sheet .inspector-sections {
+    flex-direction: column;
+    flex-wrap: nowrap;
+}
+
+.inspector-sheet .inspector-side-col {
+    flex: 0 0 auto;
+    flex-direction: row;
+    min-width: 0;
+}
+
+/* Portrait: an overlay bottom sheet over the surface */
+@media (orientation: portrait) {
+    body.surfaces .inspector-sheet {
+        position: fixed;
+        left: var(--toolbar-width);
+        right: 0;
+        bottom: 0;
+        top: auto;
+        width: auto;
+        flex: none;
+        max-height: var(--sheet-height);
+        border-left: none;
+        border-top: 1px solid var(--border-default);
+        border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+        box-shadow: var(--shadow-elevation-4);
+        z-index: 1500;
+    }
+}

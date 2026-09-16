@@ -32,6 +32,8 @@ import { SourceController } from './modules/source/sourceController.js';
 import { SpectrumController } from './modules/spectrum/spectrumController.js';
 import { RecorderController } from './modules/recording/recorderController.js';
 import { SurfacesController } from './modules/surfaces/surfacesController.js';
+import { InspectorController } from './modules/inspector/inspectorController.js';
+import { inspectorState } from './modules/inspector/inspectorState.js';
 // ================================
 // INITIALIZATION
 // ================================
@@ -126,6 +128,7 @@ function setupPulseOutputs() {
 
 function setupDrawbars() {
     drawbarsController = new DrawbarsController("#drawbars");
+    drawbarsController.onInspect = (index) => inspectorState.open(index);
     drawbarsController.init();
 }
 
@@ -167,6 +170,8 @@ function setupSurfaces() {
     // After every panel is mounted (and its canvases sized while visible),
     // so the shell can hide the ones the default surface doesn't show
     new SurfacesController('#surface-toolbar', '.page-content').init();
+    // The per-overtone editor: Voice surface or the sheet beside any other
+    new InspectorController('#inspector-sheet', '#voice-control-root').init();
 }
 
 function setupMainButtons() {

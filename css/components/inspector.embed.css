@@ -1,0 +1,143 @@
+/* Embed-mode overrides for inspector.css: the sheet covers the whole
+   170px band (there is no room beside anything) as a horizontal strip —
+   sections side by side, each section's content flowing as a row —
+   scrolling sideways like the drawbar strip. The Voice surface doesn't
+   exist in the embed shell. */
+
+body.embed #voice-control-root {
+    display: none;
+}
+
+body.embed .inspector-sheet {
+    position: fixed;
+    inset: 0;
+    z-index: 2000;
+    padding: 0.25rem 0.5rem;
+    overflow-x: auto;
+    overflow-y: auto;
+    background-color: var(--surface-modal);
+}
+
+/* Top-aligned, never centered: content taller than the band would push
+   the header (and its close button) above the viewport */
+body.embed .inspector {
+    width: max-content;
+    min-height: 0;
+    gap: 0.375rem;
+    justify-content: flex-start;
+}
+
+/* The header must not stretch to the (scrolling) sections' width, or the
+   close button ends up past the viewport edge; and there is no Voice
+   surface to expand into */
+body.embed .inspector-header {
+    flex-wrap: nowrap;
+    gap: 0.5rem;
+    width: max-content;
+    position: sticky;
+    left: 0;
+}
+
+body.embed .inspector-header-spacer,
+body.embed .inspector-expand {
+    display: none;
+}
+
+body.embed .inspector-title {
+    flex-direction: row;
+    gap: 0.5rem;
+    align-items: baseline;
+}
+
+body.embed .inspector-title-voice {
+    font-size: var(--font-size-sm-alt);
+}
+
+/* Row again — inspector.css stacks the sections inside the sheet */
+body.embed .inspector-sheet .inspector-sections {
+    flex-direction: row;
+    flex-wrap: nowrap;
+    gap: 0.5rem;
+    align-items: stretch;
+}
+
+body.embed .inspector-section {
+    flex: 0 0 auto;
+    min-width: 0;
+    padding: 0.375rem 0.5rem;
+    gap: 0.25rem;
+}
+
+body.embed .inspector-section-body {
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 0.75rem;
+}
+
+body.embed .inspector-side-col {
+    flex: 0 0 auto;
+    flex-direction: row;
+    gap: 0.5rem;
+}
+
+body.embed .inspector-gate-mode {
+    gap: 0.25rem;
+}
+
+body.embed .inspector-shape {
+    margin-top: 0;
+    gap: 0.25rem;
+    width: 9rem;
+}
+
+body.embed .inspector-shape-preview {
+    height: 26px;
+}
+
+/* Five amount rows don't fit the band stacked — two columns of them do */
+body.embed .inspector-targets {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.125rem 0.75rem;
+    margin-top: 0;
+    padding-top: 0;
+    border-top: none;
+    min-width: 20rem;
+}
+
+body.embed .inspector-targets-heading {
+    grid-column: 1 / -1;
+}
+
+body.embed .inspector-target-label {
+    width: auto;
+    white-space: nowrap;
+}
+
+body.embed .inspector-dial-row {
+    margin-top: 0.25rem;
+    gap: 0.75rem;
+    flex-wrap: nowrap; /* the band scrolls sideways instead */
+}
+
+/* No two-line readout reserve in the band: those ~26px are the difference
+   between the dial values showing and being clipped at the bottom */
+body.embed .inspector-dial-col .mini-dial-value {
+    min-height: 0;
+}
+
+body.embed .inspector-step,
+body.embed .inspector-icon-btn {
+    width: 1.6rem;
+    height: 1.6rem;
+    font-size: 1.1rem;
+}
+
+body.embed .inspector-pulse-rows {
+    gap: 0.25rem;
+}
+
+body.embed .inspector-pulse-label,
+body.embed .inspector-pulse-detail {
+    font-size: var(--font-size-xs);
+}

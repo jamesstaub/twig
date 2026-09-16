@@ -24,3 +24,5 @@ export const LAYOUT_MODE_CHANGED = 'layout-mode-changed';
 // Active surface or viz-dock flag changed — see js/modules/surfaces/
 // surfaceState.js. detail: { active, dock }
 export const SURFACE_CHANGED = 'surface-changed';
+// Inspector selection / sheet open state (UI-only) — detail: { index, open }
+export const INSPECTOR_CHANGED = 'inspector-changed';

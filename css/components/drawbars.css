@@ -371,6 +371,15 @@
     border-color: var(--accent-primary);
 }
 
+/* The column label opens the overtone inspector */
+.drawbar-label {
+    cursor: pointer;
+}
+
+.drawbar-label:hover {
+    color: var(--text-accent);
+}
+
 /* ---- Per-column aux row: live amplitude dot + view dial ---- */
 
 .drawbar-aux {

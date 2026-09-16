@@ -73,6 +73,16 @@ body.surfaces #drawbars-control-root {
     width: 100%;
 }
 
+/* Voice surface: the inspector fills the card; a tall editor on a short
+   screen scrolls inside the panel rather than the page */
+body.surfaces #voice-control-root {
+    width: 100%;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    align-items: stretch;
+}
+
 /* --- Viz dock: the wave/spectrum/tonewheel canvases shown BESIDE the
        active surface (no actions — those are the Wavetable surface's).
        The card becomes a two-column grid: surface | dock. Both grid

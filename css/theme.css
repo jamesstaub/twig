@@ -88,6 +88,8 @@
     --toolbar-width: 3.5rem;         /* surface toolbar (left rail) */
     --dock-width: 20rem;             /* viz dock beside a surface (landscape) */
     --dock-height: 9rem;             /* viz dock above a surface (portrait) */
+    --sheet-width: 24rem;            /* inspector side sheet (landscape) */
+    --sheet-height: 62vh;            /* inspector bottom sheet cap (portrait) */
     --navbar-height: 5rem;
     --navbar-height-tall: 8rem;      /* stacked (narrow-viewport) navbar */
 
