@@ -124,10 +124,11 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
   visible (the shell skips embed entirely).
   Sections become flex children of `body.embed` via `.embed-flatten`
   (`display:contents` on intermediate wrapper divs) with `order:` per
-  section. The MIDI modal and the inspector sheet become full-band
-  horizontal scrolling overlays there; `.inspector-section-body` exists
-  so section content can flow column-normally / row-in-embed with pure
-  CSS.
+  section. The inspector sheet and the Settings panel become full-band
+  horizontal scrolling overlays there (`body.settings-open`);
+  `.inspector-section-body` exists so section content can flow
+  column-normally / row-in-embed with pure CSS. There are no modals in
+  the app any more.
 - Surfaces shell (`body.surfaces`, i.e. everything but embed):
   `js/modules/surfaces/` — `surfaceState.js` is the UI-only registry
   (`SURFACES`: play/mix/source/system/wavetable → panel-root element ids;
@@ -226,6 +227,22 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
   from `getVoiceLevel` lights whatever sounds, keyboard-triggered
   included. `TRIGGER_KEY_LABELS` (KeyboardShortcuts.js) supplies the
   key hints. Hidden in embed (play.embed.css).
+- Settings surface (`js/modules/settings/`, `#settings-control-root`):
+  `MidiSettingsComponent` (ports/channels per MIDI role, pulse toggles,
+  drawbar-CC and pulse-note mapping tables; re-rendered on
+  `MIDI_OUTPUT_CHANGED` since ports arrive late) and
+  `RecorderSettingsComponent` (wav/mid layout, take length, tempo mode;
+  `syncChecked` on `RECORDER_CHANGED`), both in place — the modal layer
+  (ModalComponent/modalActions/`#modal-root`) is gone. The navbar MIDI
+  button and the recorder's ⚙ call `SettingsController.open(section)`:
+  on the surfaces shell that is `surfaceState.show('settings')` (+
+  scrollIntoView of the section); in embed the same root becomes a
+  full-band overlay (`body.settings-open`, settings.embed.css) with its
+  own × / Escape. `body.surfaces .page-shell` is height-capped to the
+  viewport (page-arrangement.css) precisely so tall panels like this one
+  and the Voice surface scroll INSIDE themselves — a surface is a
+  screen, never a scrolling page; layout.css's `min-height` alone let a
+  tall panel grow the page.
 - The drawbar strip (`DrawbarsComponent`) is a touch surface: ONE
   pointer handler on `#drawbars` owns every bar gesture (`pointerdown`
   on a `.drawbar-input-wrapper` snapshots all column rects, then each

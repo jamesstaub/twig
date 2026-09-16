@@ -61,7 +61,10 @@ description: Verify twig changes end-to-end in a headless browser — screenshot
 - **Surfaces**: `.surface-toolbar-btn[data-surface="play|mix|voice|source|
   system|wavetable|dock"]`; `?coarse=1` previews touch density,
   portrait viewports put the viz dock on top and the sheet at the bottom.
-- MIDI modal: `#open-midi-mapping-btn`. Drawbar view tabs: click the
+- Settings: `#open-midi-mapping-btn` (navbar) or the recorder's ⚙ →
+  the Settings surface (`body[data-surface="settings"]`,
+  `#midi-settings` / `#recorder-settings`); in embed it's an overlay
+  (`body.settings-open`, `.settings-close`). Drawbar view tabs: click the
   `.drawbars-tab` whose text is `gain|filter|sequence`.
 
 ## Audio checks

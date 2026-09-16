@@ -14,12 +14,27 @@
    Every rule is scoped to a specific #id or a row wrapper that exists only
    to place panels, never to a reusable component class on its own. */
 
-/* .page-shell is a flex row: [toolbar][page-content]. The content fills
-   the rest (layout.css's `margin: 0 auto` centering is for a shell with
-   nothing beside the content). */
+/* .page-shell is a flex row: [toolbar][page-content][sheet]. On the
+   surfaces shell it is EXACTLY the viewport below the navbar (layout.css
+   gives it a min-height for a page that may grow): a surface is a screen,
+   never a scrolling page, so a panel taller than the screen (Settings,
+   Voice) scrolls inside itself — that only works when every ancestor up
+   to the viewport is height-capped. */
+body.surfaces .page-shell {
+    height: calc(100vh - var(--navbar-height-tall));
+    min-height: 0;
+}
+
+@media (min-width: 48rem) {
+    body.surfaces .page-shell {
+        height: calc(100vh - var(--navbar-height));
+    }
+}
+
 body.surfaces .page-content {
     flex: 1 1 auto;
     min-width: 0;
+    min-height: 0;
     margin: 0;
 }
 
@@ -101,6 +116,14 @@ body.surfaces #pad-grid-root {
     width: 100%;
     flex: 1 1 auto;
     min-height: 12rem;
+}
+
+/* Settings surface: a form; scrolls inside the panel when tall */
+body.surfaces #settings-control-root {
+    width: 100%;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
 }
 
 /* Voice surface: the inspector fills the card; a tall editor on a short

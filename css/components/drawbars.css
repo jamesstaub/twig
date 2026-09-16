@@ -1,5 +1,4 @@
-/* Drawbar strip: vertical sliders, one per partial. Also reused by the
-   overtone signal modal's vertical sliders. */
+/* Drawbar strip: vertical sliders, one per partial. */
 
 .drawbar-container {
     display: flex;

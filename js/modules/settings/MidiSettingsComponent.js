@@ -1,8 +1,7 @@
-
-import ModalComponent from './ModalComponent.js';
-import { midiConfig } from '../../../appConfig.js';
-import { midiInputRouter } from '../../midi/midiInputRouter.js';
-import { midiOutputRouter } from '../../midi/midiOutputRouter.js';
+import BaseComponent from '../base/BaseComponent.js';
+import { midiConfig } from '../../appConfig.js';
+import { midiInputRouter } from '../midi/midiInputRouter.js';
+import { midiOutputRouter } from '../midi/midiOutputRouter.js';
 import {
     updateMidiInputChannel,
     updateMidiOutputChannel,
@@ -12,17 +11,17 @@ import {
     setPulseOutputEnabled,
     updateMidiOutputPort,
     updateMidiClockOutputPort,
-    updateMidiInputPort
-} from '../../../modules/midi/midiConfigActions.js';
+    updateMidiInputPort,
+} from '../midi/midiConfigActions.js';
 
 /**
- * MidiMappingModalComponent — MIDI routing and mapping settings: one card
- * per role (note/CC in, note out, clock/transport out), each with its own
- * port — and channel where the MIDI spec has one — over mapping tables
- * (drawbar CCs, pulse notes), in the same sectioned style as the overtone
- * settings modal.
+ * MIDI routing and mapping settings — one card per role (note/CC in,
+ * note out, clock/transport out), each with its own port (and channel
+ * where the MIDI spec has one), over the mapping tables (drawbar CCs,
+ * pulse notes). Renders in place on the Settings surface; every change
+ * goes through midiConfigActions.
  */
-export default class MidiMappingModalComponent extends ModalComponent {
+export class MidiSettingsComponent extends BaseComponent {
 
     /** Range-checked number input. */
     numInput(value, min, max, onChange) {
@@ -42,19 +41,19 @@ export default class MidiMappingModalComponent extends ModalComponent {
     /** "label ........ [control]" row inside a section. */
     settingRow(text, control) {
         const row = document.createElement('label');
-        row.className = 'midi-setting-row';
+        row.className = 'settings-row';
         const span = document.createElement('span');
         span.textContent = text;
         row.append(span, control);
         return row;
     }
 
-    /** Raised card with an uppercase title, like the signal modal's sections. */
+    /** Raised card with an uppercase title. */
     section(title, wide = false) {
         const sec = document.createElement('section');
-        sec.className = 'midi-section' + (wide ? ' midi-section-wide' : '');
+        sec.className = 'settings-section' + (wide ? ' settings-section-wide' : '');
         const heading = document.createElement('div');
-        heading.className = 'midi-section-title';
+        heading.className = 'settings-section-title';
         heading.textContent = title;
         sec.appendChild(heading);
         return sec;
@@ -103,7 +102,6 @@ export default class MidiMappingModalComponent extends ModalComponent {
      * Port selector over a {id, name} port list. `selectedId` marks the
      * current choice; `noneLabel` (optional) adds a first option with value
      * '' for the role's default routing ("All inputs", "Same as note out").
-     * Changes go through the actions layer so every surface stays in sync.
      */
     portSelect(ports, selectedId, onChange, { noneLabel = null, unavailable = false } = {}) {
         const select = document.createElement('select');
@@ -135,28 +133,15 @@ export default class MidiMappingModalComponent extends ModalComponent {
         return select;
     }
 
-    async render(props = {}) {
+    render() {
         this.teardown();
         this.el.innerHTML = '';
 
-        const overlay = document.createElement('div');
-        overlay.className = 'modal-overlay';
-        overlay.tabIndex = -1;
-
-        const dialog = document.createElement('div');
-        dialog.className = 'modal-dialog midi-modal';
-
-        const title = document.createElement('h2');
-        title.textContent = 'MIDI Mapping';
-        title.className = 'midi-modal-title';
-        dialog.appendChild(title);
-
-        // All sections share one flow container: on desktop the input/output
-        // cards sit side by side with the mapping tables wrapping to full-
-        // width rows beneath; the embed layout flows everything into a
-        // single horizontal band instead.
+        // All sections share one flow container: the role cards side by
+        // side with the mapping tables wrapping to full-width rows beneath;
+        // the embed band flows everything into one horizontal row instead.
         const cards = document.createElement('div');
-        cards.className = 'midi-sections-row';
+        cards.className = 'settings-sections';
 
         const midiUp = Boolean(midiOutputRouter.midi || midiInputRouter.midi);
 
@@ -172,7 +157,7 @@ export default class MidiMappingModalComponent extends ModalComponent {
             this.settingRow('Ignore notes below', this.numInput(midiConfig.inputNoteMin, 0, 127, updateMidiInputNoteMin)),
         );
         const inputHint = document.createElement('p');
-        inputHint.className = 'midi-section-hint';
+        inputHint.className = 'settings-hint';
         inputHint.textContent = 'Notes below the floor are ignored so the pulse notes (1–12 by default) can’t loop back into the fundamental.';
         input.appendChild(inputHint);
 
@@ -199,7 +184,7 @@ export default class MidiMappingModalComponent extends ModalComponent {
             )),
         );
         const clockHint = document.createElement('p');
-        clockHint.className = 'midi-section-hint';
+        clockHint.className = 'settings-hint';
         clockHint.textContent = 'Carries the overtone clock (24 ticks per cycle of the assigned voice) and transport start/stop on play. Clock messages are system-realtime — the MIDI spec gives them no channel.';
         clock.appendChild(clockHint);
 
@@ -218,49 +203,6 @@ export default class MidiMappingModalComponent extends ModalComponent {
         ));
 
         cards.append(input, output, clock, ccSection, notesSection);
-        dialog.appendChild(cards);
-
-        const closeBtn = document.createElement('button');
-        closeBtn.className = 'modal-close-btn';
-        closeBtn.setAttribute('aria-label', 'Close modal');
-        closeBtn.innerHTML = '&times;';
-        dialog.appendChild(closeBtn);
-
-        overlay.appendChild(dialog);
-        this.el.appendChild(overlay);
-
-        let closeModalFn = props.onClose;
-        if (!closeModalFn) {
-            try {
-                closeModalFn = (await import('./modalActions.js')).closeModal;
-            } catch { }
-        }
-
-        if (closeModalFn) {
-            this.bindEvent(overlay, 'mousedown', e => {
-                if (e.target === overlay) {
-                    closeModalFn();
-                }
-            });
-            this.bindEvent(closeBtn, 'click', e => {
-                e.preventDefault();
-                closeModalFn();
-            });
-            this._escHandler = (e) => {
-                if (e.key === 'Escape') {
-                    closeModalFn();
-                }
-            };
-            document.addEventListener('keydown', this._escHandler);
-        }
-    }
-
-    teardown() {
-        super.teardown();
-        if (this._escHandler) {
-            document.removeEventListener('keydown', this._escHandler);
-            this._escHandler = null;
-        }
-        this.el.innerHTML = '';
+        this.el.appendChild(cards);
     }
 }

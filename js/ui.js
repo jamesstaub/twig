@@ -18,9 +18,6 @@ import { smoothUpdateMasterGain } from './utils.js';
 import { SliderController } from './modules/generic/slider/sliderController.js';
 import { midiInputRouter } from './modules/midi/midiInputRouter.js';
 import { FundamentalController } from './modules/fundamental/fundamentalController.js';
-import { ModalController } from './modules/generic/modal/modalController.js';
-import MidiMappingModalComponent from './modules/generic/modal/MidiMappingModalComponent.js';
-import { openModal, closeModal } from './modules/generic/modal/modalActions.js';
 import { PlayToggleController } from './modules/playToggle/playToggleController.js';
 import { WaveformSelectorController } from './modules/waveformSelector/waveformSelectorController.js';
 import { oscClient, oscEnabled } from './modules/osc/oscClient.js';
@@ -34,6 +31,7 @@ import { RecorderController } from './modules/recording/recorderController.js';
 import { SurfacesController } from './modules/surfaces/surfacesController.js';
 import { InspectorController } from './modules/inspector/inspectorController.js';
 import { PadGridController } from './modules/play/padGridController.js';
+import { SettingsController } from './modules/settings/settingsController.js';
 import { inspectorState } from './modules/inspector/inspectorState.js';
 // ================================
 // INITIALIZATION
@@ -51,33 +49,13 @@ let tonewheelController;
 let masterGainSliderController;
 let masterSlewSliderController;
 
-let midiMappingModalController;
+let settingsController;
 
 
 
 export function initUI() {
     setupMainButtons();
     setupControlSliders();
-
-    setupMidiMappingModal();
-    function setupMidiMappingModal() {
-        // Construct the controller for the MIDI Mapping modal
-        midiMappingModalController = new ModalController('#modal-root', {
-            content: null, // will be set on open
-            onClose: () => closeModal()
-        });
-
-        // Attach event to open button (DOM is already ready when initUI() runs)
-        const btn = document.getElementById('open-midi-mapping-btn');
-        if (btn) {
-            btn.addEventListener('click', () => {
-                const modalContent = new MidiMappingModalComponent(document.createElement('div'));
-                modalContent.render({ onClose: () => closeModal() });
-                openModal(modalContent, {});
-            });
-        }
-    }
-
 
     setupWaveformSelector();
     setupSelectSteppers();
@@ -175,13 +153,20 @@ function setupSurfaces() {
     new SurfacesController('#surface-toolbar', '.page-content').init();
     // The per-overtone editor: Voice surface or the sheet beside any other
     new InspectorController('#inspector-sheet', '#voice-control-root').init();
+    // Settings surface (MIDI + recording) — the navbar MIDI button and the
+    // recorder's ⚙ both land here
+    settingsController = new SettingsController('#settings-control-root');
+    settingsController.init();
+    document.getElementById('open-midi-mapping-btn')?.addEventListener('click', () => settingsController.open('midi'));
 }
 
 function setupMainButtons() {
     const playToggleController = new PlayToggleController('.play-toggle-container');
     playToggleController.init();
     setupEnvelopeModeToggle();
-    new RecorderController('#recorder-root').init();
+    const recorder = new RecorderController('#recorder-root');
+    recorder.onOpenSettings = () => settingsController?.open('recorder');
+    recorder.init();
 }
 
 /**

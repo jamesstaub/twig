@@ -1,9 +1,7 @@
 import { BaseController } from '../base/BaseController.js';
 import { AppState } from '../../config.js';
 import { RECORDER_CHANGED, RECORDINGS_CHANGED } from '../../events.js';
-import { openModal, closeModal } from '../generic/modal/modalActions.js';
 import { RecorderComponent } from './RecorderComponent.js';
-import { RecorderConfigModalComponent } from './RecorderConfigModalComponent.js';
 import { RecordingActions } from './recordingActions.js';
 import { recordingStore } from './RecordingStore.js';
 
@@ -24,10 +22,9 @@ export class RecorderController extends BaseController {
     bindComponentEvents() {
         const c = this.component;
         c.onRecord = () => RecordingActions.toggleRecord();
-        c.onConfig = () => {
-            const modal = new RecorderConfigModalComponent(document.createElement('div'));
-            openModal(modal, { onClose: () => closeModal() });
-        };
+        // ⚙ → the recording section of the Settings surface (ui.js wires
+        // onOpenSettings; the strip doesn't know where settings live)
+        c.onConfig = () => this.onOpenSettings?.();
         c.onSelect = (key) => RecordingActions.select(key);
         c.onSelectStep = (step) => RecordingActions.selectStep(step);
         c.onTogglePlay = () => RecordingActions.togglePlay();

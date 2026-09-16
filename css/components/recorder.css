@@ -109,26 +109,6 @@
 }
 
 /* Settings dialog */
-.rec-config-modal {
-    width: 32rem;
-}
 
-.rec-radio-group {
-    display: flex;
-    flex-direction: column;
-    gap: 0.375rem;
-}
 
-.rec-radio-row {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    font-size: var(--font-size-sm);
-    color: var(--text-label);
-    cursor: pointer;
-}
 
-.rec-config-note {
-    font-size: var(--font-size-xs);
-    color: var(--text-muted);
-}

@@ -73,8 +73,6 @@
         </div>
     </nav>
 
-    <!-- Modal Root (for generic modal, always present, only one open at a time) -->
-    <div id="modal-root"></div>
 
     <div class="page-shell embed-flatten">
         <!-- Surface toolbar (rendered by ToolbarComponent); hidden in the embed band -->
@@ -249,6 +247,21 @@
 
                 <!-- Play surface: the pad grid under the fundamental strip (surfaces shell only) -->
                 <div id="pad-grid-root" class="labeled-control"></div>
+
+                <!-- Settings surface: MIDI routing/mapping + recording settings.
+                     In embed it's a full-band overlay opened by the same
+                     navbar buttons (body.settings-open) -->
+                <div id="settings-control-root" class="labeled-control">
+                    <div class="settings-header">
+                        <span class="settings-title">Settings</span>
+                        <span class="settings-header-spacer"></span>
+                        <button type="button" class="settings-close" aria-label="Close settings">&times;</button>
+                    </div>
+                    <div class="settings-group-title">MIDI</div>
+                    <div id="midi-settings"></div>
+                    <div class="settings-group-title">Recording</div>
+                    <div id="recorder-settings"></div>
+                </div>
                 </div><!-- /.surface-stack -->
 
                 <!-- Wavetable + Tonewheel: paired visualization/output panels

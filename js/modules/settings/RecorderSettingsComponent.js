@@ -1,7 +1,6 @@
-import ModalComponent from '../generic/modal/ModalComponent.js';
+import BaseComponent from '../base/BaseComponent.js';
 import { recorderConfig } from '../../appConfig.js';
-import { RECORDER_CHANGED } from '../../events.js';
-import { RecordingActions, AUDIO_MODES, MIDI_MODES, TEMPO_MODES, LENGTH_MODES } from './recordingActions.js';
+import { RecordingActions, AUDIO_MODES, MIDI_MODES, TEMPO_MODES, LENGTH_MODES } from '../recording/recordingActions.js';
 
 const AUDIO_LABELS = { mono: 'Mono', stereo: 'Stereo', multitrack: 'Multitrack (one channel per overtone)' };
 const MIDI_LABELS = { single: 'Single channel', multi: 'Multi-channel (a track + channel per overtone)' };
@@ -15,10 +14,11 @@ const TEMPO_LABELS = {
 };
 
 /**
- * RecorderConfigModalComponent — recording settings: audio layout of the
- * .wav and channel layout of the .mid. Applies to the next take.
+ * Recording settings: audio layout of the .wav, channel layout of the
+ * .mid, take length and tempo handling. Applies to the next take.
+ * Renders in place on the Settings surface.
  */
-export class RecorderConfigModalComponent extends ModalComponent {
+export class RecorderSettingsComponent extends BaseComponent {
 
     radioGroup(name, options, labels, current, onChange) {
         const group = document.createElement('div');
@@ -31,8 +31,6 @@ export class RecorderConfigModalComponent extends ModalComponent {
             input.name = name;
             input.value = value;
             input.checked = value === current;
-            // Plain listener: ModalComponent.render() tears down bound events
-            // first, and these inputs are discarded with the dialog anyway
             input.addEventListener('change', () => input.checked && onChange(value));
             const text = document.createElement('span');
             text.textContent = labels[value];
@@ -42,63 +40,45 @@ export class RecorderConfigModalComponent extends ModalComponent {
         return group;
     }
 
-    section(title, body) {
+    section(title, body, wide = false) {
         const sec = document.createElement('section');
-        sec.className = 'midi-section';
+        sec.className = 'settings-section' + (wide ? ' settings-section-wide' : '');
         const heading = document.createElement('div');
-        heading.className = 'midi-section-title';
+        heading.className = 'settings-section-title';
         heading.textContent = title;
         sec.append(heading, body);
         return sec;
     }
 
-    render(props = {}) {
+    render() {
+        this.teardown();
+        this.el.innerHTML = '';
         const { audioMode, midiMode, tempoMode, lengthMode } = recorderConfig;
-        const content = document.createElement('div');
-        content.className = 'midi-modal rec-config-modal';
-        const title = document.createElement('h2');
-        title.className = 'midi-modal-title';
-        title.textContent = 'Recording';
+
         const row = document.createElement('div');
-        row.className = 'midi-sections-row';
+        row.className = 'settings-sections';
         row.append(
             this.section('Audio (.wav)', this.radioGroup('rec-audio-mode', AUDIO_MODES, AUDIO_LABELS, audioMode,
                 (v) => RecordingActions.setAudioMode(v))),
             this.section('MIDI (.mid)', this.radioGroup('rec-midi-mode', MIDI_MODES, MIDI_LABELS, midiMode,
                 (v) => RecordingActions.setMidiMode(v))),
+            this.section('Take length', this.radioGroup('rec-length-mode', LENGTH_MODES, LENGTH_LABELS, lengthMode,
+                (v) => RecordingActions.setLengthMode(v)), true),
+            this.section('Tempo in the .mid', this.radioGroup('rec-tempo-mode', TEMPO_MODES, TEMPO_LABELS, tempoMode,
+                (v) => RecordingActions.setTempoMode(v)), true),
         );
-        const tempo = this.section('Tempo in the .mid', this.radioGroup('rec-tempo-mode', TEMPO_MODES, TEMPO_LABELS, tempoMode,
-            (v) => RecordingActions.setTempoMode(v)));
-        tempo.classList.add('midi-section-wide');
-        const length = this.section('Take length', this.radioGroup('rec-length-mode', LENGTH_MODES, LENGTH_LABELS, lengthMode,
-            (v) => RecordingActions.setLengthMode(v)));
-        length.classList.add('midi-section-wide');
         const note = document.createElement('p');
-        note.className = 'rec-config-note';
+        note.className = 'settings-hint';
         note.textContent = 'One .wav and one .mid per take, sharing a timeline. The beat comes from the overtone set as MIDI clock; the tempo setting applies when you download.';
-        content.append(title, row, length, tempo, note);
-        super.render({ content, onClose: props.onClose });
-
-        this._escHandler = (e) => { if (e.key === 'Escape') props.onClose?.(); };
-        document.addEventListener('keydown', this._escHandler);
-        this._syncHandler = () => this.syncChecked();
-        document.addEventListener(RECORDER_CHANGED, this._syncHandler);
+        this.el.append(row, note);
     }
 
-    /** Reflect a mode changed elsewhere without rebuilding the dialog. */
+    /** Reflect a mode changed elsewhere without rebuilding. */
     syncChecked() {
         const { audioMode, midiMode, tempoMode, lengthMode } = recorderConfig;
         for (const input of this.qAll('input[name="rec-audio-mode"]')) input.checked = input.value === audioMode;
         for (const input of this.qAll('input[name="rec-midi-mode"]')) input.checked = input.value === midiMode;
         for (const input of this.qAll('input[name="rec-tempo-mode"]')) input.checked = input.value === tempoMode;
         for (const input of this.qAll('input[name="rec-length-mode"]')) input.checked = input.value === lengthMode;
-    }
-
-    teardown() {
-        if (this._escHandler) document.removeEventListener('keydown', this._escHandler);
-        if (this._syncHandler) document.removeEventListener(RECORDER_CHANGED, this._syncHandler);
-        this._escHandler = null;
-        this._syncHandler = null;
-        super.teardown();
     }
 }

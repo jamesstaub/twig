@@ -27,7 +27,7 @@
 @import "./components/toggle.css";
 @import "./components/drawbars.css";
 @import "./components/viz.css";
-@import "./components/modal.css";
+@import "./components/settings.css";
 @import "./components/inspector.css";
 @import "./components/play.css";
 @import "./components/status.css";
@@ -47,6 +47,6 @@
 @import "./components/dial.embed.css";
 @import "./components/drawbars.embed.css";
 @import "./components/viz.embed.css";
-@import "./components/modal.embed.css";
+@import "./components/settings.embed.css";
 @import "./components/inspector.embed.css";
 @import "./components/play.embed.css";

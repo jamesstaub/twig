@@ -23,6 +23,7 @@ export const SURFACES = [
     { id: 'source', label: 'Source', roots: ['oscillator-control-root'] },
     { id: 'system', label: 'System', roots: ['spectral-system-root'] },
     { id: 'wavetable', label: 'Wavetable', roots: ['result-control-root', 'tonewheel-container'] },
+    { id: 'settings', label: 'Settings', roots: ['settings-control-root'] },
 ];
 
 /** Panels the viz dock keeps visible beside any active surface. */
