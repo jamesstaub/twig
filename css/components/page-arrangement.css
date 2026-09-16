@@ -23,11 +23,23 @@ body.surfaces .page-content {
     margin: 0;
 }
 
-/* --- Row wrappers: plain full-size containers now that one panel shows
-       at a time. The "m4l" wrapper still groups Source/Fundamental/System
-       for the embed band; in the shell only one of its three is ever
-       visible, and a single control panel reads best at a bounded width,
-       centered. --- */
+/* --- The surface stack: every panel but the viz dock's, one column.
+       A surface may show several of them (Play: fundamental strip over
+       the pad grid); the LAST visible one absorbs the spare height via
+       its own flex:1 (drawbars, pad grid, voice, the m4l panel). --- */
+body.surfaces .surface-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    flex: 1 1 auto;
+    min-height: 0;
+    min-width: 0;
+}
+
+/* --- Row wrappers. The "m4l" wrapper still groups Source/Fundamental/
+       System for the embed band; in the shell only one of its three is
+       ever visible, and a single control panel reads best at a bounded
+       width, centered. --- */
 body.surfaces #m4l-fundamental-source-panel {
     display: flex;
     flex-wrap: nowrap;
@@ -73,6 +85,24 @@ body.surfaces #drawbars-control-root {
     width: 100%;
 }
 
+/* Play surface: the fundamental strip spans the width (it's the big
+   pitch control, not a centered form) and the pad grid takes the rest */
+body.surfaces[data-surface="play"] #m4l-fundamental-source-panel {
+    flex: 0 0 auto;
+}
+
+body.surfaces[data-surface="play"] #m4l-fundamental-source-panel > .labeled-control {
+    flex: 1 1 auto;
+    max-width: none;
+    margin: 0;
+}
+
+body.surfaces #pad-grid-root {
+    width: 100%;
+    flex: 1 1 auto;
+    min-height: 12rem;
+}
+
 /* Voice surface: the inspector fills the card; a tall editor on a short
    screen scrolls inside the panel rather than the page */
 body.surfaces #voice-control-root {
@@ -85,10 +115,10 @@ body.surfaces #voice-control-root {
 
 /* --- Viz dock: the wave/spectrum/tonewheel canvases shown BESIDE the
        active surface (no actions — those are the Wavetable surface's).
-       The card becomes a two-column grid: surface | dock. Both grid
-       items are placed explicitly on row 1 — only one non-dock panel is
-       ever visible, so nothing overlaps. Not applied while the Wavetable
-       surface itself is active (the dock would duplicate it). --- */
+       The card becomes a two-column grid: surface stack | dock — the
+       stack is the one other child, so the two cells never overlap
+       however many panels the surface shows. Not applied while the
+       Wavetable surface itself is active (the dock would duplicate it). --- */
 body.surfaces.viz-dock:not([data-surface="wavetable"]) .control-card {
     display: grid;
     grid-template-columns: minmax(0, 1fr) var(--dock-width);

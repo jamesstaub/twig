@@ -144,7 +144,16 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
   arranges whatever is left showing (single centered panel for
   Source/Fundamental/System; 2:1 Wavetable+Tonewheel; dock = second grid
   column beside the surface, or a `--dock-height` band on top in
-  portrait). The dock defaults ON for fine pointers and OFF for
+  portrait). Markup: `.control-card` holds exactly two children — the
+  `.surface-stack` (every non-dock panel, a flex column; the LAST
+  visible one carries `flex:1`) and the `.wavetable-tonewheel-row` — so
+  the dock grid is always two cells however many panels a surface shows
+  (Play shows two: the fundamental strip over the pad grid; placing
+  every child on grid row 1 overlapped them). Both wrappers, plus
+  `#m4l-fundamental-source-panel`, are in the shell's WRAPPERS list and
+  collapse when all their panels are hidden; in embed all three are
+  `.embed-flatten` (display:contents) and the band order comes from
+  `order:` on the panels themselves. The dock defaults ON for fine pointers and OFF for
   `body.coarse` — that default is read lazily (`dockDefault()`), NOT at
   module import, because `layoutMode.init()` runs later than imports.
   Sizing a panel for a shell position belongs in page-arrangement.css,
@@ -201,6 +210,23 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
   portrait the header (title, tabs, toggles) wraps to three lines — a
   wider-than-viewport centered card shifts LEFT and takes every child
   with it, so header content must always be allowed to wrap.
+- Play surface (`js/modules/play/`): the fundamental strip
+  (`#fundamental-control-root`: Hz input, octave stepper, one-octave
+  keyboard — the panel spans the width there; `body.coarse` enlarges the
+  keys) over `#pad-grid-root`, a `PadGridComponent` with one big pad per
+  overtone of the current system. Pads gate the voice envelopes through
+  `triggerHarmonicAttack/Release` — the same path as the Q–] keys and
+  the strip's small trigger pads — so they are silent outside ADSR mode
+  or while stopped; the grid shows a "Switch to ADSR" button in open
+  mode instead of dead pads. No velocity by design (the voice's own ADSR
+  from the inspector is the articulation). Each pad captures its own
+  pointer (multi-touch = chords), and `teardown()` releases every held
+  pad, because the controller re-renders on system/fundamental/envelope
+  changes (`scheduleUpdate`, rAF-coalesced) and a re-render mid-hold
+  would otherwise strand a gated voice. A per-frame `--pad-level` glow
+  from `getVoiceLevel` lights whatever sounds, keyboard-triggered
+  included. `TRIGGER_KEY_LABELS` (KeyboardShortcuts.js) supplies the
+  key hints. Hidden in embed (play.embed.css).
 - The drawbar strip (`DrawbarsComponent`) is a touch surface: ONE
   pointer handler on `#drawbars` owns every bar gesture (`pointerdown`
   on a `.drawbar-input-wrapper` snapshots all column rects, then each

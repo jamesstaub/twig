@@ -15,9 +15,8 @@ import { layoutMode } from '../layout/layoutMode.js';
  */
 
 export const SURFACES = [
-    // Play grows into the ADSR pad grid + fundamental strip (overhaul
-    // phase 4); for now it hosts the fundamental panel.
-    { id: 'play', label: 'Play', roots: ['fundamental-control-root'] },
+    // The fundamental strip (pitch, octave, keyboard) over the pad grid
+    { id: 'play', label: 'Play', roots: ['fundamental-control-root', 'pad-grid-root'] },
     { id: 'mix', label: 'Mix', roots: ['drawbars-control-root'] },
     // The inspector, full width (inspectorState picks the overtone)
     { id: 'voice', label: 'Voice', roots: ['voice-control-root'] },

@@ -1,0 +1,145 @@
+/* ================================
+   PLAY SURFACE — the pad grid (#pad-grid-root)
+   ================================
+   One big pad per overtone, MPC-style. The grid fills whatever height
+   the surface leaves under the fundamental strip; pads share it evenly
+   (grid rows are 1fr), so twelve voices fit any screen without
+   scrolling — many more and the grid scrolls, rather than shrinking
+   pads below a finger. */
+
+#pad-grid-root {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    min-height: 0;
+}
+
+.pad-grid-header {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem 0.75rem;
+}
+
+.pad-grid-title {
+    font-weight: var(--font-weight-medium);
+    color: var(--text-label);
+}
+
+.pad-grid-hint {
+    font-size: var(--font-size-xs);
+    color: var(--text-muted);
+}
+
+.pad-grid-adsr-btn {
+    padding: 0.1rem 0.6rem;
+    font-size: var(--font-size-xs);
+}
+
+.pad-grid {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: grid;
+    /* As many columns as fit at ~4.5rem (three across a phone beside the
+       toolbar), but never more than six: a row of twelve slivers is a
+       strip, not pads */
+    grid-template-columns: repeat(auto-fit, minmax(max(4.5rem, 16%), 1fr));
+    grid-auto-rows: minmax(4rem, 1fr);
+    gap: 0.5rem;
+    overflow-y: auto;
+    padding: 0.125rem;
+}
+
+.play-pad {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.2rem;
+    min-height: 4rem;
+    padding: 0.5rem;
+    color: var(--text-primary);
+    /* Tinted by the partial's consonance color; the level glow (set per
+       frame as --pad-level) brightens the tint while the voice sounds */
+    background:
+        linear-gradient(color-mix(in srgb, var(--pad-color) calc(var(--pad-level, 0) * 55%), transparent),
+                        color-mix(in srgb, var(--pad-color) calc(var(--pad-level, 0) * 55%), transparent)),
+        color-mix(in srgb, var(--pad-color) 18%, var(--surface-deep));
+    border: 1px solid color-mix(in srgb, var(--pad-color) 45%, var(--border-subtle));
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-elevation-1);
+    cursor: pointer;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+    transition: transform 0.05s, box-shadow 0.05s;
+}
+
+.play-pad:hover {
+    border-color: var(--pad-color);
+}
+
+.play-pad.held {
+    background: var(--pad-color);
+    color: var(--surface-app);
+    transform: scale(0.97);
+    box-shadow: var(--shadow-recessed);
+}
+
+.play-pad-label {
+    font-family: var(--font-mono);
+    font-size: var(--font-size-lg);
+    font-weight: var(--font-weight-bold);
+    line-height: 1.1;
+}
+
+.play-pad-hz {
+    font-family: var(--font-mono);
+    font-size: var(--font-size-xs);
+    opacity: 0.8;
+}
+
+.play-pad-key {
+    position: absolute;
+    top: 0.3rem;
+    left: 0.45rem;
+    font-family: var(--font-mono);
+    font-size: var(--font-size-3xs);
+    opacity: 0.55;
+}
+
+/* Open mode: the pads can't sound; keep them visible but quiet */
+.pad-grid-inactive .play-pad {
+    opacity: 0.55;
+}
+
+/* Touch: bigger targets, no keyboard hints */
+body.coarse .pad-grid {
+    gap: 0.6rem;
+}
+
+body.coarse .play-pad-key {
+    display: none;
+}
+
+/* ---- Fundamental strip on the Play surface: touch-sized keyboard ---- */
+
+body.coarse .keyboard-container,
+body.coarse .key {
+    height: 96px;
+}
+
+/* 7 × 36px white keys = 252px: one octave fits a phone beside the toolbar */
+body.coarse .key.white {
+    width: 36px;
+}
+
+body.coarse .key.black {
+    width: 24px;
+}
+
+body.coarse .btn-octave {
+    padding: 0.5rem 1rem;
+    font-size: var(--font-size-base);
+}

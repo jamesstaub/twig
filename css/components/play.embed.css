@@ -1,0 +1,6 @@
+/* Embed-mode overrides for play.css: the 170px band has no Play surface
+   (the drawbar trigger pads and MIDI/OSC cover triggering there). */
+
+body.embed #pad-grid-root {
+    display: none;
+}

@@ -2,7 +2,6 @@
 // Global key mapping: play toggle, fundamental notes, ADSR triggers,
 // drawbar arrow control, octave switching.
 
-import { AppState } from './config.js';
 import { DrawbarsActions } from './modules/drawbars/drawbarsActions.js';
 import { FundamentalActions } from './modules/fundamental/fundamentalActions.js';
 import { PlayToggleActions } from './modules/playToggle/playToggleActions.js';
@@ -21,6 +20,10 @@ const TRIGGER_KEYS = [
     'KeyQ', 'KeyW', 'KeyE', 'KeyR', 'KeyT', 'KeyY', 'KeyU', 'KeyI',
     'KeyO', 'KeyP', 'BracketLeft', 'BracketRight'
 ];
+
+/** The same keys as printed hints ("Q" … "]"), one per voice, for the pad grid. */
+export const TRIGGER_KEY_LABELS = TRIGGER_KEYS.map((code) =>
+    code.replace('Key', '').replace('BracketLeft', '[').replace('BracketRight', ']'));
 
 export class KeyboardShortcuts {
     constructor() {

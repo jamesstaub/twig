@@ -33,6 +33,7 @@ import { SpectrumController } from './modules/spectrum/spectrumController.js';
 import { RecorderController } from './modules/recording/recorderController.js';
 import { SurfacesController } from './modules/surfaces/surfacesController.js';
 import { InspectorController } from './modules/inspector/inspectorController.js';
+import { PadGridController } from './modules/play/padGridController.js';
 import { inspectorState } from './modules/inspector/inspectorState.js';
 // ================================
 // INITIALIZATION
@@ -160,6 +161,8 @@ function setupRoutingControl() {
 function setupFundamental() {
     const fundamentalController = new FundamentalController("#fundamental-control-root");
     fundamentalController.init();
+    // Play surface: one pad per overtone under the fundamental strip
+    new PadGridController('#pad-grid-root').init();
 }
 
 // ================================

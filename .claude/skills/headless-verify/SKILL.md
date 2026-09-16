@@ -51,6 +51,13 @@ description: Verify twig changes end-to-end in a headless browser — screenshot
   `#drawbars` (the strip captures the pointer) at other columns'
   x/y, then `pointerup` — `pointerType: 'touch'` works the same.
   Sequence view: `.drawbar-seq-summary` per column (click → inspector).
+- **Play pads**: `.play-pad[data-index=N]` on the Play surface —
+  `pointerdown` (distinct `pointerId`s for chords) / `pointerup`;
+  `.held` marks pressed pads. Silent unless ADSR mode (navbar
+  `#envelope-mode-toggle`, or the grid's `.pad-grid-adsr-btn`) AND
+  playing; spy on `TWIG.getAudioEngine().triggerOscillatorAttack/
+  Release` to assert gating. The bridge cache on 3401 persists the
+  envelope mode between runs — set it explicitly first.
 - **Surfaces**: `.surface-toolbar-btn[data-surface="play|mix|voice|source|
   system|wavetable|dock"]`; `?coarse=1` previews touch density,
   portrait viewports put the viz dock on top and the sheet at the bottom.

@@ -11,8 +11,9 @@ import BaseComponent from '../base/BaseComponent.js';
  * the toolbar is hidden there and css/embed.css owns the layout.
  */
 
-// Row wrappers that should collapse when none of their panels is showing
-const WRAPPERS = ['#m4l-fundamental-source-panel', '.wavetable-tonewheel-row'];
+// Wrappers that should collapse when none of their panels is showing —
+// innermost first, so an outer wrapper sees its inner ones already hidden
+const WRAPPERS = ['#m4l-fundamental-source-panel', '.wavetable-tonewheel-row', '.surface-stack'];
 
 export class SurfaceShellComponent extends BaseComponent {
 
