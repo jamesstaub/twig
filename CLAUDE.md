@@ -243,6 +243,21 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
   and the Voice surface scroll INSIDE themselves — a surface is a
   screen, never a scrolling page; layout.css's `min-height` alone let a
   tall panel grow the page.
+- Navbar: above 64rem it is the fixed one-row bar with `.app-container`
+  padded to `--navbar-height` (base.css) and the page shell sized to
+  the rest. Below 64rem on the surfaces shell (phones both ways,
+  portrait tablets — one row of everything needs ~1100px) it becomes a
+  STATIC, WRAPPING block at the top of a full-height flex column
+  (`body.surfaces.app-container`, page-arrangement.css; rows in
+  navbar.css: Play·MIDI·Open/ADSR, recorder, Gain·Slew — the recorder
+  joins row 1 from 48rem). A wrapping navbar has no known height, which
+  is why the fixed-navbar + padding scheme can't be used there; the
+  logo is dropped. The Gain/Slew groups and their range inputs must be
+  allowed to shrink (`min-width:0; flex:1 1 0`) — a range input's
+  intrinsic width is rigid and the pair overflows a phone otherwise.
+  On short viewports (`max-height: 30rem`, landscape phones) the
+  surface toolbar goes icons-only and scrolls. Embed keeps its own
+  navbar layout (embed.css).
 - The drawbar strip (`DrawbarsComponent`) is a touch surface: ONE
   pointer handler on `#drawbars` owns every bar gesture (`pointerdown`
   on a `.drawbar-input-wrapper` snapshots all column rects, then each

@@ -101,13 +101,83 @@
     color: var(--text-title);
 }
 
-/* Bespoke breakpoint (not on Tailwind's scale) — narrower than any
-   default step, just for this one rotated-logo affordance. */
-@media (max-width: 500px) {
-    .logo {
-        right: 0;
+/* Phones (surfaces shell): the navbar is a static, WRAPPING block at the
+   top of a full-height column (page-arrangement.css turns body into that
+   column) — [Play][MIDI][Open/ADSR] / [recorder strip] / [Gain][Slew].
+   The fixed-navbar + body padding-top scheme above needs a known navbar
+   height, which a wrapping one doesn't have. The logo goes: there is no
+   spare corner for it. 64rem, not 48: one row of everything (play, MIDI,
+   envelope, recorder strip, gain, slew) needs ~1100px — a phone in
+   landscape or a portrait tablet must wrap too. */
+@media (max-width: 64rem) {
+    body.surfaces .navbar {
+        position: static;
+        flex: 0 0 auto;
+        padding-right: 0;
     }
-    .logo p {
-        transform: rotate(90deg);
+
+    body.surfaces .navbar-row {
+        flex-wrap: wrap;
+        height: auto;
+        width: 100%;
+        padding: 0.5rem 0.75rem;
+        gap: 0.5rem;
+        justify-content: flex-start;
+    }
+
+    body.surfaces .navbar-section {
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        flex-basis: 100%;
+    }
+
+    /* Play · MIDI · Open/ADSR fit one 390px row only without the desktop
+       side margins; and the play toggle must not grow, or it fills the
+       row alone and pushes everything after it down */
+    body.surfaces .midi-btn,
+    body.surfaces .envelope-mode-container {
+        margin-left: 0;
+    }
+
+    body.surfaces .play-toggle-container {
+        flex-grow: 0;
+    }
+
+    body.surfaces #recorder-root {
+        flex-basis: 100%;
+    }
+
+    /* Wider than a phone (landscape phone, portrait tablet): the recorder
+       strip fits beside the transport controls on row 1, so gain/slew
+       alone make row 2 — two rows instead of three */
+    @media (min-width: 48rem) {
+        body.surfaces #recorder-root {
+            flex-basis: auto;
+        }
+    }
+
+    body.surfaces .navbar-section.center {
+        flex-wrap: nowrap;
+        flex-basis: 100%;
+        min-width: 0;
+    }
+
+    /* Gain and Slew share the row: the groups and the range inputs inside
+       them must be allowed to shrink (a range input's intrinsic width is
+       rigid otherwise and the pair overflows the screen) */
+    body.surfaces .navbar-control-group {
+        min-width: 0;
+        flex: 1 1 0;
+        gap: 0.5rem;
+    }
+
+    body.surfaces .navbar-control-group input[type="range"] {
+        min-width: 0;
+        width: 100%;
+        flex: 1 1 0;
+    }
+
+    body.surfaces .logo {
+        display: none;
     }
 }

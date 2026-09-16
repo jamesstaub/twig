@@ -71,3 +71,27 @@ body.coarse .surface-toolbar-btn {
     width: 3rem;
     height: 3rem;
 }
+
+/* Short viewports (a phone in landscape): seven buttons at finger size
+   are taller than the screen — icons only, tighter, and the rail scrolls
+   if it still must */
+@media (max-height: 30rem) {
+    .surface-toolbar {
+        gap: 0;
+        padding: 0.25rem 0;
+        overflow-y: auto;
+        min-height: 0;
+        scrollbar-width: none;
+    }
+
+    .surface-toolbar-btn,
+    body.coarse .surface-toolbar-btn {
+        width: 2.5rem;
+        height: 1.85rem;
+        flex: 0 0 auto;
+    }
+
+    .surface-toolbar-label {
+        display: none;
+    }
+}

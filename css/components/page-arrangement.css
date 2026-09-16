@@ -21,11 +21,27 @@
    Voice) scrolls inside itself — that only works when every ancestor up
    to the viewport is height-capped. */
 body.surfaces .page-shell {
-    height: calc(100vh - var(--navbar-height-tall));
+    flex: 1 1 auto;
+    height: auto;
     min-height: 0;
 }
 
-@media (min-width: 48rem) {
+/* Under 64rem (phones either way, portrait tablets): body is the
+   full-height column — static wrapping navbar on top (navbar.css), the
+   shell below taking the rest */
+@media (max-width: 64rem) {
+    body.surfaces.app-container {
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+        min-height: 0;
+        padding-top: 0;
+    }
+}
+
+/* Wider: the fixed one-row navbar + body padding-top scheme (base.css),
+   so the shell is the viewport minus the navbar */
+@media (min-width: 64rem) {
     body.surfaces .page-shell {
         height: calc(100vh - var(--navbar-height));
     }
@@ -95,9 +111,13 @@ body.surfaces .wavetable-tonewheel-row {
     }
 }
 
-/* Drawbars: full width; its flex-grow / min-height live in drawbars.css */
+/* Drawbars: full width; its flex-grow / min-height live in drawbars.css.
+   On a very short screen (phone landscape) the strip's floors exceed the
+   card — it scrolls inside the panel rather than growing the page */
 body.surfaces #drawbars-control-root {
     width: 100%;
+    min-height: 0;
+    overflow-y: auto;
 }
 
 /* Play surface: the fundamental strip spans the width (it's the big
