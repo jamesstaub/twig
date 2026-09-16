@@ -153,6 +153,7 @@
     @media (min-width: 48rem) {
         body.surfaces #recorder-root {
             flex-basis: auto;
+            margin-left: 0; /* the row's gap spaces it; the desktop margin is the few px that made it wrap */
         }
     }
 
