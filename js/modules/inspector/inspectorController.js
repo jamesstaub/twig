@@ -4,6 +4,7 @@ import { inspectorState } from './inspectorState.js';
 import { surfaceState } from '../surfaces/surfaceState.js';
 import { layoutMode } from '../layout/layoutMode.js';
 import {
+    CONVOLUTION_IRS_CHANGED,
     ENVELOPE_MODE_CHANGED,
     INSPECTOR_CHANGED,
     LAYOUT_MODE_CHANGED,
@@ -77,6 +78,7 @@ export class InspectorController extends BaseController {
         document.addEventListener(SPECTRAL_SYSTEM_CHANGED, () => this.scheduleUpdate());
         document.addEventListener(ENVELOPE_MODE_CHANGED, () => this.scheduleUpdate());
         document.addEventListener(MIDI_OUTPUT_CHANGED, () => this.scheduleUpdate());
+        document.addEventListener(CONVOLUTION_IRS_CHANGED, () => this.scheduleUpdate());
         // The selected voice changed from outside (drawbar edit, OSC, a
         // linked write from another voice's controls) — mirror it. Our own
         // writes are already on screen.

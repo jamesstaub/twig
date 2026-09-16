@@ -97,48 +97,19 @@ body.embed .drawbar-aux {
     min-height: 0;
 }
 
-/* No room for a per-bar readout or per-dial captions in the band — and as
-   display:none elements they stay out of the two-row column grid below */
-body.embed .drawbar-value,
-body.embed .drawbar .mini-dial-label {
+/* No room for a per-bar readout in the band */
+body.embed .drawbar-value {
     display: none;
 }
 
-/* Aux dials (gain: pan; filter: res/drive) ride BESIDE the slider — the
-   column becomes a two-row grid (label spanning row 1) since stacking
-   below the slider would need more height than the row has. Row 2 gets
-   an explicit 1fr track so the wrapper's height:100% (via align-self:
-   stretch below) has something definite to resolve against. */
-body.embed .drawbar:has(.drawbar-aux .mini-dial) {
-    display: grid;
-    grid-template-columns: auto auto;
-    grid-template-rows: auto 1fr;
-    justify-content: center;
-    align-items: center;
-    column-gap: 3px;
-    min-width: 52px;
-}
-
-body.embed .drawbar:has(.drawbar-aux .mini-dial) .drawbar-label {
-    grid-column: 1 / -1;
-}
-
-/* Only the slider stretches to the row's full height; the aux dial stays
-   its natural size, centered (inherited from the grid's align-items) */
-body.embed .drawbar:has(.drawbar-aux .mini-dial) .drawbar-input-wrapper {
-    align-self: stretch;
-    height: auto;
-    flex: initial;
-    margin: 0;
-}
-
-body.embed .drawbar-aux-dials {
-    flex-direction: column;
-    gap: 3px;
-}
-
-body.embed .drawbar-dial-stack {
-    height: 104px;
+/* Sequence summary: fills the column like the slider does */
+body.embed .drawbar-seq-summary {
+    min-height: 0;
     margin: 2px 0;
-    gap: 0.25rem;
+    padding: 0;
+    gap: 2px;
+}
+
+body.embed .drawbar-seq-preview {
+    height: 28px !important;
 }

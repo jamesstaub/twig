@@ -201,6 +201,25 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
   portrait the header (title, tabs, toggles) wraps to three lines — a
   wider-than-viewport centered card shifts LEFT and takes every child
   with it, so header content must always be allowed to wrap.
+- The drawbar strip (`DrawbarsComponent`) is a touch surface: ONE
+  pointer handler on `#drawbars` owns every bar gesture (`pointerdown`
+  on a `.drawbar-input-wrapper` snapshots all column rects, then each
+  move applies to the column under the pointer — `columnAt` /
+  `applyPointerToColumn` — so a finger swiped across the row DRAWS the
+  spectrum; shape mode shapes per pointed column). `.drawbar-input-
+  wrapper` and `.drawbar-slider` are `touch-action: none` (a sideways
+  finger must never become a scroll and cancel the pointer); the
+  column's label/aux areas keep `pan-x` so an overflowing strip can
+  still be scrolled from there. Per-column controls are ONLY: label
+  (opens the inspector), the bar + `.drawbar-value`, amp dot, ADSR
+  trigger pad, and in the convolution view the IR stepper — pan, res,
+  drive and the convolution send dials live in the inspector now, and
+  the sequence view is a read-only `.drawbar-seq-summary` (the
+  inspector's preview + mode/stretch text) that opens the inspector;
+  `syncSignal` refreshes it on gate/seq changes. Under 40rem the
+  columns are `flex: 1 1 0` with a 20px floor (12 voices fit a phone
+  beside the toolbar; more scroll), the summary text hides, and only
+  the preview remains.
 - `.page-shell`/`.page-content`/`.control-card` are a flex chain filling
   the viewport below the fixed navbar (`.page-shell`'s `min-height:
   calc(100vh - navbar-height)`, `.control-card{flex:1}`) so leftover

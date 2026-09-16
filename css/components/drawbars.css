@@ -64,6 +64,11 @@
 .drawbar-input-wrapper {
     position: relative;
     width: 26px;
+    /* The strip owns the whole gesture (swipe-draw across columns): no
+       browser panning may start from the track, or a sideways finger
+       cancels the pointer to scroll. The column's label/aux areas keep
+       pan-x, so the strip can still be scrolled from there when it must. */
+    touch-action: none;
     /* Fills whatever height .drawbar has to give (see --drawbar-track-length
        below — DrawbarsComponent.syncTrackLengths measures this box's
        resolved height post-layout and publishes it as a CSS var, since a
@@ -175,6 +180,7 @@
     transform-origin: center;
 
     cursor: pointer;
+    touch-action: none; /* the strip owns the gesture — see .drawbar-input-wrapper */
 }
 
 
@@ -323,18 +329,56 @@
     color: var(--text-accent);
 }
 
+/* Phones: every column shares the width so all voices fit on screen at
+   once (swipe-draw needs the whole row under the finger) — columns and
+   handles slim down to a 24px floor before the strip scrolls */
 @media (max-width: 40rem) {
     .drawbar-container {
         justify-content: flex-start;
-        padding-left: 1.5rem;
-        padding-bottom: 4rem;
-        scroll-padding-left: 1.5rem;
+        padding-left: 0.25rem;
+        padding-bottom: 0.5rem;
+        scroll-padding-left: 0.25rem;
         -webkit-overflow-scrolling: touch;
         scrollbar-width: none;
     }
     .drawbar-container::-webkit-scrollbar {
         height: 0px;
         background: transparent;
+    }
+    /* 20px floor: twelve voices fit a 390px phone beside the toolbar
+       (12 × 20 = 240 of the ~260px the strip gets) */
+    .drawbar {
+        flex: 1 1 0;
+        width: auto;
+        min-width: 20px;
+    }
+    .drawbar-label {
+        font-size: var(--font-size-3xs);
+        padding: 0.2rem 0;
+    }
+    .drawbar-input-wrapper {
+        width: 20px;
+    }
+    .drawbar-slider {
+        --drawbar-thumb-length: 20px;
+        height: 20px;
+    }
+    .drawbar-slider::-webkit-slider-thumb {
+        height: 16px;
+    }
+    .drawbar-slider::-moz-range-thumb {
+        height: 16px;
+    }
+    .drawbar-trigger {
+        width: 20px;
+    }
+    .drawbar-value {
+        font-size: var(--font-size-3xs);
+    }
+    /* "euclid 3/8" can't fit a 20px column — the preview alone is the
+       summary here; the tap opens the inspector for the rest */
+    .drawbar-seq-text {
+        display: none;
     }
 }
 
@@ -549,43 +593,54 @@ body.adsr-mode .drawbar-trigger {
     border-color: var(--drawbar-color, var(--accent-primary));
 }
 
-/* Filter view (res + drive) / convolution view (fb + gain + tune) aux
-   dials, stacked under the column — each Dial carries a caption and
-   readout now, and side by side they'd wrap in a 64px column. The
-   drawbars row is the page's flexible one, so the height is there. */
-.drawbar-aux-dials {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-}
+/* ---- Sequence view: a read-only per-column summary (the sequence
+       preview, mode and stretch) — tapping it opens the inspector, where
+       the sequence is edited. Sized like .drawbar-input-wrapper so the
+       column's height doesn't change between views. ---- */
 
-/* ---- Sequence view: wave stepper, mode stepper, x/y dials stacked ---- */
-
-.drawbar-dial-stack {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 0.4rem;
-    /* Matches .drawbar-input-wrapper's now-flexible sizing so switching to
-       the sequence view doesn't change the column's height */
+.drawbar-seq-summary {
     flex: 1 1 auto;
     height: auto;
     min-height: 108px;
     max-height: 280px;
+    width: 100%;
     margin: 4px 0;
-}
-
-/* x/y dials side by side under the steppers */
-.drawbar-seq-controls {
+    padding: 0.25rem 0;
     display: flex;
-    flex-direction: row;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 0.4rem;
+    gap: 0.35rem;
+    color: inherit;
+    background: none;
+    border: 1px solid transparent;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: border-color 0.15s;
 }
 
-/* (Dial widget styles live in dial.css) */
+.drawbar-seq-summary:hover {
+    border-color: var(--border-subtle);
+}
+
+.drawbar-seq-preview {
+    display: block;
+    width: calc(100% - 8px) !important;
+    height: 44px !important;
+    min-height: 0 !important;
+    border: 1px solid var(--border-subtle) !important;
+    border-radius: 3px !important;
+    box-shadow: none !important;
+}
+
+.drawbar-seq-text {
+    font-family: var(--font-mono);
+    font-size: var(--font-size-2xs);
+    line-height: 1.35;
+    color: var(--text-accent);
+    text-align: center;
+    white-space: pre-line;
+}
 
 .drawbar-disabled {
     opacity: 0.3;

@@ -1,8 +1,9 @@
 import BaseComponent from '../base/BaseComponent.js';
 import { AppState } from '../../config.js';
 import { calculateFrequency, formatHz } from '../../utils.js';
-import { harmonicFilterCutoff, MAX_FILTER_PARTIALS } from '../../audio.js';
-import { OvertoneSignalActions, Q_MAX, DRIVE_MAX, ENV_TIME_MAX } from '../overtoneSignal/overtoneSignalActions.js';
+import { harmonicFilterCutoff, partialFrequency, MAX_FILTER_PARTIALS } from '../../audio.js';
+import { OvertoneSignalActions, Q_MAX, DRIVE_MAX, ENV_TIME_MAX, CONV_FEEDBACK_MAX } from '../overtoneSignal/overtoneSignalActions.js';
+import { irManager } from '../../dsp/IRManager.js';
 import { Dial } from '../generic/dial/Dial.js';
 import { midiOutputRouter } from '../midi/midiOutputRouter.js';
 import { noteForVoice } from '../midi/pulseMidi.js';
@@ -126,7 +127,7 @@ export class InspectorComponent extends BaseComponent {
         // sequence and pulse sections get the width instead
         const side = document.createElement('div');
         side.className = 'inspector-side-col';
-        side.append(this.buildFilterSection(index), this.buildPanSection(index));
+        side.append(this.buildFilterSection(index), this.buildConvolutionSection(index), this.buildPanSection(index));
 
         const sections = document.createElement('div');
         sections.className = 'inspector-sections';
@@ -411,6 +412,82 @@ export class InspectorComponent extends BaseComponent {
             })
         );
         el.sectionBody.appendChild(row);
+        return el;
+    }
+
+    // ---------------------------------------------------------------
+    // Convolution: this voice's IR, and the send's feedback / gain / tune
+    // ---------------------------------------------------------------
+
+    buildConvolutionSection(index) {
+        const el = this.section('Convolution');
+        const conv = OvertoneSignalActions.getConvolution(index);
+
+        // IR picker. The strip's convolution view keeps a per-column IR
+        // stepper for fast assignment; this is the single voice's full view.
+        const select = document.createElement('select');
+        select.className = 'control-select';
+        const none = document.createElement('option');
+        none.value = '';
+        none.textContent = 'no IR';
+        select.appendChild(none);
+        for (const ir of irManager.list()) {
+            const o = document.createElement('option');
+            o.value = ir.key;
+            o.textContent = ir.name;
+            if (ir.key === conv.ir) o.selected = true;
+            select.appendChild(o);
+        }
+        select.addEventListener('change', (e) => {
+            this.apply(index, e, (i) => OvertoneSignalActions.setConvolution(i, { ir: select.value || null }));
+        });
+        el.sectionBody.appendChild(select);
+
+        // Feedback comb tuning: 0 = the IR's own period, else a series
+        // partial of the voice (the filter cutoff's convention)
+        const voiceFreq = calculateFrequency(AppState.currentSystem.ratios[index]);
+        const sysLabels = AppState.currentSystem.labels;
+        const partialLabel = (n) => (n <= sysLabels.length ? sysLabels[n - 1] : `+${n - sysLabels.length}`);
+        const current = () => OvertoneSignalActions.getConvolution(index);
+
+        const row = document.createElement('div');
+        row.className = 'inspector-dial-row';
+        row.append(
+            this.dialColumn({
+                label: 'feedback', color: '--accent-negative',
+                dial: { min: -CONV_FEEDBACK_MAX, max: CONV_FEEDBACK_MAX, step: 0.01, value: conv.feedback },
+                text: () => {
+                    const v = current().feedback;
+                    return `fb ${v < 0 ? '−' : ''}${Math.round(Math.abs(v) * 100)}`;
+                },
+                onChange: (v, e) => this.apply(index, e, (i) => OvertoneSignalActions.setConvolution(i, { feedback: v })),
+            }),
+            this.dialColumn({
+                label: 'gain', color: '--accent-positive',
+                dial: { min: 0, max: 1, step: 0.01, value: conv.gain },
+                text: () => `${Math.round(current().gain * 100)}%`,
+                onChange: (v, e) => this.apply(index, e, (i) => OvertoneSignalActions.setConvolution(i, { gain: v })),
+            }),
+            this.dialColumn({
+                label: 'tune',
+                dial: { min: 0, max: MAX_FILTER_PARTIALS, step: 1, value: conv.tune },
+                text: () => {
+                    const step = Math.round(current().tune);
+                    return step === 0 ? 'period' : `${partialLabel(step)}\n${formatHz(partialFrequency(voiceFreq, step))}`;
+                },
+                onChange: (v, e) => this.apply(index, e, (i) => OvertoneSignalActions.setConvolution(i, { tune: Math.round(v) })),
+            })
+        );
+        el.sectionBody.appendChild(row);
+
+        if (!conv.ir) {
+            const hint = document.createElement('div');
+            hint.className = 'inspector-hint';
+            hint.textContent = irManager.list().length
+                ? 'pick an IR to hear the convolution stage'
+                : 'no IRs yet — Create IR (Wavetable or Mix › convolution)';
+            el.sectionBody.appendChild(hint);
+        }
         return el;
     }
 

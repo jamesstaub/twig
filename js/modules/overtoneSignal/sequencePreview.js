@@ -136,10 +136,6 @@ export function drawSequencePreview(canvas, index) {
 
 const iconCache = new Map();
 
-/**
- * Small PNG icon (data URL) of a waveform's cycle contour, rendered from
- * a canvas at 2× and cached per shape/size/color.
- */
 /** A waveform's 0-1 contour tiled `cycles` times across the canvas. */
 export function drawShapeContour(canvas, shapeName, cycles = 1) {
     const ctx = canvas.getContext('2d');
@@ -163,6 +159,10 @@ export function drawShapeContour(canvas, shapeName, cycles = 1) {
     ctx.stroke();
 }
 
+/**
+ * Small PNG icon (data URL) of a waveform's cycle contour, rendered from
+ * a canvas at 2× and cached per shape/size/color.
+ */
 export function shapeIconDataURL(shapeName, { width = 16, height = 10, color = '--text-secondary' } = {}) {
     const key = `${shapeName}|${width}x${height}|${color}`;
     if (iconCache.has(key)) return iconCache.get(key);

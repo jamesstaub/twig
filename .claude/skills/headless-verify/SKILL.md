@@ -46,7 +46,11 @@ description: Verify twig changes end-to-end in a headless browser — screenshot
   stepper) and `#drawbar-link-toggle` (`body.link-all`; a dial drag
   then writes every voice). Press a bar by dispatching `pointerdown`
   then `pointerup` on `.drawbar[data-index=N] .drawbar-input-wrapper`
-  at the wanted clientY (`shiftKey: true` for the shortcut).
+  at the wanted clientY (`shiftKey: true` for the shortcut). Swipe-draw:
+  `pointerdown` on one wrapper, then `pointermove`s dispatched on
+  `#drawbars` (the strip captures the pointer) at other columns'
+  x/y, then `pointerup` — `pointerType: 'touch'` works the same.
+  Sequence view: `.drawbar-seq-summary` per column (click → inspector).
 - **Surfaces**: `.surface-toolbar-btn[data-surface="play|mix|voice|source|
   system|wavetable|dock"]`; `?coarse=1` previews touch density,
   portrait viewports put the viz dock on top and the sheet at the bottom.
