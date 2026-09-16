@@ -108,9 +108,8 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
   every drawbar has a `.drawbar-value` under the bar kept current by
   `syncFill`. `Dial` calls `onChange` BEFORE `draw()` so a `format` that
   reads host state (the inspector's cutoff "φ^2 · 660 Hz") renders the new
-  value. The floating `ValueTip` now serves only the Overtone System "?"
-  popover (retires with it in overhaul phase 5); `Dial` has no tip
-  options left. Gotcha: layout.css's `.labeled-control span` restyles
+  value. Nothing floats any more: `ValueTip` is gone, and `Dial` has no
+  tip options. Gotcha: layout.css's `.labeled-control span` restyles
   every span in a panel as a flex heading; widget text inside panels must
   out-specify it (dial.css uses `.mini-dial > …`).
 - Embed mode: `body.embed` (see layout mode above) when the viewport is
@@ -315,15 +314,14 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
   already-created canvas doesn't retroactively shrink just because
   alignment changed after the fact, so re-load the page after any such
   experiment rather than trusting a live toggle.
-- The Overtone System's description is shown from a "?" button
-  (`#system-info-btn`) via `ValueTip.show(html, x, y, {html: true, wrap:
-  true, interactive: true})` — click-toggled with an outside-mousedown
-  dismiss handler (`SpectralSystemComponent.bindInfoButton`), not hover
-  (jweb/touch have no reliable hover). `ValueTip`'s `html` option renders
-  trusted, internally-authored content only (config.js description
-  strings — never anything from the bridge or user input); `wrap` switches
-  it from the default single-line centered readout to a left-aligned
-  wrapping block. Start harmonic and the current system's tunable params
+- The Overtone System's description is an in-flow disclosure
+  (`#system-description`, under the system menu) toggled by the "?"
+  button (`#system-info-btn`, `SpectralSystemComponent.bindInfoButton`)
+  — click, not hover (jweb/touch have no reliable hover), and in flow,
+  not floating (a popover lands under fingers or off-screen).
+  `setDescription` writes trusted, internally-authored HTML only
+  (config.js description strings — never anything from the bridge or
+  user input). Start harmonic and the current system's tunable params
   (stretch, stiffness, …) render as one inline row of Dials
   (`#system-dials-row`, `SpectralSystemComponent.renderDials`), each a
   plain `Dial` (caption above, readout below, like every dial).

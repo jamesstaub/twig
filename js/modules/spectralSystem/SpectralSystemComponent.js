@@ -1,6 +1,5 @@
 import BaseComponent from "../base/BaseComponent.js";
 import { Dial } from "../generic/dial/Dial.js";
-import { ValueTip } from "../generic/valueTip.js";
 import {
     COMPRESS_A_MAX, COMPRESS_A_MIN, DEFAULT_COMPRESS_A,
     DEFAULT_STIFFNESS_B, DEFAULT_STRETCH_A, DEFAULT_TUBE_CLOSEDNESS,
@@ -67,10 +66,10 @@ export class SpectralSystemComponent extends BaseComponent {
         this.onSubharmonicToggle = null;
         this.onStartHarmonicChange = null;
         this.onParamChange = null;
-        // The current system's description (HTML) — shown in a ValueTip from
-        // the "?" button rather than as an always-visible block, which used
-        // to cost every system ~50px of the row's height regardless of
-        // whether anyone was reading it.
+        // The current system's description (HTML) — an in-flow disclosure
+        // under the menu, opened by the "?" button rather than an
+        // always-visible block, which used to cost every system ~50px of
+        // the row's height regardless of whether anyone was reading it.
         this._description = '';
     }
 
@@ -95,7 +94,7 @@ export class SpectralSystemComponent extends BaseComponent {
             selectEl.appendChild(option);
         });
 
-        this._description = currentSystem?.description || '';
+        this.setDescription(currentSystem?.description || '');
 
         this.renderDials({ currentSystem, startHarmonic, systemParams });
 
@@ -108,7 +107,7 @@ export class SpectralSystemComponent extends BaseComponent {
         if (!selectEl) return;
 
         if (currentSystemIndex >= 0) selectEl.value = currentSystemIndex;
-        this._description = currentSystem?.description || '';
+        this.setDescription(currentSystem?.description || '');
         this.renderDials({ currentSystem, startHarmonic, systemParams });
     }
 
@@ -200,50 +199,34 @@ export class SpectralSystemComponent extends BaseComponent {
         this.bindInfoButton();
     }
 
+    /** The current system's description into the disclosure block (trusted config.js HTML). */
+    setDescription(html) {
+        this._description = html;
+        const desc = this.q('#system-description');
+        if (desc) desc.innerHTML = html || 'No description.';
+    }
+
     /**
-     * "?" button: click-toggles a ValueTip holding the system's (HTML)
-     * description. Click-to-toggle rather than hover, since jweb/touch
-     * contexts have no reliable hover — dismissed by clicking anywhere
-     * else, same convention as the drawbar context menu.
+     * "?" button: click-toggles the in-flow description block under the
+     * menu (#system-description). Click-to-toggle rather than hover, since
+     * jweb/touch contexts have no reliable hover; in flow rather than a
+     * floating popover so it can't land under a finger or off-screen.
      */
     bindInfoButton() {
         const btn = this.q('#system-info-btn');
-        if (!btn) return;
+        const desc = this.q('#system-description');
+        if (!btn || !desc) return;
 
         if (this._infoBtnHandler) {
             btn.removeEventListener('click', this._infoBtnHandler);
         }
-        if (this._infoDismiss) {
-            document.removeEventListener('mousedown', this._infoDismiss);
-        }
-
-        this._infoBtnHandler = (e) => {
-            e.stopPropagation();
-            if (this._infoOpen) {
-                ValueTip.hide();
-                this._infoOpen = false;
-                return;
-            }
-            const r = btn.getBoundingClientRect();
-            ValueTip.show(this._description || 'No description.', r.left + r.width / 2, r.top, {
-                autoHideMs: 0,
-                interactive: true,
-                html: true,
-                wrap: true,
-            });
-            this._infoOpen = true;
+        this._infoBtnHandler = () => {
+            desc.hidden = !desc.hidden;
+            btn.setAttribute('aria-expanded', String(!desc.hidden));
+            btn.classList.toggle('active', !desc.hidden);
         };
+        btn.setAttribute('aria-expanded', String(!desc.hidden));
         btn.addEventListener('click', this._infoBtnHandler);
-
-        // Dismiss on outside click (deferred so this same click doesn't
-        // immediately close what it just opened)
-        this._infoDismiss = (e) => {
-            if (this._infoOpen && e.target !== btn && !e.target.closest('.value-tip')) {
-                ValueTip.hide();
-                this._infoOpen = false;
-            }
-        };
-        document.addEventListener('mousedown', this._infoDismiss);
     }
 
 

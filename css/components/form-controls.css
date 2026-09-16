@@ -92,10 +92,10 @@
     color: var(--text-accent);
 }
 
-/* "?" button beside a section label — click opens a ValueTip with more
-   detail (currently: the overtone system's description) rather than
-   showing it inline, which cost every system a fixed block of height
-   whether or not anyone was reading it. */
+/* "?" button beside a section label — click discloses more detail
+   (the overtone system's description, .system-description below) rather
+   than showing it always, which cost every system a fixed block of
+   height whether or not anyone was reading it. */
 .info-icon {
     flex-shrink: 0;
     width: 1.1rem;
@@ -111,9 +111,28 @@
     cursor: pointer;
 }
 
-.info-icon:hover {
+.info-icon:hover,
+.info-icon.active {
     color: var(--text-accent);
     border-color: var(--text-accent);
+}
+
+/* The disclosed description: in flow under the system menu, so it can't
+   land under a finger or off-screen the way a floating popover could */
+.system-description {
+    font-size: var(--font-size-xs);
+    line-height: 1.4;
+    color: var(--text-secondary);
+    padding: 0.4rem 0.6rem;
+    background-color: var(--surface-deep);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    max-height: 9rem;
+    overflow-y: auto;
+}
+
+.system-description a {
+    color: var(--text-accent);
 }
 
 /* Start harmonic + system-param dials: always one inline row (each Dial
