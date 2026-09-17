@@ -42,6 +42,8 @@ html, body {
 body {
     user-select: none;
     -webkit-user-select: none;
+    /* Press-and-hold is ours (the overtone menu) — no iOS callout */
+    -webkit-touch-callout: none;
 }
 
 input,

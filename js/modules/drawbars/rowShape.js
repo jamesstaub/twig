@@ -17,7 +17,9 @@ import { shapeSampler } from '../overtoneSignal/sequencePreview.js';
 export function shapedRow({ count, index, t, cycles = 1, shapeName }) {
     const sample = shapeSampler(shapeName);
 
-    // Anchor the contour's maximum on the dragged column
+    // Anchor the contour's first maximum on the dragged column: the peak
+    // for sine/triangle, the leading edge of the high half for square (so
+    // the shaped row starts high AT the column you dragged)
     let maxPhase = 0;
     let maxVal = -Infinity;
     for (let i = 0; i < 128; i++) {

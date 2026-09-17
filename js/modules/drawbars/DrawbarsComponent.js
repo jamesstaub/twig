@@ -9,6 +9,7 @@ import { drawSequencePreview, drawShapeContour, shapeIconDataURL } from "../over
 import { shapedRow, stepShapeCycles } from "./rowShape.js";
 import { showStatus } from "../../domUtils.js";
 import { voiceTargets } from "../generic/linkAll.js";
+import { openOvertoneMenu, closeOvertoneMenu, armLongPress } from "../generic/overtoneMenu.js";
 import { irManager } from "../../dsp/IRManager.js";
 
 const DRAWBAR_SLIDER_SELECTOR = ".drawbar-slider";
@@ -19,25 +20,6 @@ export const DRAWBAR_VIEWS = ["gain", "filter", "sequence", "convolution"];
 
 // Sequence modes, short enough for a column-width summary line
 const SEQ_MODE_SHORT = ["off", "alt", "euclid", "prob", "seq"];
-
-async function copyFrequency(freq) {
-    const text = freq.toFixed(4).replace(/\.?0+$/, '');
-    try {
-        await navigator.clipboard.writeText(text);
-        showStatus(`Copied ${text} Hz`, 'success');
-    } catch {
-        // Clipboard API unavailable (insecure context / embedded webview)
-        const ta = document.createElement('textarea');
-        ta.value = text;
-        ta.style.position = 'fixed';
-        ta.style.opacity = '0';
-        document.body.appendChild(ta);
-        ta.select();
-        const ok = document.execCommand('copy');
-        ta.remove();
-        showStatus(ok ? `Copied ${text} Hz` : 'Copy failed', ok ? 'success' : 'error');
-    }
-}
 
 export class DrawbarsComponent extends BaseComponent {
 
@@ -123,7 +105,9 @@ export class DrawbarsComponent extends BaseComponent {
     bindRenderedEvents() {
         this.sliders = this.qAll(DRAWBAR_SLIDER_SELECTOR);
 
-        // Right-click on any drawbar: frequency context menu
+        // Right-click anywhere on a column: the overtone menu. Touch has
+        // no right-click, so a press-and-hold on the bar or the trigger
+        // pad opens the same menu (see armLongPress below).
         this.bindEvent(this.el, "contextmenu", (e) => {
             const drawbar = e.target.closest(".drawbar");
             if (!drawbar || drawbar.dataset.index === undefined) return;
@@ -174,13 +158,29 @@ export class DrawbarsComponent extends BaseComponent {
             try {
                 this.el.setPointerCapture(e.pointerId);
             } catch { /* synthetic pointer — drag still works */ }
-            apply(e);
+
             const onMove = (ev) => apply(ev);
+            let cancelPress = () => {};
             const end = () => {
+                cancelPress();
                 this.el.removeEventListener("pointermove", onMove);
                 this.el.removeEventListener("pointerup", end);
                 this.el.removeEventListener("pointercancel", end);
             };
+
+            // Touch press-and-hold opens the overtone menu. The pointer-down
+            // has already drawn the bar to the finger, so snapshot the row
+            // first and put it back: a press that opens a menu must not
+            // also edit the spectrum.
+            const before = columns.map((c) => c.slider.value);
+            const pressIndex = Number(startWrapper.querySelector(DRAWBAR_SLIDER_SELECTOR)?.dataset.index);
+            cancelPress = armLongPress(this.el, e, (px, py) => {
+                end();
+                this.restoreColumns(columns, before);
+                if (Number.isFinite(pressIndex)) this.showContextMenu(pressIndex, px, py);
+            });
+
+            apply(e);
             this.el.addEventListener("pointermove", onMove);
             this.el.addEventListener("pointerup", end);
             this.el.addEventListener("pointercancel", end);
@@ -230,6 +230,19 @@ export class DrawbarsComponent extends BaseComponent {
             ? Math.abs(columns[1].rect.left - columns[0].rect.left)
             : columns[0].rect.width * 2;
         return bestDist <= pitch ? best : null;
+    }
+
+    /**
+     * Put a snapshot of the row's slider values back (an aborted gesture —
+     * see the long press above). Routed through handleDrawbarChange so
+     * whichever view is showing writes through its own parameter.
+     */
+    restoreColumns(columns, values) {
+        columns.forEach((col, i) => {
+            if (col.slider.value === values[i]) return;
+            col.slider.value = values[i];
+            this.handleDrawbarChange({ target: col.slider });
+        });
     }
 
     /**
@@ -713,8 +726,19 @@ export class DrawbarsComponent extends BaseComponent {
             } catch { /* synthetic pointer — hold still works */ }
             pad.classList.add("held");
             triggerHarmonicAttack(index);
+            // Press-and-hold = the overtone menu (touch's right-click).
+            // Let the note go first, or it would sustain under the menu.
+            armLongPress(pad, e, (x, y) => {
+                release();
+                this.showContextMenu(index, x, y);
+            });
             pad.addEventListener("pointerup", release, { once: true });
             pad.addEventListener("pointercancel", release, { once: true });
+        });
+        pad.addEventListener("contextmenu", (e) => {
+            e.preventDefault();
+            release();
+            this.showContextMenu(index, e.clientX, e.clientY);
         });
         return pad;
     }
@@ -797,66 +821,13 @@ export class DrawbarsComponent extends BaseComponent {
         this.onInspect?.(index);
     }
 
+    /** The shared overtone menu, wherever it was summoned from. */
     showContextMenu(index, x, y) {
-        this.closeContextMenu();
-
-        const ratio = AppState.currentSystem.ratios[index];
-        if (!(ratio > 0)) return;
-        const freq = calculateFrequency(ratio);
-        const freqLabel = `${freq.toFixed(freq >= 100 ? 2 : 3)} Hz`;
-
-        const menu = document.createElement("div");
-        menu.className = "drawbar-context-menu";
-
-        const addItem = (label, action) => {
-            const btn = document.createElement("button");
-            btn.type = "button";
-            btn.className = "drawbar-context-menu-item";
-            btn.textContent = label;
-            btn.addEventListener("click", () => {
-                this.closeContextMenu();
-                action();
-            });
-            menu.appendChild(btn);
-        };
-
-        addItem(`Copy Frequency (${freqLabel})`, () => copyFrequency(freq));
-        addItem("Set as Fundamental", () => DrawbarsActions.setDrawbarAsFundamental(index));
-        addItem("Inspect Overtone", () => this.openOvertoneSettings(index));
-
-        // Body-attached + fixed so the drawbar strip's overflow can't clip it
-        document.body.appendChild(menu);
-        const rect = menu.getBoundingClientRect();
-        menu.style.left = `${Math.max(0, Math.min(x, window.innerWidth - rect.width - 4))}px`;
-        menu.style.top = `${Math.max(0, Math.min(y, window.innerHeight - rect.height - 4))}px`;
-
-        this._contextMenu = menu;
-        this._menuDismiss = (e) => {
-            if (!menu.contains(e.target)) this.closeContextMenu();
-        };
-        this._menuEsc = (e) => {
-            if (e.key === "Escape") this.closeContextMenu();
-        };
-        // Defer so the opening right-click doesn't immediately dismiss
-        setTimeout(() => {
-            document.addEventListener("mousedown", this._menuDismiss);
-            document.addEventListener("keydown", this._menuEsc);
-        }, 0);
+        openOvertoneMenu(index, x, y, { onInspect: (i) => this.openOvertoneSettings(i) });
     }
 
     closeContextMenu() {
-        if (this._contextMenu) {
-            this._contextMenu.remove();
-            this._contextMenu = null;
-        }
-        if (this._menuDismiss) {
-            document.removeEventListener("mousedown", this._menuDismiss);
-            this._menuDismiss = null;
-        }
-        if (this._menuEsc) {
-            document.removeEventListener("keydown", this._menuEsc);
-            this._menuEsc = null;
-        }
+        closeOvertoneMenu();
     }
 
     teardown() {

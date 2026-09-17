@@ -20,7 +20,11 @@ export function shapeContour(shapeName, phase) {
         case 'sine': return (1 - Math.cos(2 * Math.PI * phase)) / 2;
         case 'triangle': return 1 - Math.abs(2 * phase - 1);
         case 'sawtooth': return 1 - phase;
-        case 'square': return 1;
+        // A real 50% pulse: high for the first half of the cycle, low
+        // for the second. A constant would pin every shaped row to 1 and
+        // make the gate contour a no-op — see shapeValue() in
+        // gate-processor.js, which mirrors this.
+        case 'square': return phase < 0.5 ? 1 : 0;
         default: return null; // custom — sampled separately
     }
 }

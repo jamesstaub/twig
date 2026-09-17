@@ -212,8 +212,15 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
   off-screen left). **Link** = `linkLock` in `linkAll.js`
   (`isLinkAll(e)` = lock || cmd/ctrl; emits `LINK_ALL_CHANGED`) — the
   touch stand-in for the modifier, honored by the inspector too. Gate
-  contours: `square` is constant-on by design, so shaping with it
-  flattens the row — the panel's stepper picks another. On phone
+  contours are unipolar 0-1 and share one definition, mirrored in
+  `shapeContour()` (sequencePreview.js) and `shapeValue()`
+  (gate-processor.js) — change both together. `square` is a real 50%
+  pulse (high first half, low second half) — NOT a constant, which would
+  pin every shaped row to 1; index 6 is `hold` (constant 1 = pattern
+  gating only), used when a custom wave has gone missing. `shapedRow()`
+  anchors the contour's FIRST maximum on the dragged column: the peak for
+  sine/triangle, the leading edge of the high half for square, so a
+  shaped row starts high at the column you dragged. On phone
   portrait the header (title, tabs, toggles) wraps to three lines — a
   wider-than-viewport centered card shifts LEFT and takes every child
   with it, so header content must always be allowed to wrap.

@@ -21,10 +21,11 @@
  * Pattern edges are shaped with a ~1 ms one-pole ramp to avoid clicks.
  *
  * SHAPE is the amplitude contour within each active cycle (`shape` param):
- *   0 square (constant 1 — the classic hard gate), 1 sine (boundary-zero
+ *   0 square (50% pulse, high then low), 1 sine (boundary-zero
  *   raised cosine, click-free by construction), 2 triangle (tent),
  *   3 saw decay, 4 saw rise, 5 custom (0-1 table via
- *   { type: 'shapetable', table: Float32Array }).
+ *   { type: 'shapetable', table: Float32Array }), 6 hold (constant 1 —
+ *   no contour, pattern gating only).
  *
  * TARGETS: s modulates up to three destinations, scaled by amount params:
  *   output 0  audio     gain = 1 − amtGain × (1 − s)
@@ -73,6 +74,8 @@ function euclideanPattern(pulses, steps) {
  */
 function shapeValue(shape, phase, table) {
     switch (shape) {
+        case 0: // square: 50% pulse — high first half, low second half
+            return phase < 0.5 ? 1 : 0;
         case 1: // sine (raised cosine window)
             return (1 - Math.cos(TWO_PI * phase)) / 2;
         case 2: // triangle (tent)
@@ -88,7 +91,7 @@ function shapeValue(shape, phase, table) {
             const i1 = (i0 + 1) % table.length;
             return table[i0] + (table[i1] - table[i0]) * (pos - i0);
         }
-        default: // square — constant, the classic hard gate
+        default: // 6 = hold: no contour, pattern gating only (SHAPE_HOLD)
             return 1;
     }
 }
@@ -133,7 +136,7 @@ class OvertoneGateProcessor extends AudioWorkletProcessor {
             // main thread can drive MIDI/OSC/sequencer consumers
             { name: 'pulseOut', defaultValue: 0, minValue: 0, maxValue: 1, automationRate: 'k-rate' },
             // Cycle amplitude contour (see shapeValue) and modulation depths
-            { name: 'shape', defaultValue: 0, minValue: 0, maxValue: 5, automationRate: 'k-rate' },
+            { name: 'shape', defaultValue: 0, minValue: 0, maxValue: 6, automationRate: 'k-rate' },
             // Shape period in oscillator cycles: 2 = contour spans two
             // cycles (slower LFO), 1/64 = 64 times per cycle. Cycle-locked.
             { name: 'stretch', defaultValue: 1, minValue: 1 / 64, maxValue: 64, automationRate: 'k-rate' },

@@ -382,6 +382,10 @@ export function partialFrequency(frequency, step) {
 
 // Shape names → worklet shape indices (5 = custom table)
 const SHAPE_INDICES = { square: 0, sine: 1, triangle: 2, sawtooth: 3 };
+// Worklet index for "no contour" — pattern gating only. Square is a real
+// pulse now, so it is no longer the hold shape. Must stay inside the
+// shape AudioParam's range or setValueAtTime clamps it.
+const SHAPE_HOLD = 6;
 
 /**
  * Resolve a sequencer config into the engine payload: shape index, amounts,
@@ -404,7 +408,7 @@ function harmonicSequencerPayload(index) {
             const span = max - min || 1;
             table = Float32Array.from(raw, (v) => (v - min) / span);
         } else {
-            shape = 0; // unknown custom name — fall back to the hard gate
+            shape = SHAPE_HOLD; // deleted custom wave — no contour
         }
     }
     return {

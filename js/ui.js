@@ -140,7 +140,9 @@ function setupFundamental() {
     const fundamentalController = new FundamentalController("#fundamental-control-root");
     fundamentalController.init();
     // Play surface: one pad per overtone under the fundamental strip
-    new PadGridController('#pad-grid-root').init();
+    const padGridController = new PadGridController('#pad-grid-root');
+    padGridController.onInspect = (index) => inspectorState.open(index);
+    padGridController.init();
 }
 
 // ================================
