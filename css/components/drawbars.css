@@ -433,10 +433,20 @@
     row-gap: 0.25rem;
 }
 
+/* Tool row under the bars: [shape][link] on the left, the shape panel's
+   dock filling the rest — so the panel appears right beside the toggle
+   that opened it */
+.drawbars-tools {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem 1rem;
+    margin-top: 0.35rem;
+}
+
 .drawbars-modes {
     display: inline-flex;
     gap: 0.25rem;
-    margin-left: auto;
 }
 
 .drawbars-mode-btn {
@@ -481,9 +491,10 @@ body.coarse .drawbars-mode-btn {
        gesture. The bars below re-fit to the remaining height. ---- */
 
 .drawbars-shape-dock {
+    flex: 1 1 auto;
+    min-width: 0;
     display: flex;
     justify-content: center;
-    margin: 0.25rem 0 0;
 }
 
 .drawbar-shape-panel {

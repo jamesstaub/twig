@@ -71,6 +71,23 @@
     font-size: var(--font-size-sm);
 }
 
+/* Phones: the strip collapses to ● (+ elapsed) and an expand button; the
+   take menu, transport and download come out on demand */
+.rec-expand-btn {
+    display: none;
+}
+
+@media (max-width: 64rem) {
+    body.surfaces .rec-expand-btn {
+        display: inline-block;
+        min-width: 2rem;
+    }
+
+    body.surfaces .recorder-root:not(.rec-expanded) > :not(.rec-btn):not(.rec-elapsed):not(.rec-expand-btn) {
+        display: none;
+    }
+}
+
 /* Download context menu under the ↓ button */
 .rec-menu {
     position: absolute;

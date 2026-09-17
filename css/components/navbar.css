@@ -133,10 +133,18 @@
     body.surfaces .play-toggle-container,
     body.surfaces .envelope-mode-container {
         flex-grow: 0;
+        padding: 0.5rem 0.75rem; /* Play · ADSR · ● fit one 390px row with this slack */
     }
 
+    /* Collapsed (● + expand), the recorder fits row 1; expanded it takes
+       its own row on a phone */
     body.surfaces #recorder-root {
         flex-basis: 100%;
+    }
+
+    body.surfaces #recorder-root:not(.rec-expanded) {
+        flex-basis: auto;
+        margin-left: 0; /* the row's gap spaces it; the desktop margin is what wrapped it */
     }
 
     /* Wider than a phone (landscape phone, portrait tablet): the recorder

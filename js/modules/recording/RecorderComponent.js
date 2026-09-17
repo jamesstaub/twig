@@ -10,8 +10,16 @@ import BaseComponent from '../base/BaseComponent.js';
  */
 export class RecorderComponent extends BaseComponent {
 
+    constructor(target) {
+        super(target);
+        // Phones collapse the strip to ● + an expand button (recorder.css);
+        // the choice outlives re-renders
+        this.expanded = false;
+    }
+
     render({ status, transport, recordings, selected, stemsAvailable } = {}) {
         this.el.innerHTML = '';
+        this.el.classList.toggle('rec-expanded', this.expanded);
         const has = Boolean(selected);
         const recording = status === 'recording';
         const armed = status === 'armed';
@@ -26,6 +34,10 @@ export class RecorderComponent extends BaseComponent {
             elapsed.textContent = '0:00';
             this.el.appendChild(elapsed);
         }
+        const expand = this.button('action-btn rec-icon-btn rec-expand-btn', this.expanded ? '‹' : '›', 'expand',
+            this.expanded ? 'Hide recorder controls' : 'Recorder controls');
+        expand.setAttribute('aria-expanded', String(this.expanded));
+        this.el.appendChild(expand);
         this.el.append(
             this.button('action-btn rec-icon-btn', '⚙', 'config', 'Recording settings'),
             this.stepper(recordings, selected),
@@ -146,6 +158,16 @@ export class RecorderComponent extends BaseComponent {
             case 'toggle': return this.onTogglePlay?.();
             case 'reset': return this.onReset?.();
             case 'download': return this.toggleMenu();
+            case 'expand': {
+                this.expanded = !this.expanded;
+                this.el.classList.toggle('rec-expanded', this.expanded);
+                const btn = this.q('.rec-expand-btn');
+                if (btn) {
+                    btn.textContent = this.expanded ? '‹' : '›';
+                    btn.setAttribute('aria-expanded', String(this.expanded));
+                }
+                return undefined;
+            }
             default: return undefined;
         }
     }

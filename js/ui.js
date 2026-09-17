@@ -184,8 +184,6 @@ function setupEnvelopeModeToggle() {
         toggle.classList.toggle('active', adsr);
         toggle.setAttribute('aria-checked', String(adsr));
         document.body.classList.toggle('adsr-mode', adsr);
-        const label = document.getElementById('envelope-mode-label');
-        if (label) label.textContent = adsr ? 'ADSR' : 'Open';
     };
 
     toggle.addEventListener('click', () => {

@@ -139,10 +139,12 @@ body.surfaces[data-surface="play"] #fundamental-control-root {
     order: -1;
 }
 
+/* No floor: the pads shrink to whatever is left (play.css) rather than
+   overflowing a screen that can't scroll them (touch-action: none) */
 body.surfaces #pad-grid-root {
     width: 100%;
     flex: 1 1 auto;
-    min-height: 12rem;
+    min-height: 0;
 }
 
 /* Settings surface: a form; scrolls inside the panel when tall */

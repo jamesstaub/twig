@@ -1,13 +1,10 @@
 import { AppState } from "../../config.js";
 import { partialColor } from "../../theme.js";
 import BaseComponent from "../base/BaseComponent.js";
-import { calculateFrequency } from "../../utils.js";
 import { getVoiceLevel, triggerHarmonicAttack, triggerHarmonicRelease, MAX_FILTER_PARTIALS } from "../../audio.js";
-import { DrawbarsActions } from "./drawbarsActions.js";
 import { OvertoneSignalActions } from "../overtoneSignal/overtoneSignalActions.js";
 import { drawSequencePreview, drawShapeContour, shapeIconDataURL } from "../overtoneSignal/sequencePreview.js";
 import { shapedRow, stepShapeCycles } from "./rowShape.js";
-import { showStatus } from "../../domUtils.js";
 import { voiceTargets } from "../generic/linkAll.js";
 import { openOvertoneMenu, closeOvertoneMenu, armLongPress } from "../generic/overtoneMenu.js";
 import { irManager } from "../../dsp/IRManager.js";

@@ -196,9 +196,14 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
   button; Escape closes the sheet. DrawbarsComponent only calls
   `onInspect(index)` — ui.js wires that to `inspectorState.open`, so
   the strip never imports the inspector.
-- Mix header modes (`#drawbar-shape-toggle` / `#drawbar-link-toggle`,
-  wired in drawbarsController; both UI-only, both dropped on leaving the
-  Mix surface via `SURFACE_CHANGED`). **Shape** = `DrawbarsComponent.
+- Mix tool row (`.drawbars-tools` UNDER the bars: `#drawbar-shape-toggle`
+  / `#drawbar-link-toggle` beside the shape panel's dock; wired in
+  drawbarsController; both UI-only, mutually exclusive
+  (`setShapeMode`/`setLinkMode` clear the other), both dropped on leaving
+  the Mix surface via `SURFACE_CHANGED`; each button also lights while
+  the key it stands in for is held — `linkLock.held`, emitted on
+  `LINK_ALL_CHANGED`, and the controller's own Shift tracking — so the
+  toggle and the modifier read as one thing). **Shape** = `DrawbarsComponent.
   shapeMode`: every bar or dial drag sculpts the whole row, exactly what
   a shift-drag does (`isShapeGesture(e)`); the math is the pure
   `rowShape.js` `shapedRow()` (0-1 positions; the component maps them
@@ -264,9 +269,11 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
   portrait tablets — one row of everything needs ~1100px) it becomes a
   STATIC, WRAPPING block at the top of a full-height flex column
   (`body.surfaces.app-container`, page-arrangement.css; rows in
-  navbar.css: Play·Open/ADSR, recorder, Gain·Slew — the recorder joins
-  row 1 from 48rem). The Open/ADSR switch is styled like Play/Stop: one
-  label (`#envelope-mode-label`) naming the current state. A wrapping navbar has no known height, which
+  navbar.css: Play·ADSR·(collapsed recorder), recorder, Gain·Slew — the
+  recorder collapses to ● + an expand button under 64rem
+  (`RecorderComponent.expanded`, `.rec-expanded`) and joins row 1 while
+  collapsed). The ADSR switch is framed like Play/Stop, its label just
+  "ADSR" (off = voices drone open). A wrapping navbar has no known height, which
   is why the fixed-navbar + padding scheme can't be used there; the
   logo is dropped. The Gain/Slew groups and their range inputs must be
   allowed to shrink (`min-width:0; flex:1 1 0`) — a range input's

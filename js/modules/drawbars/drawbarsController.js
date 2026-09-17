@@ -59,13 +59,25 @@ export class DrawbarsController extends BaseController {
     }
 
     /**
-     * Mix header modes: shape (row sculpting — the toggle stands in for
+     * Mix tool-row modes: shape (row sculpting — the toggle stands in for
      * holding shift) and link (every edit to all overtones — stands in for
-     * cmd/ctrl). Both are tools of this surface: leaving Mix drops them.
+     * cmd/ctrl). Mutually exclusive; both are tools of this surface, so
+     * leaving Mix drops them. The buttons also light up while the key
+     * they stand in for is held, so the two are visibly the same thing.
      */
     syncModeButtons() {
-        document.getElementById(SHAPE_TOGGLE_ID)?.setAttribute("aria-pressed", String(this.component.shapeMode));
-        document.getElementById(LINK_TOGGLE_ID)?.setAttribute("aria-pressed", String(linkLock.on));
+        document.getElementById(SHAPE_TOGGLE_ID)?.setAttribute("aria-pressed", String(Boolean(this.component.shapeMode || this.shiftHeld)));
+        document.getElementById(LINK_TOGGLE_ID)?.setAttribute("aria-pressed", String(Boolean(linkLock.on || linkLock.held)));
+    }
+
+    setShapeMode(on) {
+        if (on) linkLock.set(false);
+        this.component.setShapeMode(on);
+    }
+
+    setLinkMode(on) {
+        if (on) this.component.setShapeMode(false);
+        linkLock.set(on);
     }
 
     updateDrawbar({ index, value }) {
@@ -114,10 +126,22 @@ export class DrawbarsController extends BaseController {
         });
 
         document.getElementById(SHAPE_TOGGLE_ID)?.addEventListener("click", () => {
-            this.component.setShapeMode(!this.component.shapeMode);
+            this.setShapeMode(!this.component.shapeMode);
         });
-        document.getElementById(LINK_TOGGLE_ID)?.addEventListener("click", () => linkLock.toggle());
-        document.addEventListener(LINK_ALL_CHANGED, () => this.syncModeButtons());
+        document.getElementById(LINK_TOGGLE_ID)?.addEventListener("click", () => this.setLinkMode(!linkLock.on));
+        document.addEventListener(LINK_ALL_CHANGED, (e) => {
+            if (e.detail?.locked) this.component.setShapeMode(false); // exclusive, whoever locked it
+            this.syncModeButtons();
+        });
+        // Shift held = shape for the duration; mirror it on the button
+        const shift = (on) => {
+            if (on === this.shiftHeld) return;
+            this.shiftHeld = on;
+            this.syncModeButtons();
+        };
+        document.addEventListener("keydown", (e) => { if (e.key === "Shift") shift(true); });
+        document.addEventListener("keyup", (e) => { if (e.key === "Shift") shift(e.shiftKey); });
+        window.addEventListener("blur", () => shift(false));
         document.addEventListener(SURFACE_CHANGED, (e) => {
             if (e.detail?.active !== "mix") {
                 this.component.resetShape();

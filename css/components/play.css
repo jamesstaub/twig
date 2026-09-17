@@ -44,7 +44,11 @@
        toolbar), but never more than six: a row of twelve slivers is a
        strip, not pads */
     grid-template-columns: repeat(auto-fit, minmax(max(4.5rem, 16%), 1fr));
-    grid-auto-rows: minmax(4rem, 1fr);
+    /* Rows share the height with no floor of their own: the pads' own
+       min-height is the floor, so twelve pads fit a phone under the
+       fundamental strip instead of overflowing it (a finger can't scroll
+       the grid — the pads are touch-action: none) */
+    grid-auto-rows: minmax(0, 1fr);
     gap: 0.5rem;
     overflow-y: auto;
     padding: 0.125rem;
@@ -57,8 +61,8 @@
     align-items: center;
     justify-content: center;
     gap: 0.2rem;
-    min-height: 4rem;
-    padding: 0.5rem;
+    min-height: 2.5rem;
+    padding: 0.35rem 0.5rem;
     color: var(--text-primary);
     /* Tinted by the partial's consonance color; the level glow (set per
        frame as --pad-level) brightens the tint while the voice sounds */
@@ -142,4 +146,32 @@ body.coarse .key.black {
 body.coarse .btn-octave {
     padding: 0.5rem 1rem;
     font-size: var(--font-size-base);
+}
+
+/* Phones: the keyboard gives up height for the pads below it (the
+   fundamental strip, source picker and pads share one short screen) */
+@media (max-width: 48rem) {
+    body.surfaces .keyboard-container,
+    body.surfaces .key,
+    body.surfaces.coarse .keyboard-container,
+    body.surfaces.coarse .key {
+        height: 52px;
+    }
+
+    body.surfaces .key.black,
+    body.surfaces.coarse .key.black {
+        height: 32px;
+    }
+
+    body.surfaces .keyboard-container {
+        margin: 2px 0;
+    }
+
+    body.surfaces .pad-grid {
+        gap: 0.35rem;
+    }
+
+    body.surfaces .play-pad-label {
+        font-size: var(--font-size-base);
+    }
 }

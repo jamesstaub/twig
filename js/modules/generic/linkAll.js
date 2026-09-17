@@ -25,10 +25,15 @@ function sync() {
     document.body.classList.toggle('link-all', held || locked);
 }
 
+function emit() {
+    document.dispatchEvent(new CustomEvent(LINK_ALL_CHANGED, { detail: { locked, held } }));
+}
+
 function setHeld(on) {
     if (on === held) return;
     held = on;
     sync();
+    emit(); // the Mix link toggle mirrors the held key
 }
 
 export function initLinkAll() {
@@ -62,12 +67,16 @@ export const linkLock = {
     get on() {
         return locked;
     },
+    /** The modifier key is down right now (desktop). */
+    get held() {
+        return held;
+    },
     set(on) {
         on = Boolean(on);
         if (on === locked) return;
         locked = on;
         sync();
-        document.dispatchEvent(new CustomEvent(LINK_ALL_CHANGED, { detail: { locked } }));
+        emit();
     },
     toggle() {
         this.set(!locked);
