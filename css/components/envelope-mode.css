@@ -17,8 +17,7 @@
 /* The navbar root gets the same framed "label + switch" box as
    .play-toggle-container (navbar.css). */
 .navbar-mode-root {
-    flex-grow: 1;
-    flex-wrap: wrap;
+    flex: 0 0 auto; /* never squeezed: the switch would wrap under its label */
     padding: 0.5rem 1rem;
     background-color: color-mix(in srgb, var(--surface-panel) 50%, transparent);
     border-radius: var(--radius-lg);

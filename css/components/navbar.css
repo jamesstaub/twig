@@ -42,7 +42,8 @@
 .navbar-section.center {
     flex-wrap: wrap;
     gap: 0.75rem;
-    flex-basis: 33.3333%;
+    flex: 1 1 33.3333%;
+    min-width: 0;
     justify-content: center;
 }
 
@@ -60,15 +61,24 @@
     background-color: color-mix(in srgb, var(--surface-deep) 80%, transparent);
     border-radius: var(--radius-lg);
     border: 1px solid var(--border-subtle);
-    min-width: 180px;
+    /* Gain and Slew are what gives when the row is tight: the groups and
+       the range inputs inside them shrink (a range input's intrinsic
+       width is rigid otherwise and the pair overflows) */
+    flex: 0 1 16rem;
+    min-width: 0;
+}
+
+.navbar-control-group input[type="range"] {
+    flex: 1 1 0;
+    min-width: 0;
+    width: 100%;
 }
 
 /* Play/Stop: a framed "label + switch" control, the label naming the
    current state */
 .play-toggle-container {
     display: flex;
-    flex-grow: 1;
-    flex-wrap: wrap;
+    flex: 0 0 auto; /* never squeezed: its switch would wrap under its label */
     align-items: center;
     gap: 0.5rem;
     padding: 0.5rem 1rem;
@@ -93,15 +103,17 @@
     color: var(--text-title);
 }
 
-/* Phones (surfaces shell): the navbar is a static, WRAPPING block at the
-   top of a full-height column (page-arrangement.css turns body into that
-   column) — [Play][MIDI][Open/ADSR] / [recorder strip] / [Gain][Slew].
-   The fixed-navbar + body padding-top scheme above needs a known navbar
-   height, which a wrapping one doesn't have. The logo goes: there is no
-   spare corner for it. 64rem, not 48: one row of everything (play, MIDI,
-   envelope, recorder strip, gain, slew) needs ~1100px — a phone in
-   landscape or a portrait tablet must wrap too. */
-@media (max-width: 64rem) {
+/* Under 85rem (surfaces shell): the navbar is a static, WRAPPING block at
+   the top of a full-height column (page-arrangement.css turns body into
+   that column) — [Play][Trigger/Drone][recorder] / [Gain][Slew]; on a
+   phone the expanded recorder takes a row of its own. The fixed-navbar +
+   body padding-top scheme above needs a known navbar height, which a
+   wrapping one doesn't have. The logo goes: there is no spare corner for
+   it. 85rem: one row of everything (play, trigger/drone, the full
+   recorder strip, gain, slew, logo) needs ~1350px — squeezed into less,
+   the sliders shrink to stubs. The recorder's own collapse stays at 64rem
+   (recorder.css). */
+@media (max-width: 85rem) {
     body.surfaces .navbar {
         position: static;
         flex: 0 0 auto;
@@ -123,11 +135,8 @@
         flex-basis: 100%;
     }
 
-    /* The toggle must not grow, or it fills the row alone and pushes
-       everything after it down */
     body.surfaces .play-toggle-container,
     body.surfaces .navbar-mode-root {
-        flex-grow: 0;
         padding: 0.5rem 0.75rem; /* Play · Trigger/Drone · ● fit one 390px row with this slack */
     }
 
@@ -158,19 +167,10 @@
         min-width: 0;
     }
 
-    /* Gain and Slew share the row: the groups and the range inputs inside
-       them must be allowed to shrink (a range input's intrinsic width is
-       rigid otherwise and the pair overflows the screen) */
+    /* Gain and Slew share the row evenly */
     body.surfaces .navbar-control-group {
-        min-width: 0;
         flex: 1 1 0;
         gap: 0.5rem;
-    }
-
-    body.surfaces .navbar-control-group input[type="range"] {
-        min-width: 0;
-        width: 100%;
-        flex: 1 1 0;
     }
 
     body.surfaces .logo {

@@ -26,10 +26,10 @@ body.surfaces .page-shell {
     min-height: 0;
 }
 
-/* Under 64rem (phones either way, portrait tablets): body is the
+/* Under 85rem (phones, tablets, small laptops — navbar.css): body is the
    full-height column — static wrapping navbar on top (navbar.css), the
    shell below taking the rest */
-@media (max-width: 64rem) {
+@media (max-width: 85rem) {
     body.surfaces.app-container {
         display: flex;
         flex-direction: column;
@@ -41,7 +41,7 @@ body.surfaces .page-shell {
 
 /* Wider: the fixed one-row navbar + body padding-top scheme (base.css),
    so the shell is the viewport minus the navbar */
-@media (min-width: 64rem) {
+@media (min-width: 85.01rem) {
     body.surfaces .page-shell {
         height: calc(100vh - var(--navbar-height));
     }

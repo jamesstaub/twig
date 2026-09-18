@@ -200,19 +200,20 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
 - Overtone toolbar (`js/modules/overtoneToolbar/`, overtone-toolbar.css):
   the fixed bar at the bottom of every per-overtone panel — the drawbar
   strip (`#drawbars-toolbar`) and the Sequence panel (`#sequence-toolbar`)
-  — `[Reset][Randomize] [slot] [dock] [link][shape]`, buttons addressed as
-  `[data-action="reset|randomize|link|shape"]`. The host passes what
-  Reset/Randomize mean (ui.js: the strip's family; every voice's gate for
-  Sequence) and may mount content in `slotEl` (the Sequence panel's voice
-  stepper). NOTHING in the bar may move when the shape panel appears:
-  wide, the dock is a permanent `flex:1` cell and the groups' min-height
-  ≥ the panel's height; narrow (`@container` on the bar's own width — a
-  side sheet narrows it too), the dock is a row ABOVE the buttons that is
-  0px until used, so it takes height from the scrolling area while the
-  bottom-anchored buttons stay put; at phone widths the slot gets its own
-  row and link/shape go icon-only. In embed the dock reserves the panel's
-  width (the strip is `min-width: max-content` there; an appearing panel
-  would widen it). **Link** = `linkLock` in `linkAll.js` (`isLinkAll(e)` =
+  — `[Reset][Randomize] [slot]   [ (shape) contour ‹› ÷2 ×N ×2 ] [link]`,
+  buttons addressed as `[data-action="reset|randomize|link|shape"]`. The
+  host passes what Reset/Randomize mean (ui.js: the strip's family; every
+  voice's gate for Sequence) and may mount content in `slotEl` (the
+  Sequence panel's voice stepper). NOTHING in the bar appears, disappears
+  or moves: the shape box (`.overtone-toolbar-shape` — the shape toggle
+  plus the `ShapePanel`) is always there, its controls grayed out and
+  `disabled` (`ShapePanel.setEnabled`) until shape is in effect; link
+  sits to its right, outside the box. Narrow (`@container` on the bar's
+  own width — a side sheet narrows it too; sooner when the slot is in
+  use) the modes take a full-width row ABOVE the buttons; at phone widths
+  the slot gets its own row, link/shape go icon-only and the contour
+  preview drops out (the narrowest phones also lose the stepper's
+  arrows). In embed it all stays on one short row. **Link** = `linkLock` in `linkAll.js` (`isLinkAll(e)` =
   lock || cmd/ctrl). **Shape** = `js/modules/shape/shapeMode.js`
   (`isGesture(e)` = lock || shift; contour, cycles and the last gesture,
   re-applied when the panel changes either; `SHAPE_MODE_CHANGED`): an edit
@@ -220,9 +221,9 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
   the edited voice (`applyRow` on 0-1 positions / `applyParam` on a
   range; pure math in `rowShape.js`). The two are mutually exclusive
   (the toolbar controller clears the other), each button also lights
-  while its key is held — and holding shift shows the shape panel, so
-  desktop can reach its controls without the lock — and leaving the `tools: true` surfaces drops
-  both (ui.js). `ShapePanel.js` is a pure view over shapeMode (contour
+  while its key is held — and holding shift enables the shape panel's
+  controls, so desktop can reach them without the lock — and leaving the
+  `tools: true` surfaces drops both (ui.js). `ShapePanel.js` is a pure view over shapeMode (contour
   preview, contour stepper, ÷2/×2); `generic/cycleStepper.js` is the
   ‹ › stepper it and the IR picker share. The strip shapes bars and
   dials (`shapeParamRow`, snapped to the parameter's step); the inspector
@@ -338,14 +339,17 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
   `syncChecked` on `RECORDER_CHANGED`). The toolbar button and the
   recorder's ⚙ (`SettingsController.open(tab)`) get there; in embed the
   same root becomes a full-band overlay with its own × / Escape.
-- Navbar: Play/Stop, Trigger/Drone, the recorder strip, Gain/Slew. Above 64rem it is the fixed one-row bar with
-  `.app-container` padded to `--navbar-height` (base.css). Below 64rem on
-  the surfaces shell (phones both ways, portrait tablets) it becomes a
+- Navbar: Play/Stop, Trigger/Drone, the recorder strip, Gain/Slew. Above
+  85rem it is the fixed one-row bar with `.app-container` padded to
+  `--navbar-height` (base.css) — one row of everything needs ~1350px; the
+  two toggle boxes never shrink (their switch would wrap under its
+  label), Gain/Slew are what gives. Below 85rem on the surfaces shell
+  (phones, tablets, small laptops) it becomes a
   STATIC, WRAPPING block at the top of a full-height flex column
   (`body.surfaces.app-container`, page-arrangement.css): Play·Trigger/
-  Drone·(collapsed recorder) / recorder / Gain·Slew — the recorder collapses to ● + an
-  expand button (`RecorderComponent.expanded`, `.rec-expanded`) and joins
-  row 1 while collapsed. A wrapping navbar has no known height, which is
+  Drone·recorder / Gain·Slew — under 64rem the recorder collapses to ● + an
+  expand button (`RecorderComponent.expanded`, `.rec-expanded`), joining
+  row 1 while collapsed and taking its own row on a phone when expanded. A wrapping navbar has no known height, which is
   why the fixed-navbar + padding scheme can't be used there; the logo is
   dropped; the Gain/Slew range inputs must be allowed to shrink
   (`min-width:0`). On short viewports (`max-height: 30rem`) the toolbar
