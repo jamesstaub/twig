@@ -8,7 +8,9 @@ import { drawShapeContour, shapeIconDataURL } from '../overtoneSignal/sequencePr
  * (defaults to the oscillator waveform, without touching it), and ÷2/×2
  * cycle buttons. Pure view over shapeMode: every control writes there
  * (which re-applies the last gesture, so the row follows live) and
- * `refresh()` re-reads it. Exposes .el; the overtone toolbar docks it.
+ * `refresh()` re-reads it. Always on screen — `setEnabled(false)` grays
+ * it out and disables its buttons while shape is not in effect. Exposes
+ * .el; the overtone toolbar hosts it beside the shape toggle.
  */
 export class ShapePanel {
 
@@ -57,6 +59,11 @@ export class ShapePanel {
         );
 
         this.el.append(this.canvas, this.stepper, cycles);
+    }
+
+    setEnabled(enabled) {
+        this.el.classList.toggle('is-disabled', !enabled);
+        for (const btn of this.el.querySelectorAll('button')) btn.disabled = !enabled;
     }
 
     refresh() {

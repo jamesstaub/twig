@@ -31,10 +31,9 @@ export class OvertoneToolbarController extends BaseController {
     getProps() {
         return {
             link: linkLock.on || linkLock.held,
+            // In effect either way: holding shift also enables the shape
+            // panel's controls, so desktop can reach them without the lock
             shape: shapeMode.on || shapeMode.held,
-            // The panel shows while shape is in effect either way — holding
-            // shift is how desktop discovers (and reaches) its controls
-            panel: shapeMode.on || shapeMode.held,
         };
     }
 

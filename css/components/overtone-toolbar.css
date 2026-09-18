@@ -1,23 +1,21 @@
 /* ================================
    OVERTONE TOOLBAR — the fixed bar at the bottom of every per-overtone
-   panel (js/modules/overtoneToolbar/), plus the shape panel it docks
+   panel (js/modules/overtoneToolbar/), plus the shape panel it hosts
    (js/modules/shape/ShapePanel.js)
    ================================
 
-     [Reset][Randomize]  [slot]  [dock ···········]  [link][shape]
+     [Reset][Randomize]  [slot]     [ (shape) contour ‹›  ÷2 ×1 ×2 ] [link]
 
-   Nothing in the bar may move when the shape panel appears:
+   Nothing in the bar ever appears or disappears, so nothing can move:
+   the shape box — the shape toggle and the shape panel in one container —
+   is always there, its controls grayed out and disabled until shape is
+   in effect; link sits to its right, outside it.
 
-   - Wide: the dock is a permanent `flex: 1` cell between the groups, so
-     the groups (and the slot) sit where they sit whether it is empty or
-     not; the button groups carry the row's min-height, which is at least
-     the panel's height, so the row doesn't grow either.
+   - Wide: one row, the actions (and slot) left, the modes right.
    - Narrow (container query — the bar's own width, not the viewport's:
-     a side sheet narrows it too): the dock is a full-width row ABOVE
-     the buttons. It is empty (0px) until shape mode is on, then it takes
-     its height from the scrolling area above the bar — the buttons,
-     anchored to the panel's bottom edge, stay put. The slot gets its own
-     row the same way, and the mode buttons drop their text. */
+     a side sheet narrows it too): the modes take a full-width row ABOVE
+     the buttons, the shape box stretching to fill it. The slot gets its
+     own row the same way, and the mode buttons drop their text. */
 
 .overtone-toolbar {
     --overtone-toolbar-row: 2.75rem;
@@ -51,12 +49,22 @@
     display: none;
 }
 
-.overtone-toolbar-dock {
-    flex: 1 1 0;
+.overtone-toolbar-modes {
+    min-width: 0;
+}
+
+/* The shape box: the toggle and the panel it governs, one container */
+.overtone-toolbar-shape {
+    flex: 1 1 auto;
     min-width: 0;
     display: flex;
     align-items: center;
-    justify-content: center;
+    gap: 0.6rem;
+    box-sizing: border-box;
+    padding: 0.2rem 0.6rem 0.2rem 0.25rem;
+    background-color: var(--surface-deep);
+    border: 1px solid var(--border-subtle);
+    border-radius: 999px var(--radius-md) var(--radius-md) 999px;
 }
 
 /* layout.css styles every span inside a panel as a heading row */
@@ -106,19 +114,26 @@ body.coarse .overtone-mode-btn {
 }
 
 /* ---- Shape panel: one compact row — contour preview, contour stepper,
-       cycle buttons. No taller than the toolbar row (see above). ---- */
+       cycle buttons — inside the shape box. Grayed out (and its buttons
+       disabled, ShapePanel.setEnabled) until shape is in effect. ---- */
 
 .shape-panel {
+    flex: 1 1 auto;
+    min-width: 0;
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 0.75rem;
-    max-width: 100%;
-    box-sizing: border-box;
-    padding: 0.2rem 0.6rem;
-    background-color: var(--surface-deep);
-    border: 1px solid var(--border-subtle);
-    border-radius: var(--radius-md);
+    transition: opacity 0.15s;
+}
+
+.shape-panel.is-disabled {
+    opacity: 0.4;
+}
+
+.shape-panel button:disabled {
+    cursor: default;
+    pointer-events: none;
 }
 
 /* Beats the global viz-canvas sizing (viz.css `canvas { … !important }`) */
@@ -157,32 +172,27 @@ body.coarse .overtone-mode-btn {
 
 /* ---- Narrow bars ---- */
 
-/* The dock no longer fits between the groups: its own row, on top */
-@container (max-width: 46rem) {
-    .overtone-toolbar-dock {
+/* The modes no longer fit beside the actions: their own row, on top */
+@container (max-width: 43rem) {
+    .overtone-toolbar-modes {
         order: -2;
         flex: 1 1 100%;
-    }
-
-    .overtone-toolbar-dock > .shape-panel {
-        margin-bottom: 0.35rem;
+        padding-bottom: 0.25rem;
     }
 }
 
 /* …which happens sooner when the slot is in use (the Sequence panel) */
-@container (max-width: 62rem) {
-    .overtone-toolbar-slot:not(:empty) ~ .overtone-toolbar-dock {
+@container (max-width: 60rem) {
+    .overtone-toolbar-slot:not(:empty) ~ .overtone-toolbar-modes {
         order: -2;
         flex: 1 1 100%;
-    }
-
-    .overtone-toolbar-slot:not(:empty) ~ .overtone-toolbar-dock > .shape-panel {
-        margin-bottom: 0.35rem;
+        padding-bottom: 0.25rem;
     }
 }
 
-/* Phone widths: the slot takes a row too (under the dock, over the
-   buttons), and link/shape go icon-only so both groups share one row */
+/* Phone widths: the slot takes a row too (under the modes, over the
+   buttons), and the shape box tightens — icon-only link/shape, no
+   contour preview (the stepper's icon still names the contour) */
 @container (max-width: 34rem) {
     .overtone-toolbar-slot {
         order: -1;
@@ -209,5 +219,38 @@ body.coarse .overtone-mode-btn {
     .overtone-mode-btn,
     body.coarse .overtone-mode-btn {
         padding: 0.45rem 0.6rem;
+    }
+
+    .overtone-toolbar-shape {
+        gap: 0.35rem;
+    }
+
+    .shape-panel {
+        gap: 0.35rem;
+        justify-content: space-between;
+    }
+
+    .shape-panel-preview {
+        display: none;
+    }
+
+    .shape-panel-cycles {
+        gap: 0.1rem;
+    }
+
+    .shape-panel-cycles-label {
+        min-width: 1.9em;
+    }
+
+    .shape-panel-btn {
+        padding: 0 0.3rem;
+    }
+}
+
+/* The narrowest phones: the contour stepper keeps only its center button
+   (a tap cycles forward) */
+@container (max-width: 15.5rem) {
+    .shape-panel-stepper .cycle-stepper-arrow {
+        display: none;
     }
 }
