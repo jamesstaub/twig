@@ -1,7 +1,5 @@
-// controller/DrawbarController.js
 import { DrawbarsComponent } from "./DrawbarsComponent.js";
-import { DrawbarsActions } from "./drawbarsActions.js";
-import { OvertoneSignalActions } from "../overtoneSignal/overtoneSignalActions.js";
+import { FAMILIES, FAMILY_ORDER } from "./drawbarParams.js";
 import {
     CONVOLUTION_IRS_CHANGED,
     DRAWBAR_CHANGE,
@@ -9,7 +7,6 @@ import {
     DRAWBARS_RESET,
     LINK_ALL_CHANGED,
     OVERTONE_SIGNAL_CHANGED,
-    SOURCE_CHANGED,
     SPECTRAL_SYSTEM_CHANGED,
     SUBHARMONIC_TOGGLED,
     SURFACE_CHANGED
@@ -17,36 +14,65 @@ import {
 import { BaseController } from "../base/BaseController.js";
 import { AppState } from "../../config.js";
 import { irManager } from "../../dsp/IRManager.js";
-import { ConvolutionActions } from "../convolution/convolutionActions.js";
 import { linkLock } from "../generic/linkAll.js";
+import { SURFACES, surfaceState } from "../surfaces/surfaceState.js";
 
+const ROOT_ID = "drawbars-control-root";
+const TITLE_ID = "drawbars-title";
+const PARAM_TABS_ID = "drawbars-tabs";
+const FAMILY_TABS_ID = "drawbars-family-tabs";
+const NOTE_ID = "drawbars-note";
 const RESET_DRAWBARS_BUTTON_ID = "reset-drawbars-button";
 const RANDOMIZE_DRAWBARS_BUTTON_ID = "randomize-drawbars-button";
-const CREATE_IR_BUTTON_ID = "create-ir-button-drawbars";
 const SHAPE_TOGGLE_ID = "drawbar-shape-toggle";
 const LINK_TOGGLE_ID = "drawbar-link-toggle";
 const SHAPE_DOCK_ID = "drawbars-shape-dock";
 
+// Below this panel height there is no room for dials under the bars: the
+// family's other parameters become tabs that put them on the bars instead
+const COMPACT_STRIP_HEIGHT = 420;
+
+/**
+ * The drawbar strip's controller. The strip's parameter FAMILY follows
+ * the active surface (surfaceState: gain / filter / convolution / adsr
+ * each name one) — or, in the embed band where there is no toolbar, the
+ * family tabs in the strip's header. Within a family, the header's
+ * parameter tabs (shown only while the strip is compact) choose which
+ * parameter the bars edit.
+ */
 export class DrawbarsController extends BaseController {
+
+    constructor(selector) {
+        super(selector);
+        this.family = "gain";
+        this.paramIndex = 0;
+        this.compact = false;
+        this.shiftHeld = false;
+    }
 
     createComponent(selector) {
         return new DrawbarsComponent(selector);
     }
 
+    getProps() {
+        return {
+            isSubharmonic: AppState.isSubharmonic,
+            family: this.family,
+            paramIndex: this.paramIndex,
+            compact: this.compact,
+        };
+    }
 
     /**
-     * Wire Component → Actions
+     * Wire Component → callbacks
      */
     bindComponentEvents() {
-        this.component.onChange = (index, value) => {
-            DrawbarsActions.setDrawbar(index, value);
-        };
         // Column label click / context menu → the overtone inspector.
         // Assigned by ui.js (this.onInspect) so the strip doesn't know
         // where the editor lives.
         this.component.onInspect = (index) => this.onInspect?.(index);
-        // The strip builds the shape panel; it docks in the band above the
-        // bars (the strip itself scrolls sideways and would clip it)
+        // The strip builds the shape panel; it docks in the tool row under
+        // the bars (the strip itself scrolls sideways and would clip it)
         this.component.onShapeModeChange = (on, panel) => {
             const dock = document.getElementById(SHAPE_DOCK_ID);
             if (dock) {
@@ -59,11 +85,12 @@ export class DrawbarsController extends BaseController {
     }
 
     /**
-     * Mix tool-row modes: shape (row sculpting — the toggle stands in for
+     * Tool-row modes: shape (row sculpting — the toggle stands in for
      * holding shift) and link (every edit to all overtones — stands in for
-     * cmd/ctrl). Mutually exclusive; both are tools of this surface, so
-     * leaving Mix drops them. The buttons also light up while the key
-     * they stand in for is held, so the two are visibly the same thing.
+     * cmd/ctrl). Mutually exclusive; both are tools of the strip's
+     * surfaces, so leaving them drops both. The buttons also light up
+     * while the key they stand in for is held, so the two are visibly the
+     * same thing.
      */
     syncModeButtons() {
         document.getElementById(SHAPE_TOGGLE_ID)?.setAttribute("aria-pressed", String(Boolean(this.component.shapeMode || this.shiftHeld)));
@@ -80,27 +107,49 @@ export class DrawbarsController extends BaseController {
         linkLock.set(on);
     }
 
-    updateDrawbar({ index, value }) {
-        this.component.updateSingleDrawbar(index, value);
+    /** Switch the strip to a parameter family (its first parameter on the bars). */
+    setFamily(name) {
+        if (!FAMILIES[name] || name === this.family) return;
+        this.family = name;
+        this.paramIndex = 0;
+        this.renderHeader();
+        this.update();
+        this.refreshNote();
     }
 
-    /** Reset applies to the values the active view edits. */
+    setParamIndex(i) {
+        if (i === this.paramIndex) return;
+        this.paramIndex = i;
+        this.renderHeader();
+        this.update();
+    }
+
+    /**
+     * Compact when the panel can't fit dials under the bars. Measured, not
+     * assumed: the strip's height comes from the flex chain, and it differs
+     * per surface layout, viewport and the embed band.
+     */
+    syncCompact() {
+        const root = document.getElementById(ROOT_ID);
+        if (!root || root.hidden) return;
+        const compact = root.clientHeight > 0 && root.clientHeight < COMPACT_STRIP_HEIGHT;
+        if (compact === this.compact) return;
+        this.compact = compact;
+        if (!compact) this.paramIndex = 0; // dials are back; the bars show the primary again
+        this.renderHeader();
+        this.update();
+    }
+
+    updateDrawbar({ index }) {
+        this.component.refreshColumn(index);
+    }
+
     reset() {
-        switch (this.component.view) {
-            case "filter": OvertoneSignalActions.resetFilters(); break;
-            case "sequence": OvertoneSignalActions.resetGates(); break;
-            case "convolution": OvertoneSignalActions.resetConvolutions(); break;
-            default: DrawbarsActions.reset();
-        }
+        FAMILIES[this.family].reset();
     }
 
     randomize() {
-        switch (this.component.view) {
-            case "filter": OvertoneSignalActions.randomizeFilters(); break;
-            case "sequence": OvertoneSignalActions.randomizeGates(); break;
-            case "convolution": OvertoneSignalActions.randomizeConvolutions(); break;
-            default: DrawbarsActions.randomize();
-        }
+        FAMILIES[this.family].randomize();
     }
 
     /**
@@ -113,17 +162,8 @@ export class DrawbarsController extends BaseController {
         document.addEventListener(SPECTRAL_SYSTEM_CHANGED, () => this.update());
         document.addEventListener(SUBHARMONIC_TOGGLED, () => this.update());
 
-        document.getElementById(RESET_DRAWBARS_BUTTON_ID)?.addEventListener("click", () => {
-            this.reset();
-        });
-
-        document.getElementById(RANDOMIZE_DRAWBARS_BUTTON_ID)?.addEventListener("click", () => {
-            this.randomize();
-        });
-
-        document.getElementById(CREATE_IR_BUTTON_ID)?.addEventListener("click", () => {
-            ConvolutionActions.createIRFromCurrent();
-        });
+        document.getElementById(RESET_DRAWBARS_BUTTON_ID)?.addEventListener("click", () => this.reset());
+        document.getElementById(RANDOMIZE_DRAWBARS_BUTTON_ID)?.addEventListener("click", () => this.randomize());
 
         document.getElementById(SHAPE_TOGGLE_ID)?.addEventListener("click", () => {
             this.setShapeMode(!this.component.shapeMode);
@@ -142,67 +182,93 @@ export class DrawbarsController extends BaseController {
         document.addEventListener("keydown", (e) => { if (e.key === "Shift") shift(true); });
         document.addEventListener("keyup", (e) => { if (e.key === "Shift") shift(e.shiftKey); });
         window.addEventListener("blur", () => shift(false));
+
+        // The active surface names the family; leaving the strip's surfaces
+        // drops the tool-row modes
         document.addEventListener(SURFACE_CHANGED, (e) => {
-            if (e.detail?.active !== "mix") {
+            const family = SURFACES.find((s) => s.id === e.detail?.active)?.family;
+            if (family) {
+                this.setFamily(family);
+            } else {
                 this.component.resetShape();
                 linkLock.set(false);
             }
         });
-        this.syncModeButtons();
+        const initial = SURFACES.find((s) => s.id === surfaceState.active)?.family;
+        if (initial) this.family = initial;
 
-        // Per-overtone signal edits from the modal or OSC → visible controls
+        // Per-overtone signal edits from the inspector or OSC → the column
         document.addEventListener(OVERTONE_SIGNAL_CHANGED, (e) => {
-            const { index, kind } = e.detail || {};
-            if (index !== undefined) this.component.syncSignal(index, kind);
+            const { index } = e.detail || {};
+            if (index !== undefined) this.component.refreshColumn(index);
         });
 
-        // View tabs: gain | filter | sequence | convolution
-        document.querySelectorAll("#drawbars-tabs .drawbars-tab").forEach((btn) => {
-            btn.addEventListener("click", () => {
-                document.querySelectorAll("#drawbars-tabs .drawbars-tab")
-                    .forEach((b) => b.classList.toggle("active", b === btn));
-                this.component.view = btn.dataset.view;
-                this.update();
-                this.refreshNote();
-            });
-        });
-
-        // A new IR extends every column's IR stepper — re-render the view
+        // A new IR extends every column's IR stepper — re-render the family
         document.addEventListener(CONVOLUTION_IRS_CHANGED, () => {
-            if (this.component.view === 'convolution') this.update();
+            if (this.family === "convolution") this.update();
             this.refreshNote();
         });
-        // Create IR bakes the oscillator wavetable — only reachable there
-        document.addEventListener(SOURCE_CHANGED, () => this.refreshNote());
-        this.refreshNote();
 
+        // Height-driven compact mode (tabs instead of dials)
+        const root = document.getElementById(ROOT_ID);
+        if (root && window.ResizeObserver) {
+            new ResizeObserver(() => this.syncCompact()).observe(root);
+        }
+        window.addEventListener("resize", () => this.syncCompact());
+
+        this.renderHeader();
+        this.syncModeButtons();
+        this.refreshNote();
     }
 
+    /** First render: the compact measurement needs the panel laid out. */
+    init() {
+        super.init();
+        this.syncCompact();
+    }
 
-    /** Hint under the tabs: the convolution view is inert until an IR exists. */
-    refreshNote() {
-        const note = document.getElementById('drawbars-note');
-        const createIrButton = document.getElementById('create-ir-button-drawbars');
-        const inConvolutionView = this.component.view === 'convolution';
+    /**
+     * The header: the family's name, the family tabs (embed only — CSS
+     * hides them on the surfaces shell, where the toolbar chooses), and
+     * the parameter tabs (only while compact).
+     */
+    renderHeader() {
+        const title = document.getElementById(TITLE_ID);
+        if (title) title.textContent = FAMILIES[this.family].label;
 
-        if (note) {
-            const show = inConvolutionView && irManager.list().length === 0;
-            note.textContent = show ? 'create IR to use convolution' : '';
-            note.classList.toggle('hidden', !show);
+        const familyTabs = document.getElementById(FAMILY_TABS_ID);
+        if (familyTabs) {
+            familyTabs.innerHTML = "";
+            for (const name of FAMILY_ORDER) {
+                familyTabs.appendChild(this.tab(FAMILIES[name].label.toLowerCase(), name === this.family, () => this.setFamily(name)));
+            }
         }
 
-        // Baking an IR samples the oscillator wavetable — the button is a
-        // no-op (and hidden) for external sources, same gating as the
-        // Wavetable panel's own "Create IR" button
-        createIrButton?.classList.toggle('hidden',
-            !inConvolutionView || AppState.sourceMode !== 'oscillators');
+        const paramTabs = document.getElementById(PARAM_TABS_ID);
+        if (paramTabs) {
+            paramTabs.innerHTML = "";
+            paramTabs.hidden = !this.compact;
+            FAMILIES[this.family].params.forEach((param, i) => {
+                paramTabs.appendChild(this.tab(param.label, i === this.paramIndex, () => this.setParamIndex(i)));
+            });
+        }
     }
 
-    getProps() {
-        return {
-            isSubharmonic: AppState.isSubharmonic
-        };
+    tab(text, active, onClick) {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "drawbars-tab" + (active ? " active" : "");
+        btn.textContent = text;
+        btn.addEventListener("click", onClick);
+        return btn;
     }
 
-    // no update() override — BaseController handles render + bindRenderedEvents
+    /** Hint beside the tabs: the convolution family is inert until an IR exists. */
+    refreshNote() {
+        const note = document.getElementById(NOTE_ID);
+        if (!note) return;
+        const show = this.family === "convolution" && irManager.list().length === 0;
+        note.textContent = show ? "create IR to use convolution" : "";
+        note.classList.toggle("hidden", !show);
+    }
 }

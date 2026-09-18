@@ -1,0 +1,12 @@
+/* Filter surface oscilloscope (js/modules/scope/). The panel root's own
+   sizing (#filter-viz-root) belongs to whoever owns the Filter surface
+   layout — this only shapes the canvas host and the canvas itself. */
+
+#scope-canvas-area {
+    display: block;
+    width: 100%;
+}
+
+#scope-canvas-area canvas {
+    display: block;
+}

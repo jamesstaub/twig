@@ -1,0 +1,13 @@
+/* EnvelopeVizComponent (js/modules/envelopeViz/): every voice's ADSR
+   curve on one shared time axis. Colors are drawn on the canvas itself
+   from theme.js tokens (--viz-bg/--viz-grid/partialColor) — this file is
+   layout only. */
+
+#envelope-canvas-area {
+    display: block;
+    width: 100%;
+}
+
+.envelope-viz-canvas {
+    display: block;
+}

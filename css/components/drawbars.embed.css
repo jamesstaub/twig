@@ -102,14 +102,8 @@ body.embed .drawbar-value {
     display: none;
 }
 
-/* Sequence summary: fills the column like the slider does */
-body.embed .drawbar-seq-summary {
-    min-height: 0;
-    margin: 2px 0;
-    padding: 0;
-    gap: 2px;
-}
-
-body.embed .drawbar-seq-preview {
-    height: 28px !important;
+/* No toolbar in the band: the family tabs are how the strip switches
+   between gain / filter / convolution / adsr here */
+body.embed #drawbars-control-root .drawbars-family-tabs {
+    display: inline-flex;
 }

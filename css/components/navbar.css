@@ -63,10 +63,9 @@
     min-width: 180px;
 }
 
-/* Play/Stop and Open/ADSR: the same framed "label + switch" control, the
-   label naming the current state */
-.play-toggle-container,
-.envelope-mode-container {
+/* Play/Stop: a framed "label + switch" control, the label naming the
+   current state */
+.play-toggle-container {
     display: flex;
     flex-grow: 1;
     flex-wrap: wrap;
@@ -80,10 +79,6 @@
 
 #play-label {
     width: 2rem;
-}
-
-#envelope-mode-label {
-    width: 2.9rem;
 }
 
 .logo {
@@ -128,12 +123,11 @@
         flex-basis: 100%;
     }
 
-    /* The toggles must not grow, or they fill the row alone and push
-       everything after them down */
-    body.surfaces .play-toggle-container,
-    body.surfaces .envelope-mode-container {
+    /* The toggle must not grow, or it fills the row alone and pushes
+       everything after it down */
+    body.surfaces .play-toggle-container {
         flex-grow: 0;
-        padding: 0.5rem 0.75rem; /* Play · ADSR · ● fit one 390px row with this slack */
+        padding: 0.5rem 0.75rem; /* Play · ● fit one 390px row with this slack */
     }
 
     /* Collapsed (● + expand), the recorder fits row 1; expanded it takes

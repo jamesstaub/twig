@@ -60,5 +60,12 @@ body.embed .surface-toolbar {
 body.embed .navbar { order: 1; }
 body.embed #m4l-fundamental-source-panel { order: 2; }
 body.embed #drawbars-control-root { order: 3; flex: 1 1 320px; min-width: max-content; }
-body.embed #result-control-root { order: 4; width: 300px; }
-body.embed #tonewheel-container { order: 5; }
+body.embed #gain-viz-root { order: 4; width: 300px; }
+body.embed #conv-viz-root { order: 5; width: 300px; }
+body.embed #tonewheel-container { order: 6; }
+
+/* No room in the band for the output scope or the envelope curves */
+body.embed #filter-viz-root,
+body.embed #adsr-viz-root {
+    display: none;
+}

@@ -1,0 +1,112 @@
+/* ================================
+   TRIGGER SURFACE — the pad grid (#pad-grid-root)
+   ================================
+   One big pad per overtone, MPC-style. The grid always fills its panel:
+   4 columns × 3 rows in landscape, 3 × 4 in portrait, pads sharing the
+   space evenly (grid rows are 1fr) rather than shrinking below a finger
+   or scrolling. */
+
+#pad-grid-root {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.pad-grid-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.pad-grid-title {
+    font-weight: var(--font-weight-medium);
+    color: var(--text-label);
+}
+
+.pad-grid {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-auto-rows: minmax(0, 1fr);
+    gap: 0.5rem;
+}
+
+@media (orientation: portrait) {
+    .pad-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
+.trigger-pad {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.2rem;
+    min-height: 0;
+    padding: 0.35rem 0.5rem;
+    color: var(--text-primary);
+    /* Tinted by the partial's consonance color; the level glow (set per
+       frame as --pad-level) brightens the tint while the voice sounds */
+    background:
+        linear-gradient(color-mix(in srgb, var(--pad-color) calc(var(--pad-level, 0) * 55%), transparent),
+                        color-mix(in srgb, var(--pad-color) calc(var(--pad-level, 0) * 55%), transparent)),
+        color-mix(in srgb, var(--pad-color) 18%, var(--surface-deep));
+    border: 1px solid color-mix(in srgb, var(--pad-color) 45%, var(--border-subtle));
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-elevation-1);
+    cursor: pointer;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+    transition: transform 0.05s, box-shadow 0.05s;
+}
+
+.trigger-pad:hover {
+    border-color: var(--pad-color);
+}
+
+.trigger-pad.held {
+    background: var(--pad-color);
+    color: var(--surface-app);
+    transform: scale(0.97);
+    box-shadow: var(--shadow-recessed);
+}
+
+.trigger-pad-label {
+    font-family: var(--font-mono);
+    font-size: var(--font-size-lg);
+    font-weight: var(--font-weight-bold);
+    line-height: 1.1;
+}
+
+.trigger-pad-hz {
+    font-family: var(--font-mono);
+    font-size: var(--font-size-xs);
+    opacity: 0.8;
+}
+
+.trigger-pad-key {
+    position: absolute;
+    top: 0.3rem;
+    left: 0.45rem;
+    font-family: var(--font-mono);
+    font-size: var(--font-size-3xs);
+    opacity: 0.55;
+}
+
+/* Open mode: the pads can't sound; keep them visible but quiet */
+.pad-grid-inactive .trigger-pad {
+    opacity: 0.55;
+}
+
+/* Touch: bigger targets, no keyboard hints */
+body.coarse .pad-grid {
+    gap: 0.6rem;
+}
+
+body.coarse .trigger-pad-key {
+    display: none;
+}

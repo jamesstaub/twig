@@ -47,13 +47,9 @@
                         aria-label="Play/Stop control">
                     </div>
                 </div>
-                <!-- Envelope Mode: off = every voice drones open, on = voices are
-                     gated per overtone (ADSR). Framed like the Play toggle. -->
-                <div class="envelope-mode-container">
-                    <span id="envelope-mode-label" class="toggle-label active">ADSR</span>
-                    <div id="envelope-mode-toggle" class="toggle-switch" role="switch" aria-checked="false"
-                        aria-label="Envelope mode: Open or ADSR"></div>
-                </div>
+                <!-- Trigger/Drone mode, EMBED ONLY (the band has no Trigger or
+                     Source panel to host it; the surfaces shell hides this root) -->
+                <div id="navbar-mode-root" class="envelope-mode-root navbar-mode-root"></div>
                 <!-- Performance recorder: audio + MIDI capture, takes, transport -->
                 <div id="recorder-root" class="recorder-root"></div>
             </div>
@@ -77,10 +73,13 @@
         <div class="page-content embed-flatten">
             <!-- Main Controls -->
             <div class="control-card embed-flatten">
-                <!-- Every surface panel except the viz dock's, stacked: the
-                     dock layout is then exactly two cells (stack | dock),
-                     however many panels a surface shows at once -->
+                <!-- Every surface's main panels, stacked. The side column
+                     (.surface-side, below) holds the per-surface visualization
+                     and the tonewheel dock, so the card is always exactly two
+                     cells: stack | side. -->
                 <div class="surface-stack embed-flatten">
+                <!-- Source surface: signal source, fundamental, overtone system
+                     (one markup group — the embed band stacks it too) -->
                 <div id="m4l-fundamental-source-panel" class="control-row embed-flatten">
                     <!-- Signal source: oscillator bank or an external signal
                          through the resonant filter bank. Drop a sound file
@@ -125,6 +124,8 @@
                     <div id="fundamental-control-root" class="labeled-control">
                         <label for="fundamental-input">
                             <span class="control-label-text">Fundamental Frequency</span>
+                            <!-- Trigger/Drone, redundant with the Trigger surface's -->
+                            <span id="source-mode-root" class="envelope-mode-root"></span>
                             <span class="fundamental-input-group">
                                 <input type="number" id="fundamental-input" class="fundamental-input" value="130.81"
                                     step="0.01"> Hz
@@ -185,16 +186,17 @@
                     </div>
                 </div>
 
-                <!-- Drawbars: full width, its own row -->
+                <!-- The drawbar strip: ONE panel shared by the Gain, Filter,
+                     Convolution and ADSR surfaces — each sets the strip's
+                     parameter family (drawbarParams.js). Header: the family's
+                     name, and the parameter tabs that appear when the strip is
+                     too short for dials under the bars. The family tabs are
+                     the embed band's way to switch (no toolbar there). -->
                 <div id="drawbars-control-root" class="labeled-control">
                     <span>
-                        Drawbars
-                        <span id="drawbars-tabs" class="drawbars-tabs">
-                            <button type="button" class="drawbars-tab active" data-view="gain">gain</button>
-                            <button type="button" class="drawbars-tab" data-view="filter">filter</button>
-                            <button type="button" class="drawbars-tab" data-view="sequence">sequence</button>
-                            <button type="button" class="drawbars-tab" data-view="convolution">convolution</button>
-                        </span>
+                        <span id="drawbars-title">Gain</span>
+                        <span id="drawbars-family-tabs" class="drawbars-tabs drawbars-family-tabs"></span>
+                        <span id="drawbars-tabs" class="drawbars-tabs" hidden></span>
                         <span id="drawbars-note" class="drawbars-note hidden"></span>
                     </span>
                     <div id="drawbars" class="drawbar-container">
@@ -224,34 +226,33 @@
                         <div id="drawbars-shape-dock" class="drawbars-shape-dock" hidden></div>
                     </div>
                     <div class="drawbars-actions">
-                        <!-- Convolution view only: baking an IR needs the
-                             oscillator wavetable, but the Wavetable panel
-                             that normally hosts "Create IR" can be a
-                             whole section away (hidden entirely for
-                             external sources) — a shortcut here saves
-                             the trip while dialing in per-voice IRs. -->
-                        <button id="create-ir-button-drawbars" type="button" role="button"
-                            class="action-btn focus-ring action-btn-spaced hidden"
-                            aria-label="Create convolution impulse response">Create IR</button>
                         <button id="reset-drawbars-button" type="button" role="button"
                             class="action-btn focus-ring action-btn-spaced"
                             aria-label="Reset drawbars">Reset</button>
                         <button id="randomize-drawbars-button" type="button" role="button"
                             class="action-btn focus-ring action-btn-spaced"
                             aria-label="Randomize drawbars">Randomize</button>
-
                     </div>
                 </div>
 
-                <!-- Voice surface: the inspector, full width (surfaces shell only) -->
-                <div id="voice-control-root" class="labeled-control"></div>
+                <!-- Sequence surface: the inspector — one voice's sequence,
+                     modulation and pulse outs (surfaces shell only) -->
+                <div id="sequence-control-root" class="labeled-control"></div>
 
-                <!-- Play surface: the pad grid under the fundamental strip (surfaces shell only) -->
-                <div id="pad-grid-root" class="labeled-control"></div>
+                <!-- Trigger surface: one pad per overtone plus the Trigger/Drone
+                     mode. The header is static so the toggle survives the grid's
+                     re-renders; PadGridComponent owns #pad-grid only. -->
+                <div id="pad-grid-root" class="labeled-control">
+                    <div class="pad-grid-header">
+                        <span class="pad-grid-title">Trigger</span>
+                        <span id="trigger-mode-root" class="envelope-mode-root"></span>
+                    </div>
+                    <div id="pad-grid" class="pad-grid"></div>
+                </div>
 
                 <!-- Settings surface: MIDI routing/mapping + recording settings.
-                     In embed it's a full-band overlay opened by the same
-                     navbar buttons (body.settings-open) -->
+                     In embed it's a full-band overlay opened by the recorder's ⚙
+                     (body.settings-open) -->
                 <div id="settings-control-root" class="labeled-control">
                     <div class="settings-header">
                         <span class="settings-title">Settings</span>
@@ -267,56 +268,70 @@
                 </div>
                 </div><!-- /.surface-stack -->
 
-                <!-- Wavetable + Tonewheel: paired visualization/output panels
-                     (the Wavetable surface, and the viz dock beside any other) -->
-                <div class="wavetable-tonewheel-row embed-flatten">
-                    <!-- Waveform + controls -->
-                    <div id="result-control-root" class="labeled-control">
-                        <label>
-                            Wavetable
-                        </label>
-                        <!-- Two rows: the time-domain wave with the wavetable
-                             actions, then its spectrum with the convolution
-                             (IR) actions -->
-                        <div class="result-grid">
-                            <div id="waveform-canvas-area" class="result-canvas">
-                                <!-- P5 canvas injected here -->
-                            </div>
-                            <div class="result-actions">
-                                <button id="add-wave-button" type="button" role="button"
+                <!-- Side column: each parameter surface's visualization, and the
+                     tonewheel (the Viz dock, showable beside any surface). A
+                     side column in landscape, a band on top in portrait. -->
+                <div class="surface-side embed-flatten">
+                    <!-- Gain: the summed wavetable, with the bake/export actions -->
+                    <div id="gain-viz-root" class="labeled-control viz-panel">
+                        <label>Waveform</label>
+                        <div id="waveform-canvas-area" class="viz-canvas">
+                            <!-- P5 canvas injected here -->
+                        </div>
+                        <div id="wavetable-actions" class="viz-actions">
+                            <button id="add-wave-button" type="button" role="button"
+                                class="action-btn focus-ring"
+                                aria-label="Create oscillator from the current timbre">Create Oscillator</button>
+                            <div id="routing-control-root" class="download-group">
+                                <button id="export-wav-button" type="button" role="button"
                                     class="action-btn focus-ring"
-                                    aria-label="Create oscillator from the current timbre">Create Oscillator</button>
-                                <div id="routing-control-root" class="download-group">
-                                    <button id="export-wav-button" type="button" role="button"
-                                        class="action-btn focus-ring"
-                                        aria-label="Download wav">Download</button>
-                                    <div id="routing-mode-group" class="routing-mode-group">
-                                        <select name="routing-mode" id="routing-mode-select" class="control-select">
-                                            <option value="mono" selected>Mono</option>
-                                            <option value="stereo">Stereo</option>
-                                            <option value="multichannel">Multichannel</option>
-                                        </select>
-                                    </div>
+                                    aria-label="Download wav">Download</button>
+                                <div id="routing-mode-group" class="routing-mode-group">
+                                    <select name="routing-mode" id="routing-mode-select" class="control-select">
+                                        <option value="mono" selected>Mono</option>
+                                        <option value="stereo">Stereo</option>
+                                        <option value="multichannel">Multichannel</option>
+                                    </select>
                                 </div>
-                            </div>
-
-                            <div id="spectrum-canvas-area" class="result-canvas">
-                                <!-- Spectrum canvas injected here -->
-                            </div>
-                            <div class="result-actions">
-                                <button id="create-ir-button" type="button" role="button"
-                                    class="action-btn focus-ring"
-                                    aria-label="Create convolution impulse response">Create IR</button>
-                                <!-- Ring time for the next Create IR (dial mounted by JS) -->
-                                <span class="ir-ring-row">
-                                    <span class="start-harmonic-label">ring</span>
-                                    <span id="ir-ring-root" class="ir-ring-root" title="IR ring time"></span>
-                                </span>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Main Tonewheel Canvas -->
+                    <!-- Filter: an oscilloscope of the live output -->
+                    <div id="filter-viz-root" class="labeled-control viz-panel">
+                        <label>Output</label>
+                        <div id="scope-canvas-area" class="viz-canvas">
+                            <!-- Scope canvas injected here -->
+                        </div>
+                    </div>
+
+                    <!-- Convolution: the spectrum, with Create IR + ring time -->
+                    <div id="conv-viz-root" class="labeled-control viz-panel">
+                        <label>Spectrum</label>
+                        <div id="spectrum-canvas-area" class="viz-canvas">
+                            <!-- Spectrum canvas injected here -->
+                        </div>
+                        <div id="ir-actions" class="viz-actions">
+                            <button id="create-ir-button" type="button" role="button"
+                                class="action-btn focus-ring"
+                                aria-label="Create convolution impulse response">Create IR</button>
+                            <!-- Ring time for the next Create IR (dial mounted by JS) -->
+                            <span class="ir-ring-row">
+                                <span class="start-harmonic-label">ring</span>
+                                <span id="ir-ring-root" class="ir-ring-root" title="IR ring time"></span>
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- ADSR: every voice's envelope, drawn -->
+                    <div id="adsr-viz-root" class="labeled-control viz-panel">
+                        <label>Envelopes</label>
+                        <div id="envelope-canvas-area" class="viz-canvas">
+                            <!-- Envelope canvas injected here -->
+                        </div>
+                    </div>
+
+                    <!-- Main Tonewheel Canvas (the Viz dock) -->
                     <div id="tonewheel-container" class="labeled-control">
                         <!-- Main tonewheel p5.js canvas will be injected here -->
                         <div class="controls-overlay">

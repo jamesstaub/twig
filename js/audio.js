@@ -449,6 +449,15 @@ export function getVoiceLevel(index) {
     return node && node.key ? audioEngine.getVoiceLevel(node.key) : 0;
 }
 
+/**
+ * The AnalyserNode tapping the master output (post-limiter) — the
+ * oscilloscope reads it with getFloatTimeDomainData. Null until the engine
+ * exists (first play).
+ */
+export function getOutputAnalyser() {
+    return audioEngine?.outputAnalyser ?? null;
+}
+
 /** True when any pulse consumer (MIDI, OSC, clock) wants this voice's cycles. */
 export function harmonicPulseEnabled(index) {
     const out = AppState.oscillatorPulseOuts[index];

@@ -26,21 +26,8 @@ body.embed .octave-display {
     font-size: var(--font-size-sm);
 }
 
-body.embed #result-control-root .result-actions {
+body.embed .viz-actions {
     gap: 0.375rem;
-    margin-bottom: 0;
-}
-
-/* The 170px band has no room for a second canvas: the wave keeps the
-   row, the spectrum hides, and the IR actions flow in with the rest */
-body.embed .result-grid {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-
-body.embed #spectrum-canvas-area {
-    display: none;
 }
 
 body.embed .download-group {

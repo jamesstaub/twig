@@ -57,12 +57,15 @@ export class DownloadControlController extends BaseController {
     bindExternalEvents() {
         document.addEventListener(ROUTING_MODE_CHANGED, () => this.update());
 
-        // The wavetable preview/actions bake the oscillator bank — hidden
-        // in external source modes. Applied at init too (bridge bootstrap
-        // replays before controllers bind).
+        // Baking (Create Oscillator / Download / Create IR) samples the
+        // oscillator bank — the action rows hide in external source modes;
+        // the canvases stay. Applied at init too (bridge bootstrap replays
+        // before controllers bind).
         const applySourceGating = () => {
-            document.getElementById('result-control-root')
-                ?.classList.toggle('hidden', AppState.sourceMode !== 'oscillators');
+            const external = AppState.sourceMode !== 'oscillators';
+            for (const id of ['wavetable-actions', 'ir-actions']) {
+                document.getElementById(id)?.classList.toggle('hidden', external);
+            }
         };
         document.addEventListener(SOURCE_CHANGED, applySourceGating);
         applySourceGating();

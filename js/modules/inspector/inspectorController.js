@@ -2,14 +2,7 @@ import { BaseController } from '../base/BaseController.js';
 import { InspectorComponent } from './InspectorComponent.js';
 import { inspectorState } from './inspectorState.js';
 import { surfaceState } from '../surfaces/surfaceState.js';
-import { layoutMode } from '../layout/layoutMode.js';
-import { triggerHarmonicAttack, triggerHarmonicRelease } from '../../audio.js';
 import {
-    CONVOLUTION_IRS_CHANGED,
-    DRAWBAR_CHANGE,
-    DRAWBARS_RANDOMIZED,
-    DRAWBARS_RESET,
-    ENVELOPE_MODE_CHANGED,
     INSPECTOR_CHANGED,
     LAYOUT_MODE_CHANGED,
     MIDI_OUTPUT_CHANGED,
@@ -19,7 +12,7 @@ import {
 } from '../../events.js';
 
 /**
- * Homes the one InspectorComponent in either the Voice surface's panel
+ * Homes the one InspectorComponent in either the Sequence surface's panel
  * (when that surface is active) or the inspector sheet beside any other
  * surface (while inspectorState.open), and re-renders it when the
  * selected voice or its state changes from outside the inspector.
@@ -40,13 +33,12 @@ export class InspectorController extends BaseController {
     getProps() {
         return {
             index: inspectorState.index,
-            host: surfaceState.active === 'voice' ? 'surface' : 'sheet',
-            dialSize: layoutMode.coarse ? 52 : 36,
+            host: surfaceState.active === 'sequence' ? 'surface' : 'sheet',
         };
     }
 
     update() {
-        const inSurface = surfaceState.active === 'voice';
+        const inSurface = surfaceState.active === 'sequence';
         const host = inSurface ? this.surfaceEl : this.sheetEl;
         const sheetOpen = !inSurface && inspectorState.isOpen;
 
@@ -72,9 +64,7 @@ export class InspectorController extends BaseController {
     bindComponentEvents() {
         this.component.onClose = () => inspectorState.close();
         this.component.onStep = (delta) => inspectorState.step(delta);
-        this.component.onExpand = () => surfaceState.show('voice');
-        this.component.onTriggerAttack = (index) => triggerHarmonicAttack(index);
-        this.component.onTriggerRelease = (index) => triggerHarmonicRelease(index);
+        this.component.onExpand = () => surfaceState.show('sequence');
     }
 
     bindExternalEvents() {
@@ -82,25 +72,15 @@ export class InspectorController extends BaseController {
         document.addEventListener(SURFACE_CHANGED, () => this.update());
         document.addEventListener(LAYOUT_MODE_CHANGED, () => this.update());
         document.addEventListener(SPECTRAL_SYSTEM_CHANGED, () => this.scheduleUpdate());
-        document.addEventListener(ENVELOPE_MODE_CHANGED, () => this.scheduleUpdate());
         document.addEventListener(MIDI_OUTPUT_CHANGED, () => this.scheduleUpdate());
-        document.addEventListener(CONVOLUTION_IRS_CHANGED, () => this.scheduleUpdate());
-        // The selected voice changed from outside (drawbar edit, OSC, a
-        // linked write from another voice's controls) — mirror it. Our own
-        // writes are already on screen.
+        // The selected voice changed from outside (OSC, a linked write from
+        // another voice's controls) — mirror it. Our own writes are
+        // already on screen.
         document.addEventListener(OVERTONE_SIGNAL_CHANGED, (e) => {
             if (this.component.writing) return;
             if (e.detail?.index !== inspectorState.index) return;
             this.scheduleUpdate();
         });
-        // The gain dial mirrors the drawbar
-        document.addEventListener(DRAWBAR_CHANGE, (e) => {
-            if (this.component.writing) return;
-            if (e.detail?.index !== inspectorState.index) return;
-            this.scheduleUpdate();
-        });
-        document.addEventListener(DRAWBARS_RESET, () => this.scheduleUpdate());
-        document.addEventListener(DRAWBARS_RANDOMIZED, () => this.scheduleUpdate());
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape' && !this.sheetEl.hidden) inspectorState.close();
         });

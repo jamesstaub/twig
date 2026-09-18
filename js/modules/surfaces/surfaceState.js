@@ -3,41 +3,46 @@ import { layoutMode } from '../layout/layoutMode.js';
 
 /**
  * Surface state — which full-screen surface is showing and whether the
- * visualization dock is open. UI-only: never bridged, never persisted.
+ * tonewheel dock is open. UI-only: never bridged, never persisted.
  *
  * A surface is a named group of existing panel roots (by element id). The
  * shell shows exactly one surface's panels at a time (modeled as a set so
  * multi-surface layouts are a policy change later, not a model change);
- * the viz dock additionally shows the DOCK_ROOTS beside whatever surface
- * is active. Presentation (toolbar, hiding panels, body classes) lives in
- * the surfaces controller/components — this module only holds the state
- * and the registry.
+ * the dock additionally shows the DOCK_ROOTS beside whatever surface is
+ * active. A surface with `family` puts the drawbar strip into that
+ * parameter family (drawbarParams.js). Presentation (toolbar, hiding
+ * panels, body classes) lives in the surfaces controller/components —
+ * this module only holds the state and the registry.
  */
 
 export const SURFACES = [
-    // The fundamental strip (pitch, octave, keyboard) and the source
-    // picker over the pad grid
-    { id: 'play', label: 'Play', roots: ['fundamental-control-root', 'oscillator-control-root', 'pad-grid-root'] },
-    { id: 'mix', label: 'Mix', roots: ['drawbars-control-root'] },
-    // The inspector, full width (inspectorState picks the overtone)
-    { id: 'voice', label: 'Voice', roots: ['voice-control-root'] },
-    { id: 'system', label: 'System', roots: ['spectral-system-root'] },
-    { id: 'wavetable', label: 'Wavetable', roots: ['result-control-root', 'tonewheel-container'] },
-    // dock: false — a settings form has no use for the canvases beside it
+    // One pad per overtone + the Trigger/Drone mode
+    { id: 'trigger', label: 'Trigger', roots: ['pad-grid-root'] },
+    // Fundamental, signal source, overtone system
+    { id: 'source', label: 'Source', roots: ['fundamental-control-root', 'oscillator-control-root', 'spectral-system-root'] },
+    // The drawbar strip in each of its parameter families, each with its
+    // own visualization beside it
+    { id: 'gain', label: 'Gain', roots: ['drawbars-control-root', 'gain-viz-root'], family: 'gain' },
+    { id: 'filter', label: 'Filter', roots: ['drawbars-control-root', 'filter-viz-root'], family: 'filter' },
+    // The inspector: one voice's sequence, modulation and pulse outs
+    { id: 'sequence', label: 'Sequence', roots: ['sequence-control-root'] },
+    { id: 'convolution', label: 'Convolution', roots: ['drawbars-control-root', 'conv-viz-root'], family: 'convolution' },
+    { id: 'adsr', label: 'ADSR', roots: ['drawbars-control-root', 'adsr-viz-root'], family: 'adsr' },
+    // dock: false — a settings form has no use for the tonewheel beside it
     { id: 'settings', label: 'Settings', roots: ['settings-control-root'], dock: false },
 ];
 
-/** Panels the viz dock keeps visible beside any active surface. */
-export const DOCK_ROOTS = ['result-control-root', 'tonewheel-container'];
+/** Panels the dock keeps visible beside any active surface. */
+export const DOCK_ROOTS = ['tonewheel-container'];
 
-const DEFAULT_SURFACE = 'mix';
+const DEFAULT_SURFACE = 'gain';
 
 const state = {
     visible: new Set([DEFAULT_SURFACE]),
     // null = "not chosen yet": the default depends on the pointer density,
     // which layoutMode only knows after init() — later than this module
     // is imported — so it's resolved on first read, not here. Desktop
-    // starts with the canvases in view beside the drawbars (the layout
+    // starts with the tonewheel in view beside the strip (the layout
     // users know); a finger-driven screen has no room to spare.
     dock: null,
 };

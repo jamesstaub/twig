@@ -55,3 +55,44 @@
 .key.black.active {
     background-color: var(--accent-positive-strong);
 }
+
+/* ---- Fundamental strip on the Trigger surface: touch-sized keyboard ---- */
+
+body.coarse .keyboard-container,
+body.coarse .key {
+    height: 96px;
+}
+
+/* 7 × 36px white keys = 252px: one octave fits a phone beside the toolbar */
+body.coarse .key.white {
+    width: 36px;
+}
+
+body.coarse .key.black {
+    width: 24px;
+}
+
+body.coarse .btn-octave {
+    padding: 0.5rem 1rem;
+    font-size: var(--font-size-base);
+}
+
+/* Phones: the keyboard gives up height for the pads below it (the
+   fundamental strip, source picker and pads share one short screen) */
+@media (max-width: 48rem) {
+    body.surfaces .keyboard-container,
+    body.surfaces .key,
+    body.surfaces.coarse .keyboard-container,
+    body.surfaces.coarse .key {
+        height: 52px;
+    }
+
+    body.surfaces .key.black,
+    body.surfaces.coarse .key.black {
+        height: 32px;
+    }
+
+    body.surfaces .keyboard-container {
+        margin: 2px 0;
+    }
+}

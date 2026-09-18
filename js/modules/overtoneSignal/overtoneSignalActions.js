@@ -241,6 +241,29 @@ export const OvertoneSignalActions = {
         }
     },
 
+    /** Every voice's envelope back to the defaults. */
+    resetEnvelopes() {
+        for (let i = 0; i < this._voiceCount(); i++) {
+            this.setEnvelope(i, { ...ENVELOPE_DEFAULTS });
+        }
+    },
+
+    /**
+     * Random but playable envelopes: short-to-medium attacks and decays,
+     * any sustain, releases up to a couple of seconds.
+     */
+    randomizeEnvelopes() {
+        const between = (lo, hi) => lo + Math.random() * (hi - lo);
+        for (let i = 0; i < this._voiceCount(); i++) {
+            this.setEnvelope(i, {
+                a: between(0.005, 0.6),
+                d: between(0.05, 1),
+                s: Math.round(between(0.2, 1) * 100) / 100,
+                r: between(0.05, 2),
+            });
+        }
+    },
+
     /** Gates off, pattern params back to defaults. */
     resetGates() {
         for (let i = 0; i < this._voiceCount(); i++) {

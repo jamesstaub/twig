@@ -58,15 +58,19 @@ state cache (param then fails to persist across page reloads).
 
 ## 5. UI
 
-- Inspector control: a `dialColumn()` (or slider row) in the matching
-  `build…Section()` of `js/modules/inspector/InspectorComponent.js`; write
-  through `this.apply(index, e, (i) => …)` so the controller can tell
-  the inspector's own writes from external ones.
-- Drawbar view control: `createAux()` / `createDrawbar()` in
-  `DrawbarsComponent.js`, plus a `syncSignal(index, kind)` branch so
-  external updates (inspector edits, inbound OSC) refresh the visible
-  control.
-- Register any new Dial in `this._dials` so syncSignal can reach it.
+- A per-overtone parameter of an existing family (gain, filter,
+  convolution, adsr): ONE descriptor in `js/modules/drawbars/drawbarParams.js`
+  (`{ key, label, min, max, step, color?, get(i), set(i, v), format(i, v) }`,
+  `set` writing the stored parameter through the actions). The strip then
+  shows it as a dial under the bars, as a tab when compact, on the bars
+  when chosen, shaped/linked/reset for free; `refreshColumn` re-reads it
+  on `OVERTONE_SIGNAL_CHANGED` (any `kind`). A new family = a new entry
+  in `FAMILIES` + `FAMILY_ORDER` + a surface in `surfaceState.js` with
+  `family:` and a viz panel root.
+- Sequence/modulation/pulse parameters instead belong in the inspector
+  (`js/modules/inspector/InspectorComponent.js`): write through
+  `this.apply(index, e, (i) => …)` so the controller can tell the
+  inspector's own writes from external ones.
 
 ## Verify
 

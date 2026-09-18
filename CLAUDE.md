@@ -99,287 +99,218 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
   share it), exposed as `body.embed` | `body.surfaces`; **coarse**
   (`pointer: coarse`, or `?coarse=1` to preview touch density with a
   mouse) is `body.coarse` and swaps control density without changing the
-  shell. Changes dispatch `LAYOUT_MODE_CHANGED`. This is the foundation
-  of the touch/surface UI overhaul (see the memory file
-  `project_touch_ui_overhaul` for the plan and phase status).
+  shell. Changes dispatch `LAYOUT_MODE_CHANGED`.
 - Readouts are inline, never floating: `Dial` renders its own caption
   above the arc and value below it (`.mini-dial-label` / `.mini-dial-value`,
   css/components/dial.css — hosts must NOT add their own captions), and
   every drawbar has a `.drawbar-value` under the bar kept current by
   `syncFill`. `Dial` calls `onChange` BEFORE `draw()` so a `format` that
-  reads host state (the inspector's cutoff "φ^2 · 660 Hz") renders the new
-  value. Nothing floats any more: `ValueTip` is gone, and `Dial` has no
-  tip options. Gotcha: layout.css's `.labeled-control span` restyles
-  every span in a panel as a flex heading; widget text inside panels must
-  out-specify it (dial.css uses `.mini-dial > …`).
-- Embed mode: `body.embed` (see layout mode above) when the viewport is
-  ≤ `--embed-max-height` (theme.css, 220px) tall or `?embed=1`;
-  `css/embed.css` (must stay the **last** import in styles.css,
-  followed by each component's own `*.embed.css`) reflows the app into one
-  ~150px horizontal band that scrolls sideways if it doesn't fit — a jweb
-  viewport is often plenty WIDE even though short, so desktop's own
-  width-based breakpoints (e.g. the Wavetable row's 48rem/80rem) still
-  fire there and need explicit embed overrides, not just narrow-viewport
-  assumptions. The surface toolbar is hidden and every panel root stays
-  visible (the shell skips embed entirely).
-  Sections become flex children of `body.embed` via `.embed-flatten`
-  (`display:contents` on intermediate wrapper divs) with `order:` per
-  section. The inspector sheet and the Settings panel become full-band
-  horizontal scrolling overlays there (`body.settings-open`);
-  `.inspector-section-body` exists so section content can flow
-  column-normally / row-in-embed with pure CSS. There are no modals in
-  the app any more.
+  reads host state renders the new value. Nothing floats: there is no
+  ValueTip. Gotcha: layout.css's `.labeled-control span` restyles every
+  span in a panel as a flex heading (`display:flex`); widget text and
+  hideable spans inside panels must out-specify it (dial.css uses
+  `.mini-dial > …`, the strip's family tabs are hidden with an id-scoped
+  rule).
+- Embed mode: `body.embed` when the viewport is ≤ `--embed-max-height`
+  tall or `?embed=1`; `css/embed.css` (must stay the **last** import in
+  styles.css, followed by each component's own `*.embed.css`) reflows the
+  app into one ~150px horizontal band that scrolls sideways if it doesn't
+  fit — a jweb viewport is often plenty WIDE even though short, so
+  desktop's own width-based breakpoints still fire there and need explicit
+  embed overrides. Sections become flex children of `body.embed` via
+  `.embed-flatten` (`display:contents` on every wrapper) with `order:` per
+  panel: navbar, the m4l stack (fundamental/source/system as one narrow
+  column, layout.embed.css), the drawbar strip, the waveform and spectrum
+  panels, the tonewheel. Hidden there: the toolbar, the pad grid, the
+  scope and envelope panels, the settings panel (an overlay instead,
+  `body.settings-open`), the inspector's surface root (the sheet is a
+  full-band overlay). The band has no toolbar, so the strip's FAMILY tabs
+  (gain/filter/convolution/adsr) show only there, and the Trigger/Drone
+  switch lives in the navbar only there (`#navbar-mode-root`). There are
+  no modals in the app.
 - Surfaces shell (`body.surfaces`, i.e. everything but embed):
   `js/modules/surfaces/` — `surfaceState.js` is the UI-only registry
-  (`SURFACES`: play/mix/source/system/wavetable → panel-root element ids;
-  `DOCK_ROOTS`; visible set + viz-dock flag, emits `SURFACE_CHANGED`),
-  `ToolbarComponent` is the left icon rail (`#surface-toolbar`),
+  (`SURFACES`, in toolbar order: trigger, source, gain, filter, sequence,
+  convolution, adsr, settings — each a list of panel-root element ids;
+  `family` names the drawbar strip's parameter family for the four
+  parameter surfaces; `dock: false` keeps the tonewheel off settings;
+  `DOCK_ROOTS` = the tonewheel; visible set + dock flag, emits
+  `SURFACE_CHANGED`), `ToolbarComponent` is the left icon rail,
   `SurfaceShellComponent` applies state to the DOM: sets `hidden` on every
   panel root the active surface doesn't include (base.css has
-  `[hidden]{display:none!important}`), collapses the row wrappers whose
-  children are all hidden, and exposes `body[data-surface="…"]` +
-  `body.viz-dock`, then dispatches a synthetic window `resize` so canvases
-  re-measure. Surfaces: play (fundamental + source + pads), mix, voice,
-  system, wavetable, settings — a registry entry's `dock: false`
-  (settings) keeps the canvases off that surface even with the dock
-  toggle on (`surfaceState.dockShown` vs the toggle's `dock`). `SurfacesController` mounts LAST in `initUI()` so every
-  panel has sized itself while visible. `css/components/page-arrangement.css`
-  arranges whatever is left showing (single centered panel for
-  Source/Fundamental/System; 2:1 Wavetable+Tonewheel; dock = second grid
-  column beside the surface, or a `--dock-height` band on top in
-  portrait). Markup: `.control-card` holds exactly two children — the
-  `.surface-stack` (every non-dock panel, a flex column; the LAST
-  visible one carries `flex:1`) and the `.wavetable-tonewheel-row` — so
-  the dock grid is always two cells however many panels a surface shows
-  (Play shows two: the fundamental strip over the pad grid; placing
-  every child on grid row 1 overlapped them). Both wrappers, plus
-  `#m4l-fundamental-source-panel`, are in the shell's WRAPPERS list and
-  collapse when all their panels are hidden; in embed all three are
-  `.embed-flatten` (display:contents) and the band order comes from
-  `order:` on the panels themselves. The dock defaults ON for fine pointers and OFF for
-  `body.coarse` — that default is read lazily (`dockDefault()`), NOT at
-  module import, because `layoutMode.init()` runs later than imports.
-  Sizing a panel for a shell position belongs in page-arrangement.css,
-  not the component's CSS (a viz.css mobile `min-width` on
-  `#tonewheel-container` once fought the dock band). The Wavetable/
-  Tonewheel row is column below 48rem, row above, grid from 80rem; the
-  `.result-grid` canvases are side by side except in the narrow side
-  dock where they stack. Panel DOM never moves between shells — the
-  `#m4l-fundamental-source-panel` group exists for the embed band, and
-  `this.q()` in components scopes lookups to their own root element, so
-  only ever move a *root* div. p5 gotcha: the tonewheel sketch's
-  `windowResized` can run before `setup()` (p5 subscribes to resize
-  immediately but defers setup to page load), so it early-returns until
-  `canvasReady` — any synthetic resize before load would otherwise throw
-  on `p.height`.
-- Inspector (`js/modules/inspector/`): the full per-overtone editor —
-  left column: gain & pan (the gain dial IS the drawbar, via
-  `DrawbarsActions.setDrawbar`, mirrored on `DRAWBAR_CHANGE`), filter &
-  drive, convolution, ADSR envelope with a hold-to-trigger pad, pulse
-  outs; right column: sequence (gate + shape) and modulation depths
-  (`.inspector-main` / `.inspector-aside`; one column in the sheet, one
-  row in embed). It replaced the overtone modal. `inspectorState`
-  (UI-only: selected index + sheet open, emits `INSPECTOR_CHANGED`) is
-  the model; `InspectorComponent` renders from AppState via the actions;
-  `InspectorController` homes the ONE component instance in either the
-  Voice surface's panel (`#voice-control-root`, when that surface is
-  active) or the sheet (`#inspector-sheet`, beside any other surface
-  while open — an in-flow side column in landscape, an overlay bottom
-  sheet in portrait, a full-band overlay in embed; inspector.css /
-  inspector.embed.css, `--sheet-width` / `--sheet-height` tokens). It
-  re-renders on `OVERTONE_SIGNAL_CHANGED` for the selected index EXCEPT
-  for its own writes: every handler goes through `component.apply()`
-  which sets `component.writing` while the actions run, and the
-  controller skips those — re-rendering under a dial mid-drag would
-  destroy the dial. Opened from a drawbar column label click (the one
-  always-present tap target), the context menu, or the Voice toolbar
-  button; Escape closes the sheet. DrawbarsComponent only calls
-  `onInspect(index)` — ui.js wires that to `inspectorState.open`, so
-  the strip never imports the inspector.
-- Mix tool row (`.drawbars-tools` UNDER the bars: `#drawbar-shape-toggle`
-  / `#drawbar-link-toggle` beside the shape panel's dock; wired in
-  drawbarsController; both UI-only, mutually exclusive
-  (`setShapeMode`/`setLinkMode` clear the other), both dropped on leaving
-  the Mix surface via `SURFACE_CHANGED`; each button also lights while
-  the key it stands in for is held — `linkLock.held`, emitted on
-  `LINK_ALL_CHANGED`, and the controller's own Shift tracking — so the
-  toggle and the modifier read as one thing). **Shape** = `DrawbarsComponent.
-  shapeMode`: every bar or dial drag sculpts the whole row, exactly what
-  a shift-drag does (`isShapeGesture(e)`); the math is the pure
-  `rowShape.js` `shapedRow()` (0-1 positions; the component maps them
-  back into each parameter's range so a shaped filter row sets series
-  steps). The panel (contour preview, contour stepper, ÷2/×2 cycles —
-  each re-applies the remembered last gesture) is BUILT by the strip
-  (`shapePanel()`, once) but DOCKED by the controller in
-  `#drawbars-shape-dock`, the band between the header and the bars: the
-  strip is a sideways-scrolling row and clips anything appended to it
-  (and in portrait `justify-content:center` overflow slides it
-  off-screen left). **Link** = `linkLock` in `linkAll.js`
-  (`isLinkAll(e)` = lock || cmd/ctrl; emits `LINK_ALL_CHANGED`) — the
+  `[hidden]{display:none!important}`), collapses the wrappers whose
+  children are all hidden (`#m4l-fundamental-source-panel`,
+  `.surface-stack`, `.surface-side`), exposes `body[data-surface="…"]` +
+  `body.viz-dock` (`surfaceState.dockShown` = toggle AND the surface
+  admits it), then dispatches a synthetic window `resize` so canvases
+  re-measure. `SurfacesController` mounts LAST in `initUI()` so every
+  panel has sized itself while visible. The dock defaults ON for fine
+  pointers and OFF for `body.coarse` — resolved lazily (`dockDefault()`),
+  NOT at module import, because `layoutMode.init()` runs later than
+  imports. p5 gotcha: the tonewheel sketch's `windowResized` can run
+  before `setup()`, so it early-returns until `canvasReady`.
+- Page markup (`index.html`): `.control-card` holds exactly two children
+  — the `.surface-stack` (every main panel, a flex column; the LAST
+  visible one carries `flex:1`) and the `.surface-side` (each parameter
+  surface's visualization panel — `#gain-viz-root` waveform + Create
+  Oscillator/Download, `#filter-viz-root` output scope, `#conv-viz-root`
+  spectrum + Create IR/ring, `#adsr-viz-root` envelope curves — plus
+  `#tonewheel-container`, the Viz dock). page-arrangement.css: when the
+  side wrapper is not hidden the card is a two-column grid (`:has()`),
+  stack | `--dock-width`; in portrait a band on top sized to its content
+  (`auto` row, 64px canvases) over the stack. Sizing a panel for a shell
+  position belongs in page-arrangement.css, not the component's CSS. On
+  the surfaces shell `.page-shell` is height-capped to the viewport, so a
+  panel taller than the screen (Settings, Sequence, the strip on a phone
+  in landscape) scrolls INSIDE itself — a surface is a screen, never a
+  scrolling page. Panel DOM never moves between shells; `this.q()` in
+  components scopes lookups to their own root element, so only ever move
+  a *root* div.
+- The drawbar strip (`js/modules/drawbars/`) is ONE panel
+  (`#drawbars-control-root`) shared by the Gain, Filter, Convolution and
+  ADSR surfaces. `drawbarParams.js` is the pure parameter table:
+  `FAMILIES[name].params` — each `{ key, label, min, max, step, color?,
+  get(i), set(i, v), format(i, v) }` writing through the actions layer
+  (`set` writes the STORED parameter, never a derived output, so linked and
+  shaped writes copy positions across voices); families also carry
+  `reset`/`randomize` (the Reset/Randomize buttons) and, for convolution,
+  the per-column IR stepper + `enabled(i)` (no IR = bypassed column).
+  `DrawbarsComponent` shows `params[paramIndex]` on the bars and the rest
+  as dials under each bar (`.drawbar-aux-dials`) — unless `compact`
+  (`DrawbarsController.syncCompact`, a ResizeObserver: panel height <
+  `COMPACT_STRIP_HEIGHT` 420px), when only the bars show and the header's
+  parameter tabs (`#drawbars-tabs`, `renderHeader`) put the chosen
+  parameter on the bars instead. The controller sets the family from
+  `SURFACE_CHANGED` (`SURFACES[].family`) or, in embed, from the family
+  tabs; `refreshColumn(index)` re-reads every control of one column on
+  `DRAWBAR_CHANGE` / `OVERTONE_SIGNAL_CHANGED` regardless of kind. Adding
+  a per-overtone parameter to a surface = one descriptor in a family.
+- Strip gestures: ONE pointer handler on `#drawbars` owns every bar
+  gesture (`pointerdown` on a `.drawbar-input-wrapper` snapshots all
+  column rects, then each move applies to the column under the pointer —
+  `columnAt` / `applyPointerToColumn` — so a finger swiped across the row
+  DRAWS the parameter; a touch press-and-hold instead opens the overtone
+  menu, restoring the row it would have drawn). `.drawbar-input-wrapper`
+  and `.drawbar-slider` are `touch-action: none`; the column's label/aux
+  areas keep `pan-x`. The column label opens the inspector
+  (`onInspect(index)`, wired by ui.js — the strip never imports the
+  inspector). Under 40rem the columns are `flex: 1 1 0` with a 20px floor
+  (12 voices fit a phone beside the toolbar; more scroll).
+- Tool row (`.drawbars-tools`, UNDER the bars): `#drawbar-shape-toggle` /
+  `#drawbar-link-toggle` beside the shape panel's dock
+  (`#drawbars-shape-dock`); both UI-only, mutually exclusive
+  (`setShapeMode`/`setLinkMode` clear the other), dropped on leaving the
+  strip's surfaces; each button also lights while the key it stands in
+  for is held (`linkLock.held`, emitted on `LINK_ALL_CHANGED`; the
+  controller tracks Shift). **Shape** = `DrawbarsComponent.shapeMode`:
+  every bar or dial drag sculpts the whole row in the parameter's own
+  range, exactly what a shift-drag does (`isShapeGesture(e)`,
+  `shapeParamRow`); the math is the pure `rowShape.js` `shapedRow()`. The
+  panel (contour preview, contour stepper, ÷2/×2 cycles — each
+  re-applying the remembered last gesture) is BUILT by the strip
+  (`shapePanel()`, once) but DOCKED by the controller: the strip is a
+  sideways-scrolling row and clips anything appended to it. **Link** =
+  `linkLock` in `linkAll.js` (`isLinkAll(e)` = lock || cmd/ctrl) — the
   touch stand-in for the modifier, honored by the inspector too. Gate
   contours are unipolar 0-1 and share one definition, mirrored in
   `shapeContour()` (sequencePreview.js) and `shapeValue()`
-  (gate-processor.js) — change both together. `square` is a real 50%
-  pulse (high first half, low second half) — NOT a constant, which would
-  pin every shaped row to 1; index 6 is `hold` (constant 1 = pattern
-  gating only), used when a custom wave has gone missing. `shapedRow()`
-  anchors the contour's FIRST maximum on the dragged column: the peak for
-  sine/triangle, the leading edge of the high half for square, so a
-  shaped row starts high at the column you dragged. On phone
-  portrait the header (title, tabs, toggles) wraps to three lines — a
-  wider-than-viewport centered card shifts LEFT and takes every child
-  with it, so header content must always be allowed to wrap.
-- Play surface (`js/modules/play/`): the fundamental strip
-  (`#fundamental-control-root`: Hz input, octave stepper, one-octave
-  keyboard — the panel spans the width there; `body.coarse` enlarges the
-  keys) over `#pad-grid-root`, a `PadGridComponent` with one big pad per
-  overtone of the current system. Pads gate the voice envelopes through
-  `triggerHarmonicAttack/Release` — the same path as the Q–] keys and
-  the strip's small trigger pads — so they are silent outside ADSR mode
-  or while stopped; the grid shows a "Switch to ADSR" button in open
-  mode instead of dead pads. No velocity by design (the voice's own ADSR
-  from the inspector is the articulation). Each pad captures its own
-  pointer (multi-touch = chords), and `teardown()` releases every held
-  pad, because the controller re-renders on system/fundamental/envelope
-  changes (`scheduleUpdate`, rAF-coalesced) and a re-render mid-hold
-  would otherwise strand a gated voice. A per-frame `--pad-level` glow
-  from `getVoiceLevel` lights whatever sounds, keyboard-triggered
-  included. `TRIGGER_KEY_LABELS` (KeyboardShortcuts.js) supplies the
-  key hints. Hidden in embed (play.embed.css).
+  (gate-processor.js).
+- Sequence surface = the inspector (`js/modules/inspector/`): one voice's
+  sequence gate + shape, modulation depths and pulse outs, with the
+  ‹ Overtone N › stepper. `inspectorState` (UI-only: selected index +
+  sheet open, `INSPECTOR_CHANGED`) is the model; `InspectorComponent`
+  renders from AppState via the actions; `InspectorController` homes the
+  ONE component instance in the surface panel (`#sequence-control-root`)
+  or the sheet (`#inspector-sheet`, beside any other surface while open —
+  in-flow side column in landscape with a sticky header, overlay bottom
+  sheet in portrait, full-band overlay in embed; inspector.css,
+  `--sheet-width` / `--sheet-height`). It re-renders on
+  `OVERTONE_SIGNAL_CHANGED` for the selected index EXCEPT its own writes
+  (`component.apply()` sets `component.writing`; re-rendering under a
+  control mid-drag would destroy it). Opened from a drawbar column label,
+  the overtone menu (right-click / press-and-hold on bars and pads,
+  `js/modules/generic/overtoneMenu.js`), or the toolbar; Escape closes the
+  sheet.
+- Trigger surface (`js/modules/pads/`): `#pad-grid-root` = a static
+  header (title + `#trigger-mode-root`, the Trigger/Drone switch) over
+  `#pad-grid`, the `PadGridComponent` root — one big pad per overtone,
+  always 4 columns (3 in portrait) × rows that share the panel's height.
+  Pads gate the voice envelopes through `triggerHarmonicAttack/Release`
+  (the same path as the Q–] keys and the strip's small trigger pads), so
+  they are silent in Drone mode (grid dimmed) or while stopped; no
+  velocity by design. Each pad captures its own pointer (multi-touch =
+  chords), `teardown()` releases every held pad (the controller
+  re-renders on system/fundamental/envelope changes), and a per-frame
+  `--pad-level` glow from `getVoiceLevel` lights whatever sounds.
+  `TRIGGER_KEY_LABELS` (KeyboardShortcuts.js) supplies the key hints.
+- Trigger/Drone (`js/modules/envelopeMode/`): `AppState.envelopeMode`
+  'adsr' (Trigger: voices rest silent and are gated per overtone) | 'open'
+  (Drone: every voice sounds). `EnvelopeModeToggleComponent` renders a
+  label naming the current state + `.toggle-switch` into any
+  `.envelope-mode-root`; ui.js mounts one controller per root
+  (`#trigger-mode-root`, `#source-mode-root` in the fundamental header,
+  `#navbar-mode-root` embed-only) and keeps `body.adsr-mode` in sync (the
+  strip's trigger pads show under it).
+- Source surface: `#m4l-fundamental-source-panel` = fundamental (Hz,
+  octave, one-octave keyboard — `body.coarse` enlarges the keys,
+  keyboard.css), signal source, overtone system, wrapping across the top
+  of the stack. The Overtone System's description is an in-flow disclosure
+  (`#system-description`) toggled by the "?" button — click, not hover
+  (jweb/touch have no reliable hover), in flow, not floating;
+  `setDescription` writes trusted config.js HTML only. Start harmonic and
+  the system's tunable params render as one inline row of Dials
+  (`#system-dials-row`).
+- Visualizations (side column): waveform (`WaveformController`, p5,
+  `#waveform-canvas-area`; the Source panel has a second, `mode: 'single'`
+  instance for the chosen oscillator), spectrum (`SpectrumComponent`,
+  `HEIGHT = 96` written as an inline `!important` style — keep it equal to
+  `.viz-canvas canvas`'s CSS height), the output oscilloscope
+  (`js/modules/scope/`: reads `getOutputAnalyser()` — the engine's
+  post-limiter AnalyserNode — in a rAF loop that runs only while playing
+  and the panel is laid out, triggered on a rising zero-crossing), and
+  the envelope curves (`js/modules/envelopeViz/`: every voice's ADSR
+  polyline over a shared time axis, `partialColor` per voice, pure
+  `envelopeCurvePoints` helper). The bake/export action rows
+  (`#wavetable-actions`, `#ir-actions`) hide in external source modes
+  (downloadControlController). Canvas gotchas: the global `canvas {
+  width:100% !important … }` rule hijacks new canvases (escape with
+  `style.setProperty(…, 'important')`); `#tonewheel-canvas` is
+  `position:absolute; inset:0` because an empty flex child with flex-grow
+  inside a grid-stretched ancestor is a circular sizing dependency that
+  Chromium resolves by falling back to its WIDTH; the tonewheel sketch
+  sizes its square from `Math.min(clientWidth, clientHeight)`.
 - Settings surface (`js/modules/settings/`, `#settings-control-root`):
-  `MidiSettingsComponent` (ports/channels per MIDI role, pulse toggles,
-  drawbar-CC and pulse-note mapping tables; re-rendered on
-  `MIDI_OUTPUT_CHANGED` since ports arrive late) and
+  MIDI | Recording tabs (`selectTab`) over `MidiSettingsComponent`
+  (ports/channels per MIDI role, pulse toggles, mapping tables;
+  re-rendered on `MIDI_OUTPUT_CHANGED` since ports arrive late) and
   `RecorderSettingsComponent` (wav/mid layout, take length, tempo mode;
-  `syncChecked` on `RECORDER_CHANGED`), both in place — the modal layer
-  (ModalComponent/modalActions/`#modal-root`) is gone. MIDI | Recording
-  are tabs (`selectTab`); the toolbar's Settings button and the
-  recorder's ⚙ (`SettingsController.open(tab)`) get there:
-  on the surfaces shell that is `surfaceState.show('settings')` (+
-  scrollIntoView of the section); in embed the same root becomes a
-  full-band overlay (`body.settings-open`, settings.embed.css) with its
-  own × / Escape. `body.surfaces .page-shell` is height-capped to the
-  viewport (page-arrangement.css) precisely so tall panels like this one
-  and the Voice surface scroll INSIDE themselves — a surface is a
-  screen, never a scrolling page; layout.css's `min-height` alone let a
-  tall panel grow the page.
-- Navbar: above 64rem it is the fixed one-row bar with `.app-container`
-  padded to `--navbar-height` (base.css) and the page shell sized to
-  the rest. Below 64rem on the surfaces shell (phones both ways,
-  portrait tablets — one row of everything needs ~1100px) it becomes a
+  `syncChecked` on `RECORDER_CHANGED`). The toolbar button and the
+  recorder's ⚙ (`SettingsController.open(tab)`) get there; in embed the
+  same root becomes a full-band overlay with its own × / Escape.
+- Navbar: Play/Stop, the recorder strip, Gain/Slew (and the embed-only
+  Trigger/Drone). Above 64rem it is the fixed one-row bar with
+  `.app-container` padded to `--navbar-height` (base.css). Below 64rem on
+  the surfaces shell (phones both ways, portrait tablets) it becomes a
   STATIC, WRAPPING block at the top of a full-height flex column
-  (`body.surfaces.app-container`, page-arrangement.css; rows in
-  navbar.css: Play·ADSR·(collapsed recorder), recorder, Gain·Slew — the
-  recorder collapses to ● + an expand button under 64rem
-  (`RecorderComponent.expanded`, `.rec-expanded`) and joins row 1 while
-  collapsed). The ADSR switch is framed like Play/Stop, its label just
-  "ADSR" (off = voices drone open). A wrapping navbar has no known height, which
-  is why the fixed-navbar + padding scheme can't be used there; the
-  logo is dropped. The Gain/Slew groups and their range inputs must be
-  allowed to shrink (`min-width:0; flex:1 1 0`) — a range input's
-  intrinsic width is rigid and the pair overflows a phone otherwise.
-  On short viewports (`max-height: 30rem`, landscape phones) the
-  surface toolbar goes icons-only and scrolls. Embed keeps its own
-  navbar layout (embed.css).
-- The drawbar strip (`DrawbarsComponent`) is a touch surface: ONE
-  pointer handler on `#drawbars` owns every bar gesture (`pointerdown`
-  on a `.drawbar-input-wrapper` snapshots all column rects, then each
-  move applies to the column under the pointer — `columnAt` /
-  `applyPointerToColumn` — so a finger swiped across the row DRAWS the
-  spectrum; shape mode shapes per pointed column). `.drawbar-input-
-  wrapper` and `.drawbar-slider` are `touch-action: none` (a sideways
-  finger must never become a scroll and cancel the pointer); the
-  column's label/aux areas keep `pan-x` so an overflowing strip can
-  still be scrolled from there. Per-column controls are ONLY: label
-  (opens the inspector), the bar + `.drawbar-value`, amp dot, ADSR
-  trigger pad, and in the convolution view the IR stepper — pan, res,
-  drive and the convolution send dials live in the inspector now, and
-  the sequence view is a read-only `.drawbar-seq-summary` (the
-  inspector's preview + mode/stretch text) that opens the inspector;
-  `syncSignal` refreshes it on gate/seq changes. Under 40rem the
-  columns are `flex: 1 1 0` with a 20px floor (12 voices fit a phone
-  beside the toolbar; more scroll), the summary text hides, and only
-  the preview remains.
-- `.page-shell`/`.page-content`/`.control-card` are a flex chain filling
-  the viewport below the fixed navbar (`.page-shell`'s `min-height:
-  calc(100vh - navbar-height)`, `.control-card{flex:1}`) so leftover
-  vertical space goes somewhere instead of leaving dead space under the
-  card. On the Mix surface `#drawbars-control-root{flex:1}` absorbs it
-  (the other surfaces' wrappers grow the same way), and the
-  actual sliders grow to match via `--drawbar-track-length` — a CSS var
-  DrawbarsComponent.syncTrackLengths() publishes from each column's
-  measured post-layout height (a rotated `<input type=range>`'s
-  PRE-rotation `width` becomes its visual length, and CSS can't derive
-  one axis from the other on a rotated element). That mechanism used to
-  be embed-only; it's now read by the base (desktop) `.drawbar-slider`
-  rule too, with a `min-height` FLOOR (not 0) on `.drawbar-input-wrapper`
-  so a squeeze (mobile, where the stacked page is naturally taller than
-  the viewport and flex has no spare space to hand out) can't collapse
-  the sliders toward nothing — always give a flex-grow chain like this a
-  real min-height at the layer that's actually visible, not `min-height:0`
-  all the way down. `--drawbar-track-length` is kept live with a
-  ResizeObserver on each `.drawbar-input-wrapper` (not just a
-  window-resize listener) — the wrapper's available height now depends on
-  sibling rows too (a system switch adding a param-dial row, a late
-  web-font swap reflowing label text, …), none of which fire a resize
-  event; a stale cached length shows up as the slider's actual draggable
-  range (and its focus ring) covering less than the visible groove drawn
-  by `.drawbar-track` (which is plain `height:100%`, always current).
-  Separately, `.drawbar-slider` needs `flex-shrink:0`: it's a flex child
-  of `.drawbar-input-wrapper`, whose own WIDTH is a fixed 26px (the
-  slider's thin axis, pre-rotation) — every desired track length
-  "overflows" that 26px main axis, and without `flex-shrink:0` the
-  browser's default flex-shrink plus a range input's own `min-width:auto`
-  floor silently clamps the rendered length to the input's intrinsic
-  min-content size (~129px in Chromium) instead of the requested value,
-  regardless of what `--drawbar-track-length` says. This is exactly the
-  same symptom (slider length disagreeing with the drawn track) as the
-  stale-var problem above but from a completely different cause — check
-  both if it recurs.
-- Canvas heights are capped in CSS so they can't dictate a row's height on
-  their own (`.result-canvas canvas`, `#current-waveform-canvas-area
-  canvas`) — the spectrum canvas's matching cap is a JS constant (`HEIGHT`
-  in `SpectrumComponent.js`, written as an inline `!important` style that
-  CSS cannot override), so keep both in sync by hand if either changes.
-  The Wavetable panel's two canvases sit side by side (`.result-grid` is
-  `display:grid; grid-auto-flow:column` over the flat `canvas, actions,
-  canvas, actions` markup — auto-flow:column NEEDS an explicit
-  `grid-template-rows` to know when to wrap into the next column, or all
-  4 items just spread across 4 implicit columns in one row instead).
-  `#tonewheel-container` shares `.labeled-control`'s background/padding so
-  it reads as one more panel, and stretches (`align-items:stretch`,
-  page 2's default) to match the Wavetable panel's height. The tonewheel's
-  own p5 sketch (`tonewheelActions.js`) sizes its square canvas from
-  `Math.min(container.clientWidth, container.clientHeight)`, not just
-  width — with a wide-but-short container (2:1 next to a compact
-  Wavetable panel) sizing from width alone reproduces exactly the old
-  "canvas forces the row tall" bug, just via a different path. The
-  injected `#tonewheel-canvas` div (TonewheelComponent creates it fresh
-  each render) is `position:absolute; inset:0`, not flexed — an empty
-  flex child with flex-grow but no intrinsic content is a circular sizing
-  dependency against a grid-stretched ancestor (the grid needs content
-  height to size the row; the flex child needs the row already sized to
-  know its own height), and Chromium resolves that circularity by
-  quietly falling back to the child's WIDTH — recreating the very bug the
-  square-fit fix above was meant to solve. Absolute positioning removes
-  it from intrinsic-size contribution entirely. When a flex/grid row's
-  height doesn't respond to editing the content you expect, suspect one
-  of these two circularities first; temporarily setting
-  `align-items:flex-start` via devtools can mislead here too — an
-  already-created canvas doesn't retroactively shrink just because
-  alignment changed after the fact, so re-load the page after any such
-  experiment rather than trusting a live toggle.
-- The Overtone System's description is an in-flow disclosure
-  (`#system-description`, under the system menu) toggled by the "?"
-  button (`#system-info-btn`, `SpectralSystemComponent.bindInfoButton`)
-  — click, not hover (jweb/touch have no reliable hover), and in flow,
-  not floating (a popover lands under fingers or off-screen).
-  `setDescription` writes trusted, internally-authored HTML only
-  (config.js description strings — never anything from the bridge or
-  user input). Start harmonic and the current system's tunable params
-  (stretch, stiffness, …) render as one inline row of Dials
-  (`#system-dials-row`, `SpectralSystemComponent.renderDials`), each a
-  plain `Dial` (caption above, readout below, like every dial).
+  (`body.surfaces.app-container`, page-arrangement.css): Play·(collapsed
+  recorder) / recorder / Gain·Slew — the recorder collapses to ● + an
+  expand button (`RecorderComponent.expanded`, `.rec-expanded`) and joins
+  row 1 while collapsed. A wrapping navbar has no known height, which is
+  why the fixed-navbar + padding scheme can't be used there; the logo is
+  dropped; the Gain/Slew range inputs must be allowed to shrink
+  (`min-width:0`). On short viewports (`max-height: 30rem`) the toolbar
+  rail goes icons-only and scrolls.
+- `--drawbar-track-length`: the strip's sliders grow to the column's
+  measured height — a rotated `<input type=range>`'s PRE-rotation `width`
+  becomes its visual length, and CSS can't derive one axis from the other
+  on a rotated element — published by `DrawbarsComponent.syncTrackLengths()`
+  from each `.drawbar-input-wrapper` via a ResizeObserver (the available
+  height depends on sibling rows, which fire no resize event). Keep a real
+  `min-height` floor on the wrapper (not 0) so a squeeze can't collapse
+  the sliders, and `flex-shrink:0` on `.drawbar-slider` (its 26px-wide
+  wrapper plus a range input's own `min-width:auto` would otherwise clamp
+  the length to the intrinsic ~129px). Either failure looks the same:
+  the focus ring covering less than the drawn groove.
 
 ## Performance recording (audio + MIDI)
 

@@ -1,11 +1,7 @@
 import BaseComponent from '../base/BaseComponent.js';
 import { AppState } from '../../config.js';
-import { calculateFrequency, formatHz } from '../../utils.js';
-import { harmonicFilterCutoff, partialFrequency, MAX_FILTER_PARTIALS } from '../../audio.js';
-import { OvertoneSignalActions, Q_MAX, DRIVE_MAX, ENV_TIME_MAX, CONV_FEEDBACK_MAX } from '../overtoneSignal/overtoneSignalActions.js';
-import { irManager } from '../../dsp/IRManager.js';
-import { DrawbarsActions } from '../drawbars/drawbarsActions.js';
-import { Dial } from '../generic/dial/Dial.js';
+import { calculateFrequency } from '../../utils.js';
+import { OvertoneSignalActions } from '../overtoneSignal/overtoneSignalActions.js';
 import { midiOutputRouter } from '../midi/midiOutputRouter.js';
 import { noteForVoice } from '../midi/pulseMidi.js';
 import { oscClient } from '../osc/oscClient.js';
@@ -35,19 +31,18 @@ const ICON_EXPAND = '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" 
 const ICON_CLOSE = '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M5 5l10 10M15 5 5 15"/></svg>';
 
 /**
- * Inspector — the full editor for one overtone's signal chain: cycle
- * gate + modulation, filter & drive, pan, envelope, pulse outputs. One
- * component, two homes: the Voice surface (full width) and the inspector
- * sheet beside another surface — the controller decides which element
- * it renders into; the `host` prop only changes the header chrome.
+ * Inspector — the Sequence panel for one overtone: cycle gate + shape,
+ * modulation, pulse outputs. One component, two homes: the Sequence
+ * surface (full width) and the inspector sheet beside another surface —
+ * the controller decides which element it renders into; the `host` prop
+ * only changes the header chrome.
  *
  * Reads state at render; the controller re-renders it on external
  * changes. Its own writes set `writing` while the actions run so the
- * controller can tell them apart from external ones (re-rendering under
- * a dial mid-drag would destroy the dial).
+ * controller can tell them apart from external ones.
  *
  * Callbacks (assigned by the controller): onClose(), onStep(delta),
- * onExpand(), onTriggerAttack(index), onTriggerRelease(index).
+ * onExpand().
  */
 export class InspectorComponent extends BaseComponent {
 
@@ -57,15 +52,11 @@ export class InspectorComponent extends BaseComponent {
         this.onClose = null;
         this.onStep = null;
         this.onExpand = null;
-        this.onTriggerAttack = null;
-        this.onTriggerRelease = null;
-        this._releaseTrigger = null;
     }
 
-    render({ index, host, dialSize }) {
+    render({ index, host }) {
         this.teardown();
         this.index = index;
-        this.dialSize = dialSize;
         this.el.innerHTML = '';
 
         const root = document.createElement('div');
@@ -108,7 +99,7 @@ export class InspectorComponent extends BaseComponent {
             spacer.className = 'inspector-header-spacer';
             header.append(
                 spacer,
-                this.iconButton({ html: ICON_EXPAND, label: 'Open as the Voice surface', cls: 'inspector-icon-btn inspector-expand', onClick: () => this.onExpand?.() }),
+                this.iconButton({ html: ICON_EXPAND, label: 'Open as the Sequence surface', cls: 'inspector-icon-btn inspector-expand', onClick: () => this.onExpand?.() }),
                 this.iconButton({ html: ICON_CLOSE, label: 'Close inspector', cls: 'inspector-icon-btn inspector-close', onClick: () => this.onClose?.() }),
             );
         }
@@ -127,25 +118,13 @@ export class InspectorComponent extends BaseComponent {
     }
 
     buildSections(index) {
-        // Dial cards on the left (gain & pan leading), sequence and
-        // modulation as their own column on the right
-        const main = document.createElement('div');
-        main.className = 'inspector-main';
-        main.append(
-            this.buildLevelSection(index),
-            this.buildFilterSection(index),
-            this.buildConvolutionSection(index),
-            this.buildEnvelopeSection(index),
-            this.buildPulseSection(index),
-        );
-
-        const aside = document.createElement('div');
-        aside.className = 'inspector-aside';
-        aside.append(this.buildGateSection(index), this.buildModulationSection(index));
-
         const sections = document.createElement('div');
         sections.className = 'inspector-sections';
-        sections.append(main, aside);
+        sections.append(
+            this.buildGateSection(index),
+            this.buildModulationSection(index),
+            this.buildPulseSection(index),
+        );
         return sections;
     }
 
@@ -164,23 +143,6 @@ export class InspectorComponent extends BaseComponent {
         el.append(h, body);
         el.sectionBody = body;
         return el;
-    }
-
-    /** A Dial with its name above and a live readout beneath. */
-    dialColumn({ label, color, dial, text, onChange }) {
-        const col = document.createElement('div');
-        col.className = 'inspector-dial-col';
-        // `text` may be two-line ("φ^2\n660 Hz"); the readout preserves the break
-        const d = new Dial({
-            ...dial,
-            size: this.dialSize,
-            label,
-            ...(color ? { color } : {}),
-            format: text,
-            onChange,
-        });
-        col.appendChild(d.el);
-        return col;
     }
 
     // ---------------------------------------------------------------
@@ -379,238 +341,6 @@ export class InspectorComponent extends BaseComponent {
     }
 
     // ---------------------------------------------------------------
-    // Filter & drive
-    // ---------------------------------------------------------------
-
-    buildFilterSection(index) {
-        const el = this.section('Filter');
-        const filter = OvertoneSignalActions.getFilter(index);
-        // Linked edits merge only the changed field into each voice's own
-        // filter, so a linked cutoff drag doesn't flatten everyone's resonance
-        const applyField = (key, value, e) => {
-            filter[key] = value;
-            this.apply(index, e, (i) => OvertoneSignalActions.setFilter(i, { ...OvertoneSignalActions.getFilter(i), [key]: value }));
-        };
-
-        // The cutoff dial is an overtone-series selector: it picks a partial
-        // (of the current system) of this voice's audible base. 0 = open.
-        // Positions past the system's table extend the series as +1, +2, …
-        const sysLabels = AppState.currentSystem.labels;
-        const voiceFreq = calculateFrequency(AppState.currentSystem.ratios[index]);
-        const partialLabel = (n) => (n <= sysLabels.length ? sysLabels[n - 1] : `+${n - sysLabels.length}`);
-        const cutoffText = () => (filter.multiplier > 0
-            ? `${partialLabel(Math.round(filter.multiplier))}\n${formatHz(harmonicFilterCutoff(index, voiceFreq))}`
-            : 'open');
-
-        const row = document.createElement('div');
-        row.className = 'inspector-dial-row';
-        row.append(
-            this.dialColumn({
-                label: 'cutoff',
-                dial: { min: 0, max: MAX_FILTER_PARTIALS, step: 1, value: filter.multiplier || 0 },
-                text: cutoffText,
-                onChange: (v, e) => applyField('multiplier', Math.round(v), e),
-            }),
-            this.dialColumn({
-                label: 'resonance', color: '--accent-negative',
-                dial: { min: 0.1, max: Q_MAX, step: 0.05, value: filter.q },
-                text: () => `Q ${(+filter.q).toFixed(2)}`,
-                onChange: (v, e) => applyField('q', v, e),
-            }),
-            this.dialColumn({
-                label: 'drive', color: '--accent-positive',
-                dial: { min: 0, max: DRIVE_MAX, step: 0.05, value: OvertoneSignalActions.getDrive(index) },
-                text: () => {
-                    const v = OvertoneSignalActions.getDrive(index);
-                    return v > 0 ? `${Math.round(v * 100)}%` : 'clean';
-                },
-                onChange: (v, e) => this.apply(index, e, (i) => OvertoneSignalActions.setDrive(i, v)),
-            })
-        );
-        el.sectionBody.appendChild(row);
-        return el;
-    }
-
-    // ---------------------------------------------------------------
-    // Convolution: this voice's IR, and the send's feedback / gain / tune
-    // ---------------------------------------------------------------
-
-    buildConvolutionSection(index) {
-        const el = this.section('Convolution');
-        const conv = OvertoneSignalActions.getConvolution(index);
-
-        // IR picker. The strip's convolution view keeps a per-column IR
-        // stepper for fast assignment; this is the single voice's full view.
-        const select = document.createElement('select');
-        select.className = 'control-select';
-        const none = document.createElement('option');
-        none.value = '';
-        none.textContent = 'no IR';
-        select.appendChild(none);
-        for (const ir of irManager.list()) {
-            const o = document.createElement('option');
-            o.value = ir.key;
-            o.textContent = ir.name;
-            if (ir.key === conv.ir) o.selected = true;
-            select.appendChild(o);
-        }
-        select.addEventListener('change', (e) => {
-            this.apply(index, e, (i) => OvertoneSignalActions.setConvolution(i, { ir: select.value || null }));
-        });
-        el.sectionBody.appendChild(select);
-
-        // Feedback comb tuning: 0 = the IR's own period, else a series
-        // partial of the voice (the filter cutoff's convention)
-        const voiceFreq = calculateFrequency(AppState.currentSystem.ratios[index]);
-        const sysLabels = AppState.currentSystem.labels;
-        const partialLabel = (n) => (n <= sysLabels.length ? sysLabels[n - 1] : `+${n - sysLabels.length}`);
-        const current = () => OvertoneSignalActions.getConvolution(index);
-
-        const row = document.createElement('div');
-        row.className = 'inspector-dial-row';
-        row.append(
-            this.dialColumn({
-                label: 'feedback', color: '--accent-negative',
-                dial: { min: -CONV_FEEDBACK_MAX, max: CONV_FEEDBACK_MAX, step: 0.01, value: conv.feedback },
-                text: () => {
-                    const v = current().feedback;
-                    return `fb ${v < 0 ? '−' : ''}${Math.round(Math.abs(v) * 100)}`;
-                },
-                onChange: (v, e) => this.apply(index, e, (i) => OvertoneSignalActions.setConvolution(i, { feedback: v })),
-            }),
-            this.dialColumn({
-                label: 'gain', color: '--accent-positive',
-                dial: { min: 0, max: 1, step: 0.01, value: conv.gain },
-                text: () => `${Math.round(current().gain * 100)}%`,
-                onChange: (v, e) => this.apply(index, e, (i) => OvertoneSignalActions.setConvolution(i, { gain: v })),
-            }),
-            this.dialColumn({
-                label: 'tune',
-                dial: { min: 0, max: MAX_FILTER_PARTIALS, step: 1, value: conv.tune },
-                text: () => {
-                    const step = Math.round(current().tune);
-                    return step === 0 ? 'period' : `${partialLabel(step)}\n${formatHz(partialFrequency(voiceFreq, step))}`;
-                },
-                onChange: (v, e) => this.apply(index, e, (i) => OvertoneSignalActions.setConvolution(i, { tune: Math.round(v) })),
-            })
-        );
-        el.sectionBody.appendChild(row);
-
-        if (!conv.ir) {
-            const hint = document.createElement('div');
-            hint.className = 'inspector-hint';
-            hint.textContent = irManager.list().length
-                ? 'pick an IR to hear the convolution stage'
-                : 'no IRs yet — Create IR (Wavetable or Mix › convolution)';
-            el.sectionBody.appendChild(hint);
-        }
-        return el;
-    }
-
-    // ---------------------------------------------------------------
-    // Envelope (applied when the global mode is ADSR)
-    // ---------------------------------------------------------------
-
-    buildEnvelopeSection(index) {
-        const el = this.section('ADSR Envelope');
-        const fmtTime = (v) => (v >= 1 ? `${v.toFixed(2)} s` : `${Math.round(v * 1000)} ms`);
-
-        const row = document.createElement('div');
-        row.className = 'inspector-dial-row';
-        const timeDial = (label, key) => this.dialColumn({
-            label,
-            dial: { min: 0.001, max: ENV_TIME_MAX[key], step: 0.001, value: OvertoneSignalActions.getEnvelope(index)[key] },
-            text: () => fmtTime(OvertoneSignalActions.getEnvelope(index)[key]),
-            onChange: (v, e) => this.apply(index, e, (i) => OvertoneSignalActions.setEnvelope(i, { [key]: v })),
-        });
-        row.append(
-            timeDial('attack', 'a'),
-            timeDial('decay', 'd'),
-            this.dialColumn({
-                label: 'sustain', color: '--accent-primary',
-                dial: { min: 0, max: 1, step: 0.01, value: OvertoneSignalActions.getEnvelope(index).s },
-                text: () => `${Math.round(OvertoneSignalActions.getEnvelope(index).s * 100)}%`,
-                onChange: (v, e) => this.apply(index, e, (i) => OvertoneSignalActions.setEnvelope(i, { s: v })),
-            }),
-            timeDial('release', 'r')
-        );
-        el.sectionBody.appendChild(row);
-
-        // Trigger pad: hold = attack/sustain, let go = release — the same
-        // gate as the strip's small pads and the Q–] keys
-        el.sectionBody.appendChild(this.createTriggerPad(index));
-
-        if (OvertoneSignalActions.getEnvelopeMode() !== 'adsr') {
-            const hint = document.createElement('div');
-            hint.className = 'inspector-hint';
-            hint.textContent = 'applies in ADSR mode (navbar toggle)';
-            el.sectionBody.appendChild(hint);
-        }
-        return el;
-    }
-
-    createTriggerPad(index) {
-        const pad = document.createElement('button');
-        pad.type = 'button';
-        pad.className = 'inspector-trigger';
-        pad.textContent = 'hold to trigger';
-        pad.setAttribute('aria-label', `Trigger overtone ${index + 1} envelope`);
-        const release = () => {
-            if (this._releaseTrigger !== release) return;
-            this._releaseTrigger = null;
-            pad.classList.remove('held');
-            this.onTriggerRelease?.(index);
-        };
-        this.bindEvent(pad, 'pointerdown', (e) => {
-            if (e.button !== 0) return;
-            e.preventDefault();
-            try {
-                pad.setPointerCapture(e.pointerId);
-            } catch { /* synthetic pointer — hold still works */ }
-            this._releaseTrigger = release;
-            pad.classList.add('held');
-            this.onTriggerAttack?.(index);
-            pad.addEventListener('pointerup', release, { once: true });
-            pad.addEventListener('pointercancel', release, { once: true });
-        });
-        return pad;
-    }
-
-    // ---------------------------------------------------------------
-    // Gain & pan — the voice's place in the mix
-    // ---------------------------------------------------------------
-
-    buildLevelSection(index) {
-        const el = this.section('Gain & Pan');
-        el.classList.add('inspector-section-level');
-        const panText = (v) => (Math.abs(v) < 0.005 ? 'C' : (v < 0 ? `L${Math.round(-v * 100)}` : `R${Math.round(v * 100)}`));
-
-        const row = document.createElement('div');
-        row.className = 'inspector-dial-row';
-        let pan = OvertoneSignalActions.getPan(index);
-        row.append(
-            // The drawbar itself, as a dial
-            this.dialColumn({
-                label: 'gain', color: '--accent-positive',
-                dial: { min: 0, max: 1, step: 0.01, value: AppState.harmonicAmplitudes?.[index] ?? 0 },
-                text: () => `${Math.round((AppState.harmonicAmplitudes?.[index] ?? 0) * 100)}%`,
-                onChange: (v, e) => this.apply(index, e, (i) => DrawbarsActions.setDrawbar(i, Math.round(v * 100) / 100)),
-            }),
-            this.dialColumn({
-                label: 'pan',
-                dial: { min: -1, max: 1, step: 0.01, value: pan },
-                text: () => panText(pan),
-                onChange: (v, e) => {
-                    pan = v;
-                    this.apply(index, e, (i) => OvertoneSignalActions.setPan(i, v));
-                },
-            })
-        );
-        el.sectionBody.appendChild(row);
-        return el;
-    }
-
-    // ---------------------------------------------------------------
     // Pulse outputs (MIDI / OSC / clock)
     // ---------------------------------------------------------------
 
@@ -711,8 +441,6 @@ export class InspectorComponent extends BaseComponent {
     }
 
     teardown() {
-        // A re-render mid-hold must not strand a gated voice
-        this._releaseTrigger?.();
         super.teardown();
         this._redrawSeqPreview = null;
     }

@@ -1,6 +1,8 @@
 /**
  * UI MODULE
- * Contains UI event handlers, DOM manipulation, and interface logic
+ * Mounts every controller, wires cross-module callbacks (so modules stay
+ * decoupled — a strip never imports the inspector), and hosts the few
+ * body-level bits of presentation that don't belong to one panel.
  */
 
 import { AppState, updateAppState } from './config.js';
@@ -27,31 +29,22 @@ import { midiOutputRouter } from './modules/midi/midiOutputRouter.js';
 import { setPulseHandler } from './audio.js';
 import { SourceController } from './modules/source/sourceController.js';
 import { SpectrumController } from './modules/spectrum/spectrumController.js';
+import { ScopeController } from './modules/scope/scopeController.js';
+import { EnvelopeVizController } from './modules/envelopeViz/envelopeVizController.js';
 import { RecorderController } from './modules/recording/recorderController.js';
 import { SurfacesController } from './modules/surfaces/surfacesController.js';
 import { InspectorController } from './modules/inspector/inspectorController.js';
-import { PadGridController } from './modules/play/padGridController.js';
+import { PadGridController } from './modules/pads/padGridController.js';
 import { SettingsController } from './modules/settings/settingsController.js';
+import { EnvelopeModeController } from './modules/envelopeMode/envelopeModeController.js';
 import { inspectorState } from './modules/inspector/inspectorState.js';
-// ================================
-// INITIALIZATION
-// ================================
 
-
-let drawbarsController;
-let spectralSystemController;
-let waveformController;
-let summedWaveformController;
-let downloadControlController;
-let tonewheelController;
-
-
-let masterGainSliderController;
-let masterSlewSliderController;
+// Every element hosting a Trigger/Drone switch: the Trigger surface's
+// header, the Source surface's fundamental header, and the navbar's
+// (embed band only — the band has neither surface)
+const ENVELOPE_MODE_ROOTS = ['#trigger-mode-root', '#source-mode-root', '#navbar-mode-root'];
 
 let settingsController;
-
-
 
 export function initUI() {
     setupMainButtons();
@@ -60,14 +53,11 @@ export function initUI() {
     setupWaveformSelector();
     setupSelectSteppers();
 
-
-    setupDrawbars()
-    setupSpectralSystem()
-    setupWaveforms();
-    setupRoutingControl();
+    setupDrawbars();
+    setupSpectralSystem();
+    setupVisualizations();
     setupFundamental();
     setupSurfaces();
-
 
     // Initialize keyboard shortcuts
     new KeyboardShortcuts().init();
@@ -106,98 +96,76 @@ function setupPulseOutputs() {
 }
 
 function setupDrawbars() {
-    drawbarsController = new DrawbarsController("#drawbars");
+    const drawbarsController = new DrawbarsController("#drawbars");
     drawbarsController.onInspect = (index) => inspectorState.open(index);
     drawbarsController.init();
 }
 
 function setupSpectralSystem() {
-    spectralSystemController = new SpectralSystemController("#spectral-system-root");
-    spectralSystemController.init();
-    setupTonewheel();
+    new SpectralSystemController("#spectral-system-root").init();
+    new TonewheelController("#tonewheel-container").init();
 }
 
-function setupTonewheel() {
-    tonewheelController = new TonewheelController("#tonewheel-container");
-    tonewheelController.init();
-}
-
-
-function setupWaveforms() {
-    summedWaveformController = new WaveformController("#waveform-canvas-area");
-    summedWaveformController.init();
-
-    waveformController = new WaveformController("#current-waveform-canvas-area", { mode: "single" });
-    waveformController.init();
-}
-
-function setupRoutingControl() {
-    downloadControlController = new DownloadControlController("#routing-control-root");
-    downloadControlController.init();
+/** The side-column visualizations, one per parameter surface. */
+function setupVisualizations() {
+    // Gain: the summed wavetable + bake/export actions
+    new WaveformController("#waveform-canvas-area").init();
+    new DownloadControlController("#routing-control-root").init();
+    // Filter: the live output
+    new ScopeController("#scope-canvas-area").init();
+    // Convolution: the spectrum (Create IR bakes it) — see setupWaveformSelector
+    // ADSR: every voice's envelope
+    new EnvelopeVizController("#envelope-canvas-area").init();
 }
 
 function setupFundamental() {
-    const fundamentalController = new FundamentalController("#fundamental-control-root");
-    fundamentalController.init();
-    // Play surface: one pad per overtone under the fundamental strip
-    const padGridController = new PadGridController('#pad-grid-root');
+    new FundamentalController("#fundamental-control-root").init();
+    // Trigger surface: one pad per overtone
+    const padGridController = new PadGridController('#pad-grid');
     padGridController.onInspect = (index) => inspectorState.open(index);
     padGridController.init();
 }
-
-// ================================
-// MAIN CONTROL BUTTONS
-// ================================
 
 function setupSurfaces() {
     // After every panel is mounted (and its canvases sized while visible),
     // so the shell can hide the ones the default surface doesn't show
     new SurfacesController('#surface-toolbar', '.page-content').init();
-    // The per-overtone editor: Voice surface or the sheet beside any other
-    new InspectorController('#inspector-sheet', '#voice-control-root').init();
-    // Settings surface (MIDI + recording) — the navbar MIDI button and the
-    // recorder's ⚙ both land here
+    // The per-overtone sequence editor: Sequence surface or the sheet
+    // beside any other
+    new InspectorController('#inspector-sheet', '#sequence-control-root').init();
+    // Settings surface (MIDI + recording) — the recorder's ⚙ lands here
     settingsController = new SettingsController('#settings-control-root');
     settingsController.init();
 }
 
 function setupMainButtons() {
-    const playToggleController = new PlayToggleController('.play-toggle-container');
-    playToggleController.init();
-    setupEnvelopeModeToggle();
+    new PlayToggleController('.play-toggle-container').init();
+    setupEnvelopeMode();
     const recorder = new RecorderController('#recorder-root');
     recorder.onOpenSettings = () => settingsController?.open('recorder');
     recorder.init();
 }
 
 /**
- * Navbar Open/ADSR switch. Open = every voice drones freely; ADSR = voices
- * rest silent and are gated per overtone (Q-] keys, drawbar trigger pads).
- * body.adsr-mode drives the pads' visibility in CSS.
+ * Trigger/Drone mode: Drone = every voice sounds freely; Trigger = voices
+ * rest silent and are gated per overtone (pads, Q-] keys, the strip's
+ * trigger pads). One switch per host element; body.adsr-mode drives the
+ * strip pads' visibility in CSS.
  */
-function setupEnvelopeModeToggle() {
-    const toggle = document.getElementById('envelope-mode-toggle');
-    if (!toggle) return;
-
+function setupEnvelopeMode() {
+    for (const root of ENVELOPE_MODE_ROOTS) {
+        if (document.querySelector(root)) new EnvelopeModeController(root).init();
+    }
     const sync = () => {
-        const adsr = OvertoneSignalActions.getEnvelopeMode() === 'adsr';
-        toggle.classList.toggle('active', adsr);
-        toggle.setAttribute('aria-checked', String(adsr));
-        document.body.classList.toggle('adsr-mode', adsr);
+        document.body.classList.toggle('adsr-mode', OvertoneSignalActions.getEnvelopeMode() === 'adsr');
     };
-
-    toggle.addEventListener('click', () => {
-        OvertoneSignalActions.setEnvelopeMode(
-            OvertoneSignalActions.getEnvelopeMode() === 'adsr' ? 'open' : 'adsr'
-        );
-    });
     document.addEventListener(ENVELOPE_MODE_CHANGED, sync);
     sync(); // bootstrap may have applied a bridged mode before init
 }
 
 function setupControlSliders() {
     // Master Gain Slider
-    masterGainSliderController = new SliderController('#master-gain-slider-root', {
+    new SliderController('#master-gain-slider-root', {
         min: 0,
         max: 1,
         step: 0.01,
@@ -206,11 +174,10 @@ function setupControlSliders() {
         formatValue: (v) => `${(v * 100).toFixed(0)}%`,
     }, (value) => {
         smoothUpdateMasterGain(value);
-    });
-    masterGainSliderController.init();
+    }).init();
 
     // Master Slew Slider
-    masterSlewSliderController = new SliderController('#master-slew-slider-root', {
+    new SliderController('#master-slew-slider-root', {
         min: 0,
         max: 10,
         step: 0.01,
@@ -229,30 +196,22 @@ function setupControlSliders() {
     }, (value) => {
         updateAppState({ masterSlewValue: value });
         document.dispatchEvent(new CustomEvent(MASTER_SLEW_CHANGED, { detail: { value } }));
-    });
-    masterSlewSliderController.init();
-
-
+    }).init();
 }
 
-
-
 // ================================
-
-// ================================
-// WAVEFORM SELECTOR
+// SOURCE
 // ================================
 
 function setupWaveformSelector() {
-    const sourceController = new SourceController('#oscillator-control-root');
-    sourceController.init();
+    new SourceController('#oscillator-control-root').init();
+    // The chosen oscillator's own cycle, previewed in the Source panel
+    new WaveformController("#current-waveform-canvas-area", { mode: "single" }).init();
 
     // Spectral view of the timbre as Create IR will bake it (ring-aware)
-    const spectrumController = new SpectrumController('#spectrum-canvas-area');
-    spectrumController.init();
+    new SpectrumController('#spectrum-canvas-area').init();
 
-    const waveformSelectorController = new WaveformSelectorController('#waveform-select');
-    waveformSelectorController.init();
+    new WaveformSelectorController('#waveform-select').init();
 }
 
 /**

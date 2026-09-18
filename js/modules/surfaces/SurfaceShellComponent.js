@@ -13,7 +13,7 @@ import BaseComponent from '../base/BaseComponent.js';
 
 // Wrappers that should collapse when none of their panels is showing —
 // innermost first, so an outer wrapper sees its inner ones already hidden
-const WRAPPERS = ['#m4l-fundamental-source-panel', '.wavetable-tonewheel-row', '.surface-stack'];
+const WRAPPERS = ['#m4l-fundamental-source-panel', '.surface-stack', '.surface-side'];
 
 export class SurfaceShellComponent extends BaseComponent {
 

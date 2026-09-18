@@ -1,37 +1,45 @@
 import { AppState } from "../../config.js";
 import { partialColor } from "../../theme.js";
 import BaseComponent from "../base/BaseComponent.js";
-import { getVoiceLevel, triggerHarmonicAttack, triggerHarmonicRelease, MAX_FILTER_PARTIALS } from "../../audio.js";
+import { getVoiceLevel, triggerHarmonicAttack, triggerHarmonicRelease } from "../../audio.js";
 import { OvertoneSignalActions } from "../overtoneSignal/overtoneSignalActions.js";
-import { drawSequencePreview, drawShapeContour, shapeIconDataURL } from "../overtoneSignal/sequencePreview.js";
+import { drawShapeContour, shapeIconDataURL } from "../overtoneSignal/sequencePreview.js";
 import { shapedRow, stepShapeCycles } from "./rowShape.js";
+import { FAMILIES, quantize } from "./drawbarParams.js";
+import { Dial } from "../generic/dial/Dial.js";
 import { voiceTargets } from "../generic/linkAll.js";
 import { openOvertoneMenu, closeOvertoneMenu, armLongPress } from "../generic/overtoneMenu.js";
 import { irManager } from "../../dsp/IRManager.js";
 
 const DRAWBAR_SLIDER_SELECTOR = ".drawbar-slider";
 
-// Tab views over the same overtone columns: which parameter the column's
-// main control edits. 'gain' is the classic drawbar amplitude view.
-export const DRAWBAR_VIEWS = ["gain", "filter", "sequence", "convolution"];
-
-// Sequence modes, short enough for a column-width summary line
-const SEQ_MODE_SHORT = ["off", "alt", "euclid", "prob", "seq"];
-
+/**
+ * The drawbar strip: one column per overtone of the current system,
+ * editing one parameter FAMILY (drawbarParams.js) at a time. The
+ * family's chosen parameter (`paramIndex`) is on the bars; the family's
+ * other parameters are dials under each bar — unless the strip is
+ * `compact` (too short for them), in which case only the bars show and
+ * the controller offers the parameters as tabs instead.
+ *
+ * Props: { family, paramIndex, compact, isSubharmonic }. Callbacks set by
+ * the controller: onInspect(index), onShapeModeChange(on, panelEl).
+ */
 export class DrawbarsComponent extends BaseComponent {
 
     constructor(elementId) {
         super(elementId);
+        this.family = "gain";
+        this.paramIndex = 0;
+        this.compact = false;
         this.sliders = [];
-        this.view = "gain";
-        this._seqSummaries = [];
+        this._dials = [];       // per column: { [param.key]: Dial }
         this._irSteppers = [];
         this._dots = [];
         this._dotLevels = [];
         this._meterRaf = null;
         this._trackResizeObserver = null;
-        // Row sculpting ("shape"): on while the Mix header's shape toggle
-        // is pressed — every drag then shapes the whole row — or for the
+        // Row sculpting ("shape"): on while the tool row's shape toggle is
+        // pressed — every drag then shapes the whole row — or for the
         // duration of a shift-drag. Shape period in row-widths, the last
         // gesture so the panel's controls can re-apply it, and an optional
         // contour override (null = follow the main oscillator waveform).
@@ -43,6 +51,20 @@ export class DrawbarsComponent extends BaseComponent {
         // Assigned by the controller
         this.onInspect = null;
         this.onShapeModeChange = null;
+    }
+
+    get familyDef() {
+        return FAMILIES[this.family];
+    }
+
+    /** The parameter on the bars. */
+    get barParam() {
+        return this.familyDef.params[this.paramIndex] || this.familyDef.params[0];
+    }
+
+    /** The family's other parameters — the dials under the bars when there's room. */
+    get dialParams() {
+        return this.compact ? [] : this.familyDef.params.filter((p) => p !== this.barParam);
     }
 
     /** Contour used for row sculpting. */
@@ -58,7 +80,7 @@ export class DrawbarsComponent extends BaseComponent {
     /**
      * Shape mode on/off. Marks the strip so CSS can flag the bars as
      * row-linked, and hands the panel to the controller, which docks it
-     * above the strip (this scrolling row is no place for it):
+     * under the strip (this scrolling row is no place for it):
      * onShapeModeChange(on, panelEl | null).
      */
     setShapeMode(on) {
@@ -69,7 +91,7 @@ export class DrawbarsComponent extends BaseComponent {
         this.onShapeModeChange?.(on, on ? this.shapePanel() : null);
     }
 
-    /** Back to defaults (one cycle, the oscillator's own contour) — leaving the Mix surface. */
+    /** Back to defaults (one cycle, the oscillator's own contour) — leaving the strip's surfaces. */
     resetShape() {
         this.setShapeMode(false);
         this._shapeCycles = 1;
@@ -77,20 +99,23 @@ export class DrawbarsComponent extends BaseComponent {
         this._lastShaped = null;
     }
 
-    render(props = {}) {
+    render({ family = this.family, paramIndex = this.paramIndex, compact = this.compact, isSubharmonic } = {}) {
         // Unbind the previous render's listeners before discarding its DOM —
         // relying on the caller (BaseController.update()) to do this first
         // is an unwritten invariant; calling it here matches every other
         // component and keeps this one correct even if called directly.
         this.teardown();
+        this.family = FAMILIES[family] ? family : "gain";
+        this.paramIndex = paramIndex;
+        this.compact = Boolean(compact);
         this.el.innerHTML = "";
         this.sliders = [];
-        this._seqSummaries = [];
+        this._dials = [];
         this._irSteppers = [];
         this._dots = [];
 
         this.setupDrawbars();
-        this.updateDrawbarLabels(props.isSubharmonic);
+        this.updateDrawbarLabels(isSubharmonic);
         // Re-renders keep shape mode (and the docked panel, which lives
         // outside this element) — only the strip's marker needs restating
         this.el.classList.toggle("shape-mode", this.shapeMode);
@@ -168,7 +193,7 @@ export class DrawbarsComponent extends BaseComponent {
             // Touch press-and-hold opens the overtone menu. The pointer-down
             // has already drawn the bar to the finger, so snapshot the row
             // first and put it back: a press that opens a menu must not
-            // also edit the spectrum.
+            // also edit the parameter.
             const before = columns.map((c) => c.slider.value);
             const pressIndex = Number(startWrapper.querySelector(DRAWBAR_SLIDER_SELECTOR)?.dataset.index);
             cancelPress = armLongPress(this.el, e, (px, py) => {
@@ -185,18 +210,15 @@ export class DrawbarsComponent extends BaseComponent {
 
         this.startMeterLoop();
         this.syncTrackLengths();
-        // A plain window-resize listener isn't enough: on both desktop and
-        // embed, #drawbars-control-root's available height now depends on
-        // the OTHER rows (full-height flex chain, page-arrangement.css) —
-        // a system switch adding a param-dial row, a late web-font swap
-        // reflowing label text, etc. all change it with no window resize
-        // at all. Left stale, the visible track (.drawbar-track, height:
-        // 100% of the wrapper — always current) and the slider's actual
-        // draggable length (.drawbar-slider, sized from the cached
-        // --drawbar-track-length var) drift apart: the focus ring lands on
-        // the OLD, shorter length while the groove is drawn at the new
-        // one. ResizeObserver watches the wrapper's box directly, however
-        // it changes.
+        // A plain window-resize listener isn't enough: the strip's available
+        // height depends on the OTHER rows (full-height flex chain,
+        // page-arrangement.css) — a system switch adding a param-dial row, a
+        // late web-font swap reflowing label text, etc. all change it with
+        // no window resize at all. Left stale, the visible track
+        // (.drawbar-track, height: 100% of the wrapper — always current) and
+        // the slider's actual draggable length (.drawbar-slider, sized from
+        // the cached --drawbar-track-length var) drift apart. ResizeObserver
+        // watches the wrapper's box directly, however it changes.
         if (window.ResizeObserver) {
             this._trackResizeObserver?.disconnect();
             this._trackResizeObserver = new ResizeObserver(() => this.syncTrackLengths());
@@ -231,8 +253,8 @@ export class DrawbarsComponent extends BaseComponent {
 
     /**
      * Put a snapshot of the row's slider values back (an aborted gesture —
-     * see the long press above). Routed through handleDrawbarChange so
-     * whichever view is showing writes through its own parameter.
+     * see the long press above). Routed through handleDrawbarChange so the
+     * bar parameter writes through its own setter.
      */
     restoreColumns(columns, values) {
         columns.forEach((col, i) => {
@@ -253,31 +275,14 @@ export class DrawbarsComponent extends BaseComponent {
         const travel = Math.max(1, rect.height - thumb);
         const offset = e.clientY - rect.top - thumb / 2;
         const t = 1 - Math.max(0, Math.min(1, offset / travel));
-        const min = parseFloat(slider.min) || 0;
-        const max = parseFloat(slider.max) || 1;
-        const step = parseFloat(slider.step) || 0.01;
-        const newValue = Math.round((min + t * (max - min)) / step) * step;
+        const param = this.barParam;
+        const newValue = quantize(param, param.min + t * (param.max - param.min));
         if (String(newValue) === slider.value) return;
         slider.value = newValue;
-        if (this.isShapeGesture(e) && this.view !== "sequence") {
+        if (this.isShapeGesture(e)) {
             // Shape: sculpt the whole row with the contour, peak on the
-            // pointed column. Gain shapes amplitudes, convolution shapes
-            // wet/dry, filter shapes series steps.
-            const idx = Number(slider.dataset.index);
-            const v = Number(slider.value);
-            if (this.view === "gain") {
-                this.applyShapedRow(idx, v, (i, ti) =>
-                    this.onChange?.(i, Math.round(ti * 100) / 100));
-            } else if (this.view === "convolution") {
-                this.applyShapedRow(idx, v, (i, ti) =>
-                    OvertoneSignalActions.setConvolution(i, { wet: Math.round(ti * 100) / 100 }));
-            } else {
-                this.applyShapedRow(idx, v / MAX_FILTER_PARTIALS, (i, ti) =>
-                    OvertoneSignalActions.setFilter(i, {
-                        ...OvertoneSignalActions.getFilter(i),
-                        multiplier: Math.round(ti * MAX_FILTER_PARTIALS),
-                    }));
-            }
+            // pointed column — in the bar parameter's own units
+            this.shapeParamRow(Number(slider.dataset.index), param, newValue);
             slider.setAttribute("aria-valuenow", slider.value);
         } else {
             // The pointer event carries the cmd/ctrl link modifier
@@ -322,42 +327,38 @@ export class DrawbarsComponent extends BaseComponent {
         this._meterRaf = requestAnimationFrame(tick);
     }
 
-    /** External updates (modal edits, OSC/Max) → refresh visible controls. */
     /**
-     * Convolution view: a column's wet slider and dials are disabled while
-     * it has no IR (the engine bypasses the stage). The IR stepper stays
-     * live so the column can be enabled.
+     * A column's controls are inert while the family says the voice is
+     * bypassed (convolution without an IR); its IR stepper stays live so
+     * the column can be enabled.
      */
-    applyConvEnabled(index, column = null) {
-        if (this.view !== "convolution") return;
-        const enabled = Boolean(OvertoneSignalActions.getConvolution(index).ir);
+    applyEnabled(index, column = null) {
+        const enabledFor = this.familyDef.enabled;
+        const enabled = enabledFor ? enabledFor(index) : true;
         const col = column || this.el.querySelector(`.drawbar[data-index="${index}"]`);
-        const slider = col?.querySelector(".drawbar-slider");
+        const slider = col?.querySelector(DRAWBAR_SLIDER_SELECTOR);
         if (slider) slider.disabled = !enabled;
         col?.querySelector(".drawbar-input-wrapper")?.classList.toggle("drawbar-disabled", !enabled);
+        for (const dial of Object.values(this._dials[index] || {})) dial.setDisabled(!enabled);
     }
 
     /**
-     * External updates (inspector edits, OSC/Max) → the strip's visible
-     * controls. Pan, resonance, drive and the convolution send dials have
-     * no control here any more — the inspector shows them.
+     * External updates (inspector edits, OSC/Max, bulk ops) → one column's
+     * visible controls, whatever changed: the bar, every dial, the IR
+     * stepper and the enabled state all re-read their parameters.
      */
-    syncSignal(index, kind) {
-        if (kind === "conv") {
-            this._irSteppers[index]?._refresh();
-            this.applyConvEnabled(index);
-            if (this.view === "convolution" && this.sliders[index]) {
-                this.sliders[index].value = OvertoneSignalActions.getConvolution(index).wet;
-                this.syncFill(this.sliders[index]);
-            }
-        } else if (kind === "filter") {
-            if (this.view === "filter" && this.sliders[index]) {
-                this.sliders[index].value = OvertoneSignalActions.getFilter(index).multiplier;
-                this.syncFill(this.sliders[index]);
-            }
-        } else if (kind === "gate" || kind === "seq") {
-            this.refreshSequenceSummary(index);
+    refreshColumn(index) {
+        const slider = this.sliders[index];
+        if (slider) {
+            slider.value = this.barParam.get(index);
+            this.syncFill(slider);
         }
+        for (const [key, dial] of Object.entries(this._dials[index] || {})) {
+            const param = this.familyDef.params.find((p) => p.key === key);
+            if (param) dial.setValue(param.get(index));
+        }
+        this._irSteppers[index]?._refresh();
+        this.applyEnabled(index);
     }
 
     setupDrawbars() {
@@ -373,8 +374,7 @@ export class DrawbarsComponent extends BaseComponent {
         }
 
         for (let i = 0; i < numPartials; i++) {
-            const value = AppState.harmonicAmplitudes[i];
-            this.el.appendChild(this.createDrawbar(i, value));
+            this.el.appendChild(this.createDrawbar(i));
         }
     }
 
@@ -389,7 +389,7 @@ export class DrawbarsComponent extends BaseComponent {
         });
     }
 
-    createDrawbar(index, value) {
+    createDrawbar(index) {
         const wrapper = document.createElement("div");
         wrapper.className = "drawbar";
         wrapper.dataset.index = index;
@@ -397,57 +397,33 @@ export class DrawbarsComponent extends BaseComponent {
         // its ring in the p5 tonewheel), and expose the value as --drawbar-fill
         // so the track can render its meter lines up to the handle.
         wrapper.style.setProperty("--drawbar-color", partialColor(AppState.currentSystem.ratios[index]));
-        // Disable browser touch handling for the entire drawbar column (label
-        // area included) so our custom touch handler gets every gesture.
+        // The column's label/aux areas keep horizontal panning so an
+        // overflowing strip can still be scrolled from there; the track
+        // itself is touch-action:none (CSS) — the strip owns that gesture.
         wrapper.style.touchAction = 'pan-x';
 
         const label = document.createElement("span");
         label.className = "drawbar-label";
         label.id = `drawbar-label-${index}`;
-
-        // TODO:
-        // create a function to convert math labels into HTML formulas like 3^(4/13) would render as
-        /**
-         *   <msup>
-                <mn>3</mn>
-                <mfrac>
-                <mn>4</mn>
-                <mn>13</mn>
-                </mfrac>
-            </msup>
-            </math>
-         */
-
         this.updateContent(label, AppState.currentSystem.labels[index] || "");
         wrapper.appendChild(label);
 
-        // Main control area — depends on the active view
-        if (this.view === "sequence") {
-            wrapper.appendChild(this.createSequenceSummary(index));
-            wrapper.style.setProperty("--drawbar-fill", 0);
-        } else {
-            const conf = this.view === "filter"
-                ? { min: 0, max: MAX_FILTER_PARTIALS, step: 1, value: OvertoneSignalActions.getFilter(index).multiplier }
-                : this.view === "convolution"
-                    ? { min: 0, max: 1, step: 0.01, value: OvertoneSignalActions.getConvolution(index).wet }
-                    : { min: 0, max: 1, step: 0.01, value };
-            wrapper.appendChild(this.createSliderWrap(index, conf));
-            wrapper.style.setProperty("--drawbar-fill", (conf.value - conf.min) / (conf.max - conf.min || 1));
-            // Always-visible readout under the bar; syncFill keeps it current
-            const readout = document.createElement("span");
-            readout.className = "drawbar-value";
-            readout.textContent = this.barValueText(index, conf.value);
-            wrapper.appendChild(readout);
-        }
+        const param = this.barParam;
+        const value = param.get(index);
+        wrapper.appendChild(this.createSliderWrap(index, param, value));
+        wrapper.style.setProperty("--drawbar-fill", (value - param.min) / (param.max - param.min || 1));
+        // Always-visible readout under the bar; syncFill keeps it current
+        const readout = document.createElement("span");
+        readout.className = "drawbar-value";
+        readout.textContent = param.format(index, value);
+        wrapper.appendChild(readout);
 
         wrapper.appendChild(this.createAux(index));
-        // Without an IR the convolution chain is bypassed — the column's
-        // send controls read as inert until the stepper assigns one
-        this.applyConvEnabled(index, wrapper);
+        this.applyEnabled(index, wrapper);
         return wrapper;
     }
 
-    createSliderWrap(index, { min, max, step, value }) {
+    createSliderWrap(index, { min, max, step }, value) {
         const track = document.createElement("div");
         track.className = "drawbar-track";
 
@@ -467,51 +443,9 @@ export class DrawbarsComponent extends BaseComponent {
     }
 
     /**
-     * Sequence view: a read-only summary of the column's sequencer — the
-     * same preview the inspector draws, plus mode and stretch — that opens
-     * the inspector on tap. Editing lives there; the per-column dials were
-     * unusable on touch and hard to read anywhere.
-     */
-    createSequenceSummary(index) {
-        const btn = document.createElement("button");
-        btn.type = "button";
-        btn.className = "drawbar-seq-summary";
-        btn.title = "open in the inspector";
-        btn.setAttribute("aria-label", `Sequence of overtone ${index + 1} — open in the inspector`);
-
-        const canvas = document.createElement("canvas");
-        canvas.className = "drawbar-seq-preview";
-        canvas.width = 56;
-        canvas.height = 44;
-        const text = document.createElement("span");
-        text.className = "drawbar-seq-text";
-        btn.append(canvas, text);
-        btn.addEventListener("click", () => this.openOvertoneSettings(index));
-
-        this._seqSummaries[index] = { canvas, text };
-        this.refreshSequenceSummary(index);
-        return btn;
-    }
-
-    refreshSequenceSummary(index) {
-        const s = this._seqSummaries[index];
-        if (!s) return;
-        const gate = OvertoneSignalActions.getGate(index);
-        const seq = OvertoneSignalActions.getSequencer(index);
-        drawSequencePreview(s.canvas, index);
-        const stretch = seq.stretch >= 1 ? `×${seq.stretch}` : `÷${1 / seq.stretch}`;
-        let params = "";
-        if (gate.mode === 1 || gate.mode === 2) params = ` ${Math.round(gate.x)}/${Math.round(gate.y)}`;
-        else if (gate.mode === 3) params = ` ${Math.round(gate.x)}%`;
-        else if (gate.mode === 4) params = ` ${(gate.seq || []).length}`;
-        s.text.textContent = `${SEQ_MODE_SHORT[gate.mode] || "off"}${params}\n${stretch}`;
-    }
-
-    /**
-     * Below every column: the live amplitude dot and the ADSR trigger pad;
-     * in the convolution view also the per-voice IR stepper (assigning
-     * IRs across the row is a strip job — everything else per voice is
-     * the inspector's).
+     * Below every column: the live amplitude dot, the ADSR trigger pad,
+     * the family's IR stepper (convolution), and — when the strip has the
+     * height — the family's other parameters as dials.
      */
     createAux(index) {
         const aux = document.createElement("div");
@@ -526,7 +460,7 @@ export class DrawbarsComponent extends BaseComponent {
         // Always in the DOM; CSS shows it only under body.adsr-mode.
         aux.appendChild(this.createTriggerPad(index));
 
-        if (this.view === "convolution") {
+        if (this.familyDef.irStepper) {
             // ‹ IR n › stepper over the session IRs (buttons — native
             // selects don't open inside jweb)
             const irStepper = this.cycleStepper({
@@ -547,15 +481,44 @@ export class DrawbarsComponent extends BaseComponent {
             aux.appendChild(irStepper);
         }
 
+        const dialParams = this.dialParams;
+        if (dialParams.length) {
+            const dials = document.createElement("div");
+            dials.className = "drawbar-aux-dials";
+            this._dials[index] = {};
+            for (const param of dialParams) {
+                const dial = new Dial({
+                    min: param.min, max: param.max, step: param.step, value: param.get(index),
+                    label: param.label,
+                    ...(param.color ? { color: param.color } : {}),
+                    format: (v) => param.format(index, v),
+                    fineOnShift: false, // shift = shaped row
+                    onChange: (v, e) => {
+                        if (this.isShapeGesture(e)) this.shapeParamRow(index, param, v);
+                        else voiceTargets(index, e).forEach((i) => param.set(i, v));
+                    },
+                });
+                this._dials[index][param.key] = dial;
+                dials.appendChild(dial.el);
+            }
+            aux.appendChild(dials);
+        }
+
         return aux;
     }
 
     /**
-     * Row sculpting (see rowShape.js): `t` is the dragged control's 0-1
-     * position within its range; `setNorm(i, ti)` maps each voice's shaped
-     * position back into the parameter. The gesture is remembered so the
-     * shape panel's contour/cycle controls can re-apply it live.
+     * Row sculpting (see rowShape.js): the gestured control's value sets
+     * the anchor position; every voice gets its shaped position mapped
+     * back into the parameter's own range. Remembered so the shape
+     * panel's contour/cycle controls can re-apply it live.
      */
+    shapeParamRow(index, param, value) {
+        const span = param.max - param.min || 1;
+        const t = (value - param.min) / span;
+        this.applyShapedRow(index, t, (i, ti) => param.set(i, quantize(param, param.min + ti * span)));
+    }
+
     applyShapedRow(index, t, setNorm) {
         const positions = shapedRow({
             count: AppState.currentSystem.ratios.length,
@@ -626,13 +589,13 @@ export class DrawbarsComponent extends BaseComponent {
     }
 
     /**
-     * Shape panel — docked in the strip while shape mode is on: the
+     * Shape panel — docked under the strip while shape mode is on: the
      * contour tiled at the current cycle count, a ‹›-stepper picking the
      * sculpt contour (defaults to the oscillator waveform, without touching
      * it), and ÷2/×2 cycle buttons. Changing either re-applies the last
      * gesture, so the row follows live. Built once; its state is the
      * gesture's, so it survives strip re-renders. The controller docks it
-     * above the strip (see setShapeMode).
+     * (see setShapeMode).
      */
     shapePanel() {
         if (!this._shapePanel) {
@@ -742,36 +705,13 @@ export class DrawbarsComponent extends BaseComponent {
 
     /** Keep the track's meter fill and the under-bar readout in sync with a slider's value. */
     syncFill(slider) {
-        const min = parseFloat(slider.min) || 0;
-        const max = parseFloat(slider.max) || 1;
+        const param = this.barParam;
         const value = parseFloat(slider.value);
         const bar = slider.closest(".drawbar");
         if (!bar) return;
-        bar.style.setProperty("--drawbar-fill", (value - min) / (max - min || 1));
+        bar.style.setProperty("--drawbar-fill", (value - param.min) / (param.max - param.min || 1));
         const readout = bar.querySelector(".drawbar-value");
-        if (readout) readout.textContent = this.barValueText(Number(slider.dataset.index), value);
-    }
-
-    /**
-     * Short readout for the active view's bar value — fits under a 64px
-     * column. The filter view shows the series partial the cutoff sits on
-     * (its Hz belongs to the inspector, not a one-line label).
-     */
-    barValueText(index, value) {
-        if (this.view !== "filter") return `${Math.round(value * 100)}%`;
-        const step = Math.round(value);
-        if (step === 0) return "open";
-        const labels = AppState.currentSystem.labels;
-        return step <= labels.length ? labels[step - 1] : `+${step - labels.length}`;
-    }
-
-    updateSingleDrawbar(index, value) {
-        // rather than a full rerender, just set one slider value
-        // (amplitude values only apply to the gain view's sliders)
-        if (this.view === "gain" && this.sliders[index]) {
-            this.sliders[index].value = value;
-            this.syncFill(this.sliders[index]);
-        }
+        if (readout) readout.textContent = param.format(Number(slider.dataset.index), value);
     }
 
     /**
@@ -783,34 +723,9 @@ export class DrawbarsComponent extends BaseComponent {
         const index = Number(e.target.dataset.index);
         const value = Number(e.target.value);
         const targets = modEvent ? voiceTargets(index, modEvent) : [index];
-
-        for (const i of targets) {
-            if (this.view === "filter") {
-                OvertoneSignalActions.setFilter(i, {
-                    ...OvertoneSignalActions.getFilter(i),
-                    multiplier: value,
-                });
-            } else if (this.view === "convolution") {
-                OvertoneSignalActions.setConvolution(i, { wet: value });
-            } else {
-                this.onChange?.(i, value);
-            }
-        }
+        for (const i of targets) this.barParam.set(i, value);
         e.target.setAttribute("aria-valuenow", value);
         this.syncFill(e.target);
-    }
-
-    /**
-     * The cutoff position's display text: the current overtone system's own
-     * partial label plus the resulting frequency, matching the modal's dial
-     * (e.g. "φ^2 · 660 Hz" on the golden ratio system).
-     */
-
-    setValue(index, value) {
-        if (this.view === "gain" && this.sliders[index]) {
-            this.sliders[index].value = value;
-            this.syncFill(this.sliders[index]);
-        }
     }
 
     /** Full per-overtone editor (the inspector) — label click, context menu. */
@@ -823,12 +738,8 @@ export class DrawbarsComponent extends BaseComponent {
         openOvertoneMenu(index, x, y, { onInspect: (i) => this.openOvertoneSettings(i) });
     }
 
-    closeContextMenu() {
-        closeOvertoneMenu();
-    }
-
     teardown() {
-        this.closeContextMenu();
+        closeOvertoneMenu();
         if (this._meterRaf) {
             cancelAnimationFrame(this._meterRaf);
             this._meterRaf = null;

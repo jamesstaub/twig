@@ -1,10 +1,10 @@
 /* Embed-mode overrides for inspector.css: the sheet covers the whole
    170px band (there is no room beside anything) as a horizontal strip —
    sections side by side, each section's content flowing as a row —
-   scrolling sideways like the drawbar strip. The Voice surface doesn't
+   scrolling sideways like the drawbar strip. The Sequence surface doesn't
    exist in the embed shell. */
 
-body.embed #voice-control-root {
+body.embed #sequence-control-root {
     display: none;
 }
 
@@ -28,7 +28,7 @@ body.embed .inspector {
 }
 
 /* The header must not stretch to the (scrolling) sections' width, or the
-   close button ends up past the viewport edge; and there is no Voice
+   close button ends up past the viewport edge; and there is no Sequence
    surface to expand into */
 body.embed .inspector-header {
     flex-wrap: nowrap;
@@ -67,25 +67,12 @@ body.embed .inspector-section-body {
     gap: 0.75rem;
 }
 
-/* The two columns become one row of cards */
+/* The sections become one row of cards */
 body.embed .inspector-sheet .inspector-sections {
-    display: flex;
     flex-direction: row;
     flex-wrap: nowrap;
     gap: 0.5rem;
     align-items: stretch;
-}
-
-body.embed .inspector-main,
-body.embed .inspector-aside {
-    flex: 0 0 auto;
-    flex-direction: row;
-    flex-wrap: nowrap;
-    gap: 0.5rem;
-}
-
-body.embed .inspector-section-level {
-    flex-basis: auto;
 }
 
 body.embed .inspector-gate-mode {
@@ -113,18 +100,6 @@ body.embed .inspector-targets {
 body.embed .inspector-target-label {
     width: auto;
     white-space: nowrap;
-}
-
-body.embed .inspector-dial-row {
-    margin-top: 0.25rem;
-    gap: 0.75rem;
-    flex-wrap: nowrap; /* the band scrolls sideways instead */
-}
-
-/* No two-line readout reserve in the band: those ~26px are the difference
-   between the dial values showing and being clipped at the bottom */
-body.embed .inspector-dial-col .mini-dial-value {
-    min-height: 0;
 }
 
 body.embed .inspector-step,

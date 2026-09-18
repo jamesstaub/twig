@@ -10,9 +10,9 @@ import { openOvertoneMenu, armLongPress } from '../generic/overtoneMenu.js';
  * the inspector) is the whole articulation.
  *
  * Pure presentation: renders from props and reports through
- * onAttack(index) / onRelease(index) / onSwitchToAdsr(). A per-frame
- * level glow (props.levelOf) shows what's sounding — including voices
- * triggered from the keyboard, not just the pads.
+ * onAttack(index) / onRelease(index). A per-frame level glow
+ * (props.levelOf) shows what's sounding — including voices triggered
+ * from the keyboard, not just the pads.
  */
 export class PadGridComponent extends BaseComponent {
 
@@ -20,7 +20,6 @@ export class PadGridComponent extends BaseComponent {
         super(target);
         this.onAttack = null;
         this.onRelease = null;
-        this.onSwitchToAdsr = null;
         this._held = new Set();
         this._pads = [];
         this._levelRaf = null;
@@ -30,33 +29,9 @@ export class PadGridComponent extends BaseComponent {
         this.teardown();
         this.el.innerHTML = '';
 
-        const header = document.createElement('div');
-        header.className = 'pad-grid-header';
-        const title = document.createElement('span');
-        title.className = 'pad-grid-title';
-        title.textContent = 'Pads';
-        header.appendChild(title);
-        if (envelopeMode !== 'adsr') {
-            // Pads gate envelopes; with every voice droning open there is
-            // nothing to trigger. One tap fixes that instead of a dead grid.
-            const hint = document.createElement('span');
-            hint.className = 'pad-grid-hint';
-            hint.textContent = 'pads play in ADSR mode';
-            const btn = document.createElement('button');
-            btn.type = 'button';
-            btn.className = 'action-btn pad-grid-adsr-btn';
-            btn.textContent = 'Switch to ADSR';
-            this.bindEvent(btn, 'click', () => this.onSwitchToAdsr?.());
-            header.append(hint, btn);
-        }
-        this.el.appendChild(header);
-
-        const grid = document.createElement('div');
-        grid.className = 'pad-grid';
-        grid.classList.toggle('pad-grid-inactive', envelopeMode !== 'adsr');
+        this.el.classList.toggle('pad-grid-inactive', envelopeMode !== 'adsr');
         this._pads = voices.map((v, i) => this.createPad(i, v, keyHints[i]));
-        this._pads.forEach((p) => grid.appendChild(p));
-        this.el.appendChild(grid);
+        this._pads.forEach((p) => this.el.appendChild(p));
 
         this._levelOf = levelOf;
         this.startLevelLoop();
@@ -65,21 +40,21 @@ export class PadGridComponent extends BaseComponent {
     createPad(index, { label, hz }, keyHint) {
         const pad = document.createElement('button');
         pad.type = 'button';
-        pad.className = 'play-pad';
+        pad.className = 'trigger-pad';
         pad.style.setProperty('--pad-color', partialColor(this._ratioOf(index)));
         pad.setAttribute('aria-label', `Play overtone ${index + 1} (${label})`);
         pad.dataset.index = index;
 
         const name = document.createElement('span');
-        name.className = 'play-pad-label';
+        name.className = 'trigger-pad-label';
         name.textContent = label;
         const freq = document.createElement('span');
-        freq.className = 'play-pad-hz';
+        freq.className = 'trigger-pad-hz';
         freq.textContent = hz;
         pad.append(name, freq);
         if (keyHint) {
             const key = document.createElement('span');
-            key.className = 'play-pad-key';
+            key.className = 'trigger-pad-key';
             key.textContent = keyHint;
             pad.appendChild(key);
         }

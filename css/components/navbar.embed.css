@@ -39,13 +39,6 @@ body.embed .navbar-control-group {
     gap: 0.5rem;
 }
 
-body.embed .play-toggle-container,
-body.embed .envelope-mode-container {
+body.embed .play-toggle-container {
     padding: 0.25rem 0.5rem;
-}
-
-/* Open/ADSR sits below Play in the compact column rather than trailing it
-   inline (ml-4 reads as wasted width once the navbar is this narrow) */
-body.embed .envelope-mode-container {
-    margin-left: 0;
 }

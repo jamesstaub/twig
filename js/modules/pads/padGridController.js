@@ -13,7 +13,7 @@ import {
 } from '../../events.js';
 
 /**
- * Play surface pads: one per overtone of the current system, gating the
+ * Trigger surface pads: one per overtone of the current system, gating the
  * voice envelopes (audio.js triggerHarmonicAttack/Release — no-ops
  * outside ADSR mode or while stopped, same as the keyboard's Q–] keys).
  */
@@ -50,7 +50,6 @@ export class PadGridController extends BaseController {
         this.component.onInspect = (index) => this.onInspect?.(index);
         this.component.onAttack = (index) => triggerHarmonicAttack(index);
         this.component.onRelease = (index) => triggerHarmonicRelease(index);
-        this.component.onSwitchToAdsr = () => OvertoneSignalActions.setEnvelopeMode('adsr');
     }
 
     bindExternalEvents() {

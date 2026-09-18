@@ -374,11 +374,6 @@
     .drawbar-value {
         font-size: var(--font-size-3xs);
     }
-    /* "euclid 3/8" can't fit a 20px column — the preview alone is the
-       summary here; the tap opens the inspector for the rest */
-    .drawbar-seq-text {
-        display: none;
-    }
 }
 
 .drawbars-actions {
@@ -386,11 +381,19 @@
     justify-content: center;
 }
 
-/* ---- View tabs: gain | filter | sequence ---- */
+/* ---- Header tabs: the family's parameters (shown while the strip is
+       compact, drawbarsController.renderHeader) and, in the embed band
+       only, the families themselves ---- */
 
 .drawbars-tabs {
     display: inline-flex;
     gap: 0.25rem;
+}
+
+/* The surfaces shell picks the family from the toolbar (id-scoped: layout
+   .css's `.labeled-control span` sets display:flex on every span) */
+#drawbars-control-root .drawbars-family-tabs {
+    display: none;
 }
 
 .drawbars-tab {
@@ -603,53 +606,14 @@ body.adsr-mode .drawbar-trigger {
     border-color: var(--drawbar-color, var(--accent-primary));
 }
 
-/* ---- Sequence view: a read-only per-column summary (the sequence
-       preview, mode and stretch) — tapping it opens the inspector, where
-       the sequence is edited. Sized like .drawbar-input-wrapper so the
-       column's height doesn't change between views. ---- */
-
-.drawbar-seq-summary {
-    flex: 1 1 auto;
-    height: auto;
-    min-height: 108px;
-    max-height: 280px;
-    width: 100%;
-    margin: 4px 0;
-    padding: 0.25rem 0;
+/* The family's other parameters as dials under the bar (when the strip
+   has the height — the compact strip offers them as tabs instead). Each
+   Dial carries its own caption and readout; stacked, since side by side
+   they'd wrap in a 64px column. */
+.drawbar-aux-dials {
     display: flex;
     flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 0.35rem;
-    color: inherit;
-    background: none;
-    border: 1px solid transparent;
-    border-radius: var(--radius-md);
-    cursor: pointer;
-    transition: border-color 0.15s;
-}
-
-.drawbar-seq-summary:hover {
-    border-color: var(--border-subtle);
-}
-
-.drawbar-seq-preview {
-    display: block;
-    width: calc(100% - 8px) !important;
-    height: 44px !important;
-    min-height: 0 !important;
-    border: 1px solid var(--border-subtle) !important;
-    border-radius: 3px !important;
-    box-shadow: none !important;
-}
-
-.drawbar-seq-text {
-    font-family: var(--font-mono);
-    font-size: var(--font-size-2xs);
-    line-height: 1.35;
-    color: var(--text-accent);
-    text-align: center;
-    white-space: pre-line;
+    gap: 2px;
 }
 
 .drawbar-disabled {

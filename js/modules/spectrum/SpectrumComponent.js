@@ -2,7 +2,7 @@ import BaseComponent from "../base/BaseComponent.js";
 import { themeColor } from "../../theme.js";
 import { irTimeConstant, logFrequencies, resonanceCurve, timbreLines } from "../../dsp/spectrumPreview.js";
 
-const HEIGHT = 96; // matches .result-canvas canvas's CSS height so bitmap and box agree
+const HEIGHT = 96; // matches .viz-canvas canvas's CSS height so bitmap and box agree
 const POINTS = 360;
 const DB_FLOOR = -48;
 

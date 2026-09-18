@@ -1,0 +1,33 @@
+/* Trigger/Drone envelope-mode toggle: a reusable label+switch control
+   (reuses .toggle-label / .toggle-switch from toggle.css), mounted into
+   three roots — navbar (embed only), the Trigger panel header, and the
+   fundamental panel header. */
+
+.envelope-mode-root {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+/* Fixed width so "Trigger" / "Drone" don't reflow neighboring layout as
+   the mode changes. */
+.envelope-mode-label {
+    width: 3.6rem;
+}
+
+/* The navbar root gets the same framed "label + switch" box as
+   .play-toggle-container (navbar.css) — surfaces shell hides it outright
+   since the surfaces navbar has no room for it; the embed band shows it
+   via envelope-mode.embed.css. */
+.navbar-mode-root {
+    flex-grow: 1;
+    flex-wrap: wrap;
+    padding: 0.5rem 1rem;
+    background-color: color-mix(in srgb, var(--surface-panel) 50%, transparent);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border-strong);
+}
+
+body.surfaces .navbar-mode-root {
+    display: none;
+}

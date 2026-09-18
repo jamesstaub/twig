@@ -1,0 +1,17 @@
+/* Embed-mode overrides for envelope-mode.css: ported from navbar.embed.css's
+   old .envelope-mode-container rules, re-targeted to .navbar-mode-root (the
+   embed band is the only shell that shows this root — see
+   body.surfaces .navbar-mode-root in envelope-mode.css). */
+
+/* Open/ADSR sits below Play in the compact column rather than trailing it
+   inline (ml-4 reads as wasted width once the navbar is this narrow) */
+body.embed .navbar-mode-root {
+    padding: 0.25rem 0.5rem;
+    margin-left: 0;
+}
+
+/* The navbar's switch covers the band; the fundamental header's copy
+   would cost the tight m4l stack a row */
+body.embed #source-mode-root {
+    display: none;
+}

@@ -98,6 +98,14 @@ export class AudioEngine {
 
         this.masterGain.connect(this.limiter);
         this.limiter.connect(this.context.destination);
+
+        // Output tap for the oscilloscope: what actually leaves the chain.
+        // An AnalyserNode is a sink; nothing downstream, no rendering cost
+        // until something reads it.
+        this.outputAnalyser = this.context.createAnalyser();
+        this.outputAnalyser.fftSize = 2048;
+        this.outputAnalyser.smoothingTimeConstant = 0;
+        this.limiter.connect(this.outputAnalyser);
     }
 
     /**
