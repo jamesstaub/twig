@@ -48,6 +48,14 @@
     text-overflow: ellipsis;
 }
 
+/* In the Sequence panel's bottom bar the title has a fixed width, so the
+   ‹ › buttons never move as it changes (voice to voice, or to "All
+   voices" while link/shape is in effect) */
+.overtone-toolbar-slot .inspector-title {
+    width: 10rem;
+    text-align: center;
+}
+
 .inspector-header-spacer {
     flex: 1;
 }

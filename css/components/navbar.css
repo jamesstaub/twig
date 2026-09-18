@@ -125,9 +125,10 @@
 
     /* The toggle must not grow, or it fills the row alone and pushes
        everything after it down */
-    body.surfaces .play-toggle-container {
+    body.surfaces .play-toggle-container,
+    body.surfaces .navbar-mode-root {
         flex-grow: 0;
-        padding: 0.5rem 0.75rem; /* Play · ● fit one 390px row with this slack */
+        padding: 0.5rem 0.75rem; /* Play · Trigger/Drone · ● fit one 390px row with this slack */
     }
 
     /* Collapsed (● + expand), the recorder fits row 1; expanded it takes

@@ -7,13 +7,13 @@
     position: relative;
     cursor: pointer;
     transition: all 0.3s ease;
-    border: 2px solid var(--accent-negative-soft);
-    background-color: var(--accent-negative-strong);
+    border: 2px solid var(--toggle-off-border);
+    background-color: var(--toggle-off-bg);
 }
 
 .toggle-switch.active {
-    background-color: var(--accent-positive);
-    border-color: var(--accent-positive-strong);
+    background-color: var(--toggle-on-bg);
+    border-color: var(--toggle-on-border);
 }
 
 .toggle-switch::before {
@@ -22,7 +22,7 @@
     width: 22px;
     height: 22px;
     border-radius: 50%;
-    background-color: white;
+    background-color: var(--toggle-knob);
     top: 1px;
     left: 1px;
     transition: all 0.3s ease;
@@ -43,12 +43,9 @@
     color: var(--text-muted);
 }
 
-.toggle-label.active {
-    color: var(--accent-positive-strong);
-}
-
+.toggle-label.active,
 .toggle-label.overtone {
-    color: var(--accent-negative);
+    color: var(--toggle-label-on);
 }
 
 .subharmonic-toggle-container {

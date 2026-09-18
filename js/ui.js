@@ -42,11 +42,6 @@ import { SettingsController } from './modules/settings/settingsController.js';
 import { EnvelopeModeController } from './modules/envelopeMode/envelopeModeController.js';
 import { inspectorState } from './modules/inspector/inspectorState.js';
 
-// Every element hosting a Trigger/Drone switch: the Trigger surface's
-// header, the Source surface's fundamental header, and the navbar's
-// (embed band only — the band has neither surface)
-const ENVELOPE_MODE_ROOTS = ['#trigger-mode-root', '#source-mode-root', '#navbar-mode-root'];
-
 let settingsController;
 
 export function initUI() {
@@ -173,13 +168,11 @@ function setupMainButtons() {
 /**
  * Trigger/Drone mode: Drone = every voice sounds freely; Trigger = voices
  * rest silent and are gated per overtone (pads, Q-] keys, the strip's
- * trigger pads). One switch per host element; body.adsr-mode drives the
- * strip pads' visibility in CSS.
+ * trigger pads). The switch lives in the navbar; body.adsr-mode drives
+ * the strip pads' visibility in CSS.
  */
 function setupEnvelopeMode() {
-    for (const root of ENVELOPE_MODE_ROOTS) {
-        if (document.querySelector(root)) new EnvelopeModeController(root).init();
-    }
+    new EnvelopeModeController('#navbar-mode-root').init();
     const sync = () => {
         document.body.classList.toggle('adsr-mode', OvertoneSignalActions.getEnvelopeMode() === 'adsr');
     };

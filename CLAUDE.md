@@ -125,13 +125,14 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
   scope and envelope panels, the settings panel (an overlay instead,
   `body.settings-open`), the inspector's surface root (the sheet is a
   full-band overlay). The band has no toolbar, so the strip's FAMILY tabs
-  (gain/filter/convolution/adsr) show only there, and the Trigger/Drone
-  switch lives in the navbar only there (`#navbar-mode-root`). There are
-  no modals in the app.
+  (gain/filter/convolution/adsr) show only there. There are no modals in
+  the app.
 - Surfaces shell (`body.surfaces`, i.e. everything but embed):
   `js/modules/surfaces/` — `surfaceState.js` is the UI-only registry
-  (`SURFACES`, in toolbar order: trigger, source, gain, filter, sequence,
-  convolution, adsr, settings — each a list of panel-root element ids;
+  (`SURFACES`, in toolbar order: source, gain, trigger, adsr, filter,
+  convolution, sequence, settings — each a list of panel-root element
+  ids; `label` is what fits the rail ("Conv"), optional `title` the full
+  name for the tooltip;
   `family` names the drawbar strip's parameter family for the four
   parameter surfaces; `dock: false` keeps the tonewheel off settings;
   `DOCK_ROOTS` = the tonewheel; visible set + dock flag, emits
@@ -219,7 +220,8 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
   the edited voice (`applyRow` on 0-1 positions / `applyParam` on a
   range; pure math in `rowShape.js`). The two are mutually exclusive
   (the toolbar controller clears the other), each button also lights
-  while its key is held, and leaving the `tools: true` surfaces drops
+  while its key is held — and holding shift shows the shape panel, so
+  desktop can reach its controls without the lock — and leaving the `tools: true` surfaces drops
   both (ui.js). `ShapePanel.js` is a pure view over shapeMode (contour
   preview, contour stepper, ÷2/×2); `generic/cycleStepper.js` is the
   ‹ › stepper it and the IR picker share. The strip shapes bars and
@@ -235,7 +237,11 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
   mean different things per mode, and `Dial`'s `resetValue` makes
   double-click return there. Mode 4 keeps the 0/1 pattern text field.
   `inspectorState` (UI-only: selected index + sheet open,
-  `INSPECTOR_CHANGED`) is the model; `InspectorController` homes the ONE
+  `INSPECTOR_CHANGED`) is the model; while link or shape is in effect
+  (lock or held key) the title reads "All voices" (`setScope`, updated IN
+  PLACE on `LINK_ALL_CHANGED` / `SHAPE_MODE_CHANGED` — shift can go down
+  mid-drag, and a re-render would destroy the control; the title has a
+  fixed width in the bar so the ‹ › buttons don't move); `InspectorController` homes the ONE
   component instance in the surface (`#sequence-inspector`, scrolling
   above the panel's overtone toolbar, with the ‹ Overtone N › header
   mounted in the toolbar's slot — `headerSlot`) or in the sheet
@@ -249,8 +255,7 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
   label, the overtone menu (right-click / press-and-hold on bars and
   pads, `js/modules/generic/overtoneMenu.js`), or the toolbar; Escape
   closes the sheet.
-- Trigger surface (`js/modules/pads/`): `#pad-grid-root` = a static
-  header (title + `#trigger-mode-root`, the Trigger/Drone switch) over
+- Trigger surface (`js/modules/pads/`): `#pad-grid-root` = a title over
   `#pad-grid`, the `PadGridComponent` root — one big pad per overtone,
   always 4 columns (3 in portrait) × rows that share the panel's height.
   Pads gate the voice envelopes through `triggerHarmonicAttack/Release`
@@ -264,11 +269,12 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
 - Trigger/Drone (`js/modules/envelopeMode/`): `AppState.envelopeMode`
   'adsr' (Trigger: voices rest silent and are gated per overtone) | 'open'
   (Drone: every voice sounds). `EnvelopeModeToggleComponent` renders a
-  label naming the current state + `.toggle-switch` into any
-  `.envelope-mode-root`; ui.js mounts one controller per root
-  (`#trigger-mode-root`, `#source-mode-root` in the fundamental header,
-  `#navbar-mode-root` embed-only) and keeps `body.adsr-mode` in sync (the
-  strip's trigger pads show under it).
+  label naming the current state + `.toggle-switch` into an
+  `.envelope-mode-root`; it lives in the navbar beside Play
+  (`#navbar-mode-root`, a global like Play — ui.js mounts it and keeps
+  `body.adsr-mode` in sync; the strip's trigger pads show under it).
+  Toggle switches app-wide use the muted `--toggle-*` tokens (theme.css),
+  not the red/green accents.
 - Source surface: `#m4l-fundamental-source-panel` = fundamental (Hz,
   octave, one-octave keyboard — `body.coarse` enlarges the keys,
   keyboard.css), signal source, overtone system, wrapping across the top
@@ -305,13 +311,12 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
   `syncChecked` on `RECORDER_CHANGED`). The toolbar button and the
   recorder's ⚙ (`SettingsController.open(tab)`) get there; in embed the
   same root becomes a full-band overlay with its own × / Escape.
-- Navbar: Play/Stop, the recorder strip, Gain/Slew (and the embed-only
-  Trigger/Drone). Above 64rem it is the fixed one-row bar with
+- Navbar: Play/Stop, Trigger/Drone, the recorder strip, Gain/Slew. Above 64rem it is the fixed one-row bar with
   `.app-container` padded to `--navbar-height` (base.css). Below 64rem on
   the surfaces shell (phones both ways, portrait tablets) it becomes a
   STATIC, WRAPPING block at the top of a full-height flex column
-  (`body.surfaces.app-container`, page-arrangement.css): Play·(collapsed
-  recorder) / recorder / Gain·Slew — the recorder collapses to ● + an
+  (`body.surfaces.app-container`, page-arrangement.css): Play·Trigger/
+  Drone·(collapsed recorder) / recorder / Gain·Slew — the recorder collapses to ● + an
   expand button (`RecorderComponent.expanded`, `.rec-expanded`) and joins
   row 1 while collapsed. A wrapping navbar has no known height, which is
   why the fixed-navbar + padding scheme can't be used there; the logo is

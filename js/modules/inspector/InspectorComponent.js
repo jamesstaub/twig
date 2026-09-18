@@ -51,6 +51,10 @@ const ICON_CLOSE = '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" s
  * chrome; on the surface it mounts into `headerSlot` instead — the
  * panel's bottom toolbar — so the editor scrolls above a fixed bar.
  *
+ * While link or shape is in effect an edit lands on every voice, so the
+ * title says so (`scope` prop / `setScope`, updated in place — a
+ * re-render under a control mid-drag would destroy it).
+ *
  * Ranged controls (gate dials, modulation amounts) honor shape gestures
  * (shapeMode.js): the edit sculpts that parameter across every voice.
  *
@@ -71,10 +75,11 @@ export class InspectorComponent extends BaseComponent {
         this.onExpand = null;
     }
 
-    render({ index, host, headerSlot, dialSize }) {
+    render({ index, host, headerSlot, dialSize, scope }) {
         this.teardown();
         this.index = index;
         this.dialSize = dialSize;
+        this.scope = scope;
         this.el.innerHTML = '';
 
         const root = document.createElement('div');
@@ -121,8 +126,15 @@ export class InspectorComponent extends BaseComponent {
 
         const title = document.createElement('h2');
         title.className = 'inspector-title';
-        title.innerHTML = `<span class="inspector-title-voice">Overtone ${index + 1}</span>`
-            + `<span class="inspector-title-detail">${label} · ${freq.toFixed(freq >= 100 ? 1 : 2)} Hz</span>`;
+        this.titleVoiceEl = document.createElement('span');
+        this.titleVoiceEl.className = 'inspector-title-voice';
+        this.titleDetailEl = document.createElement('span');
+        this.titleDetailEl.className = 'inspector-title-detail';
+        title.append(this.titleVoiceEl, this.titleDetailEl);
+        this._voiceTitle = `Overtone ${index + 1}`;
+        this._voiceDetail = `${label} · ${freq.toFixed(freq >= 100 ? 1 : 2)} Hz`;
+        this._voiceLabel = label;
+        this.setScope(this.scope);
 
         header.append(
             this.iconButton({ html: ICON_PREV, label: 'Previous overtone', cls: 'inspector-step', onClick: () => this.onStep?.(-1) }),
@@ -140,6 +152,19 @@ export class InspectorComponent extends BaseComponent {
             );
         }
         return header;
+    }
+
+    /**
+     * Who an edit addresses: null = this voice; 'link' = every voice gets
+     * the value; 'shape' = every voice, sculpted from this one.
+     */
+    setScope(scope) {
+        this.scope = scope;
+        if (!this.titleVoiceEl) return;
+        this.titleVoiceEl.textContent = scope ? 'All voices' : this._voiceTitle;
+        this.titleDetailEl.textContent = scope === 'link' ? `linked · editing ${this._voiceLabel}`
+            : scope === 'shape' ? `shaped from ${this._voiceLabel}`
+                : this._voiceDetail;
     }
 
     iconButton({ html, label, cls, onClick }) {

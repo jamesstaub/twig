@@ -18,18 +18,19 @@ import { layoutMode } from '../layout/layoutMode.js';
  */
 
 export const SURFACES = [
-    // One pad per overtone + the Trigger/Drone mode
-    { id: 'trigger', label: 'Trigger', roots: ['pad-grid-root'] },
     // Fundamental, signal source, overtone system
     { id: 'source', label: 'Source', roots: ['fundamental-control-root', 'oscillator-control-root', 'spectral-system-root'] },
     // The drawbar strip in each of its parameter families, each with its
     // own visualization beside it
     { id: 'gain', label: 'Gain', roots: ['drawbars-control-root', 'gain-viz-root'], family: 'gain', tools: true },
+    // One pad per overtone
+    { id: 'trigger', label: 'Trigger', roots: ['pad-grid-root'] },
+    { id: 'adsr', label: 'ADSR', roots: ['drawbars-control-root', 'adsr-viz-root'], family: 'adsr', tools: true },
     { id: 'filter', label: 'Filter', roots: ['drawbars-control-root', 'filter-viz-root'], family: 'filter', tools: true },
+    // `label` is what fits the rail; `title` is the full name (tooltip)
+    { id: 'convolution', label: 'Conv', title: 'Convolution', roots: ['drawbars-control-root', 'conv-viz-root'], family: 'convolution', tools: true },
     // The inspector: one voice's sequence, modulation and pulse outs
     { id: 'sequence', label: 'Sequence', roots: ['sequence-control-root'], tools: true },
-    { id: 'convolution', label: 'Convolution', roots: ['drawbars-control-root', 'conv-viz-root'], family: 'convolution', tools: true },
-    { id: 'adsr', label: 'ADSR', roots: ['drawbars-control-root', 'adsr-viz-root'], family: 'adsr', tools: true },
     // dock: false — a settings form has no use for the tonewheel beside it
     { id: 'settings', label: 'Settings', roots: ['settings-control-root'], dock: false },
 ];

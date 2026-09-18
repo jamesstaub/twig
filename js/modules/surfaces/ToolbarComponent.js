@@ -31,7 +31,7 @@ export class ToolbarComponent extends BaseComponent {
         this.el.innerHTML = '';
         for (const s of surfaces) {
             this.el.appendChild(this.button({
-                id: s.id, label: s.label, pressed: s.id === active,
+                id: s.id, label: s.label, title: s.title, pressed: s.id === active,
                 onClick: () => this.onSelect?.(s.id),
             }));
         }

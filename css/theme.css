@@ -51,6 +51,14 @@
     --accent-negative: #ef4444;      /* stop/overtone states */
     --accent-negative-soft: #f87171;
     --accent-negative-strong: #dc2626;
+    /* Toggle switches: muted, so a row of them doesn't read as alarms —
+       slate when off, a desaturated teal when on */
+    --toggle-off-bg: #3b4556;
+    --toggle-off-border: #566176;
+    --toggle-on-bg: #3f7f78;
+    --toggle-on-border: #5a9a92;
+    --toggle-knob: #dfe5ee;
+    --toggle-label-on: #8fc7bf;
     --status-warning: #d97706;
 
     /* ---- Piano keyboard ---- */
@@ -85,7 +93,7 @@
 
 
     /* ---- Layout ---- */
-    --toolbar-width: 3.5rem;         /* surface toolbar (left rail) */
+    --toolbar-width: 4.25rem;        /* surface toolbar (left rail); 3.5rem on phones (surfaces.css) */
     --dock-width: 20rem;             /* viz dock beside a surface (landscape) */
     --dock-height: 9rem;             /* viz dock above a surface (portrait) */
     --sheet-width: 24rem;            /* inspector side sheet (landscape) */

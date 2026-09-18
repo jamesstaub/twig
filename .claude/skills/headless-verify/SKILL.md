@@ -34,8 +34,8 @@ description: Verify twig changes end-to-end in a headless browser — screenshot
 
 ## Surfaces
 
-- Toolbar: `.surface-toolbar-btn[data-surface="trigger|source|gain|filter|
-  sequence|convolution|adsr|settings|dock"]`; `body[data-surface]` and
+- Toolbar: `.surface-toolbar-btn[data-surface="source|gain|trigger|adsr|
+  filter|convolution|sequence|settings|dock"]`; `body[data-surface]` and
   `body.viz-dock` reflect the state. "dock" toggles only the tonewheel
   (`#tonewheel-container`); each parameter surface's viz panel
   (`#gain-viz-root`, `#filter-viz-root` scope, `#conv-viz-root`,
@@ -68,11 +68,10 @@ description: Verify twig changes end-to-end in a headless browser — screenshot
   portrait) — `pointerdown` (distinct `pointerId`s for chords) /
   `pointerup`; `.held` marks pressed pads. Silent unless Trigger mode AND
   playing; spy on `TWIG.getAudioEngine().triggerOscillatorAttack/Release`
-  to assert gating. Trigger/Drone switches: `.envelope-mode-switch` inside
-  `#trigger-mode-root` (Trigger surface), `#source-mode-root` (Source
-  surface, fundamental header) and `#navbar-mode-root` (embed only); all
-  show the state in `.envelope-mode-label`; `TWIG.getState().envelopeMode`
-  is 'adsr' (Trigger) | 'open' (Drone); `body.adsr-mode` follows.
+  to assert gating. The Trigger/Drone switch is `#navbar-mode-root
+  .envelope-mode-switch` (navbar, beside Play), state named in
+  `.envelope-mode-label`; `TWIG.getState().envelopeMode` is 'adsr'
+  (Trigger) | 'open' (Drone); `body.adsr-mode` follows.
 - Settings: the toolbar button or the recorder's ⚙ → tabs
   `.settings-tab[data-tab="midi|recorder"]` over `#midi-settings` /
   `#recorder-settings`, no dock; in embed an overlay (`body.settings-open`,
@@ -94,7 +93,8 @@ description: Verify twig changes end-to-end in a headless browser — screenshot
   bar press, dial drag or modulation slider `input` sculpts every voice)
   and `[data-action="link"]` (`body.link-all`; an edit then writes every
   voice). Mutually exclusive; `aria-pressed` also mirrors a held Shift /
-  Cmd. With a square contour a shaped row is two-level — correct, not a
+  Cmd, a held Shift shows `.shape-panel` too, and the Sequence bar's
+  `.inspector-title-voice` reads "All voices" while either is in effect. With a square contour a shaped row is two-level — correct, not a
   bug.
 
 ## Audio checks

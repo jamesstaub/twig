@@ -47,8 +47,7 @@
                         aria-label="Play/Stop control">
                     </div>
                 </div>
-                <!-- Trigger/Drone mode, EMBED ONLY (the band has no Trigger or
-                     Source panel to host it; the surfaces shell hides this root) -->
+                <!-- Trigger/Drone mode: a global, like Play -->
                 <div id="navbar-mode-root" class="envelope-mode-root navbar-mode-root"></div>
                 <!-- Performance recorder: audio + MIDI capture, takes, transport -->
                 <div id="recorder-root" class="recorder-root"></div>
@@ -124,8 +123,6 @@
                     <div id="fundamental-control-root" class="labeled-control">
                         <label for="fundamental-input">
                             <span class="control-label-text">Fundamental Frequency</span>
-                            <!-- Trigger/Drone, redundant with the Trigger surface's -->
-                            <span id="source-mode-root" class="envelope-mode-root"></span>
                             <span class="fundamental-input-group">
                                 <input type="number" id="fundamental-input" class="fundamental-input" value="130.81"
                                     step="0.01"> Hz
@@ -216,13 +213,11 @@
                     <div id="sequence-toolbar"></div>
                 </div>
 
-                <!-- Trigger surface: one pad per overtone plus the Trigger/Drone
-                     mode. The header is static so the toggle survives the grid's
-                     re-renders; PadGridComponent owns #pad-grid only. -->
+                <!-- Trigger surface: one pad per overtone (PadGridComponent owns
+                     #pad-grid; the Trigger/Drone mode is in the navbar) -->
                 <div id="pad-grid-root" class="labeled-control">
                     <div class="pad-grid-header">
                         <span class="pad-grid-title">Trigger</span>
-                        <span id="trigger-mode-root" class="envelope-mode-root"></span>
                     </div>
                     <div id="pad-grid" class="pad-grid"></div>
                 </div>
