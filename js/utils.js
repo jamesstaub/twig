@@ -104,9 +104,12 @@ export function getVoicePan(index) {
     return index === 0 ? 0 : (index % 2 === 0 ? -0.8 : 0.8);
 }
 
-/** A voice's frequency for display, unit-less: "660.0", "27.50". */
+/**
+ * A voice's frequency for display, unit-less, precision by magnitude so
+ * it never exceeds six characters: "27.50", "660.0", "21120".
+ */
 export function formatFrequency(hz) {
-    return hz.toFixed(hz >= 100 ? 1 : 2);
+    return hz.toFixed(hz >= 10000 ? 0 : hz >= 100 ? 1 : 2);
 }
 
 /** The same with its unit: "660.0 Hz". */

@@ -281,9 +281,11 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
   queries on the stack's own width (`.surface-stack` is `container:
   surface-stack / inline-size`, page-arrangement.css) — the viewport lies
   once the toolbar, dock or sheet take their share: one column under
-  40rem (phones), fundamental | source over a full-width system panel
-  from 40rem, three across from 72rem and on short screens (`max-height:
-  30rem`, a phone in landscape). Everything in it flexes rather than
+  40rem (phones), fundamental | source over an ALWAYS full-width system
+  panel from 40rem. It fits the screen from tablets up; a phone scrolls
+  inside the panel (portrait a little, landscape a row — there the system
+  panel spends width instead: menu | toggle | dials on one row).
+  Everything in it flexes rather than
   being fixed: the keyboard's keys share its width and its height floats
   between a floor and a cap (keyboard.css; `body.coarse` raises the
   floor), and the preview's AREA owns the height
@@ -298,13 +300,17 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
   `setDescription` writes trusted config.js HTML only. Start harmonic and
   the system's tunable params render as one inline row of Dials
   (`#system-dials-row`). Under them, `#system-frequencies`: every
-  overtone's frequency as ONE sideways-scrolling row (never wrapping, so
-  the panel's height doesn't depend on the voice count), each entry
-  tinted `partialColor`; `renderFrequencies` rebuilds items only when the
-  voice count changes, and `FUNDAMENTAL_CHANGED` calls it alone (a sweep
-  must not rebuild the menu). Entries go one-line where height is scarce;
-  hidden in embed. `formatFrequency` / `formatHz` (utils.js) are the one
-  voice-frequency formatter (pads, this list).
+  overtone's frequency, each entry tinted `partialColor`. The list is a
+  GRID that never scrolls or overflows (12 voices max, so every shape is
+  bounded): twelve across the full-width panel, two rows of six where
+  that is too narrow (stack ≤ 54rem), and on the phone stack a VERTICAL
+  list — three columns of four, one-line entries, the ratio label
+  ellipsizing before the value ever clips. `renderFrequencies` rebuilds
+  items only when the voice count changes, and `FUNDAMENTAL_CHANGED`
+  calls it alone (a sweep must not rebuild the menu). Hidden in embed.
+  `formatFrequency` / `formatHz` (utils.js) are the one voice-frequency
+  formatter (pads, this list) — precision by magnitude, six characters
+  at most, which the list's column widths rely on.
 - Visualizations (side column): waveform (`WaveformController`, p5,
   `#waveform-canvas-area`; the Source panel has a second, `mode: 'single'`
   instance for the chosen oscillator), spectrum (`SpectrumComponent`,

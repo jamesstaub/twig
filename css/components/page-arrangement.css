@@ -143,8 +143,7 @@ body.surfaces .surface-side > #tonewheel-container {
        follows the STACK's width (container query: the viz dock and the
        inspector sheet narrow it, not just the viewport):
          narrow   one column, natural heights
-         medium   fundamental | source, the system across the bottom
-         wide     all three side by side
+         wider    fundamental | source, the system across the bottom
        (the fundamental first — the markup order is the embed band's).
        Panels in a row are equal height; the top row may grow into spare
        height up to a cap, and what grows is the keyboard and the
@@ -181,33 +180,6 @@ body.surfaces #fundamental-control-root {
 
     body.surfaces #spectral-system-root {
         grid-column: 1 / -1;
-    }
-}
-
-@container surface-stack (min-width: 72rem) {
-    body.surfaces #m4l-fundamental-source-panel {
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        grid-template-rows: minmax(min-content, 17rem);
-    }
-
-    body.surfaces #spectral-system-root {
-        grid-column: auto;
-    }
-}
-
-/* Short and wide (a phone in landscape): three across so nothing needs
-   a second row of height; the system panel's toggle row is the widest
-   content, so its column gets the larger share */
-@media (max-height: 30rem) {
-    @container surface-stack (min-width: 40rem) {
-        body.surfaces #m4l-fundamental-source-panel {
-            grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.35fr);
-            grid-template-rows: auto;
-        }
-
-        body.surfaces #spectral-system-root {
-            grid-column: auto;
-        }
     }
 }
 
