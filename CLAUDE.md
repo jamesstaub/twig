@@ -276,14 +276,35 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
   Toggle switches app-wide use the muted `--toggle-*` tokens (theme.css),
   not the red/green accents.
 - Source surface: `#m4l-fundamental-source-panel` = fundamental (Hz,
-  octave, one-octave keyboard — `body.coarse` enlarges the keys,
-  keyboard.css), signal source, overtone system, wrapping across the top
-  of the stack. The Overtone System's description is an in-flow disclosure
+  octave, one-octave keyboard), signal source (mode, waveform picker,
+  oscillator preview), overtone system. It is a GRID sized by container
+  queries on the stack's own width (`.surface-stack` is `container:
+  surface-stack / inline-size`, page-arrangement.css) — the viewport lies
+  once the toolbar, dock or sheet take their share: one column under
+  40rem (phones), fundamental | source over a full-width system panel
+  from 40rem, three across from 72rem and on short screens (`max-height:
+  30rem`, a phone in landscape). Everything in it flexes rather than
+  being fixed: the keyboard's keys share its width and its height floats
+  between a floor and a cap (keyboard.css; `body.coarse` raises the
+  floor), and the preview's AREA owns the height
+  (`#current-waveform-canvas-area`: `flex:1`, a `vh`-scaled floor) with
+  the canvas absolutely filling it — `WaveformComponent.boxSize()` sizes
+  the bitmap from that box (width AND height changes, ResizeObserver) and
+  has no dependency on the tonewheel's p5 instance. Where the system panel
+  is full-width its dials sit beside the menu (form-controls.css). The
+  Overtone System's description is an in-flow disclosure
   (`#system-description`) toggled by the "?" button — click, not hover
   (jweb/touch have no reliable hover), in flow, not floating;
   `setDescription` writes trusted config.js HTML only. Start harmonic and
   the system's tunable params render as one inline row of Dials
-  (`#system-dials-row`).
+  (`#system-dials-row`). Under them, `#system-frequencies`: every
+  overtone's frequency as ONE sideways-scrolling row (never wrapping, so
+  the panel's height doesn't depend on the voice count), each entry
+  tinted `partialColor`; `renderFrequencies` rebuilds items only when the
+  voice count changes, and `FUNDAMENTAL_CHANGED` calls it alone (a sweep
+  must not rebuild the menu). Entries go one-line where height is scarce;
+  hidden in embed. `formatFrequency` / `formatHz` (utils.js) are the one
+  voice-frequency formatter (pads, this list).
 - Visualizations (side column): waveform (`WaveformController`, p5,
   `#waveform-canvas-area`; the Source panel has a second, `mode: 'single'`
   instance for the chosen oscillator), spectrum (`SpectrumComponent`,

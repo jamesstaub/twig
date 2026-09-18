@@ -51,7 +51,15 @@
     flex-shrink: 0;
 }
 
+/* The fundamental panel's header: in a narrow column the Hz field drops
+   under the title rather than colliding with it or running off the edge */
+#fundamental-control-root > label {
+    flex-wrap: wrap;
+    gap: 0.25rem 0.5rem;
+}
+
 .fundamental-input-group {
+    flex: 0 0 auto;
     display: flex;
     align-items: center;
     gap: 0.5rem;
@@ -83,10 +91,11 @@
     display: flex;
     justify-content: center;
     align-items: center;
-    gap: 1.5rem;
+    gap: clamp(0.5rem, 5%, 1.5rem);
 }
 
 .octave-display {
+    white-space: nowrap;
     font-weight: var(--font-weight-bold);
     font-size: var(--font-size-lg);
     color: var(--text-accent);
@@ -142,6 +151,112 @@
     flex-wrap: wrap;
     align-items: flex-start;
     gap: 0.75rem;
+}
+
+/* Every overtone's frequency: ONE row (unit, then the list) that scrolls
+   sideways rather than wrapping, so the panel's height never depends on
+   the voice count. Each entry wears its drawbar's color (--partial-color,
+   set per item) and grows to share the row when they all fit. */
+.system-frequencies-row {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    min-width: 0;
+}
+
+.system-frequencies-unit {
+    flex: 0 0 auto;
+    font-size: var(--font-size-xs);
+    color: var(--text-muted);
+}
+
+.system-frequencies {
+    flex: 1 1 0;
+    min-width: 0;
+    display: flex;
+    gap: 0.25rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+
+.system-frequency {
+    flex: 1 0 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 0.15rem 0.4rem;
+    font-family: var(--font-mono);
+    line-height: 1.2;
+    background-color: var(--surface-deep);
+    border: 1px solid var(--border-subtle);
+    border-bottom: 2px solid var(--partial-color);
+    border-radius: var(--radius-sm);
+}
+
+.system-frequency > .system-frequency-label {
+    font-size: var(--font-size-2xs-alt);
+    font-weight: var(--font-weight-bold);
+    color: var(--text-muted);
+}
+
+.system-frequency > .system-frequency-hz {
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-normal);
+    color: var(--text-primary);
+    white-space: nowrap;
+}
+
+/* Where height is the scarce axis — the one-column phone stack, and the
+   three-across landscape layout — an entry is one line ("3:1 392.4")
+   instead of two. */
+@container surface-stack (max-width: 39.99rem) {
+    .system-frequency {
+        flex-direction: row;
+        align-items: baseline;
+        gap: 0.3rem;
+    }
+}
+
+@media (max-height: 30rem) {
+    .system-frequency {
+        flex-direction: row;
+        align-items: baseline;
+        gap: 0.3rem;
+    }
+}
+
+/* Where the Overtone System panel runs the full width of the Source
+   surface (the medium layout in page-arrangement.css: a stack 40–72rem
+   wide) one column of controls leaves most of it empty — the dials move
+   beside the menu instead: [menu / description / toggle] | [dials]. Not
+   on short screens, where that layout is three-across and the panel is a
+   narrow third. */
+@media (min-height: 30.01rem) {
+    @container surface-stack (min-width: 40rem) and (max-width: 71.99rem) {
+        body.surfaces #spectral-system-root {
+            display: grid;
+            grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+            align-items: start;
+            gap: 0.4rem 1.5rem;
+        }
+
+        body.surfaces #spectral-system-root > label,
+        body.surfaces #spectral-system-root > .system-frequencies-row {
+            grid-column: 1 / -1;
+        }
+
+        body.surfaces #spectral-system-root > * {
+            grid-column: 1;
+        }
+
+        body.surfaces #spectral-system-root > #system-dials-row {
+            grid-column: 2;
+            grid-row: 2 / span 3;
+        }
+    }
 }
 
 /* Overtone/subharmonic toggle row's wrapper, beneath the system select */

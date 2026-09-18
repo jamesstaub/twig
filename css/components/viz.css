@@ -9,11 +9,22 @@
     display: block;
 }
 
-/* Small preview only — this drives the whole Source/Fundamental/Overtone
-   System row's height via align-items:stretch otherwise, since it's the
-   one column with no other natural height cap. */
+/* The Source panel's oscillator preview: the AREA has the height (a floor
+   that scales with the screen, growing with its panel where the layout
+   stretches it — page-arrangement.css) and the canvas fills it absolutely,
+   so the canvas can never drive its panel's height back
+   (WaveformComponent sizes the bitmap from this box). */
+#current-waveform-canvas-area {
+    position: relative;
+    flex: 1 1 auto;
+    min-height: clamp(4.5rem, 12vh, 9rem);
+    max-height: 16rem;
+}
+
 #current-waveform-canvas-area canvas {
-    height: 64px !important;
+    position: absolute;
+    inset: 0;
+    height: 100% !important;
     min-height: 0;
 }
 

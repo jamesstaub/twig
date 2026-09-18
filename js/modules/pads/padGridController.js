@@ -1,7 +1,7 @@
 import { BaseController } from '../base/BaseController.js';
 import { PadGridComponent } from './PadGridComponent.js';
 import { AppState } from '../../config.js';
-import { calculateFrequency } from '../../utils.js';
+import { calculateFrequency, formatHz } from '../../utils.js';
 import { getVoiceLevel, triggerHarmonicAttack, triggerHarmonicRelease } from '../../audio.js';
 import { OvertoneSignalActions } from '../overtoneSignal/overtoneSignalActions.js';
 import { TRIGGER_KEY_LABELS } from '../../KeyboardShortcuts.js';
@@ -26,10 +26,10 @@ export class PadGridController extends BaseController {
     getProps() {
         const sys = AppState.currentSystem;
         const labels = (AppState.isSubharmonic && sys.subharmonicLabels) ? sys.subharmonicLabels : sys.labels;
-        const voices = sys.ratios.map((ratio, i) => {
-            const hz = calculateFrequency(ratio);
-            return { label: labels[i] || `#${i + 1}`, hz: `${hz.toFixed(hz >= 100 ? 1 : 2)} Hz` };
-        });
+        const voices = sys.ratios.map((ratio, i) => ({
+            label: labels[i] || `#${i + 1}`,
+            hz: formatHz(calculateFrequency(ratio)),
+        }));
         return {
             voices,
             envelopeMode: OvertoneSignalActions.getEnvelopeMode(),

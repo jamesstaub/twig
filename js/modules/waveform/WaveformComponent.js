@@ -16,6 +16,8 @@ export function lcmArray(arr) {
     return arr.reduce((a, b) => lcm(a, b), 1);
 }
 
+const DEFAULT_HEIGHT = 150;
+
 /**
  * Create a reusable p5 sketch for waveform drawing
  * @param {WaveformComponent} component - The component instance
@@ -24,38 +26,45 @@ function createWaveformSketch(component) {
     return function (p) {
         component._waveformP5 = p;
 
-        p.setup = function () {
-            const container = component.el
-            const width = container?.clientWidth || 400;
-            const height = 150;
+        // The bitmap matches the container's box: its width always, and its
+        // height where CSS gives the container one (the Source panel's
+        // preview stretches with its panel) — an empty, unsized container
+        // measures 0 and gets the default.
+        const boxSize = () => ({
+            width: component.el?.clientWidth || 400,
+            height: component.el?.clientHeight || DEFAULT_HEIGHT,
+        });
 
-            p.createCanvas(width, height).parent(container);
+        p.setup = function () {
+            const { width, height } = boxSize();
+            p.createCanvas(width, height).parent(component.el);
             p.noLoop(); // Only redraw on demand
         };
 
         p.windowResized = function () {
-            const container = component.el
-            const width = container?.clientWidth || 400;
-            const height = 150;
+            const { width, height } = boxSize();
             p.resizeCanvas(width, height);
             p.redraw();
         };
         // Container reflows that aren't window resizes (panel gating,
-        // layout settling after load) — keep the bitmap at the real width
+        // layout settling after load, a surface being shown) — keep the
+        // bitmap at the real size
         if (typeof ResizeObserver !== "undefined" && component.el) {
             // Resizing the canvas inside the callback would itself change the
             // observed box in the same frame ("ResizeObserver loop" errors) —
             // defer to the next frame instead
-            let last = component.el.clientWidth;
+            let last = boxSize();
             new ResizeObserver(() => {
-                const w = component.el.clientWidth;
-                if (w && w !== last) { last = w; requestAnimationFrame(() => p.windowResized()); }
+                const next = boxSize();
+                if (!component.el.clientWidth || (next.width === last.width && next.height === last.height)) return;
+                last = next;
+                requestAnimationFrame(() => p.windowResized());
             }).observe(component.el);
         }
 
         p.draw = function () {
             const props = component.props;
-            if (!props?.p5Instance || !props.harmonicAmplitudes?.length) return;
+            if (!props?.harmonicAmplitudes?.length) return;
 
             const width = p.width;
             const height = p.height;
@@ -152,15 +161,10 @@ export default class WaveformComponent extends BaseComponent {
 
     /**
      * Render waveform with new props
-     * @param {object} props - Includes p5Instance, currentWaveform, harmonicAmplitudes, currentSystem
+     * @param {object} props - Includes currentWaveform, harmonicAmplitudes, currentSystem
      */
     render(props) {
         this.props = props;
-
-        if (!props.p5Instance) {
-            requestAnimationFrame(() => this.render(props));
-            return;
-        }
 
         if (!this._waveformP5) {
             // Create the sketch and its canvas exactly once

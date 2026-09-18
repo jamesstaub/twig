@@ -139,28 +139,76 @@ body.surfaces .surface-side > #tonewheel-container {
     }
 }
 
-/* --- Source surface: fundamental, source and overtone system across
-       the top of the stack, wrapping on narrow screens; the fundamental
-       first (the markup order is the embed band's) --- */
+/* --- Source surface: fundamental, source, overtone system — a grid that
+       follows the STACK's width (container query: the viz dock and the
+       inspector sheet narrow it, not just the viewport):
+         narrow   one column, natural heights
+         medium   fundamental | source, the system across the bottom
+         wide     all three side by side
+       (the fundamental first — the markup order is the embed band's).
+       Panels in a row are equal height; the top row may grow into spare
+       height up to a cap, and what grows is the keyboard and the
+       oscillator preview (both flexible — keyboard.css, viz.css). A short
+       screen scrolls inside the panel. --- */
+body.surfaces .surface-stack {
+    container: surface-stack / inline-size;
+}
+
 body.surfaces #m4l-fundamental-source-panel {
-    display: flex;
-    flex-wrap: wrap;
-    align-content: flex-start;
-    gap: 0.4rem;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    align-content: start;
+    gap: 0.5rem;
     flex: 1 1 auto;
     min-height: 0;
     overflow-y: auto;
 }
 
 body.surfaces #m4l-fundamental-source-panel > .labeled-control {
-    flex: 1 1 20rem;
-    max-width: none;
     margin: 0;
-    align-self: flex-start;
+    min-width: 0;
 }
 
 body.surfaces #fundamental-control-root {
     order: -1;
+}
+
+@container surface-stack (min-width: 40rem) {
+    body.surfaces #m4l-fundamental-source-panel {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        grid-template-rows: minmax(min-content, 17rem) auto;
+    }
+
+    body.surfaces #spectral-system-root {
+        grid-column: 1 / -1;
+    }
+}
+
+@container surface-stack (min-width: 72rem) {
+    body.surfaces #m4l-fundamental-source-panel {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        grid-template-rows: minmax(min-content, 17rem);
+    }
+
+    body.surfaces #spectral-system-root {
+        grid-column: auto;
+    }
+}
+
+/* Short and wide (a phone in landscape): three across so nothing needs
+   a second row of height; the system panel's toggle row is the widest
+   content, so its column gets the larger share */
+@media (max-height: 30rem) {
+    @container surface-stack (min-width: 40rem) {
+        body.surfaces #m4l-fundamental-source-panel {
+            grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.35fr);
+            grid-template-rows: auto;
+        }
+
+        body.surfaces #spectral-system-root {
+            grid-column: auto;
+        }
+    }
 }
 
 /* --- The drawbar strip (Gain / Filter / Convolution / ADSR): fills the

@@ -104,9 +104,14 @@ export function getVoicePan(index) {
     return index === 0 ? 0 : (index % 2 === 0 ? -0.8 : 0.8);
 }
 
-/** "660 Hz" / "1.10 kHz" style display formatting. */
+/** A voice's frequency for display, unit-less: "660.0", "27.50". */
+export function formatFrequency(hz) {
+    return hz.toFixed(hz >= 100 ? 1 : 2);
+}
+
+/** The same with its unit: "660.0 Hz". */
 export function formatHz(hz) {
-    return hz >= 1000 ? `${(hz / 1000).toFixed(2)} kHz` : `${Math.round(hz)} Hz`;
+    return `${formatFrequency(hz)} Hz`;
 }
 
 export function calculateFrequency(ratio) {

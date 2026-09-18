@@ -4,7 +4,8 @@ import { BaseController } from '../base/BaseController.js';
 import { SpectralSystemActions } from './spectralSystemActions.js';
 import { SpectralSystemComponent } from './SpectralSystemComponent.js';
 import { AppState, spectralSystems } from '../../config.js';
-import { SPECTRAL_SYSTEM_CHANGED, SUBHARMONIC_TOGGLED } from '../../events.js';
+import { FUNDAMENTAL_CHANGED, SPECTRAL_SYSTEM_CHANGED, SUBHARMONIC_TOGGLED } from '../../events.js';
+import { calculateFrequency, formatFrequency } from '../../utils.js';
 
 export class SpectralSystemController extends BaseController {
 
@@ -34,7 +35,14 @@ export class SpectralSystemController extends BaseController {
      * every component.render(props).
      */
     getProps() {
+        const sys = AppState.currentSystem;
+        const labels = (AppState.isSubharmonic && sys.subharmonicLabels) ? sys.subharmonicLabels : sys.labels;
         return {
+            voices: sys.ratios.map((ratio, i) => ({
+                ratio,
+                label: labels[i] || `#${i + 1}`,
+                hz: formatFrequency(calculateFrequency(ratio)),
+            })),
             systems: spectralSystems,
             currentSystem: AppState.currentSystem,
             currentSystemIndex: AppState.currentSystemIndex,
@@ -87,6 +95,12 @@ export class SpectralSystemController extends BaseController {
     bindExternalEvents() {
         document.addEventListener(SPECTRAL_SYSTEM_CHANGED, () => {
             this.update();
+        });
+
+        // Only the frequency list depends on the fundamental — a sweep
+        // must not rebuild the menu under an open dropdown
+        document.addEventListener(FUNDAMENTAL_CHANGED, () => {
+            this.component.renderFrequencies(this.getProps());
         });
 
         document.addEventListener(SUBHARMONIC_TOGGLED, () => {

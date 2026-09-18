@@ -1,16 +1,22 @@
-/* One-octave piano keyboard. */
+/* One-octave piano keyboard (the Source surface's fundamental panel).
+   Flexible both ways: the white keys share the panel's width up to a
+   comfortable maximum, and the keyboard takes whatever height its panel
+   has to spare between a playable floor and a ceiling — so it fits a
+   phone column and fills a stretched desktop panel alike. */
 
 .keyboard-container {
     position: relative;
-    height: 70px;
+    flex: 1 1 auto;
+    min-height: 4.5rem;
+    max-height: 8rem;
     display: flex;
+    align-items: stretch;
     justify-content: center;
     margin: 6px 0;
 }
 
 .key {
     position: relative;
-    height: 70px;
     cursor: pointer;
     border: 1px solid var(--surface-app);
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.4);
@@ -25,22 +31,28 @@
 
 .key.white {
     background-color: var(--key-white);
-    width: 40px;
+    flex: 1 1 0;
+    min-width: 1.5rem;
+    max-width: 3rem;
     margin-right: -1px;
     border-radius: 0 0 5px 5px;
     color: var(--key-black);
     z-index: 1;
 }
 
+/* Sits over the seam between two whites: zero net width (the negative
+   margins cancel it), 60% of the keyboard's height */
 .key.black {
     background-color: var(--key-black);
-    width: 25px;
-    height: 42px;
-    margin-left: -12px;
-    margin-right: -12px;
+    flex: 0 0 1.5rem;
+    align-self: flex-start;
+    height: 60%;
+    margin-left: -0.75rem;
+    margin-right: -0.75rem;
     z-index: 2;
     color: var(--key-white);
     padding-bottom: 3px;
+    font-size: var(--font-size-2xs-alt);
 }
 
 .key.active {
@@ -56,20 +68,9 @@
     background-color: var(--accent-positive-strong);
 }
 
-/* ---- Fundamental strip on the Trigger surface: touch-sized keyboard ---- */
-
-body.coarse .keyboard-container,
-body.coarse .key {
-    height: 96px;
-}
-
-/* 7 × 36px white keys = 252px: one octave fits a phone beside the toolbar */
-body.coarse .key.white {
-    width: 36px;
-}
-
-body.coarse .key.black {
-    width: 24px;
+/* Touch: a taller floor, bigger octave buttons */
+body.coarse .keyboard-container {
+    min-height: 5.5rem;
 }
 
 body.coarse .btn-octave {
@@ -77,22 +78,11 @@ body.coarse .btn-octave {
     font-size: var(--font-size-base);
 }
 
-/* Phones: the keyboard gives up height for the pads below it (the
-   fundamental strip, source picker and pads share one short screen) */
-@media (max-width: 48rem) {
-    body.surfaces .keyboard-container,
-    body.surfaces .key,
-    body.surfaces.coarse .keyboard-container,
-    body.surfaces.coarse .key {
-        height: 52px;
-    }
-
-    body.surfaces .key.black,
-    body.surfaces.coarse .key.black {
-        height: 32px;
-    }
-
-    body.surfaces .keyboard-container {
+/* Short screens (a phone in landscape): every row gives up height */
+@media (max-height: 30rem) {
+    .keyboard-container,
+    body.coarse .keyboard-container {
+        min-height: 3.25rem;
         margin: 2px 0;
     }
 }

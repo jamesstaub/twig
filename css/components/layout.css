@@ -99,10 +99,13 @@
     color: var(--text-label-strong);
 }
 
-/* Groups the octave controls + piano keyboard under the fundamental input */
+/* Groups the octave controls + piano keyboard under the fundamental
+   input; centered when its panel is taller than it needs (a stretched
+   grid row on the Source surface) */
 .frequency-control-group {
     flex: 1;
     display: flex;
     flex-direction: column;
+    justify-content: center;
     gap: 0.5rem;
 }

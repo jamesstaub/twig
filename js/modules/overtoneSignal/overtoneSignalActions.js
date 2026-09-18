@@ -13,7 +13,7 @@ import { OVERTONE_SIGNAL_CHANGED, ENVELOPE_MODE_CHANGED } from "../../events.js"
  */
 // Resonance ceiling shared by the modal dial, the drawbar filter view,
 // and the OSC clamp — one number, three surfaces.
-export const Q_MAX = 40;
+export const Q_MAX = 50;
 
 // Overdrive ceiling (250%), shared the same way. 1 = full tanh saturation,
 // beyond that the curve hardens toward a clipper.

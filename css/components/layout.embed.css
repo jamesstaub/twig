@@ -121,3 +121,8 @@ body.embed #m4l-fundamental-source-panel .control-label-text,
 body.embed #system-info-btn {
     display: none;
 }
+
+/* The band has no height to spare for the frequency list */
+body.embed .system-frequencies-row {
+    display: none;
+}

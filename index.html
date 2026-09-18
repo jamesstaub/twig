@@ -122,7 +122,7 @@
                     <!-- Fundamental & Waveform Controls Row -->
                     <div id="fundamental-control-root" class="labeled-control">
                         <label for="fundamental-input">
-                            <span class="control-label-text">Fundamental Frequency</span>
+                            <span class="control-label-text">Fundamental</span>
                             <span class="fundamental-input-group">
                                 <input type="number" id="fundamental-input" class="fundamental-input" value="130.81"
                                     step="0.01"> Hz
@@ -179,6 +179,12 @@
                                 <span id="subharmonic-label" class="toggle-label inactive">Subharmonic
                                     <small class="toggle-sublabel">utonality</small></span>
                             </div>
+                        </div>
+                        <!-- Every overtone's frequency, one sideways-scrolling row -->
+                        <div class="system-frequencies-row">
+                            <div class="system-frequencies-unit">Hz</div>
+                            <ol id="system-frequencies" class="system-frequencies"
+                                aria-label="Overtone frequencies in hertz"></ol>
                         </div>
                     </div>
                 </div>

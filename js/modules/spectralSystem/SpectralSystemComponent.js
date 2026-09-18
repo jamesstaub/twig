@@ -1,5 +1,6 @@
 import BaseComponent from "../base/BaseComponent.js";
 import { Dial } from "../generic/dial/Dial.js";
+import { partialColor } from "../../theme.js";
 import {
     COMPRESS_A_MAX, COMPRESS_A_MIN, DEFAULT_COMPRESS_A,
     DEFAULT_STIFFNESS_B, DEFAULT_STRETCH_A, DEFAULT_TUBE_CLOSEDNESS,
@@ -76,7 +77,7 @@ export class SpectralSystemComponent extends BaseComponent {
     /**
      * Main render cycle: receives fresh props from BaseController.
      */
-    render({ systems, currentSystem, currentSystemIndex, isSubharmonic, startHarmonic, systemParams }) {
+    render({ systems, currentSystem, currentSystemIndex, isSubharmonic, startHarmonic, systemParams, voices }) {
         const selectEl = this.q('#ratio-system-select');
 
         if (!selectEl) return;
@@ -97,6 +98,7 @@ export class SpectralSystemComponent extends BaseComponent {
         this.setDescription(currentSystem?.description || '');
 
         this.renderDials({ currentSystem, startHarmonic, systemParams });
+        this.renderFrequencies({ voices });
 
         // --- Subharmonic toggle ---
         this.renderSubharmonicToggle({ isSubharmonic });
@@ -109,6 +111,36 @@ export class SpectralSystemComponent extends BaseComponent {
         if (currentSystemIndex >= 0) selectEl.value = currentSystemIndex;
         this.setDescription(currentSystem?.description || '');
         this.renderDials({ currentSystem, startHarmonic, systemParams });
+    }
+
+    /**
+     * The overtone frequencies as one horizontal list, each entry tinted
+     * like its drawbar. Entries are rebuilt only when the voice count
+     * changes; a fundamental sweep just rewrites the text.
+     */
+    renderFrequencies({ voices }) {
+        const list = this.q('#system-frequencies');
+        if (!list) return;
+
+        if (list.children.length !== voices.length) {
+            list.replaceChildren(...voices.map(() => {
+                const item = document.createElement('li');
+                item.className = 'system-frequency';
+                const label = document.createElement('span');
+                label.className = 'system-frequency-label';
+                const hz = document.createElement('span');
+                hz.className = 'system-frequency-hz';
+                item.append(label, hz);
+                return item;
+            }));
+        }
+
+        voices.forEach((voice, i) => {
+            const item = list.children[i];
+            item.style.setProperty('--partial-color', partialColor(voice.ratio));
+            item.children[0].textContent = voice.label;
+            item.children[1].textContent = voice.hz;
+        });
     }
 
     /**

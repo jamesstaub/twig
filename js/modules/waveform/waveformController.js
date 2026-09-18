@@ -16,9 +16,8 @@ export class WaveformController extends BaseController {
     }
 
     getProps() {
-        const { p5Instance, harmonicAmplitudes, currentSystem, currentWaveform, customWaveCoefficients, isSubharmonic } = AppState;
+        const { harmonicAmplitudes, currentSystem, currentWaveform, customWaveCoefficients, isSubharmonic } = AppState;
         return {
-            p5Instance,
             harmonicAmplitudes,
             currentSystem,
             currentWaveform,
