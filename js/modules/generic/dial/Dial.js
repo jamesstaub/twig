@@ -5,8 +5,8 @@ import { themeColor } from '../../../theme.js';
  *
  * Canvas-drawn arc dial with vertical-drag interaction:
  *   drag up/down to change, shift-drag for fine control, double-click to
- *   reset to the initial value. Exposes .el (mount it anywhere) and
- *   .setValue() for external state sync (no onChange echo).
+ *   reset (to `resetValue`, else the initial value). Exposes .el (mount
+ *   it anywhere) and .setValue() for external state sync (no onChange echo).
  *
  * Its name and current value are part of the widget — a caption above the
  * arc and a readout below it, always visible, always in the same place.
@@ -29,12 +29,15 @@ export class Dial {
         format = null,
         onChange = null,
         fineOnShift = true,
+        resetValue = null,
     } = {}) {
         this.min = min;
         this.max = max;
         this.step = step;
         this.value = this._quantize(value);
-        this.initialValue = this.value;
+        // Double-click returns here: the parameter's default when the host
+        // names one (`resetValue`), else whatever it was built with
+        this.initialValue = resetValue === null ? this.value : this._quantize(resetValue);
         this.size = size;
         this.label = label;
         this.color = color;
@@ -62,7 +65,6 @@ export class Dial {
         // rule for the viz canvases that would stretch (and blur) dials
         this.canvas.style.setProperty('width', `${size}px`, 'important');
         this.canvas.style.setProperty('height', `${size}px`, 'important');
-        if (this.grabFocus) this.canvas.tabIndex = -1;
         this.el.appendChild(this.canvas);
 
         this.valueEl = document.createElement('span');

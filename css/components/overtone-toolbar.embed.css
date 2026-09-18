@@ -1,0 +1,47 @@
+/* Embed-mode overrides for overtone-toolbar.css: the ~150px band gives
+   the bar one short row, never wrapping — the dock stays inline between
+   the groups, and the shape panel shrinks to the row so the bars don't
+   move when it shows. The strip is `min-width: max-content` there, so an
+   appearing panel would WIDEN it (and slide link/shape sideways): the
+   dock reserves the panel's width up front instead. */
+
+body.embed .overtone-toolbar {
+    --overtone-toolbar-row: 1.75rem;
+    container-type: normal; /* no narrow layouts in the band */
+    flex-wrap: nowrap;
+    padding-top: 0.125rem;
+    gap: 0 0.5rem;
+}
+
+body.embed .overtone-toolbar .action-btn,
+body.embed .overtone-mode-btn {
+    padding: 0 0.4rem;
+    font-size: var(--font-size-2xs);
+    line-height: 1.3rem;
+}
+
+body.embed .overtone-mode-btn svg {
+    width: 0.8rem;
+    height: 0.8rem;
+}
+
+body.embed .overtone-toolbar-dock {
+    flex: 1 0 17rem;
+}
+
+body.embed .shape-panel {
+    padding: 0 0.4rem;
+    gap: 0.4rem;
+    max-height: var(--overtone-toolbar-row);
+}
+
+body.embed .shape-panel-preview {
+    width: 5rem !important;
+    height: 1.1rem !important;
+}
+
+body.embed .shape-panel-btn,
+body.embed .shape-panel-cycles-label {
+    font-size: var(--font-size-2xs);
+    line-height: 1.2rem;
+}

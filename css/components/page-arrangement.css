@@ -190,12 +190,16 @@ body.surfaces #settings-control-root {
     overflow-y: auto;
 }
 
-/* --- Sequence surface: the inspector fills the card; a tall editor on a
-       short screen scrolls inside the panel rather than the page --- */
+/* --- Sequence surface: the inspector scrolls inside its own area, above
+       the panel's fixed bottom toolbar --- */
 body.surfaces #sequence-control-root {
     width: 100%;
     flex: 1 1 auto;
     min-height: 0;
+}
+
+body.surfaces #sequence-inspector {
+    flex: 1 1 auto;
+    min-height: 0;
     overflow-y: auto;
-    align-items: stretch;
 }

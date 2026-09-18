@@ -47,29 +47,12 @@ body.embed .drawbar-label {
     font-size: var(--font-size-2xs);
 }
 
-/* Reset/Randomize ride the header row (right of the view tabs) instead
-   of a footer row — the freed height goes to the columns below */
-body.embed #drawbars-control-root {
-    position: relative;
-}
-
-/* Tabs hug the title on the left so the absolute buttons own the right.
-   (This used to target Tailwind's `.flex.justify-center` utility classes,
-   dead since the de-Tailwind pass renamed the row to `.drawbars-actions` —
-   fixed below, along with the reserved width for its now-3 buttons.) */
+/* Tabs hug the title on the left */
 body.embed #drawbars-control-root > span {
     display: flex;
     align-items: center;
     justify-content: flex-start;
     gap: 0.5rem;
-    padding-right: 12.5rem; /* keep tabs clear of the buttons */
-}
-
-body.embed #drawbars-control-root > .drawbars-actions {
-    position: absolute;
-    top: 0.125rem;
-    right: 0.375rem;
-    margin: 0;
 }
 
 /* Fills its column's full height — see --drawbar-track-length above */

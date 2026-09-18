@@ -28,3 +28,5 @@ export const SURFACE_CHANGED = 'surface-changed';
 export const INSPECTOR_CHANGED = 'inspector-changed';
 // The link-all lock toggled (UI-only) — detail: { locked }
 export const LINK_ALL_CHANGED = 'link-all-changed';
+// Shape mode changed: lock, held shift, contour or cycles (UI-only) — detail: { on, held }
+export const SHAPE_MODE_CHANGED = 'shape-mode-changed';

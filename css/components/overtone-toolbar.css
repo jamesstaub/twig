@@ -1,0 +1,213 @@
+/* ================================
+   OVERTONE TOOLBAR — the fixed bar at the bottom of every per-overtone
+   panel (js/modules/overtoneToolbar/), plus the shape panel it docks
+   (js/modules/shape/ShapePanel.js)
+   ================================
+
+     [Reset][Randomize]  [slot]  [dock ···········]  [link][shape]
+
+   Nothing in the bar may move when the shape panel appears:
+
+   - Wide: the dock is a permanent `flex: 1` cell between the groups, so
+     the groups (and the slot) sit where they sit whether it is empty or
+     not; the button groups carry the row's min-height, which is at least
+     the panel's height, so the row doesn't grow either.
+   - Narrow (container query — the bar's own width, not the viewport's:
+     a side sheet narrows it too): the dock is a full-width row ABOVE
+     the buttons. It is empty (0px) until shape mode is on, then it takes
+     its height from the scrolling area above the bar — the buttons,
+     anchored to the panel's bottom edge, stay put. The slot gets its own
+     row the same way, and the mode buttons drop their text. */
+
+.overtone-toolbar {
+    --overtone-toolbar-row: 2.75rem;
+    container-type: inline-size;
+    flex: 0 0 auto;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0 0.5rem;
+    padding-top: 0.35rem;
+    border-top: 1px solid var(--border-subtle);
+}
+
+.overtone-toolbar-group {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    min-height: var(--overtone-toolbar-row);
+}
+
+.overtone-toolbar-slot {
+    flex: 0 1 auto;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+}
+
+.overtone-toolbar-slot:empty {
+    display: none;
+}
+
+.overtone-toolbar-dock {
+    flex: 1 1 0;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* layout.css styles every span inside a panel as a heading row */
+.overtone-toolbar .overtone-toolbar-btn-text {
+    display: inline;
+    margin: 0;
+    color: inherit;
+    font-weight: inherit;
+}
+
+/* ---- link | shape ---- */
+
+.overtone-mode-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.2rem 0.7rem;
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-medium);
+    color: var(--text-muted);
+    background: none;
+    border: 1px solid var(--border-subtle);
+    border-radius: 999px;
+    cursor: pointer;
+    transition: color 0.15s, border-color 0.15s, background-color 0.15s;
+}
+
+.overtone-mode-btn svg {
+    flex: 0 0 auto;
+    width: 1rem;
+    height: 1rem;
+}
+
+.overtone-mode-btn:hover {
+    color: var(--text-accent);
+}
+
+.overtone-mode-btn[aria-pressed="true"] {
+    color: var(--text-accent);
+    border-color: var(--accent-primary);
+    background-color: color-mix(in srgb, var(--accent-primary) 18%, transparent);
+}
+
+body.coarse .overtone-mode-btn {
+    padding: 0.45rem 0.8rem;
+    font-size: var(--font-size-sm);
+}
+
+/* ---- Shape panel: one compact row — contour preview, contour stepper,
+       cycle buttons. No taller than the toolbar row (see above). ---- */
+
+.shape-panel {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    max-width: 100%;
+    box-sizing: border-box;
+    padding: 0.2rem 0.6rem;
+    background-color: var(--surface-deep);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+}
+
+/* Beats the global viz-canvas sizing (viz.css `canvas { … !important }`) */
+.shape-panel-preview {
+    flex: 0 1 7.5rem;
+    display: block;
+    width: 7.5rem !important;
+    min-width: 3rem;
+    height: 1.75rem !important;
+    min-height: 0 !important;
+    max-width: none !important;
+    border: 1px solid var(--border-subtle) !important;
+    border-radius: 3px !important;
+    box-shadow: none !important;
+}
+
+.shape-panel-cycles {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.shape-panel-cycles-label {
+    font-family: var(--font-mono);
+    font-size: var(--font-size-sm);
+    color: var(--text-accent);
+    min-width: 2.2em;
+    text-align: center;
+}
+
+.shape-panel-btn {
+    padding: 0 0.5rem;
+    font-size: var(--font-size-sm);
+}
+
+/* ---- Narrow bars ---- */
+
+/* The dock no longer fits between the groups: its own row, on top */
+@container (max-width: 46rem) {
+    .overtone-toolbar-dock {
+        order: -2;
+        flex: 1 1 100%;
+    }
+
+    .overtone-toolbar-dock > .shape-panel {
+        margin-bottom: 0.35rem;
+    }
+}
+
+/* …which happens sooner when the slot is in use (the Sequence panel) */
+@container (max-width: 62rem) {
+    .overtone-toolbar-slot:not(:empty) ~ .overtone-toolbar-dock {
+        order: -2;
+        flex: 1 1 100%;
+    }
+
+    .overtone-toolbar-slot:not(:empty) ~ .overtone-toolbar-dock > .shape-panel {
+        margin-bottom: 0.35rem;
+    }
+}
+
+/* Phone widths: the slot takes a row too (under the dock, over the
+   buttons), and link/shape go icon-only so both groups share one row */
+@container (max-width: 34rem) {
+    .overtone-toolbar-slot {
+        order: -1;
+        flex: 1 1 100%;
+        justify-content: center;
+        padding-bottom: 0.25rem;
+    }
+}
+
+@container (max-width: 24rem) {
+    .overtone-toolbar-group {
+        gap: 0.25rem;
+    }
+
+    .overtone-toolbar .action-btn {
+        padding: 0.35rem 0.55rem;
+        font-size: var(--font-size-sm);
+    }
+
+    .overtone-toolbar .overtone-mode-btn .overtone-toolbar-btn-text {
+        display: none;
+    }
+
+    .overtone-mode-btn,
+    body.coarse .overtone-mode-btn {
+        padding: 0.45rem 0.6rem;
+    }
+}

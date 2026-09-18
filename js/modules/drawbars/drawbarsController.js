@@ -5,8 +5,8 @@ import {
     DRAWBAR_CHANGE,
     DRAWBARS_RANDOMIZED,
     DRAWBARS_RESET,
-    LINK_ALL_CHANGED,
     OVERTONE_SIGNAL_CHANGED,
+    SHAPE_MODE_CHANGED,
     SPECTRAL_SYSTEM_CHANGED,
     SUBHARMONIC_TOGGLED,
     SURFACE_CHANGED
@@ -14,7 +14,6 @@ import {
 import { BaseController } from "../base/BaseController.js";
 import { AppState } from "../../config.js";
 import { irManager } from "../../dsp/IRManager.js";
-import { linkLock } from "../generic/linkAll.js";
 import { SURFACES, surfaceState } from "../surfaces/surfaceState.js";
 
 const ROOT_ID = "drawbars-control-root";
@@ -22,11 +21,6 @@ const TITLE_ID = "drawbars-title";
 const PARAM_TABS_ID = "drawbars-tabs";
 const FAMILY_TABS_ID = "drawbars-family-tabs";
 const NOTE_ID = "drawbars-note";
-const RESET_DRAWBARS_BUTTON_ID = "reset-drawbars-button";
-const RANDOMIZE_DRAWBARS_BUTTON_ID = "randomize-drawbars-button";
-const SHAPE_TOGGLE_ID = "drawbar-shape-toggle";
-const LINK_TOGGLE_ID = "drawbar-link-toggle";
-const SHAPE_DOCK_ID = "drawbars-shape-dock";
 
 // Below this panel height there is no room for dials under the bars: the
 // family's other parameters become tabs that put them on the bars instead
@@ -38,7 +32,8 @@ const COMPACT_STRIP_HEIGHT = 420;
  * each name one) — or, in the embed band where there is no toolbar, the
  * family tabs in the strip's header. Within a family, the header's
  * parameter tabs (shown only while the strip is compact) choose which
- * parameter the bars edit.
+ * parameter the bars edit. `reset()` / `randomize()` act on the current
+ * family — ui.js hands them to the panel's overtone toolbar.
  */
 export class DrawbarsController extends BaseController {
 
@@ -47,7 +42,6 @@ export class DrawbarsController extends BaseController {
         this.family = "gain";
         this.paramIndex = 0;
         this.compact = false;
-        this.shiftHeld = false;
     }
 
     createComponent(selector) {
@@ -71,40 +65,6 @@ export class DrawbarsController extends BaseController {
         // Assigned by ui.js (this.onInspect) so the strip doesn't know
         // where the editor lives.
         this.component.onInspect = (index) => this.onInspect?.(index);
-        // The strip builds the shape panel; it docks in the tool row under
-        // the bars (the strip itself scrolls sideways and would clip it)
-        this.component.onShapeModeChange = (on, panel) => {
-            const dock = document.getElementById(SHAPE_DOCK_ID);
-            if (dock) {
-                dock.innerHTML = "";
-                if (on && panel) dock.appendChild(panel);
-                dock.hidden = !on;
-            }
-            this.syncModeButtons();
-        };
-    }
-
-    /**
-     * Tool-row modes: shape (row sculpting — the toggle stands in for
-     * holding shift) and link (every edit to all overtones — stands in for
-     * cmd/ctrl). Mutually exclusive; both are tools of the strip's
-     * surfaces, so leaving them drops both. The buttons also light up
-     * while the key they stand in for is held, so the two are visibly the
-     * same thing.
-     */
-    syncModeButtons() {
-        document.getElementById(SHAPE_TOGGLE_ID)?.setAttribute("aria-pressed", String(Boolean(this.component.shapeMode || this.shiftHeld)));
-        document.getElementById(LINK_TOGGLE_ID)?.setAttribute("aria-pressed", String(Boolean(linkLock.on || linkLock.held)));
-    }
-
-    setShapeMode(on) {
-        if (on) linkLock.set(false);
-        this.component.setShapeMode(on);
-    }
-
-    setLinkMode(on) {
-        if (on) this.component.setShapeMode(false);
-        linkLock.set(on);
     }
 
     /** Switch the strip to a parameter family (its first parameter on the bars). */
@@ -162,37 +122,12 @@ export class DrawbarsController extends BaseController {
         document.addEventListener(SPECTRAL_SYSTEM_CHANGED, () => this.update());
         document.addEventListener(SUBHARMONIC_TOGGLED, () => this.update());
 
-        document.getElementById(RESET_DRAWBARS_BUTTON_ID)?.addEventListener("click", () => this.reset());
-        document.getElementById(RANDOMIZE_DRAWBARS_BUTTON_ID)?.addEventListener("click", () => this.randomize());
+        document.addEventListener(SHAPE_MODE_CHANGED, () => this.component.syncShapeMarker());
 
-        document.getElementById(SHAPE_TOGGLE_ID)?.addEventListener("click", () => {
-            this.setShapeMode(!this.component.shapeMode);
-        });
-        document.getElementById(LINK_TOGGLE_ID)?.addEventListener("click", () => this.setLinkMode(!linkLock.on));
-        document.addEventListener(LINK_ALL_CHANGED, (e) => {
-            if (e.detail?.locked) this.component.setShapeMode(false); // exclusive, whoever locked it
-            this.syncModeButtons();
-        });
-        // Shift held = shape for the duration; mirror it on the button
-        const shift = (on) => {
-            if (on === this.shiftHeld) return;
-            this.shiftHeld = on;
-            this.syncModeButtons();
-        };
-        document.addEventListener("keydown", (e) => { if (e.key === "Shift") shift(true); });
-        document.addEventListener("keyup", (e) => { if (e.key === "Shift") shift(e.shiftKey); });
-        window.addEventListener("blur", () => shift(false));
-
-        // The active surface names the family; leaving the strip's surfaces
-        // drops the tool-row modes
+        // The active surface names the family
         document.addEventListener(SURFACE_CHANGED, (e) => {
             const family = SURFACES.find((s) => s.id === e.detail?.active)?.family;
-            if (family) {
-                this.setFamily(family);
-            } else {
-                this.component.resetShape();
-                linkLock.set(false);
-            }
+            if (family) this.setFamily(family);
         });
         const initial = SURFACES.find((s) => s.id === surfaceState.active)?.family;
         if (initial) this.family = initial;
@@ -217,7 +152,6 @@ export class DrawbarsController extends BaseController {
         window.addEventListener("resize", () => this.syncCompact());
 
         this.renderHeader();
-        this.syncModeButtons();
         this.refreshNote();
     }
 

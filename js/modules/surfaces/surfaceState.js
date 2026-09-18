@@ -10,9 +10,11 @@ import { layoutMode } from '../layout/layoutMode.js';
  * multi-surface layouts are a policy change later, not a model change);
  * the dock additionally shows the DOCK_ROOTS beside whatever surface is
  * active. A surface with `family` puts the drawbar strip into that
- * parameter family (drawbarParams.js). Presentation (toolbar, hiding
- * panels, body classes) lives in the surfaces controller/components —
- * this module only holds the state and the registry.
+ * parameter family (drawbarParams.js); `tools` marks the per-overtone
+ * surfaces, whose panels carry the overtone toolbar (link / shape).
+ * Presentation (toolbar, hiding panels, body classes) lives in the
+ * surfaces controller/components — this module only holds the state and
+ * the registry.
  */
 
 export const SURFACES = [
@@ -22,12 +24,12 @@ export const SURFACES = [
     { id: 'source', label: 'Source', roots: ['fundamental-control-root', 'oscillator-control-root', 'spectral-system-root'] },
     // The drawbar strip in each of its parameter families, each with its
     // own visualization beside it
-    { id: 'gain', label: 'Gain', roots: ['drawbars-control-root', 'gain-viz-root'], family: 'gain' },
-    { id: 'filter', label: 'Filter', roots: ['drawbars-control-root', 'filter-viz-root'], family: 'filter' },
+    { id: 'gain', label: 'Gain', roots: ['drawbars-control-root', 'gain-viz-root'], family: 'gain', tools: true },
+    { id: 'filter', label: 'Filter', roots: ['drawbars-control-root', 'filter-viz-root'], family: 'filter', tools: true },
     // The inspector: one voice's sequence, modulation and pulse outs
-    { id: 'sequence', label: 'Sequence', roots: ['sequence-control-root'] },
-    { id: 'convolution', label: 'Convolution', roots: ['drawbars-control-root', 'conv-viz-root'], family: 'convolution' },
-    { id: 'adsr', label: 'ADSR', roots: ['drawbars-control-root', 'adsr-viz-root'], family: 'adsr' },
+    { id: 'sequence', label: 'Sequence', roots: ['sequence-control-root'], tools: true },
+    { id: 'convolution', label: 'Convolution', roots: ['drawbars-control-root', 'conv-viz-root'], family: 'convolution', tools: true },
+    { id: 'adsr', label: 'ADSR', roots: ['drawbars-control-root', 'adsr-viz-root'], family: 'adsr', tools: true },
     // dock: false — a settings form has no use for the tonewheel beside it
     { id: 'settings', label: 'Settings', roots: ['settings-control-root'], dock: false },
 ];

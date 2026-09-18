@@ -27,6 +27,7 @@
 @import "./components/toggle.css";
 @import "./components/envelope-mode.css";
 @import "./components/drawbars.css";
+@import "./components/overtone-toolbar.css";
 @import "./components/viz.css";
 @import "./components/scope.css";
 @import "./components/envelope-viz.css";
@@ -50,6 +51,7 @@
 @import "./components/toggle.embed.css";
 @import "./components/dial.embed.css";
 @import "./components/drawbars.embed.css";
+@import "./components/overtone-toolbar.embed.css";
 @import "./components/viz.embed.css";
 @import "./components/settings.embed.css";
 @import "./components/inspector.embed.css";

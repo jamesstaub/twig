@@ -7,6 +7,8 @@ import { noteForVoice } from '../midi/pulseMidi.js';
 import { oscClient } from '../osc/oscClient.js';
 import { drawSequencePreview } from '../overtoneSignal/sequencePreview.js';
 import { voiceTargets } from '../generic/linkAll.js';
+import { shapeMode } from '../shape/shapeMode.js';
+import { Dial } from '../generic/dial/Dial.js';
 
 const PULSE_MAX_HZ = 50; // mirrors the cap in gate-processor.js
 
@@ -18,11 +20,21 @@ const GATE_MODE_OPTIONS = [
     { value: 4, label: 'Sequence' },
 ];
 
-// Number-box configs per gate mode: [key, label, min, max]
-const GATE_PARAM_FIELDS = {
-    1: [['x', 'cycles on', 0, 1024], ['y', 'cycles off', 0, 1024]],
-    2: [['x', 'pulses', 0, 1024], ['y', 'steps', 1, 1024]],
-    3: [['x', 'probability %', 0, 100]],
+// Dials per gate mode. x and y mean different things in each mode, so
+// each has its own range — and its own default, loaded on entering the
+// mode (a "1" carried over from cycles-on would be a 1% probability).
+const GATE_PARAM_DIALS = {
+    1: [
+        { key: 'x', label: 'cycles on', min: 1, max: 32, def: 1 },
+        { key: 'y', label: 'cycles off', min: 0, max: 32, def: 1 },
+    ],
+    2: [
+        { key: 'x', label: 'pulses', min: 0, max: 32, def: 3 },
+        { key: 'y', label: 'steps', min: 1, max: 32, def: 8 },
+    ],
+    3: [
+        { key: 'x', label: 'probability', min: 0, max: 100, def: 50, format: (v) => `${Math.round(v)}%` },
+    ],
 };
 
 const ICON_PREV = '‹';
@@ -34,8 +46,13 @@ const ICON_CLOSE = '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" s
  * Inspector — the Sequence panel for one overtone: cycle gate + shape,
  * modulation, pulse outputs. One component, two homes: the Sequence
  * surface (full width) and the inspector sheet beside another surface —
- * the controller decides which element it renders into; the `host` prop
- * only changes the header chrome.
+ * the controller decides which element it renders into. The header (the
+ * ‹ Overtone N › voice stepper) tops the sheet, with its expand/close
+ * chrome; on the surface it mounts into `headerSlot` instead — the
+ * panel's bottom toolbar — so the editor scrolls above a fixed bar.
+ *
+ * Ranged controls (gate dials, modulation amounts) honor shape gestures
+ * (shapeMode.js): the edit sculpts that parameter across every voice.
  *
  * Reads state at render; the controller re-renders it on external
  * changes. Its own writes set `writing` while the actions run so the
@@ -54,14 +71,18 @@ export class InspectorComponent extends BaseComponent {
         this.onExpand = null;
     }
 
-    render({ index, host }) {
+    render({ index, host, headerSlot, dialSize }) {
         this.teardown();
         this.index = index;
+        this.dialSize = dialSize;
         this.el.innerHTML = '';
 
         const root = document.createElement('div');
         root.className = 'inspector';
-        root.append(this.buildHeader(index, host), this.buildSections(index));
+        const header = this.buildHeader(index, host);
+        if (headerSlot) headerSlot.replaceChildren(header);
+        else root.appendChild(header);
+        root.appendChild(this.buildSections(index));
         this.el.appendChild(root);
     }
 
@@ -70,6 +91,21 @@ export class InspectorComponent extends BaseComponent {
         this.writing = true;
         try {
             for (const i of voiceTargets(index, e)) fn(i);
+        } finally {
+            this.writing = false;
+        }
+    }
+
+    /**
+     * A ranged value: on a shape gesture it sculpts `set` across every
+     * voice (anchored on this one), else it goes to the addressed voices.
+     * Flagged as our own write either way.
+     */
+    applyValue(index, e, { min, max, value }, set) {
+        this.writing = true;
+        try {
+            if (shapeMode.isGesture(e)) shapeMode.applyParam(index, { min, max }, value, set);
+            else for (const i of voiceTargets(index, e)) set(i, value);
         } finally {
             this.writing = false;
         }
@@ -197,30 +233,32 @@ export class InspectorComponent extends BaseComponent {
                 lab.appendChild(input);
                 params.appendChild(lab);
             } else {
-                for (const [key, labelText, min, max] of GATE_PARAM_FIELDS[gate.mode] || []) {
-                    const lab = document.createElement('label');
-                    lab.className = 'inspector-field';
-                    lab.textContent = labelText;
-                    const input = document.createElement('input');
-                    input.type = 'number';
-                    input.min = min;
-                    input.max = max;
-                    input.step = 1;
-                    input.value = gate[key] ?? 1;
-                    input.addEventListener('change', (e) => {
-                        const v = Math.min(max, Math.max(min, Math.round(Number(input.value)) || 0));
-                        input.value = v;
-                        gate[key] = v;
-                        applyGate(e);
+                for (const { key, label, min, max, def, format } of GATE_PARAM_DIALS[gate.mode] || []) {
+                    const dial = new Dial({
+                        min, max, step: 1, value: gate[key] ?? def, resetValue: def,
+                        size: this.dialSize, label,
+                        ...(format ? { format } : {}),
+                        fineOnShift: false, // shift = shape
+                        onChange: (v, e) => {
+                            gate[key] = v;
+                            if (shapeMode.isGesture(e)) {
+                                // Only this field, shaped across the voices
+                                this.applyValue(index, e, { min, max, value: v }, (i, val) =>
+                                    OvertoneSignalActions.setGate(i, { ...OvertoneSignalActions.getGate(i), [key]: Math.round(val) }));
+                                this._redrawSeqPreview?.();
+                            } else {
+                                applyGate(e);
+                            }
+                        },
                     });
-                    lab.appendChild(input);
-                    params.appendChild(lab);
+                    params.appendChild(dial.el);
                 }
             }
         };
 
         select.addEventListener('change', (e) => {
             gate.mode = parseInt(select.value, 10);
+            for (const { key, def } of GATE_PARAM_DIALS[gate.mode] || []) gate[key] = def;
             renderParams();
             applyGate(e);
         });
@@ -325,7 +363,8 @@ export class InspectorComponent extends BaseComponent {
             value.textContent = (+seq.amounts[target]).toFixed(2);
             input.addEventListener('input', (e) => {
                 const v = parseFloat(input.value);
-                this.apply(index, e, (i) => OvertoneSignalActions.setSequencerAmount(i, target, v));
+                this.applyValue(index, e, { min, max, value: v }, (i, val) =>
+                    OvertoneSignalActions.setSequencerAmount(i, target, Math.round(val * 100) / 100));
                 value.textContent = v.toFixed(2);
             });
             row.append(label, input, value);

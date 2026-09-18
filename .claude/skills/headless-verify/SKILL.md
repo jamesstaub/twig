@@ -48,13 +48,22 @@ description: Verify twig changes end-to-end in a headless browser — screenshot
   (labels in `.mini-dial-label`). When the panel is under 420px tall
   (`page.setViewport` height ~520) the dials go and `#drawbars-tabs
   .drawbars-tab` (parameter tabs) appear; in embed `#drawbars-family-tabs`
-  switches families. Reset/Randomize (`#reset-drawbars-button`,
-  `#randomize-drawbars-button`) apply to the family.
+  switches families.
+- Overtone toolbar: the bottom bar of the strip (`#drawbars-toolbar`) and
+  of the Sequence panel (`#sequence-toolbar`): `[data-action="reset|
+  randomize|link|shape"]`; the shape panel is `.shape-panel` inside the
+  bar (`.shape-panel-btn` ÷2/×2, `.cycle-stepper-arrow` contour). To
+  assert "nothing jumps", snapshot every button's rect, toggle shape,
+  compare — and `scrollIntoView` the bar FIRST in embed (puppeteer's
+  click scrolls the band sideways, which reads as a jump).
 - Sequence: click `#drawbar-label-N` (or the overtone menu's "Inspect")
   → the sheet `#inspector-sheet` (`body.inspector-open`) beside the
   current surface, sections Sequence / Modulation / Pulse Out, gate mode
-  in `.inspector-gate-mode select`; `.inspector-expand` → the Sequence
-  surface (`#sequence-control-root`), `.inspector-close` / Escape closes.
+  in `.inspector-gate-mode select`, its fields as dials in
+  `.inspector-gate-params .mini-dial`; `.inspector-expand` → the Sequence
+  surface (editor in `#sequence-inspector`, the ‹ Overtone N › stepper
+  `.inspector-step` inside `#sequence-toolbar`), `.inspector-close` /
+  Escape closes the sheet.
 - Trigger: `.trigger-pad[data-index=N]` in `#pad-grid` (4 columns, 3 in
   portrait) — `pointerdown` (distinct `pointerId`s for chords) /
   `pointerup`; `.held` marks pressed pads. Silent unless Trigger mode AND
@@ -81,11 +90,12 @@ description: Verify twig changes end-to-end in a headless browser — screenshot
   on one wrapper, then `pointermove`s dispatched on `#drawbars` (the strip
   captures the pointer) at other columns' x/y, then `pointerup` —
   `pointerType: 'touch'` works the same.
-- **Tool row**: `#drawbar-shape-toggle` (then a plain press sculpts the
-  row; panel in `#drawbars-shape-dock` with `.drawbar-shape-btn` ÷2/×2 and
-  a `.cycle-stepper-arrow` contour stepper) and `#drawbar-link-toggle`
-  (`body.link-all`; a dial drag then writes every voice). They are
-  mutually exclusive, and `aria-pressed` also mirrors a held Shift / Cmd.
+- **Shape / link**: the toolbar's `[data-action="shape"]` (then a plain
+  bar press, dial drag or modulation slider `input` sculpts every voice)
+  and `[data-action="link"]` (`body.link-all`; an edit then writes every
+  voice). Mutually exclusive; `aria-pressed` also mirrors a held Shift /
+  Cmd. With a square contour a shaped row is two-level — correct, not a
+  bug.
 
 ## Audio checks
 

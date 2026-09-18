@@ -1,6 +1,7 @@
 import { BaseController } from '../base/BaseController.js';
 import { InspectorComponent } from './InspectorComponent.js';
 import { inspectorState } from './inspectorState.js';
+import { layoutMode } from '../layout/layoutMode.js';
 import { surfaceState } from '../surfaces/surfaceState.js';
 import {
     INSPECTOR_CHANGED,
@@ -19,10 +20,17 @@ import {
  */
 export class InspectorController extends BaseController {
 
-    constructor(sheetSelector, surfaceSelector) {
+    /**
+     * @param {string} sheetSelector   the inspector sheet
+     * @param {string} surfaceSelector the Sequence surface's editor area
+     * @param {HTMLElement} headerSlot where the voice stepper mounts on the
+     *   surface (the panel's bottom toolbar slot)
+     */
+    constructor(sheetSelector, surfaceSelector, headerSlot) {
         super(sheetSelector);
         this.sheetEl = document.querySelector(sheetSelector);
         this.surfaceEl = document.querySelector(surfaceSelector);
+        this.headerSlot = headerSlot;
         if (!this.surfaceEl) throw new Error(`InspectorController: missing ${surfaceSelector}`);
     }
 
@@ -31,9 +39,12 @@ export class InspectorController extends BaseController {
     }
 
     getProps() {
+        const inSurface = surfaceState.active === 'sequence';
         return {
             index: inspectorState.index,
-            host: surfaceState.active === 'sequence' ? 'surface' : 'sheet',
+            host: inSurface ? 'surface' : 'sheet',
+            headerSlot: inSurface ? this.headerSlot : null,
+            dialSize: layoutMode.coarse ? 52 : 36,
         };
     }
 
@@ -47,6 +58,7 @@ export class InspectorController extends BaseController {
             this.component.teardown();
             this.component.el.innerHTML = '';
             this.component.el = host;
+            this.headerSlot?.replaceChildren();
         }
 
         this.sheetEl.hidden = !sheetOpen;

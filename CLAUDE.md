@@ -173,7 +173,7 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
   get(i), set(i, v), format(i, v) }` writing through the actions layer
   (`set` writes the STORED parameter, never a derived output, so linked and
   shaped writes copy positions across voices); families also carry
-  `reset`/`randomize` (the Reset/Randomize buttons) and, for convolution,
+  `reset`/`randomize` (the overtone toolbar's buttons) and, for convolution,
   the per-column IR stepper + `enabled(i)` (no IR = bypassed column).
   `DrawbarsComponent` shows `params[paramIndex]` on the bars and the rest
   as dials under each bar (`.drawbar-aux-dials`) — unless `compact`
@@ -196,41 +196,59 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
   (`onInspect(index)`, wired by ui.js — the strip never imports the
   inspector). Under 40rem the columns are `flex: 1 1 0` with a 20px floor
   (12 voices fit a phone beside the toolbar; more scroll).
-- Tool row (`.drawbars-tools`, UNDER the bars): `#drawbar-shape-toggle` /
-  `#drawbar-link-toggle` beside the shape panel's dock
-  (`#drawbars-shape-dock`); both UI-only, mutually exclusive
-  (`setShapeMode`/`setLinkMode` clear the other), dropped on leaving the
-  strip's surfaces; each button also lights while the key it stands in
-  for is held (`linkLock.held`, emitted on `LINK_ALL_CHANGED`; the
-  controller tracks Shift). **Shape** = `DrawbarsComponent.shapeMode`:
-  every bar or dial drag sculpts the whole row in the parameter's own
-  range, exactly what a shift-drag does (`isShapeGesture(e)`,
-  `shapeParamRow`); the math is the pure `rowShape.js` `shapedRow()`. The
-  panel (contour preview, contour stepper, ÷2/×2 cycles — each
-  re-applying the remembered last gesture) is BUILT by the strip
-  (`shapePanel()`, once) but DOCKED by the controller: the strip is a
-  sideways-scrolling row and clips anything appended to it. **Link** =
-  `linkLock` in `linkAll.js` (`isLinkAll(e)` = lock || cmd/ctrl) — the
-  touch stand-in for the modifier, honored by the inspector too. Gate
-  contours are unipolar 0-1 and share one definition, mirrored in
-  `shapeContour()` (sequencePreview.js) and `shapeValue()`
-  (gate-processor.js).
+- Overtone toolbar (`js/modules/overtoneToolbar/`, overtone-toolbar.css):
+  the fixed bar at the bottom of every per-overtone panel — the drawbar
+  strip (`#drawbars-toolbar`) and the Sequence panel (`#sequence-toolbar`)
+  — `[Reset][Randomize] [slot] [dock] [link][shape]`, buttons addressed as
+  `[data-action="reset|randomize|link|shape"]`. The host passes what
+  Reset/Randomize mean (ui.js: the strip's family; every voice's gate for
+  Sequence) and may mount content in `slotEl` (the Sequence panel's voice
+  stepper). NOTHING in the bar may move when the shape panel appears:
+  wide, the dock is a permanent `flex:1` cell and the groups' min-height
+  ≥ the panel's height; narrow (`@container` on the bar's own width — a
+  side sheet narrows it too), the dock is a row ABOVE the buttons that is
+  0px until used, so it takes height from the scrolling area while the
+  bottom-anchored buttons stay put; at phone widths the slot gets its own
+  row and link/shape go icon-only. In embed the dock reserves the panel's
+  width (the strip is `min-width: max-content` there; an appearing panel
+  would widen it). **Link** = `linkLock` in `linkAll.js` (`isLinkAll(e)` =
+  lock || cmd/ctrl). **Shape** = `js/modules/shape/shapeMode.js`
+  (`isGesture(e)` = lock || shift; contour, cycles and the last gesture,
+  re-applied when the panel changes either; `SHAPE_MODE_CHANGED`): an edit
+  sculpts that parameter across EVERY voice along a contour, anchored on
+  the edited voice (`applyRow` on 0-1 positions / `applyParam` on a
+  range; pure math in `rowShape.js`). The two are mutually exclusive
+  (the toolbar controller clears the other), each button also lights
+  while its key is held, and leaving the `tools: true` surfaces drops
+  both (ui.js). `ShapePanel.js` is a pure view over shapeMode (contour
+  preview, contour stepper, ÷2/×2); `generic/cycleStepper.js` is the
+  ‹ › stepper it and the IR picker share. The strip shapes bars and
+  dials (`shapeParamRow`, snapped to the parameter's step); the inspector
+  shapes its ranged controls (`applyValue`). Gate contours are unipolar
+  0-1 and share one definition, mirrored in `shapeContour()`
+  (sequencePreview.js) and `shapeValue()` (gate-processor.js).
 - Sequence surface = the inspector (`js/modules/inspector/`): one voice's
-  sequence gate + shape, modulation depths and pulse outs, with the
-  ‹ Overtone N › stepper. `inspectorState` (UI-only: selected index +
-  sheet open, `INSPECTOR_CHANGED`) is the model; `InspectorComponent`
-  renders from AppState via the actions; `InspectorController` homes the
-  ONE component instance in the surface panel (`#sequence-control-root`)
-  or the sheet (`#inspector-sheet`, beside any other surface while open —
-  in-flow side column in landscape with a sticky header, overlay bottom
-  sheet in portrait, full-band overlay in embed; inspector.css,
-  `--sheet-width` / `--sheet-height`). It re-renders on
+  sequence gate + shape, modulation depths and pulse outs. Gate fields
+  are `Dial`s with per-mode ranges and defaults (`GATE_PARAM_DIALS`:
+  alternating 1–32 on / 0–32 off, euclidean 0–32 pulses / 1–32 steps,
+  probability 0–100%); entering a mode loads its defaults, because x/y
+  mean different things per mode, and `Dial`'s `resetValue` makes
+  double-click return there. Mode 4 keeps the 0/1 pattern text field.
+  `inspectorState` (UI-only: selected index + sheet open,
+  `INSPECTOR_CHANGED`) is the model; `InspectorController` homes the ONE
+  component instance in the surface (`#sequence-inspector`, scrolling
+  above the panel's overtone toolbar, with the ‹ Overtone N › header
+  mounted in the toolbar's slot — `headerSlot`) or in the sheet
+  (`#inspector-sheet`, beside any other surface while open, header on
+  top with expand/close — in-flow side column in landscape with a sticky
+  header, overlay bottom sheet in portrait, full-band overlay in embed;
+  inspector.css, `--sheet-width` / `--sheet-height`). It re-renders on
   `OVERTONE_SIGNAL_CHANGED` for the selected index EXCEPT its own writes
-  (`component.apply()` sets `component.writing`; re-rendering under a
-  control mid-drag would destroy it). Opened from a drawbar column label,
-  the overtone menu (right-click / press-and-hold on bars and pads,
-  `js/modules/generic/overtoneMenu.js`), or the toolbar; Escape closes the
-  sheet.
+  (`apply()` / `applyValue()` set `component.writing`; re-rendering under
+  a control mid-drag would destroy it). Opened from a drawbar column
+  label, the overtone menu (right-click / press-and-hold on bars and
+  pads, `js/modules/generic/overtoneMenu.js`), or the toolbar; Escape
+  closes the sheet.
 - Trigger surface (`js/modules/pads/`): `#pad-grid-root` = a static
   header (title + `#trigger-mode-root`, the Trigger/Drone switch) over
   `#pad-grid`, the `PadGridComponent` root — one big pad per overtone,

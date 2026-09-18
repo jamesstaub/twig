@@ -3,10 +3,10 @@ import { partialColor } from "../../theme.js";
 import BaseComponent from "../base/BaseComponent.js";
 import { getVoiceLevel, triggerHarmonicAttack, triggerHarmonicRelease } from "../../audio.js";
 import { OvertoneSignalActions } from "../overtoneSignal/overtoneSignalActions.js";
-import { drawShapeContour, shapeIconDataURL } from "../overtoneSignal/sequencePreview.js";
-import { shapedRow, stepShapeCycles } from "./rowShape.js";
 import { FAMILIES, quantize } from "./drawbarParams.js";
+import { shapeMode } from "../shape/shapeMode.js";
 import { Dial } from "../generic/dial/Dial.js";
+import { cycleStepper } from "../generic/cycleStepper.js";
 import { voiceTargets } from "../generic/linkAll.js";
 import { openOvertoneMenu, closeOvertoneMenu, armLongPress } from "../generic/overtoneMenu.js";
 import { irManager } from "../../dsp/IRManager.js";
@@ -21,8 +21,11 @@ const DRAWBAR_SLIDER_SELECTOR = ".drawbar-slider";
  * `compact` (too short for them), in which case only the bars show and
  * the controller offers the parameters as tabs instead.
  *
- * Props: { family, paramIndex, compact, isSubharmonic }. Callbacks set by
- * the controller: onInspect(index), onShapeModeChange(on, panelEl).
+ * Shape gestures (shapeMode.js: the toolbar's lock, or shift) sculpt the
+ * gestured parameter across the whole row instead of writing one voice.
+ *
+ * Props: { family, paramIndex, compact, isSubharmonic }. Callback set by
+ * the controller: onInspect(index).
  */
 export class DrawbarsComponent extends BaseComponent {
 
@@ -38,19 +41,8 @@ export class DrawbarsComponent extends BaseComponent {
         this._dotLevels = [];
         this._meterRaf = null;
         this._trackResizeObserver = null;
-        // Row sculpting ("shape"): on while the tool row's shape toggle is
-        // pressed — every drag then shapes the whole row — or for the
-        // duration of a shift-drag. Shape period in row-widths, the last
-        // gesture so the panel's controls can re-apply it, and an optional
-        // contour override (null = follow the main oscillator waveform).
-        this.shapeMode = false;
-        this._shapeCycles = 1;
-        this._lastShaped = null;
-        this._rowShape = null;
-        this._shapePanel = null;
         // Assigned by the controller
         this.onInspect = null;
-        this.onShapeModeChange = null;
     }
 
     get familyDef() {
@@ -65,38 +57,6 @@ export class DrawbarsComponent extends BaseComponent {
     /** The family's other parameters — the dials under the bars when there's room. */
     get dialParams() {
         return this.compact ? [] : this.familyDef.params.filter((p) => p !== this.barParam);
-    }
-
-    /** Contour used for row sculpting. */
-    rowShapeName() {
-        return this._rowShape || AppState.currentWaveform;
-    }
-
-    /** Does this gesture sculpt the row? The toggle, or shift held. */
-    isShapeGesture(e) {
-        return this.shapeMode || Boolean(e?.shiftKey);
-    }
-
-    /**
-     * Shape mode on/off. Marks the strip so CSS can flag the bars as
-     * row-linked, and hands the panel to the controller, which docks it
-     * under the strip (this scrolling row is no place for it):
-     * onShapeModeChange(on, panelEl | null).
-     */
-    setShapeMode(on) {
-        on = Boolean(on);
-        if (on === this.shapeMode) return;
-        this.shapeMode = on;
-        this.el.classList.toggle("shape-mode", on);
-        this.onShapeModeChange?.(on, on ? this.shapePanel() : null);
-    }
-
-    /** Back to defaults (one cycle, the oscillator's own contour) — leaving the strip's surfaces. */
-    resetShape() {
-        this.setShapeMode(false);
-        this._shapeCycles = 1;
-        this._rowShape = null;
-        this._lastShaped = null;
     }
 
     render({ family = this.family, paramIndex = this.paramIndex, compact = this.compact, isSubharmonic } = {}) {
@@ -116,9 +76,12 @@ export class DrawbarsComponent extends BaseComponent {
 
         this.setupDrawbars();
         this.updateDrawbarLabels(isSubharmonic);
-        // Re-renders keep shape mode (and the docked panel, which lives
-        // outside this element) — only the strip's marker needs restating
-        this.el.classList.toggle("shape-mode", this.shapeMode);
+        this.syncShapeMarker();
+    }
+
+    /** Marks the strip while the shape lock is on, so CSS can flag the bars as row-linked. */
+    syncShapeMarker() {
+        this.el.classList.toggle("shape-mode", shapeMode.on);
     }
 
     /**
@@ -279,7 +242,7 @@ export class DrawbarsComponent extends BaseComponent {
         const newValue = quantize(param, param.min + t * (param.max - param.min));
         if (String(newValue) === slider.value) return;
         slider.value = newValue;
-        if (this.isShapeGesture(e)) {
+        if (shapeMode.isGesture(e)) {
             // Shape: sculpt the whole row with the contour, peak on the
             // pointed column — in the bar parameter's own units
             this.shapeParamRow(Number(slider.dataset.index), param, newValue);
@@ -463,7 +426,7 @@ export class DrawbarsComponent extends BaseComponent {
         if (this.familyDef.irStepper) {
             // ‹ IR n › stepper over the session IRs (buttons — native
             // selects don't open inside jweb)
-            const irStepper = this.cycleStepper({
+            const irStepper = cycleStepper({
                 options: () => [null, ...irManager.list().map((ir) => ir.key)],
                 get: () => OvertoneSignalActions.getConvolution(index).ir,
                 set: (key, e) => {
@@ -494,7 +457,7 @@ export class DrawbarsComponent extends BaseComponent {
                     format: (v) => param.format(index, v),
                     fineOnShift: false, // shift = shaped row
                     onChange: (v, e) => {
-                        if (this.isShapeGesture(e)) this.shapeParamRow(index, param, v);
+                        if (shapeMode.isGesture(e)) this.shapeParamRow(index, param, v);
                         else voiceTargets(index, e).forEach((i) => param.set(i, v));
                     },
                 });
@@ -508,158 +471,11 @@ export class DrawbarsComponent extends BaseComponent {
     }
 
     /**
-     * Row sculpting (see rowShape.js): the gestured control's value sets
-     * the anchor position; every voice gets its shaped position mapped
-     * back into the parameter's own range. Remembered so the shape
-     * panel's contour/cycle controls can re-apply it live.
+     * Shape gesture: the gestured control's value anchors the contour;
+     * every voice gets its shaped value, snapped to the parameter's step.
      */
     shapeParamRow(index, param, value) {
-        const span = param.max - param.min || 1;
-        const t = (value - param.min) / span;
-        this.applyShapedRow(index, t, (i, ti) => param.set(i, quantize(param, param.min + ti * span)));
-    }
-
-    applyShapedRow(index, t, setNorm) {
-        const positions = shapedRow({
-            count: AppState.currentSystem.ratios.length,
-            index, t,
-            cycles: this._shapeCycles,
-            shapeName: this.rowShapeName(),
-        });
-        positions.forEach((ti, i) => setNorm(i, ti));
-        this._lastShaped = { index, t, setNorm };
-    }
-
-    /**
-     * Generic ‹ [current] › stepper: arrows step through options(), and
-     * clicking the center cycles forward (multi-toggle behavior). Buttons
-     * because native select dropdowns don't open inside jweb. Click events
-     * ride along to set() so cmd-link (apply to all voices) works.
-     */
-    cycleStepper({ options, get, set, render, className = "" }) {
-        const row = document.createElement("div");
-        row.className = `cycle-stepper ${className}`.trim();
-        const center = document.createElement("button");
-        center.type = "button";
-        center.className = "cycle-stepper-current";
-        const refresh = () => render(center, get());
-        const move = (step, e) => {
-            const list = options();
-            const i = Math.max(0, list.indexOf(get()));
-            set(list[(i + step + list.length) % list.length], e);
-            refresh();
-        };
-        const mkArrow = (text, step) => {
-            const b = document.createElement("button");
-            b.type = "button";
-            b.className = "cycle-stepper-arrow";
-            b.textContent = text;
-            b.addEventListener("click", (e) => move(step, e));
-            return b;
-        };
-        center.addEventListener("click", (e) => move(1, e));
-        row.append(mkArrow("‹", -1), center, mkArrow("›", 1));
-        refresh();
-        row._refresh = refresh;
-        return row;
-    }
-
-    /** Waveform option list — always the main oscillator menu (customs included). */
-    waveformNames() {
-        const source = document.getElementById("waveform-select");
-        return source ? [...source.options].map((o) => o.value) : ["sine", "square", "triangle", "sawtooth"];
-    }
-
-    /** ‹ [icon] › stepper over the waveform options. */
-    waveStepper(getSelected, onPick, className) {
-        return this.cycleStepper({
-            options: () => this.waveformNames(),
-            get: getSelected,
-            set: onPick,
-            className,
-            render: (el, name) => {
-                el.innerHTML = "";
-                const img = document.createElement("img");
-                img.src = shapeIconDataURL(name, { width: 22, height: 12, color: "--text-accent" });
-                img.alt = name;
-                el.title = name;
-                el.appendChild(img);
-            },
-        });
-    }
-
-    /**
-     * Shape panel — docked under the strip while shape mode is on: the
-     * contour tiled at the current cycle count, a ‹›-stepper picking the
-     * sculpt contour (defaults to the oscillator waveform, without touching
-     * it), and ÷2/×2 cycle buttons. Changing either re-applies the last
-     * gesture, so the row follows live. Built once; its state is the
-     * gesture's, so it survives strip re-renders. The controller docks it
-     * (see setShapeMode).
-     */
-    shapePanel() {
-        if (!this._shapePanel) {
-            const el = document.createElement("div");
-            el.className = "drawbar-shape-panel";
-
-            const title = document.createElement("span");
-            title.className = "drawbar-shape-title";
-            title.textContent = "shape row";
-
-            const canvas = document.createElement("canvas");
-            canvas.className = "drawbar-shape-preview";
-            canvas.width = 160;
-            canvas.height = 44;
-            // Escape the global viz-canvas sizing, same as the dials
-            canvas.style.setProperty("width", "160px", "important");
-            canvas.style.setProperty("height", "44px", "important");
-
-            const cycles = document.createElement("div");
-            cycles.className = "drawbar-shape-cycles";
-            const label = document.createElement("span");
-            label.className = "drawbar-shape-cycles-label";
-            const fmt = (v) => (v >= 1 ? `×${v}` : `÷${1 / v}`);
-            let stepper;
-            const refresh = () => {
-                label.textContent = fmt(this._shapeCycles);
-                stepper?._refresh();
-                drawShapeContour(canvas, this.rowShapeName(), this._shapeCycles);
-            };
-            const reapply = () => {
-                if (this._lastShaped) {
-                    const { index, t, setNorm } = this._lastShaped;
-                    this.applyShapedRow(index, t, setNorm);
-                }
-            };
-            stepper = this.waveStepper(
-                () => this.rowShapeName(),
-                (name) => {
-                    this._rowShape = name;
-                    refresh();
-                    reapply();
-                },
-                "drawbar-shape-stepper"
-            );
-            const mkBtn = (text, factor) => {
-                const b = document.createElement("button");
-                b.type = "button";
-                b.className = "action-btn drawbar-shape-btn";
-                b.textContent = text;
-                b.title = text === "×2" ? "twice as many cycles across the row" : "half as many cycles across the row";
-                b.addEventListener("click", () => {
-                    this._shapeCycles = stepShapeCycles(this._shapeCycles, factor);
-                    refresh();
-                    reapply();
-                });
-                return b;
-            };
-            cycles.append(mkBtn("÷2", 0.5), label, mkBtn("×2", 2));
-            el.append(title, canvas, stepper, cycles);
-
-            this._shapePanel = { el, refresh };
-        }
-        this._shapePanel.refresh();
-        return this._shapePanel.el;
+        shapeMode.applyParam(index, param, value, (i, v) => param.set(i, quantize(param, v)));
     }
 
     /**

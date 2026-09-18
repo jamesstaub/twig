@@ -7,7 +7,7 @@
 
 import { AppState, updateAppState } from './config.js';
 import { midiConfig } from './appConfig.js';
-import { MASTER_SLEW_CHANGED, ENVELOPE_MODE_CHANGED } from './events.js';
+import { MASTER_SLEW_CHANGED, ENVELOPE_MODE_CHANGED, SURFACE_CHANGED } from './events.js';
 import { OvertoneSignalActions } from './modules/overtoneSignal/overtoneSignalActions.js';
 import { updateValue } from './domUtils.js';
 import { DrawbarsController } from './modules/drawbars/drawbarsController.js';
@@ -23,7 +23,9 @@ import { FundamentalController } from './modules/fundamental/fundamentalControll
 import { PlayToggleController } from './modules/playToggle/playToggleController.js';
 import { WaveformSelectorController } from './modules/waveformSelector/waveformSelectorController.js';
 import { oscClient, oscEnabled } from './modules/osc/oscClient.js';
-import { initLinkAll } from './modules/generic/linkAll.js';
+import { initLinkAll, linkLock } from './modules/generic/linkAll.js';
+import { initShapeMode, shapeMode } from './modules/shape/shapeMode.js';
+import { OvertoneToolbarController } from './modules/overtoneToolbar/overtoneToolbarController.js';
 import { pulseBus } from './modules/pulse/pulseBus.js';
 import { midiOutputRouter } from './modules/midi/midiOutputRouter.js';
 import { setPulseHandler } from './audio.js';
@@ -33,6 +35,7 @@ import { ScopeController } from './modules/scope/scopeController.js';
 import { EnvelopeVizController } from './modules/envelopeViz/envelopeVizController.js';
 import { RecorderController } from './modules/recording/recorderController.js';
 import { SurfacesController } from './modules/surfaces/surfacesController.js';
+import { SURFACES } from './modules/surfaces/surfaceState.js';
 import { InspectorController } from './modules/inspector/inspectorController.js';
 import { PadGridController } from './modules/pads/padGridController.js';
 import { SettingsController } from './modules/settings/settingsController.js';
@@ -62,8 +65,10 @@ export function initUI() {
     // Initialize keyboard shortcuts
     new KeyboardShortcuts().init();
 
-    // Cmd/Ctrl link gestures: apply per-overtone edits to all voices
+    // Cmd/Ctrl = link (an edit goes to every voice), Shift = shape (an
+    // edit sculpts every voice along a contour)
     initLinkAll();
+    initShapeMode();
 
     // OSC over WebSocket: the remote-control path for jweb/Max4Live, where
     // Web MIDI delivery is starved while the view is hidden (?osc=0 disables).
@@ -99,6 +104,11 @@ function setupDrawbars() {
     const drawbarsController = new DrawbarsController("#drawbars");
     drawbarsController.onInspect = (index) => inspectorState.open(index);
     drawbarsController.init();
+    // The strip's bottom bar: reset/randomize act on the showing family
+    new OvertoneToolbarController('#drawbars-toolbar', {
+        onReset: () => drawbarsController.reset(),
+        onRandomize: () => drawbarsController.randomize(),
+    }).init();
 }
 
 function setupSpectralSystem() {
@@ -130,9 +140,23 @@ function setupSurfaces() {
     // After every panel is mounted (and its canvases sized while visible),
     // so the shell can hide the ones the default surface doesn't show
     new SurfacesController('#surface-toolbar', '.page-content').init();
+    // The Sequence panel's bottom bar: reset/randomize act on every
+    // voice's gate; its slot carries the inspector's voice stepper
+    const sequenceToolbar = new OvertoneToolbarController('#sequence-toolbar', {
+        onReset: () => OvertoneSignalActions.resetGates(),
+        onRandomize: () => OvertoneSignalActions.randomizeGates(),
+    });
+    sequenceToolbar.init();
     // The per-overtone sequence editor: Sequence surface or the sheet
     // beside any other
-    new InspectorController('#inspector-sheet', '#sequence-control-root').init();
+    new InspectorController('#inspector-sheet', '#sequence-inspector', sequenceToolbar.slotEl).init();
+    // Link and shape are tools of the per-overtone surfaces: leaving them
+    // drops both
+    document.addEventListener(SURFACE_CHANGED, (e) => {
+        if (SURFACES.find((s) => s.id === e.detail?.active)?.tools) return;
+        shapeMode.reset();
+        linkLock.set(false);
+    });
     // Settings surface (MIDI + recording) — the recorder's ⚙ lands here
     settingsController = new SettingsController('#settings-control-root');
     settingsController.init();
