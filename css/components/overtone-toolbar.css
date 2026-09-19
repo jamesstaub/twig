@@ -190,6 +190,18 @@ body.coarse .overtone-mode-btn {
     }
 }
 
+/* A short screen (a phone in landscape) can't spare that row: the modes
+   stay inline a little longer, the contour preview giving up its width */
+@media (max-height: 30rem) {
+    @container (min-width: 36rem) and (max-width: 43rem) {
+        .overtone-toolbar-slot:empty ~ .overtone-toolbar-modes {
+            order: 0;
+            flex: 1 1 0;
+            padding-bottom: 0;
+        }
+    }
+}
+
 /* Phone widths: the slot takes a row too (under the modes, over the
    buttons), and the shape box tightens — icon-only link/shape, no
    contour preview (the stepper's icon still names the contour) */

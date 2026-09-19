@@ -58,13 +58,18 @@ export class DownloadControlController extends BaseController {
         document.addEventListener(ROUTING_MODE_CHANGED, () => this.update());
 
         // Baking (Create Oscillator / Download / Create IR) samples the
-        // oscillator bank — the action rows hide in external source modes;
-        // the canvases stay. Applied at init too (bridge bootstrap replays
-        // before controllers bind).
+        // oscillator bank — in external source modes the action rows stay
+        // where they are, grayed out and disabled (nothing in a panel
+        // appears or disappears). Applied at init too (bridge bootstrap
+        // replays before controllers bind).
         const applySourceGating = () => {
             const external = AppState.sourceMode !== 'oscillators';
             for (const id of ['wavetable-actions', 'ir-actions']) {
-                document.getElementById(id)?.classList.toggle('hidden', external);
+                const row = document.getElementById(id);
+                if (!row) continue;
+                row.classList.toggle('is-disabled', external);
+                row.title = external ? 'Available with the Oscillators source' : '';
+                for (const control of row.querySelectorAll('button, select')) control.disabled = external;
             }
         };
         document.addEventListener(SOURCE_CHANGED, applySourceGating);

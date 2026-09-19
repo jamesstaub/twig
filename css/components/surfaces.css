@@ -1,5 +1,6 @@
 /* Surface toolbar — the left rail (js/modules/surfaces/ToolbarComponent.js):
-   one button per surface plus the viz-dock toggle. Look and feel from
+   one button per surface — and the side-column toggle in a panel header
+   (SideToggleComponent.js). Look and feel from
    theme.css tokens only; icons are inline SVG in currentColor. */
 
 .surface-toolbar {
@@ -62,8 +63,78 @@
     outline-offset: 1px;
 }
 
-.surface-toolbar-spacer {
-    flex: 1;
+/* Side-column toggle: an icon button pinned to the top-right corner of
+   its panel — out of the header's flow, so a header that wraps (tabs, a
+   note) can never push it down; the header pads its right end to match */
+.labeled-control:has(> span > .side-toggle-btn) {
+    position: relative;
+}
+
+.labeled-control > span:has(> .side-toggle-btn) {
+    padding-right: 2.4rem;
+    min-height: 1.6rem;
+}
+
+body.coarse .labeled-control > span:has(> .side-toggle-btn) {
+    padding-right: 3rem;
+    min-height: 2rem;
+}
+
+.side-toggle-btn {
+    position: absolute;
+    top: 0.4rem;
+    right: 0.4rem;
+    width: 1.9rem;
+    height: 1.6rem;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    background: none;
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition:
+        color var(--transition-fast),
+        background-color var(--transition-fast),
+        border-color var(--transition-fast);
+}
+
+.side-toggle-btn svg {
+    display: block;
+    width: 1.1rem;
+    height: 1.1rem;
+}
+
+.side-toggle-btn:hover {
+    color: var(--text-accent);
+}
+
+.side-toggle-btn[aria-pressed="true"] {
+    color: var(--text-accent);
+    border-color: var(--accent-primary);
+    background-color: color-mix(in srgb, var(--accent-primary) 14%, transparent);
+}
+
+.side-toggle-btn:focus-visible {
+    outline: 2px solid var(--accent-primary);
+    outline-offset: 1px;
+}
+
+body.coarse .side-toggle-btn {
+    width: 2.5rem;
+    height: 2rem;
+}
+
+/* The embed band lays every panel out side by side: nothing to toggle */
+body.embed .side-toggle-btn {
+    display: none;
+}
+
+body.embed .labeled-control > span:has(> .side-toggle-btn) {
+    padding-right: 0;
+    min-height: 0;
 }
 
 /* Finger-sized targets */

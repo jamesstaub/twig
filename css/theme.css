@@ -94,8 +94,8 @@
 
     /* ---- Layout ---- */
     --toolbar-width: 4.25rem;        /* surface toolbar (left rail); 3.5rem on phones (surfaces.css) */
-    --dock-width: 20rem;             /* viz dock beside a surface (landscape) */
-    --dock-height: 9rem;             /* viz dock above a surface (portrait) */
+    --dock-width: 20rem;             /* side column beside a surface (landscape) */
+    --dock-height: 9rem;             /* side band above a surface (portrait): the tonewheel's square */
     --sheet-width: 24rem;            /* inspector side sheet (landscape) */
     --sheet-height: 62vh;            /* inspector bottom sheet cap (portrait) */
     --navbar-height: 5rem;

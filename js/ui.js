@@ -134,7 +134,7 @@ function setupFundamental() {
 function setupSurfaces() {
     // After every panel is mounted (and its canvases sized while visible),
     // so the shell can hide the ones the default surface doesn't show
-    new SurfacesController('#surface-toolbar', '.page-content').init();
+    new SurfacesController('#surface-toolbar', '.page-content', '#surface-side-toggle').init();
     // The Sequence panel's bottom bar: reset/randomize act on every
     // voice's gate; its slot carries the inspector's voice stepper
     const sequenceToolbar = new OvertoneToolbarController('#sequence-toolbar', {

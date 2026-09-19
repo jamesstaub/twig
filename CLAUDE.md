@@ -81,7 +81,7 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
   pitch-tracked lowpasses (forced to multiplier 1 / Q 30 on entering an
   external mode) form a resonant filter bank. The gate worklet, sequencer,
   and pulses run on external-source voices too (their clock is the voice
-  frequency). External modes hide only the waveform picker and wavetable
+  frequency). External modes hide only the waveform picker and disable the wavetable
   actions; the fundamental stays visible — it tunes the bank.
 - The gate worklet (`js/dsp/worklets/gate-processor.js`) is served
   **unbundled** — no imports allowed in that file. Arbitrary data (0/1
@@ -134,19 +134,24 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
   ids; `label` is what fits the rail ("Conv"), optional `title` the full
   name for the tooltip;
   `family` names the drawbar strip's parameter family for the four
-  parameter surfaces; `dock: false` keeps the tonewheel off settings;
-  `DOCK_ROOTS` = the tonewheel; visible set + dock flag, emits
-  `SURFACE_CHANGED`), `ToolbarComponent` is the left icon rail,
+  parameter surfaces, and `side` their visualization panel: a surface
+  with `side` has a SIDE COLUMN — that panel over `SIDE_ROOTS`, the
+  tonewheel — and the others have none; visible set + side flag, emits
+  `SURFACE_CHANGED`), `ToolbarComponent` is the left icon rail (surfaces
+  only), `SideToggleComponent` the icon button pinned to the top-right
+  corner of the drawbar panel (`#surface-side-toggle` — it lives only in
+  a panel whose surfaces have a side column, and opens/closes the WHOLE
+  column, visualization and tonewheel; hidden in embed),
   `SurfaceShellComponent` applies state to the DOM: sets `hidden` on every
   panel root the active surface doesn't include (base.css has
   `[hidden]{display:none!important}`), collapses the wrappers whose
   children are all hidden (`#m4l-fundamental-source-panel`,
-  `.surface-stack`, `.surface-side`), exposes `body[data-surface="…"]` +
-  `body.viz-dock` (`surfaceState.dockShown` = toggle AND the surface
-  admits it), then dispatches a synthetic window `resize` so canvases
+  `.surface-stack`, `.surface-side`), exposes `body[data-surface="…"]`
+  (`surfaceState.sideShown` = toggle AND the surface has a side), then
+  dispatches a synthetic window `resize` so canvases
   re-measure. `SurfacesController` mounts LAST in `initUI()` so every
-  panel has sized itself while visible. The dock defaults ON for fine
-  pointers and OFF for `body.coarse` — resolved lazily (`dockDefault()`),
+  panel has sized itself while visible. The side column defaults OPEN for
+  fine pointers and CLOSED for `body.coarse` — resolved lazily (`sideDefault()`),
   NOT at module import, because `layoutMode.init()` runs later than
   imports. p5 gotcha: the tonewheel sketch's `windowResized` can run
   before `setup()`, so it early-returns until `canvasReady`.
@@ -156,10 +161,12 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
   surface's visualization panel — `#gain-viz-root` waveform + Create
   Oscillator/Download, `#filter-viz-root` output scope, `#conv-viz-root`
   spectrum + Create IR/ring, `#adsr-viz-root` envelope curves — plus
-  `#tonewheel-container`, the Viz dock). page-arrangement.css: when the
-  side wrapper is not hidden the card is a two-column grid (`:has()`),
-  stack | `--dock-width`; in portrait a band on top sized to its content
-  (`auto` row, 64px canvases) over the stack. Sizing a panel for a shell
+  `#tonewheel-container`). page-arrangement.css: when the side wrapper is
+  not hidden the card is a two-column grid (`:has()`), stack |
+  `--dock-width`; in portrait a band on top sized to its content (`auto`
+  row, 64px canvases; on a phone the tonewheel square shrinks so the
+  visualization panel's action row fits — its download group and button
+  padding shrink rather than overflow) over the stack. Sizing a panel for a shell
   position belongs in page-arrangement.css, not the component's CSS. On
   the surfaces shell `.page-shell` is height-capped to the viewport, so a
   panel taller than the screen (Settings, Sequence, the strip on a phone
@@ -281,7 +288,7 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
   oscillator preview), overtone system. It is a GRID sized by container
   queries on the stack's own width (`.surface-stack` is `container:
   surface-stack / inline-size`, page-arrangement.css) — the viewport lies
-  once the toolbar, dock or sheet take their share: one column under
+  once the toolbar or sheet take their share: one column under
   40rem (phones), fundamental | source over an ALWAYS full-width system
   panel from 40rem. It fits the screen from tablets up; a phone scrolls
   inside the panel (portrait a little, landscape a row — there the system
@@ -323,8 +330,10 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
   the envelope curves (`js/modules/envelopeViz/`: every voice's ADSR
   polyline over a shared time axis, `partialColor` per voice, pure
   `envelopeCurvePoints` helper). The bake/export action rows
-  (`#wavetable-actions`, `#ir-actions`) hide in external source modes
-  (downloadControlController). Canvas gotchas: the global `canvas {
+  (`#wavetable-actions`, `#ir-actions`) stay put in external source modes,
+  grayed out and disabled (downloadControlController) — the app-wide
+  rule: controls that don't apply are disabled in place, never shown and
+  hidden. Canvas gotchas: the global `canvas {
   width:100% !important … }` rule hijacks new canvases (escape with
   `style.setProperty(…, 'important')`); `#tonewheel-canvas` is
   `position:absolute; inset:0` because an empty flex child with flex-grow

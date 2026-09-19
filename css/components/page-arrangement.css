@@ -3,9 +3,9 @@
    ================================
    Where the visible panels sit. The surface shell
    (js/modules/surfaces/SurfaceShellComponent.js) sets `hidden` on every
-   panel root the active surface doesn't include, and exposes the state as
-   body[data-surface="…"] and body.viz-dock; this file arranges whatever
-   is left showing. Nothing here describes what a panel looks like —
+   panel root the active surface doesn't include, and exposes the active
+   surface as body[data-surface="…"]; this file arranges whatever is left
+   showing. Nothing here describes what a panel looks like —
    that's layout.css, form-controls.css, drawbars.css, etc.
 
    The embed band (body.embed) doesn't use any of this: css/embed.css
@@ -55,8 +55,9 @@ body.surfaces .page-content {
 }
 
 /* --- The card is exactly two cells: the surface stack (every main panel,
-       one column) and the side column (the surface's visualization and
-       the tonewheel dock). The side wrapper is `hidden` (collapsed by the
+       one column) and the side column (the surface's visualization over
+       the tonewheel — only the parameter surfaces have one, opened and
+       closed as a whole by the strip header's toggle). The side wrapper is `hidden` (collapsed by the
        shell) when nothing in it shows, and the card is then a plain
        column; when it shows, the card becomes a two-column grid — or, in
        portrait, a band over the stack. --- */
@@ -137,10 +138,18 @@ body.surfaces .surface-side > #tonewheel-container {
         flex: 0 0 var(--dock-height);
         min-height: var(--dock-height);
     }
+
+    /* A phone: the visualization panel needs the width more than the
+       tonewheel does (its action row must fit — form-controls.css) */
+    @media (max-width: 40rem) {
+        body.surfaces .surface-side > #tonewheel-container {
+            flex-basis: 7rem;
+        }
+    }
 }
 
 /* --- Source surface: fundamental, source, overtone system — a grid that
-       follows the STACK's width (container query: the viz dock and the
+       follows the STACK's width (container query: the side column and the
        inspector sheet narrow it, not just the viewport):
          narrow   one column, natural heights
          wider    fundamental | source, the system across the bottom
