@@ -20,15 +20,6 @@
     color: var(--text-label-strong);
 }
 
-.settings-header-spacer {
-    flex: 1;
-}
-
-/* Embed-only close (the overlay band has no surfaces to switch to) */
-.settings-close {
-    display: none;
-}
-
 /* MIDI | Recording tabs (one group showing at a time — the two together
    were a long scroll) */
 .settings-tabs {

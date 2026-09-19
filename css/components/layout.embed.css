@@ -27,23 +27,22 @@ body.embed .labeled-control > span {
    ================================
    Fundamental frequency, Source (+ its per-mode secondary controls), and
    Overtone System (+ its secondary controls and the subharmonic toggle)
-   already share one markup group on desktop too (id'd for this override
-   — see page-arrangement.css's `.col-third`, a real three-across row
-   there). Embed mode just needs that SAME group to stack narrow-and-tall
-   instead of wide-and-short — a pure CSS override, no DOM move. One
-   shared card instead of three: the children give up their own
-   background/shadow/rounded corners and a divider line stands in for the
-   seam. */
-body.embed #m4l-fundamental-source-panel {
-    display: flex !important; /* overrides body.embed .embed-flatten's display:contents */
-    flex-direction: column;
-    /* .control-row's own flex-wrap:wrap, still in effect, would otherwise
-       wrap overflow into a second COLUMN (perpendicular to the main axis
-       in column-direction flex) instead of just scrolling vertically */
-    flex-wrap: nowrap;
-    gap: 0;
+   already share one markup group on the surfaces shell too (a grid there
+   — page-arrangement.css). Embed mode just needs that SAME group compact
+   — a pure CSS override, no DOM move. One shared card instead of three:
+   the children give up their own background/shadow/rounded corners and a
+   divider line stands in for the seam. */
+body.embed #m4l-fundamental-source-panel:not([hidden]) {
+    /* Two short columns — fundamental over source | overtone system: the
+       band under its toolbar is too short for all three stacked.
+       !important overrides body.embed .embed-flatten's display:contents */
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+    align-content: start;
+    gap: 0 0.5rem;
     flex: 0 0 auto;
-    width: 175px;
+    width: 340px;
     height: 100%;
     max-height: 100%;
     overflow-y: auto;
@@ -66,19 +65,16 @@ body.embed #m4l-fundamental-source-panel > .labeled-control {
     gap: 0.1rem;
     overflow: visible;
     border-bottom: 1px solid var(--border-subtle);
-    /* .col-third (page-arrangement.css) is a WIDTH breakpoint (64rem) — a
-       short-but-wide jweb viewport matches it same as desktop, resolving
-       33.333% against this 175px column instead of the desktop 3-up row */
-    width: 100% !important;
+    min-width: 0;
 }
 
 body.embed #m4l-fundamental-source-panel > .labeled-control:last-child {
     border-bottom: none;
 }
 
-body.embed #fundamental-control-root { order: 1; }
-body.embed #oscillator-control-root { order: 2; }
-body.embed #spectral-system-root { order: 3; }
+body.embed #fundamental-control-root { grid-area: 1 / 1; }
+body.embed #oscillator-control-root { grid-area: 2 / 1; border-bottom: none; }
+body.embed #spectral-system-root { grid-area: 1 / 2 / span 2; }
 
 /* The real jweb budget is closer to 150px than the 170px this was first
    tuned against — every row here has to give up more height. Scoped to

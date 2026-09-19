@@ -377,18 +377,11 @@
 }
 
 /* ---- Header tabs: the family's parameters (shown while the strip is
-       compact, drawbarsController.renderHeader) and, in the embed band
-       only, the families themselves ---- */
+       compact, drawbarsController.renderHeader) ---- */
 
 .drawbars-tabs {
     display: inline-flex;
     gap: 0.25rem;
-}
-
-/* The surfaces shell picks the family from the toolbar (id-scoped: layout
-   .css's `.labeled-control span` sets display:flex on every span) */
-#drawbars-control-root .drawbars-family-tabs {
-    display: none;
 }
 
 .drawbars-tab {
@@ -410,15 +403,6 @@
 .drawbars-tab.active {
     color: var(--text-accent);
     border-color: var(--accent-primary);
-}
-
-/* The column label opens the overtone inspector */
-.drawbar-label {
-    cursor: pointer;
-}
-
-.drawbar-label:hover {
-    color: var(--text-accent);
 }
 
 /* The header row wraps on narrow screens: the tabs drop to a second line

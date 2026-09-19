@@ -24,8 +24,7 @@ const DRAWBAR_SLIDER_SELECTOR = ".drawbar-slider";
  * Shape gestures (shapeMode.js: the toolbar's lock, or shift) sculpt the
  * gestured parameter across the whole row instead of writing one voice.
  *
- * Props: { family, paramIndex, compact, isSubharmonic }. Callback set by
- * the controller: onInspect(index) — a column label was clicked.
+ * Props: { family, paramIndex, compact, isSubharmonic }.
  */
 export class DrawbarsComponent extends BaseComponent {
 
@@ -41,8 +40,6 @@ export class DrawbarsComponent extends BaseComponent {
         this._dotLevels = [];
         this._meterRaf = null;
         this._trackResizeObserver = null;
-        // Assigned by the controller
-        this.onInspect = null;
     }
 
     get familyDef() {
@@ -98,15 +95,6 @@ export class DrawbarsComponent extends BaseComponent {
             if (!drawbar || drawbar.dataset.index === undefined) return;
             e.preventDefault();
             this.showContextMenu(Number(drawbar.dataset.index), e.clientX, e.clientY);
-        });
-
-        // Column label: open that overtone in the inspector (touch has no
-        // right-click; the label is the one always-present tap target)
-        this.bindEvent(this.el, "click", (e) => {
-            const label = e.target.closest(".drawbar-label");
-            const drawbar = label?.closest(".drawbar");
-            if (!drawbar || drawbar.dataset.index === undefined) return;
-            this.onInspect?.(Number(drawbar.dataset.index));
         });
 
         // Keyboard (arrow keys) still uses the native range input event

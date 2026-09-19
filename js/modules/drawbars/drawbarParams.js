@@ -144,8 +144,6 @@ export const FAMILIES = {
     },
 };
 
-export const FAMILY_ORDER = ['gain', 'filter', 'convolution', 'adsr'];
-
 /** Snap `v` to the parameter's step (and range), avoiding float dust. */
 export function quantize(param, v) {
     const clamped = Math.max(param.min, Math.min(param.max, v));

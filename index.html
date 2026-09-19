@@ -198,7 +198,6 @@
                 <div id="drawbars-control-root" class="labeled-control">
                     <span>
                         <span id="drawbars-title">Gain</span>
-                        <span id="drawbars-family-tabs" class="drawbars-tabs drawbars-family-tabs"></span>
                         <span id="drawbars-tabs" class="drawbars-tabs" hidden></span>
                         <span id="drawbars-note" class="drawbars-note hidden"></span>
                         <!-- Opens/closes this surface's side column (SideToggleComponent) -->
@@ -212,15 +211,13 @@
                     <div id="drawbars-toolbar"></div>
                 </div>
 
-                <!-- Sequence surface (a full-band overlay in embed, hence the
-                     close button): the inspector — one voice's sequence,
+                <!-- Sequence surface: the inspector — one voice's sequence,
                      modulation and pulse outs — scrolling above the same fixed
                      bottom bar, whose slot carries the ‹ Overtone N › voice
                      stepper -->
                 <div id="sequence-control-root" class="labeled-control">
-                    <span class="sequence-header">
+                    <span>
                         <span>Sequence</span>
-                        <button type="button" class="sequence-close" aria-label="Close sequence editor">&times;</button>
                         <button type="button" class="side-toggle-btn"></button>
                     </span>
                     <div id="sequence-inspector" class="sequence-inspector"></div>
@@ -236,9 +233,7 @@
                     <div id="pad-grid" class="pad-grid"></div>
                 </div>
 
-                <!-- Settings surface: MIDI routing/mapping + recording settings.
-                     In embed it's a full-band overlay opened by the recorder's ⚙
-                     (body.settings-open) -->
+                <!-- Settings surface: MIDI routing/mapping + recording settings -->
                 <div id="settings-control-root" class="labeled-control">
                     <div class="settings-header">
                         <span class="settings-title">Settings</span>
@@ -246,8 +241,6 @@
                             <button type="button" class="settings-tab" data-tab="midi" aria-pressed="true">MIDI</button>
                             <button type="button" class="settings-tab" data-tab="recorder" aria-pressed="false">Recording</button>
                         </span>
-                        <span class="settings-header-spacer"></span>
-                        <button type="button" class="settings-close" aria-label="Close settings">&times;</button>
                     </div>
                     <div id="midi-settings"></div>
                     <div id="recorder-settings" hidden></div>

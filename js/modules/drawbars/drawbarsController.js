@@ -1,5 +1,5 @@
 import { DrawbarsComponent } from "./DrawbarsComponent.js";
-import { FAMILIES, FAMILY_ORDER } from "./drawbarParams.js";
+import { FAMILIES } from "./drawbarParams.js";
 import {
     CONVOLUTION_IRS_CHANGED,
     DRAWBAR_CHANGE,
@@ -19,7 +19,6 @@ import { SURFACES, surfaceState } from "../surfaces/surfaceState.js";
 const ROOT_ID = "drawbars-control-root";
 const TITLE_ID = "drawbars-title";
 const PARAM_TABS_ID = "drawbars-tabs";
-const FAMILY_TABS_ID = "drawbars-family-tabs";
 const NOTE_ID = "drawbars-note";
 
 // Below this panel height there is no room for dials under the bars: the
@@ -29,8 +28,7 @@ const COMPACT_STRIP_HEIGHT = 420;
 /**
  * The drawbar strip's controller. The strip's parameter FAMILY follows
  * the active surface (surfaceState: gain / filter / convolution / adsr
- * each name one) — or, in the embed band where there is no toolbar, the
- * family tabs in the strip's header. Within a family, the header's
+ * each name one). Within a family, the header's
  * parameter tabs (shown only while the strip is compact) choose which
  * parameter the bars edit. `reset()` / `randomize()` act on the current
  * family — ui.js hands them to the panel's overtone toolbar.
@@ -55,16 +53,6 @@ export class DrawbarsController extends BaseController {
             paramIndex: this.paramIndex,
             compact: this.compact,
         };
-    }
-
-    /**
-     * Wire Component → callbacks
-     */
-    bindComponentEvents() {
-        // Column label click → that overtone's Sequence editor. Assigned
-        // by ui.js (this.onInspect) so the strip doesn't know where the
-        // editor lives.
-        this.component.onInspect = (index) => this.onInspect?.(index);
     }
 
     /** Switch the strip to a parameter family (its first parameter on the bars). */
@@ -125,8 +113,8 @@ export class DrawbarsController extends BaseController {
         document.addEventListener(SHAPE_MODE_CHANGED, () => this.component.syncShapeMarker());
 
         // The active surface names the family
-        document.addEventListener(SURFACE_CHANGED, (e) => {
-            const family = SURFACES.find((s) => s.id === e.detail?.active)?.family;
+        document.addEventListener(SURFACE_CHANGED, () => {
+            const family = SURFACES.find((s) => s.id === surfaceState.active)?.family;
             if (family) this.setFamily(family);
         });
         const initial = SURFACES.find((s) => s.id === surfaceState.active)?.family;
@@ -162,21 +150,12 @@ export class DrawbarsController extends BaseController {
     }
 
     /**
-     * The header: the family's name, the family tabs (embed only — CSS
-     * hides them on the surfaces shell, where the toolbar chooses), and
-     * the parameter tabs (only while compact).
+     * The header: the family's name and the parameter tabs (only while
+     * compact).
      */
     renderHeader() {
         const title = document.getElementById(TITLE_ID);
         if (title) title.textContent = FAMILIES[this.family].label;
-
-        const familyTabs = document.getElementById(FAMILY_TABS_ID);
-        if (familyTabs) {
-            familyTabs.innerHTML = "";
-            for (const name of FAMILY_ORDER) {
-                familyTabs.appendChild(this.tab(FAMILIES[name].label.toLowerCase(), name === this.family, () => this.setFamily(name)));
-            }
-        }
 
         const paramTabs = document.getElementById(PARAM_TABS_ID);
         if (paramTabs) {

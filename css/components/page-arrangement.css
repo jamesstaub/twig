@@ -192,6 +192,51 @@ body.surfaces #fundamental-control-root {
     }
 }
 
+/* --- Source DOCKED (body.source-docked — the surface shell, where
+       layoutMode.roomy): it shares the screen with the active surface, so
+       it takes only its own height — all three panels across ONE row —
+       and the surface below keeps the rest. On a very wide screen it
+       stands BESIDE the surface instead, one narrow column, and the
+       surface keeps its full height. --- */
+body.source-docked #m4l-fundamental-source-panel {
+    flex: 0 0 auto;
+    overflow-y: visible;
+}
+
+@container surface-stack (min-width: 40rem) {
+    body.source-docked #m4l-fundamental-source-panel {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        grid-template-rows: auto;
+    }
+
+    body.source-docked #spectral-system-root {
+        grid-column: auto;
+    }
+}
+
+@media (min-width: 120rem) {
+    /* The card's reading-width cap would squeeze the surface instead */
+    body.source-docked .control-card {
+        max-width: 100rem;
+    }
+
+    body.source-docked .surface-stack {
+        flex-direction: row;
+    }
+
+    body.source-docked #m4l-fundamental-source-panel {
+        flex: 0 0 22rem;
+        grid-template-columns: minmax(0, 1fr);
+        overflow-y: auto;
+    }
+
+    body.source-docked .surface-stack > .labeled-control {
+        flex: 1 1 0;
+        width: auto;
+        min-width: 0;
+    }
+}
+
 /* --- The drawbar strip (Gain / Filter / Convolution / ADSR): fills the
        stack; on a very short screen (phone landscape) the strip's floors
        exceed the card — it scrolls inside the panel rather than growing

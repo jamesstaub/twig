@@ -58,6 +58,15 @@
     background-color: color-mix(in srgb, var(--accent-primary) 14%, transparent);
 }
 
+/* Under Source: it toggles on its own, apart from the surfaces below */
+.surface-toolbar-divider {
+    flex: 0 0 auto;
+    width: 60%;
+    height: 1px;
+    margin: 0.2rem 0;
+    background-color: var(--border-subtle);
+}
+
 .surface-toolbar-btn:focus-visible {
     outline: 2px solid var(--accent-primary);
     outline-offset: 1px;
@@ -127,14 +136,26 @@ body.coarse .side-toggle-btn {
     height: 2rem;
 }
 
-/* The embed band lays every panel out side by side: nothing to toggle */
-body.embed .side-toggle-btn {
+/* Collapsing the toolbar is the embed band's (surfaces.embed.css) */
+.surface-toolbar-collapse {
     display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 0 0.4rem;
+    color: var(--text-muted);
+    background: none;
+    border: none;
+    cursor: pointer;
 }
 
-body.embed .labeled-control > span:has(> .side-toggle-btn) {
-    padding-right: 0;
-    min-height: 0;
+.surface-toolbar-collapse:hover {
+    color: var(--text-accent);
+}
+
+.surface-toolbar-collapse svg {
+    display: block;
+    width: 0.9rem;
+    height: 0.9rem;
 }
 
 /* Finger-sized targets */

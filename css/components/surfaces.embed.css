@@ -1,0 +1,99 @@
+/* Embed-mode overrides for surfaces.css: the surface toolbar is a slim
+   ROW fixed across the top of the band (css/embed.css pads the row down
+   by --embed-toolbar-height) — icon + label side by side, the divider
+   upright — and it COLLAPSES to a thin handle, handing its height back to
+   the panels (body.toolbar-collapsed, SurfacesController). */
+
+body.embed .surface-toolbar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 1500;
+    flex: none;
+    width: auto;
+    height: var(--embed-toolbar-height);
+    box-sizing: border-box;
+    flex-direction: row;
+    align-items: stretch;
+    gap: 0.125rem;
+    padding: 0 0.25rem;
+    border-right: none;
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+body.embed .surface-toolbar,
+body.embed.coarse .surface-toolbar {
+    overflow: visible;
+}
+
+body.embed .surface-toolbar-btn,
+body.embed.coarse .surface-toolbar-btn {
+    flex: 0 0 auto;
+    width: auto;
+    height: auto;
+    flex-direction: row;
+    gap: 0.3rem;
+    padding: 0 0.5rem;
+    border-radius: var(--radius-sm);
+}
+
+body.embed .surface-toolbar-btn svg {
+    width: 0.85rem;
+    height: 0.85rem;
+}
+
+/* (display: the short-screen rail in surfaces.css goes icons-only) */
+body.embed .surface-toolbar-label {
+    display: inline;
+    font-size: var(--font-size-2xs);
+}
+
+body.embed .surface-toolbar-divider {
+    width: 1px;
+    height: auto;
+    margin: 0.25rem 0.2rem;
+}
+
+/* The collapse button: at the row's far end; collapsed, it IS the row — a
+   full-width handle */
+body.embed .surface-toolbar-collapse {
+    display: flex;
+    margin-left: auto;
+}
+
+body.embed.toolbar-collapsed {
+    --embed-toolbar-height: 0.5rem;
+}
+
+body.embed.toolbar-collapsed .surface-toolbar-btn,
+body.embed.toolbar-collapsed .surface-toolbar-divider {
+    display: none;
+}
+
+body.embed.toolbar-collapsed .surface-toolbar-collapse {
+    flex: 1 1 auto;
+    margin: 0;
+}
+
+body.embed.toolbar-collapsed .surface-toolbar-collapse svg {
+    transform: rotate(180deg);
+}
+
+/* The side-column toggle, at the band's scale */
+body.embed .side-toggle-btn {
+    top: 0.15rem;
+    right: 0.25rem;
+    width: 1.3rem;
+    height: 1.1rem;
+}
+
+body.embed .side-toggle-btn svg {
+    width: 0.8rem;
+    height: 0.8rem;
+}
+
+body.embed .labeled-control > span:has(> .side-toggle-btn) {
+    padding-right: 1.75rem;
+    min-height: 0;
+}

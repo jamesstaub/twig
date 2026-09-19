@@ -1,8 +1,12 @@
 import BaseComponent from '../base/BaseComponent.js';
 
 /**
- * Left toolbar: one button per surface. Pure presentation — renders from
- * props and reports clicks through onSelect(id). Icons are inline SVG in currentColor so
+ * The surface toolbar — a left rail, or a row across the top of the embed
+ * band: one button per surface, a divider after the ones that toggle
+ * independently (Source), and a collapse button (shown where the toolbar
+ * can collapse — surfaces.embed.css). Pure presentation — renders from
+ * props and reports clicks through onSelect(id) / onToggleCollapsed().
+ * Icons are inline SVG in currentColor so
  * the theme owns their color like any other text.
  */
 
@@ -17,21 +21,39 @@ const ICONS = {
     settings: '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="10" cy="10" r="2.5"/><path d="M10 2.5v2.2M10 15.3v2.2M2.5 10h2.2M15.3 10h2.2M4.7 4.7l1.6 1.6M13.7 13.7l1.6 1.6M4.7 15.3l1.6-1.6M13.7 6.3l1.6-1.6"/></svg>',
 };
 
+const ICON_CHEVRON = '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5 10 7.5l5 5"/></svg>';
+
 export class ToolbarComponent extends BaseComponent {
 
     constructor(selector) {
         super(selector);
         this.onSelect = null;
+        this.onToggleCollapsed = null;
     }
 
-    render({ surfaces, active }) {
+    render({ surfaces, collapsed }) {
         this.el.innerHTML = '';
         for (const s of surfaces) {
             this.el.appendChild(this.button({
-                id: s.id, label: s.label, title: s.title, pressed: s.id === active,
+                id: s.id, label: s.label, title: s.title, pressed: s.showing,
                 onClick: () => this.onSelect?.(s.id),
             }));
+            // Source toggles on its own, apart from the surfaces below it
+            if (s.independent) {
+                const divider = document.createElement('span');
+                divider.className = 'surface-toolbar-divider';
+                this.el.appendChild(divider);
+            }
         }
+
+        const collapse = document.createElement('button');
+        collapse.type = 'button';
+        collapse.className = 'surface-toolbar-collapse';
+        collapse.setAttribute('aria-expanded', String(!collapsed));
+        collapse.title = collapse.ariaLabel = collapsed ? 'Show the toolbar' : 'Hide the toolbar';
+        collapse.innerHTML = ICON_CHEVRON;
+        this.bindEvent(collapse, 'click', () => this.onToggleCollapsed?.());
+        this.el.appendChild(collapse);
     }
 
     button({ id, label, pressed, title, onClick }) {

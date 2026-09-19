@@ -4,13 +4,7 @@
    ================================
    It lives in the Sequence panel (#sequence-control-root): the sections
    tile and scroll above the panel's fixed bottom toolbar, whose slot
-   carries the header. In the embed band the panel is a full-band overlay
-   (inspector.embed.css). */
-
-/* The panel's own header. The close button is the embed overlay's. */
-.sequence-close {
-    display: none;
-}
+   carries the header. */
 
 .inspector {
     display: flex;

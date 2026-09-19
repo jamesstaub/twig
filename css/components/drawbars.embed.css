@@ -84,9 +84,3 @@ body.embed .drawbar-aux {
 body.embed .drawbar-value {
     display: none;
 }
-
-/* No toolbar in the band: the family tabs are how the strip switches
-   between gain / filter / convolution / adsr here */
-body.embed #drawbars-control-root .drawbars-family-tabs {
-    display: inline-flex;
-}

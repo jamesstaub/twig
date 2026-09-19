@@ -18,13 +18,8 @@ import {
 
 /**
  * The Sequence panel's editor: renders the InspectorComponent for the
- * selected voice while the panel shows, and re-renders it when the voice
- * or its state changes from outside the inspector.
- *
- * The panel is the Sequence surface; in the embed band (no toolbar, no
- * surfaces) it is a full-band overlay instead (body.sequence-open,
- * inspector.embed.css) with its own close button — the same arrangement
- * as Settings. `open(index)` gets there on either shell.
+ * selected voice while the Sequence surface shows, and re-renders it when
+ * the voice or its state changes from outside the inspector.
  */
 export class InspectorController extends BaseController {
 
@@ -32,38 +27,14 @@ export class InspectorController extends BaseController {
      * @param {string} selector        the panel's editor area
      * @param {HTMLElement} headerSlot where the voice stepper mounts (the
      *   panel's bottom toolbar slot)
-     * @param {string} closeSelector   the panel's close button (embed)
      */
-    constructor(selector, headerSlot, closeSelector) {
+    constructor(selector, headerSlot) {
         super(selector);
         this.headerSlot = headerSlot;
-        this.closeEl = document.querySelector(closeSelector);
     }
 
     createComponent(selector) {
         return new InspectorComponent(selector);
-    }
-
-    get showing() {
-        return layoutMode.isEmbed
-            ? document.body.classList.contains('sequence-open')
-            : surfaceState.active === 'sequence';
-    }
-
-    /** Edit `index` in the Sequence panel. */
-    open(index) {
-        inspectorState.select(index);
-        if (layoutMode.isEmbed) {
-            document.body.classList.add('sequence-open');
-            this.update();
-        } else {
-            surfaceState.show('sequence');
-        }
-    }
-
-    close() {
-        document.body.classList.remove('sequence-open');
-        this.update();
     }
 
     getProps() {
@@ -83,7 +54,7 @@ export class InspectorController extends BaseController {
     }
 
     update() {
-        if (!this.showing) {
+        if (!surfaceState.showing('sequence')) {
             // Nothing to show: don't keep a stale editor in a hidden panel
             this.component.teardown();
             this.component.el.innerHTML = '';
@@ -95,16 +66,12 @@ export class InspectorController extends BaseController {
 
     bindComponentEvents() {
         this.component.onStep = (delta) => inspectorState.step(delta);
-        this.closeEl?.addEventListener('click', () => this.close());
     }
 
     bindExternalEvents() {
         document.addEventListener(INSPECTOR_CHANGED, () => this.update());
         document.addEventListener(SURFACE_CHANGED, () => this.update());
-        document.addEventListener(LAYOUT_MODE_CHANGED, () => {
-            document.body.classList.remove('sequence-open');
-            this.update();
-        });
+        document.addEventListener(LAYOUT_MODE_CHANGED, () => this.update());
         // In place, never a re-render: shift can go down mid-drag
         const syncScope = () => this.component.setScope(this.scope());
         document.addEventListener(LINK_ALL_CHANGED, syncScope);
@@ -118,9 +85,6 @@ export class InspectorController extends BaseController {
             if (this.component.writing) return;
             if (e.detail?.index !== inspectorState.index) return;
             this.scheduleUpdate();
-        });
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape' && document.body.classList.contains('sequence-open')) this.close();
         });
     }
 }

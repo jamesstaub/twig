@@ -21,8 +21,8 @@ export const RECORDINGS_CHANGED = 'recordings-changed';
 // Shell (embed | surfaces) or pointer density (coarse) changed — see
 // js/modules/layout/layoutMode.js. detail: { shell, coarse }
 export const LAYOUT_MODE_CHANGED = 'layout-mode-changed';
-// Active surface or side-column flag changed — see js/modules/surfaces/
-// surfaceState.js. detail: { active, side }
+// What the shell shows changed (active surface, Source dock, side column)
+// — read js/modules/surfaces/surfaceState.js; no detail
 export const SURFACE_CHANGED = 'surface-changed';
 // The Sequence panel's selected overtone (UI-only) — detail: { index }
 export const INSPECTOR_CHANGED = 'inspector-changed';

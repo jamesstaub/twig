@@ -99,7 +99,11 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
   share it), exposed as `body.embed` | `body.surfaces`; **coarse**
   (`pointer: coarse`, or `?coarse=1` to preview touch density with a
   mouse) is `body.coarse` and swaps control density without changing the
-  shell. Changes dispatch `LAYOUT_MODE_CHANGED`.
+  shell; **roomy** = the Source panel fits on screen TOGETHER with another
+  surface (`ROOMY_QUERY`: a desktop-sized window, ≥ 54rem tall — 57rem
+  under 85rem wide, where the navbar is two rows — and ≥ 80rem wide; the
+  embed band always is, being as wide as it needs). Changes dispatch
+  `LAYOUT_MODE_CHANGED`.
 - Readouts are inline, never floating: `Dial` renders its own caption
   above the arc and value below it (`.mini-dial-label` / `.mini-dial-value`,
   css/components/dial.css — hosts must NOT add their own captions), and
@@ -109,54 +113,64 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
   ValueTip. Gotcha: layout.css's `.labeled-control span` restyles every
   span in a panel as a flex heading (`display:flex`); widget text and
   hideable spans inside panels must out-specify it (dial.css uses
-  `.mini-dial > …`, the strip's family tabs are hidden with an id-scoped
-  rule).
+  `.mini-dial > …`).
 - Embed mode: `body.embed` when the viewport is ≤ `--embed-max-height`
   tall or `?embed=1`; `css/embed.css` (must stay the **last** import in
   styles.css, followed by each component's own `*.embed.css`) reflows the
   app into one ~150px horizontal band that scrolls sideways if it doesn't
   fit — a jweb viewport is often plenty WIDE even though short, so
   desktop's own width-based breakpoints still fire there and need explicit
-  embed overrides. Sections become flex children of `body.embed` via
-  `.embed-flatten` (`display:contents` on every wrapper) with `order:` per
-  panel: navbar, the m4l stack (fundamental/source/system as one narrow
-  column, layout.embed.css), the drawbar strip, the waveform and spectrum
-  panels, the tonewheel. Hidden there: the toolbar, the pad grid, the
-  scope and envelope panels, the settings panel (an overlay instead,
-  `body.settings-open`) and the Sequence panel (likewise,
-  `body.sequence-open`). The band has no toolbar, so the strip's FAMILY tabs
-  (gain/filter/convolution/adsr) show only there. There are no modals in
+  embed overrides. The band runs on the SAME surface model as everything
+  else: the surface toolbar is a slim row fixed across its top
+  (surfaces.embed.css — every surface, icon + label; it COLLAPSES to a
+  0.5rem handle, `body.toolbar-collapsed`, handing `--embed-toolbar-height`
+  back to the panels), and under it sections are flex children of
+  `body.embed` via `.embed-flatten` (`display:contents` on every wrapper)
+  with `order:` per panel: navbar (Play · Trigger/Drone / recorder /
+  Gain · Slew), the docked Source stack (two short columns,
+  layout.embed.css), the active surface's panel, its visualization, the
+  tonewheel. Every surface has a band layout (pads 6×2, Settings and
+  Sequence as one row of cards, the spectrum with Create IR beside it) and
+  must fit 150px WITH the toolbar row. There are no modals or overlays in
   the app.
-- Surfaces shell (`body.surfaces`, i.e. everything but embed):
-  `js/modules/surfaces/` — `surfaceState.js` is the UI-only registry
-  (`SURFACES`, in toolbar order: source, gain, trigger, adsr, filter,
-  convolution, sequence, settings — each a list of panel-root element
-  ids; `label` is what fits the rail ("Conv"), optional `title` the full
-  name for the tooltip;
-  `family` names the drawbar strip's parameter family for the four
-  parameter surfaces, and `side` a surface's visualization panel (those
-  four, and Sequence): a surface
-  with `side` has a SIDE COLUMN — that panel over `SIDE_ROOTS`, the
-  tonewheel — and the others have none; visible set + side flag, emits
-  `SURFACE_CHANGED`), `ToolbarComponent` is the left icon rail (surfaces
-  only), `SideToggleComponent` the icon button pinned to the top-right
-  corner of a panel (`.side-toggle-btn`, one per panel — it lives only
-  in the panels whose surfaces have a side column, the drawbar strip and
-  the Sequence panel, and opens/closes the WHOLE
-  column, visualization and tonewheel; hidden in embed),
-  `SurfaceShellComponent` applies state to the DOM: sets `hidden` on every
-  panel root the active surface doesn't include (base.css has
-  `[hidden]{display:none!important}`), collapses the wrappers whose
-  children are all hidden (`#m4l-fundamental-source-panel`,
-  `.surface-stack`, `.surface-side`), exposes `body[data-surface="…"]`
-  (`surfaceState.sideShown` = toggle AND the surface has a side), then
-  dispatches a synthetic window `resize` so canvases
-  re-measure. `SurfacesController` mounts LAST in `initUI()` so every
-  panel has sized itself while visible. The side column defaults OPEN for
-  fine pointers and CLOSED for `body.coarse` — resolved lazily (`sideDefault()`),
-  NOT at module import, because `layoutMode.init()` runs later than
-  imports. p5 gotcha: the tonewheel sketch's `windowResized` can run
-  before `setup()`, so it early-returns until `canvasReady`.
+- Surfaces (`js/modules/surfaces/`, both shells): `surfaceState.js` is
+  the UI-only registry and state. `SURFACES`, in toolbar order: source,
+  gain, trigger, adsr, filter, convolution, sequence, settings — each a
+  list of panel-root element ids; `label` is what fits the rail ("Conv"),
+  optional `title` the full name for the tooltip; `family` names the
+  drawbar strip's parameter family for the four parameter surfaces;
+  `side` a surface's visualization panel (those four, and Sequence): a
+  surface with `side` has a SIDE COLUMN — that panel over `SIDE_ROOTS`,
+  the tonewheel — and the others have none; `withSource` = Source may
+  dock with it (all but Settings). ONE main surface is `active`; SOURCE
+  is the exception: where `layoutMode.roomy` (and the active surface is
+  `withSource`) it DOCKS — shown together with the active surface and
+  toggled independently by its own button (`dock`, default on: the page
+  opens on Source + Gain) — and everywhere else it is a surface like the
+  others, shown alone (`alone`). `show(id)` is the toolbar's one entry
+  point; read `showing(id)`, `sourceDocked`, `sourceAlone`, `tools`,
+  `sideShown` — `SURFACE_CHANGED` carries no detail. `ToolbarComponent`
+  is the toolbar (left rail, or the embed band's top row: a divider
+  after Source, and the collapse button — shown only where
+  surfaces.embed.css enables it; collapsed state lives in
+  `SurfacesController`), `SideToggleComponent` the icon button pinned to
+  the top-right corner of a panel (`.side-toggle-btn`, one per panel — it
+  lives only in the panels whose surfaces have a side column, the drawbar
+  strip and the Sequence panel, and opens/closes the WHOLE column,
+  visualization and tonewheel), `SurfaceShellComponent` applies state to
+  the DOM on both shells: sets `hidden` on every panel root that isn't
+  showing (base.css has `[hidden]{display:none!important}` — an embed rule
+  that forces `display` with `!important` must carry `:not([hidden])`),
+  collapses the wrappers whose children are all hidden
+  (`#m4l-fundamental-source-panel`, `.surface-stack`, `.surface-side`),
+  exposes `body[data-surface="…"]` and `body.source-docked`, then
+  dispatches a synthetic window `resize` so canvases re-measure.
+  `SurfacesController` mounts LAST in `initUI()` so every panel has sized
+  itself while visible. The side column defaults OPEN for fine pointers
+  and CLOSED for `body.coarse` — resolved lazily (`sideDefault()`), NOT at
+  module import, because `layoutMode.init()` runs later than imports. p5
+  gotcha: the tonewheel sketch's `windowResized` can run before `setup()`,
+  so it early-returns until `canvasReady`.
 - Page markup (`index.html`): `.control-card` holds exactly two children
   — the `.surface-stack` (every main panel, a flex column; the LAST
   visible one carries `flex:1`) and the `.surface-side` (each parameter
@@ -191,8 +205,7 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
   `COMPACT_STRIP_HEIGHT` 420px), when only the bars show and the header's
   parameter tabs (`#drawbars-tabs`, `renderHeader`) put the chosen
   parameter on the bars instead. The controller sets the family from
-  `SURFACE_CHANGED` (`SURFACES[].family`) or, in embed, from the family
-  tabs; `refreshColumn(index)` re-reads every control of one column on
+  `SURFACE_CHANGED` (the active surface's `family`); `refreshColumn(index)` re-reads every control of one column on
   `DRAWBAR_CHANGE` / `OVERTONE_SIGNAL_CHANGED` regardless of kind. Adding
   a per-overtone parameter to a surface = one descriptor in a family.
 - Strip gestures: ONE pointer handler on `#drawbars` owns every bar
@@ -202,9 +215,8 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
   DRAWS the parameter; a touch press-and-hold instead opens the overtone
   menu, restoring the row it would have drawn). `.drawbar-input-wrapper`
   and `.drawbar-slider` are `touch-action: none`; the column's label/aux
-  areas keep `pan-x`. The column label opens that overtone's Sequence
-  editor (`onInspect(index)` → `InspectorController.open`, wired by ui.js
-  — the strip never imports the inspector). Under 40rem the columns are `flex: 1 1 0` with a 20px floor
+  areas keep `pan-x`. The column label is only a label (nothing
+  navigates from the strip). Under 40rem the columns are `flex: 1 1 0` with a 20px floor
   (12 voices fit a phone beside the toolbar; more scroll).
 - Overtone toolbar (`js/modules/overtoneToolbar/`, overtone-toolbar.css):
   the fixed bar at the bottom of every per-overtone panel — the drawbar
@@ -254,12 +266,9 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
   fixed width in the bar so the ‹ › buttons don't move). The editor has
   ONE home: `#sequence-inspector`, scrolling above the panel's overtone
   toolbar, with the ‹ Overtone N › header mounted in the toolbar's slot
-  (`headerSlot`). There is no inspector sheet and no "Inspect" menu item:
-  `InspectorController.open(index)` selects the voice and shows the
-  Sequence surface — or, in embed (no surfaces), turns the same panel
-  into a full-band overlay (`body.sequence-open`, inspector.embed.css,
-  closed by its × or Escape — the Settings arrangement). It renders only
-  while the panel shows. The sequence itself (gate pattern × shape ×
+  (`headerSlot`). There is no inspector sheet, no "Inspect" menu item and
+  no way in but the toolbar. It renders only while the Sequence surface
+  shows (`surfaceState.showing('sequence')`). The sequence itself (gate pattern × shape ×
   stretch) is drawn in the panel's SIDE COLUMN, not in the editor:
   `js/modules/sequenceViz/` (`#sequence-viz-root`) redraws from
   `OVERTONE_SIGNAL_CHANGED` (`gate`/`seq` kinds, selected voice) and
@@ -296,11 +305,18 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
   oscillator preview), overtone system. It is a GRID sized by container
   queries on the stack's own width (`.surface-stack` is `container:
   surface-stack / inline-size`, page-arrangement.css) — the viewport lies
-  once the toolbar takes its share: one column under
-  40rem (phones), fundamental | source over an ALWAYS full-width system
-  panel from 40rem. It fits the screen from tablets up; a phone scrolls
-  inside the panel (portrait a little, landscape a row — there the system
-  panel spends width instead: menu | toggle | dials on one row).
+  once the toolbar takes its share. ALONE (a surface of its own — short
+  or narrow screens): one column under 40rem (phones), fundamental |
+  source over an ALWAYS full-width system panel from 40rem; it fits the
+  screen from tablets up, a phone scrolls inside the panel (portrait a
+  little, landscape a row — there the system panel spends width instead:
+  menu | toggle | dials on one row). DOCKED (`body.source-docked`, where
+  `layoutMode.roomy`): it takes only its own height — all three panels
+  across ONE row above the active surface, which keeps the rest (the
+  roomy thresholds guarantee the strip under it stays out of compact
+  mode); from 120rem it stands BESIDE the surface instead, one 22rem
+  column, and the card's max-width is lifted so the surface isn't
+  squeezed.
   Everything in it flexes rather than
   being fixed: the keyboard's keys share its width and its height floats
   between a floor and a cap (keyboard.css; `body.coarse` raises the
@@ -318,10 +334,11 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
   (`#system-dials-row`). Under them, `#system-frequencies`: every
   overtone's frequency, each entry tinted `partialColor`. The list is a
   GRID that never scrolls or overflows (12 voices max, so every shape is
-  bounded): twelve across the full-width panel, two rows of six where
-  that is too narrow (stack ≤ 54rem), and on the phone stack a VERTICAL
-  list — three columns of four, one-line entries, the ratio label
-  ellipsizing before the value ever clips. `renderFrequencies` rebuilds
+  bounded), shaped by the System panel's OWN width (`container:
+  system-panel` — the panel is full-width alone, a third when docked, a
+  column on a phone): twelve across, two rows of six under 52rem, and
+  under 26rem a VERTICAL list — three columns of four, one-line entries,
+  the ratio label ellipsizing before the value ever clips. `renderFrequencies` rebuilds
   items only when the voice count changes, and `FUNDAMENTAL_CHANGED`
   calls it alone (a sweep must not rebuild the menu). Hidden in embed.
   `formatFrequency` / `formatHz` (utils.js) are the one voice-frequency
@@ -354,8 +371,7 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
   re-rendered on `MIDI_OUTPUT_CHANGED` since ports arrive late) and
   `RecorderSettingsComponent` (wav/mid layout, take length, tempo mode;
   `syncChecked` on `RECORDER_CHANGED`). The toolbar button and the
-  recorder's ⚙ (`SettingsController.open(tab)`) get there; in embed the
-  same root becomes a full-band overlay with its own × / Escape.
+  recorder's ⚙ (`SettingsController.open(tab)`) get there, on both shells.
 - Navbar: Play/Stop, Trigger/Drone, the recorder strip, Gain/Slew. Above
   85rem it is the fixed one-row bar with `.app-container` padded to
   `--navbar-height` (base.css) — one row of everything needs ~1350px; the

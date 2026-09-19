@@ -1,74 +1,28 @@
-/* Embed-mode overrides for inspector.css: there is no Sequence surface in
-   the 170px band, so the same panel becomes a full-band overlay
-   (body.sequence-open — a drawbar column label opens it; closed by its ×
-   or Escape), like Settings: the title and × at the left edge, the
-   sections one horizontal row scrolling sideways, the panel's toolbar
-   along the bottom, and the sequence visualization pinned to the right
-   edge (it lives in the side column's DOM). */
+/* Embed-mode overrides for inspector.css: the Sequence surface in the
+   band — the sections one horizontal row of cards over the panel's
+   toolbar, as wide as they need (the band scrolls sideways). */
 
-body.embed #sequence-control-root,
-body.embed #sequence-viz-root {
-    display: none;
-}
-
-body.embed.sequence-open #sequence-control-root {
-    display: grid;
-    grid-template-columns: auto minmax(0, 1fr);
-    grid-template-rows: minmax(0, 1fr) auto;
-    gap: 0.25rem 0.5rem;
-    position: fixed;
-    inset: 0 15rem 0 0;
-    z-index: 2000;
-    margin: 0;
-    padding: 0.25rem 0.5rem;
-    background-color: var(--surface-modal);
-}
-
-body.embed.sequence-open #sequence-viz-root {
-    display: flex;
-    position: fixed;
-    inset: 0 0 0 auto;
-    width: 15rem;
-    z-index: 2000;
-    margin: 0;
-    box-sizing: border-box;
-    background-color: var(--surface-modal);
-}
-
-/* Title and × stacked at the left edge, always in view */
-body.embed .sequence-header {
-    grid-area: 1 / 1 / -1 / 2;
-    flex-direction: column;
-    justify-content: center;
-    gap: 0.5rem;
-    margin: 0;
-}
-
-body.embed .sequence-close {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 1.6rem;
-    height: 1.6rem;
-    padding: 0;
-    font-size: var(--font-size-xl);
-    line-height: 1;
-    color: var(--text-secondary);
-    background: none;
-    border: 1px solid var(--border-subtle);
-    border-radius: var(--radius-md);
-    cursor: pointer;
+body.embed #sequence-control-root {
+    flex: 0 0 auto;
+    overflow: visible;
 }
 
 body.embed #sequence-inspector {
-    grid-area: 1 / 2;
-    min-width: 0;
-    overflow-x: auto;
-    overflow-y: hidden;
+    flex: 1 1 auto;
+    min-height: 0;
 }
 
-body.embed #sequence-toolbar {
-    grid-area: 2 / 2;
+/* The panel's title row would cost the editor a fifth of its height, and
+   every card is titled already: only the side toggle stays (absolute) */
+body.embed #sequence-control-root > span {
+    min-height: 0;
+    height: 0;
+    margin: 0;
+    padding: 0;
+}
+
+body.embed #sequence-control-root > span > span {
+    display: none;
 }
 
 body.embed .inspector {
@@ -118,12 +72,12 @@ body.embed .inspector-shape {
     width: 9rem;
 }
 
-/* Five amount rows don't fit the band stacked — two columns of them do */
+/* Five amount rows don't fit the band stacked — three columns of them do */
 body.embed .inspector-targets {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(3, 1fr);
     gap: 0.125rem 0.75rem;
-    min-width: 20rem;
+    min-width: 30rem;
 }
 
 body.embed .inspector-target-label {

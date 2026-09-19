@@ -3,7 +3,10 @@
    ================================
    Applied as body.embed by app.js when the viewport is <= --embed-max-height
    (css/theme.css) tall, or forced with ?embed=1. Target: 170px height,
-   > 400px width. The whole app becomes one horizontal row with no vertical
+   > 400px width. The app becomes one horizontal row — the navbar, then
+   whatever the surface shell shows (the docked Source panel, the active
+   surface, its side column) — under the surface toolbar, a slim row across
+   the top that collapses to a handle (surfaces.embed.css). No vertical
    scrolling; if the container is too narrow the body scrolls horizontally.
 
    This file owns only the cross-cutting shell: the row itself, wrapper
@@ -23,7 +26,10 @@ body.embed {
     gap: 0.375rem;
     height: 100vh;
     min-height: 0;
+    box-sizing: border-box;
     padding: 0.25rem;
+    /* The toolbar is fixed across the top; the row starts under it */
+    padding-top: calc(var(--embed-toolbar-height) + 0.25rem);
     overflow-y: hidden;
     overflow-x: auto;
 }
@@ -33,21 +39,19 @@ body.embed .embed-flatten {
     display: contents;
 }
 
-/* Chrome that doesn't fit in 170px — including the surface toolbar: the
-   band shows every panel at once, there is nothing to switch between */
+/* Chrome that doesn't fit in 170px */
 body.embed .navbar-section.logo,
-body.embed #tonewheel-viz-controls,
-body.embed .surface-toolbar {
+body.embed #tonewheel-viz-controls {
     display: none;
 }
 
-/* --- Section order: main controls, consolidated panel, drawbars, result, tonewheel ---
+/* --- Section order: navbar, the Source panel (docked by default), the
+   active surface's panel, its visualization, the tonewheel ---
    Fundamental / Source / Overtone System live together in one markup
-   group in the surfaces shell too (where one of them shows at a time —
-   see page-arrangement.css), so embed mode just needs to turn that SAME
-   group into a narrow vertical stack showing all three — a pure CSS
-   override, no DOM move required (see layout.embed.css for that panel's
-   own layout).
+   group in the surfaces shell too (see page-arrangement.css), so embed
+   mode just needs to turn that SAME group into a narrow vertical stack
+   showing all three — a pure CSS override, no DOM move required (see
+   layout.embed.css for that panel's own layout).
    Drawbars has no fixed width: it grows to fill whatever room the other
    (fixed-width) sections leave, and min-width:max-content lets it grow
    PAST that if the partial count needs more — flex's own automatic
@@ -60,13 +64,8 @@ body.embed .surface-toolbar {
 body.embed .navbar { order: 1; }
 body.embed #m4l-fundamental-source-panel { order: 2; }
 body.embed #drawbars-control-root { order: 3; flex: 1 1 320px; min-width: max-content; }
-body.embed #gain-viz-root { order: 4; width: 300px; }
-body.embed #conv-viz-root { order: 5; width: 300px; }
-body.embed #tonewheel-container { order: 6; }
-
-/* No room in the band for the output scope or the envelope curves (the
-   sequence visualization shows with its overlay — inspector.embed.css) */
-body.embed #filter-viz-root,
-body.embed #adsr-viz-root {
-    display: none;
-}
+body.embed #pad-grid-root,
+body.embed #sequence-control-root,
+body.embed #settings-control-root { order: 3; }
+body.embed .viz-panel { order: 4; width: 300px; }
+body.embed #tonewheel-container { order: 5; }

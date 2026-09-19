@@ -1,6 +1,31 @@
-/* Embed-mode overrides for pads.css: the 170px band has no Trigger surface
-   (the drawbar trigger pads and MIDI/OSC cover triggering there). */
+/* Embed-mode overrides for pads.css: the Trigger surface in the band —
+   two rows of six, short and wide like everything else there. */
 
 body.embed #pad-grid-root {
-    display: none;
+    flex: 1 1 28rem;
+    min-width: 24rem;
+}
+
+body.embed .pad-grid {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 0.25rem;
+}
+
+body.embed .trigger-pad {
+    gap: 0;
+    padding: 0.1rem 0.25rem;
+    border-radius: var(--radius-md);
+}
+
+body.embed .trigger-pad-label {
+    font-size: var(--font-size-sm);
+}
+
+body.embed .trigger-pad-hz,
+body.embed .trigger-pad-key {
+    font-size: var(--font-size-2xs);
+}
+
+body.embed .pad-grid-title {
+    font-size: var(--font-size-xs);
 }

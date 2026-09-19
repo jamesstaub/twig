@@ -36,14 +36,13 @@ import { EnvelopeVizController } from './modules/envelopeViz/envelopeVizControll
 import { SequenceVizController } from './modules/sequenceViz/sequenceVizController.js';
 import { RecorderController } from './modules/recording/recorderController.js';
 import { SurfacesController } from './modules/surfaces/surfacesController.js';
-import { SURFACES } from './modules/surfaces/surfaceState.js';
+import { surfaceState } from './modules/surfaces/surfaceState.js';
 import { InspectorController } from './modules/inspector/inspectorController.js';
 import { PadGridController } from './modules/pads/padGridController.js';
 import { SettingsController } from './modules/settings/settingsController.js';
 import { EnvelopeModeController } from './modules/envelopeMode/envelopeModeController.js';
 
 let settingsController;
-let inspectorController;
 
 export function initUI() {
     setupMainButtons();
@@ -98,7 +97,6 @@ function setupPulseOutputs() {
 
 function setupDrawbars() {
     const drawbarsController = new DrawbarsController("#drawbars");
-    drawbarsController.onInspect = (index) => inspectorController?.open(index);
     drawbarsController.init();
     // The strip's bottom bar: reset/randomize act on the showing family
     new OvertoneToolbarController('#drawbars-toolbar', {
@@ -143,12 +141,11 @@ function setupSurfaces() {
     });
     sequenceToolbar.init();
     // The per-overtone sequence editor
-    inspectorController = new InspectorController('#sequence-inspector', sequenceToolbar.slotEl, '.sequence-close');
-    inspectorController.init();
+    new InspectorController('#sequence-inspector', sequenceToolbar.slotEl).init();
     // Link and shape are tools of the per-overtone surfaces: leaving them
     // drops both
-    document.addEventListener(SURFACE_CHANGED, (e) => {
-        if (SURFACES.find((s) => s.id === e.detail?.active)?.tools) return;
+    document.addEventListener(SURFACE_CHANGED, () => {
+        if (surfaceState.tools) return;
         shapeMode.reset();
         linkLock.set(false);
     });

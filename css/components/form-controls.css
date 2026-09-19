@@ -155,10 +155,16 @@
 
 /* Every overtone's frequency (unit, then the list). The list is a GRID
    and never scrolls or overflows — at most 12 voices, so every shape is
-   bounded: one row across a full-width panel (two rows of six where that
-   is too narrow for twelve), and a VERTICAL list — three columns of four
-   — on the one-column phone stack. Each entry wears its drawbar's color
-   (--partial-color, set per item). */
+   bounded — and its shape follows the System panel's OWN width (a
+   container query: the panel is full-width on the Source surface, a
+   third of it when Source is docked, a narrow column on a phone):
+   twelve across, two rows of six where that is too narrow, and a
+   VERTICAL list — three columns of four — in a narrow panel. Each entry
+   wears its drawbar's color (--partial-color, set per item). */
+body.surfaces #spectral-system-root {
+    container: system-panel / inline-size;
+}
+
 .system-frequencies-row {
     display: flex;
     align-items: center;
@@ -211,14 +217,15 @@
 }
 
 /* Too narrow for twelve across: two even rows rather than a ragged wrap */
-@container surface-stack (min-width: 40rem) and (max-width: 54rem) {
+@container system-panel (min-width: 26rem) and (max-width: 52rem) {
     .system-frequencies {
         grid-template-columns: repeat(6, minmax(0, 1fr));
     }
 }
 
-/* The phone stack: a vertical list, four entries to a column… */
-@container surface-stack (max-width: 39.99rem) {
+/* A narrow panel: a vertical list, four entries to a column, each entry
+   one line ("3:1 392.4"), the unit above */
+@container system-panel (max-width: 25.99rem) {
     .system-frequencies-row {
         flex-direction: column;
         align-items: stretch;
@@ -236,10 +243,7 @@
         grid-auto-flow: column;
         grid-auto-columns: minmax(0, 1fr);
     }
-}
 
-/* …each entry one line ("3:1 392.4") */
-@container surface-stack (max-width: 39.99rem) {
     .system-frequency {
         flex-direction: row;
         align-items: baseline;
@@ -248,7 +252,7 @@
         padding: 0 0.15rem;
     }
 
-    /* The frequency is the point: on the narrowest phones a long ratio
+    /* The frequency is the point: in the narrowest panels a long ratio
        label gives way, never the value */
     .system-frequency > .system-frequency-label {
         display: block;
@@ -266,9 +270,10 @@
 /* Where the Overtone System panel runs the full width of the Source
    surface (page-arrangement.css: any stack from 40rem) one column of
    controls leaves most of it empty — the dials move beside the menu
-   instead: [menu / description / toggle] | [dials]. */
+   instead: [menu / description / toggle] | [dials]. Not while Source is
+   docked: the panel is a narrow third (or column) there. */
 @container surface-stack (min-width: 40rem) {
-    body.surfaces #spectral-system-root {
+    body.surfaces:not(.source-docked) #spectral-system-root {
         display: grid;
         grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
         align-items: start;

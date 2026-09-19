@@ -47,8 +47,8 @@ description: Verify twig changes end-to-end in a headless browser — screenshot
   (`.drawbar-value` readout) and the others as `.mini-dial`s under it
   (labels in `.mini-dial-label`). When the panel is under 420px tall
   (`page.setViewport` height ~520) the dials go and `#drawbars-tabs
-  .drawbars-tab` (parameter tabs) appear; in embed `#drawbars-family-tabs`
-  switches families.
+  .drawbars-tab` (parameter tabs) appear (the embed band is always
+  compact); the toolbar switches families on both shells.
 - Overtone toolbar: the bottom bar of the strip (`#drawbars-toolbar`) and
   of the Sequence panel (`#sequence-toolbar`): `[data-action="reset|
   randomize|link|shape"]`; the shape panel is `.shape-panel` inside the
@@ -56,15 +56,24 @@ description: Verify twig changes end-to-end in a headless browser — screenshot
   assert "nothing jumps", snapshot every button's rect, toggle shape,
   compare — and `scrollIntoView` the bar FIRST in embed (puppeteer's
   click scrolls the band sideways, which reads as a jump).
-- Sequence: click `#drawbar-label-N` (or the toolbar) → the Sequence
-  surface on that voice: editor in `#sequence-inspector` (sections
-  Sequence / Modulation / Pulse Out, gate mode in `.inspector-gate-mode
-  select`, its fields as dials in `.inspector-gate-params .mini-dial`),
-  the ‹ Overtone N › stepper `.inspector-step` inside `#sequence-toolbar`,
-  the drawn sequence in the side column (`#sequence-canvas-area canvas` —
-  hash its pixels to assert a redraw). In embed the label click makes the
-  same panel a full-band overlay (`body.sequence-open`; `.sequence-close`
-  / Escape closes it). There is no inspector sheet.
+- Sequence: the toolbar's Sequence button → editor in
+  `#sequence-inspector` (sections Sequence / Modulation / Pulse Out, gate
+  mode in `.inspector-gate-mode select`, its fields as dials in
+  `.inspector-gate-params .mini-dial`), the ‹ Overtone N › stepper
+  `.inspector-step` inside `#sequence-toolbar`, the drawn sequence in the
+  side column (`#sequence-canvas-area canvas` — hash its pixels to assert
+  a redraw). Column labels navigate nowhere; there is no inspector sheet.
+- Source docking: at ≥1361×864 (or 1280×912) the page opens with
+  `body.source-docked` — Source above the active surface, BOTH toolbar
+  buttons pressed; the Source button toggles the dock. To test one
+  surface at a time, click Source once first (or use 1180×720, where
+  Source is a surface of its own). Guard clicks with the button's
+  `aria-pressed`, since a second click undocks.
+- Embed (`?embed=1`, test at 1000×150): the toolbar is a row across the
+  top (`.surface-toolbar-btn[data-surface=…]`, click via `evaluate` — the
+  band scrolls sideways under puppeteer's own click),
+  `.surface-toolbar-collapse` toggles `body.toolbar-collapsed`. Every
+  surface must fit the 150px band with the toolbar expanded.
 - Trigger: `.trigger-pad[data-index=N]` in `#pad-grid` (4 columns, 3 in
   portrait) — `pointerdown` (distinct `pointerId`s for chords) /
   `pointerup`; `.held` marks pressed pads. Silent unless Trigger mode AND

@@ -1,16 +1,12 @@
 import { MidiSettingsComponent } from './MidiSettingsComponent.js';
 import { RecorderSettingsComponent } from './RecorderSettingsComponent.js';
 import { surfaceState } from '../surfaces/surfaceState.js';
-import { layoutMode } from '../layout/layoutMode.js';
 import { MIDI_OUTPUT_CHANGED, RECORDER_CHANGED } from '../../events.js';
 
 /**
  * The Settings surface: MIDI routing/mapping and recording settings, two
- * in-place panels inside #settings-control-root. `open(section)` is what
- * the navbar's MIDI button and the recorder's ⚙ call: on the surfaces
- * shell it switches to the Settings surface; in the embed band (no
- * surfaces) the root becomes a full-band overlay (body.settings-open,
- * settings.embed.css) with its own close button.
+ * in-place panels inside #settings-control-root. `open(tab)` is what the
+ * recorder's ⚙ calls: it switches to the Settings surface on that tab.
  */
 export class SettingsController {
 
@@ -28,12 +24,8 @@ export class SettingsController {
         // devices; the note-out port is also bridged from Max
         document.addEventListener(MIDI_OUTPUT_CHANGED, () => this.midi.render());
         document.addEventListener(RECORDER_CHANGED, () => this.recorder.syncChecked());
-        this.root.querySelector('.settings-close')?.addEventListener('click', () => this.close());
         this.root.querySelectorAll('.settings-tab').forEach((btn) => {
             btn.addEventListener('click', () => this.selectTab(btn.dataset.tab));
-        });
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape' && document.body.classList.contains('settings-open')) this.close();
         });
     }
 
@@ -50,16 +42,7 @@ export class SettingsController {
 
     /** Show the settings on the given tab ('midi' | 'recorder'). */
     open(tab) {
-        if (layoutMode.isEmbed) {
-            document.body.classList.add('settings-open');
-        } else {
-            surfaceState.show('settings');
-        }
+        surfaceState.show('settings');
         this.selectTab(tab);
-    }
-
-    /** Embed overlay only — on the surfaces shell, another surface is the way out. */
-    close() {
-        document.body.classList.remove('settings-open');
     }
 }
