@@ -61,20 +61,46 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
   in `js/appConfig.js` (MIDI routing/mappings, recorder modes) — lives in
   localStorage, loaded before bootstrap so bridged values win. Recordings
   and IRs remain session-only.
-- Per-voice audio chain (`js/dsp/AudioEngine.js`): source → gain → gate
-  worklet (3 outputs: audio, cutoff-CV, Q-CV into the biquad's AudioParams)
-  → drive WaveShaper → lowpass biquad → convolution stage (dry/wet mix
-  around a ConvolverNode with 0-1 gain; feedback (−0.99..0.99, negative
-  inverts each recirculation) is a delay line around the wet signal — Chrome won't process a signal reaching a convolver through
-  a cycle, and a DelayNode in a cycle adds one render quantum, which is
-  subtracted; loop period = the IR's duration or a series partial ("tune",
-  filter-cutoff convention, ≥ 2 quanta via integer multiples). IRs from
-  `js/dsp/IRManager.js`, baked via "Create IR" with an optional ring/decay
-  time, and pitched per voice by voiceFreq / bakeFrequency) → panner → shared
-  compressor → master gain → limiter. Every node exists for every voice so
-  features can be enabled mid-playback without rewiring; "off" states are
-  passthrough (null WaveShaper curve, 20 kHz cutoff, gate mode 0, conv
-  dry 1/wet 0/no buffer).
+- Audio engine (`js/dsp/engine/`, the Web Audio backend): `AudioEngine.js`
+  exports the `audioEngine` singleton — context lifecycle, `now()` /
+  `sampleRate`, and the registry of running voices keyed by OVERTONE INDEX
+  (`addVoice(index, spec)`, `voice(index)`, `stopAllVoices()`, `onPulse(index,
+  pulse)`); there is no `AppState.audioContext` and no voice list in
+  AppState. `MasterBus.js` is everything downstream of the voices
+  (`master.input` compressor → gain → limiter, `analyser`, stem taps,
+  `recordingTaps`, the latency probe). `Voice.js` composes one chain from
+  the stages in `stages/` — each a `Stage` that builds its own nodes in
+  their "off" state, exposes `input`/`output` and named setters, and
+  disposes what it owns; stages know nothing about each other. A voice is
+  built neutral, then given its params through `voice.set(params, ramp)` —
+  the SAME path live updates take (creation is ramp 0), so no parameter is
+  written in two places; `Voice.js`'s `APPLY` table maps each param to its
+  stage setters and is the only place the two cross-stage params show
+  (frequency is also the modulator's clock; the modulator clamps its
+  wet/feedback CVs against the convolution's base values). Code above
+  `js/dsp/` passes plain data and never touches a voice's nodes. The
+  modulator worklet is a hard requirement: init fails without it.
+- Per-voice chain: source → envelope → level → modulator (the gate
+  worklet — `stages/modulator.js` is the only file that knows its
+  parameter names, output indices and port messages; outputs: audio +
+  cutoff, Q, wet, feedback CVs summed into those AudioParams by `route()`)
+  → drive WaveShaper → lowpass biquad (→ meter tap) → convolution stage
+  (dry/wet mix around a ConvolverNode with 0-1 send gain; feedback
+  (−0.99..0.99, negative inverts each recirculation) is a delay line
+  around the wet signal — Chrome won't process a signal reaching a
+  convolver through a cycle, and a DelayNode in a cycle adds one render
+  quantum, which is subtracted, so a loop is ≥ 2 quanta: the caller passes
+  the PERIOD to resonate on — the IR's duration, or a series partial
+  ("tune", filter-cutoff convention) — and `ConvolutionStage.loopDelayTime`
+  fits it with whole multiples; both constraints are Web Audio's and live
+  in that stage, not in audio.js. IRs from `js/dsp/IRManager.js`, baked via
+  "Create IR" with an optional ring/decay time, and pitched per voice by
+  voiceFreq / bakeFrequency; live IR changes go through the stage's
+  duck-and-swap, a voice being built gets its buffer directly) → panner →
+  master bus. Every stage exists for every voice so features can be
+  enabled mid-playback without rewiring; "off" states are passthrough
+  (null WaveShaper curve, 20 kHz cutoff, gate mode 0, conv dry 1/wet 0/no
+  buffer). Pure math (e.g. `js/dsp/driveCurve.js`) stays out of the engine.
 - The voice's head is an OscillatorNode in `sourceMode: 'oscillators'`, or
   a per-voice tap on one shared external node (`js/dsp/SourceManager.js`:
   ADC/soundfile/pink/white) — voices keep their frequency identity so the
@@ -438,10 +464,10 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
   the gate worklets' cycle-boundary times (`pulseCycleBoundaryAudioTime`),
   so no wall-clock hop is involved. The master chain's two
   DynamicsCompressors add a fixed look-ahead delay (12 ms — measured at
-  init by `AudioEngine.measureMasterLatency`, an offline impulse render)
-  which the recorder trims from master-tapped takes; stems (`stemTap(i)`,
-  a persistent per-index GainNode fed by each voice's `stemOut` before
-  the panner) have none. Verified to ~0.01 ms.
+  init by `MasterBus.measureLatency`, an offline impulse render)
+  which the recorder trims from master-tapped takes; stems
+  (`master.stemTap(i)`, a persistent per-index GainNode fed by each
+  voice's convolution-stage output, before the panner) have none. Verified to ~0.01 ms.
 - Tempo: the overtone set as MIDI clock defines the beat (one cycle = one
   quarter note, as the live clock does). Arming waits for that voice's
   next boundary so the take starts ON a beat; the tempo map comes from

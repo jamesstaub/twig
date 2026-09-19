@@ -44,11 +44,8 @@ class PulseBus {
         return () => this._subscribers.get(key)?.delete(fn);
     }
 
-    /** Entry point — wired to AudioEngine.onPulse ("harmonic_<i>", pulse). */
-    dispatch(oscKey, pulse) {
-        const index = Number(oscKey.split('_')[1]);
-        if (!Number.isFinite(index)) return;
-
+    /** Entry point — wired to AudioEngine.onPulse (voiceIndex, pulse). */
+    dispatch(index, pulse) {
         for (const sink of this._sinks) sink(index, pulse);
 
         for (const fn of this._subscribers.get(index) || []) safeCall(fn, index, pulse);

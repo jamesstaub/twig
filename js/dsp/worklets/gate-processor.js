@@ -2,7 +2,7 @@
  * overtone-gate — per-voice cycle sequencer AudioWorkletProcessor.
  *
  * The processor tracks its own phase from the `frequency` parameter (kept in
- * sync with the voice's oscillator by the AudioEngine) and builds a unipolar
+ * sync with the voice by its ModulatorStage) and builds a unipolar
  * control signal per sample:
  *
  *     s = pattern(cycle) × shape(phase)

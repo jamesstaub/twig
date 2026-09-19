@@ -6,4 +6,4 @@
 export { WaveformGenerator } from './WaveformGenerator.js';
 export { WAVExporter } from './WAVExporter.js';
 export { WavetableManager } from './WavetableManager.js';
-export { AudioEngine } from './AudioEngine.js';
+export { audioEngine } from './engine/AudioEngine.js';

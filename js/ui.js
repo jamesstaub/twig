@@ -86,7 +86,7 @@ export function initUI() {
  * OSC relay sends only audible (gate-open) cycles, matching what you hear.
  */
 function setupPulseOutputs() {
-    setPulseHandler((key, pulse) => pulseBus.dispatch(key, pulse));
+    setPulseHandler((index, pulse) => pulseBus.dispatch(index, pulse));
     pulseBus.addSink((index, pulse) => {
         const oscOn = AppState.oscillatorPulseOuts[index]?.osc ?? midiConfig.pulseOscEnabled;
         if (oscOn && pulse.gateOn) {

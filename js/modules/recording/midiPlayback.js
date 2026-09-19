@@ -10,10 +10,10 @@
  * pulseTime.js like every other MIDI send.
  */
 
-import { AppState } from '../../config.js';
 import { midiOutputRouter } from '../midi/midiOutputRouter.js';
 import { CLOCK_PPQN } from '../midi/pulseMidi.js';
 import { audioTimeToPerformanceMs } from '../pulse/pulseTime.js';
+import { audioEngine } from '../../dsp/engine/AudioEngine.js';
 import { normalizeTempoMap } from '../../dsp/midiFile.js';
 
 const LOOKAHEAD_S = 1.5;   // how far ahead events are handed to Web MIDI
@@ -67,7 +67,7 @@ export class MidiPlayback {
     }
 
     _fill() {
-        const ctx = AppState.audioContext;
+        const ctx = audioEngine.context;
         if (!ctx) return;
         const horizon = Math.min(this._end, ctx.currentTime + LOOKAHEAD_S);
         const toMs = (docTime) => audioTimeToPerformanceMs(ctx, this._anchor + (docTime - this._offset));

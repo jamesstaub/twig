@@ -1,5 +1,6 @@
 import { sampleCurrentWaveform } from '../../audio.js';
 import { AppState, IR_RING_MAX_SECONDS, updateAppState } from '../../config.js';
+import { audioEngine } from '../../dsp/engine/AudioEngine.js';
 import { irManager } from '../../dsp/IRManager.js';
 import { showStatus } from '../../domUtils.js';
 import { CONVOLUTION_IRS_CHANGED, IR_RING_CHANGED } from '../../events.js';
@@ -23,7 +24,7 @@ export const ConvolutionActions = {
             return;
         }
 
-        const ctx = AppState.audioContext;
+        const ctx = audioEngine.context;
         const f0 = AppState.fundamentalFrequency;
         const loopSeconds = periodMultiplier / f0;
         const loopLength = Math.max(32, Math.round(loopSeconds * ctx.sampleRate));

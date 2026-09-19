@@ -19,7 +19,8 @@
 import { AppState } from '../../config.js';
 import { recorderConfig, persistAppConfig } from '../../appConfig.js';
 import { RECORDER_CHANGED, RECORDINGS_CHANGED } from '../../events.js';
-import { initAudio, getAudioEngine, getFrequencyCorrection, startTone, stopTone } from '../../audio.js';
+import { initAudio, getFrequencyCorrection, startTone, stopTone } from '../../audio.js';
+import { audioEngine } from '../../dsp/engine/AudioEngine.js';
 import { calculateFrequency } from '../../utils.js';
 import { showStatus } from '../../domUtils.js';
 import { AudioRecorder } from '../../dsp/AudioRecorder.js';
@@ -167,15 +168,14 @@ function selectedRecording() {
 function ensurePlayer(recording) {
     if (player && playerKey === recording.key) return player;
     player?.stop();
-    const ctx = AppState.audioContext;
-    const engine = getAudioEngine();
+    const ctx = audioEngine.context;
     // Master takes already went through the master chain: straight out.
     // Stems are pre-chain: mix them down and run the sum through the live
-    // compressor → master → limiter so they sound as they did.
+    // master bus so they sound as they did.
     const take = recording.audioMode === 'multitrack'
         ? { sampleRate: recording.audio.sampleRate, channels: [RecordingPlayer.mixdown(recording.audio.channels)] }
         : recording.audio;
-    const destination = recording.audioMode === 'multitrack' ? engine.compressor : ctx.destination;
+    const destination = recording.audioMode === 'multitrack' ? audioEngine.master.input : ctx.destination;
     player = new RecordingPlayer(ctx, destination, take);
     player.onEnded = () => {
         midiPlayback.stop();
@@ -247,15 +247,13 @@ export const RecordingActions = {
     async startRecording() {
         if (AppState.recorder.status !== 'idle') return;
         await initAudio();
-        const engine = getAudioEngine();
-        if (!engine.recorderReady) {
+        if (!audioEngine.recorderReady) {
             showStatus('Recording is unavailable in this browser', 'error');
             return;
         }
-        const ctx = AppState.audioContext;
         const { audioMode } = recorderConfig;
-        const taps = engine.recordingTaps(audioMode, AppState.currentSystem.ratios.length);
-        recorder = new AudioRecorder(ctx);
+        const taps = audioEngine.master.recordingTaps(audioMode, AppState.currentSystem.ratios.length);
+        recorder = new AudioRecorder(audioEngine.context);
         takeStart = null;
         capture.start();
         setRecorder({ status: 'armed' });
@@ -286,7 +284,7 @@ export const RecordingActions = {
             arm.unsubscribe = pulseBus.addSink((index, pulse) => {
                 if (!isClockVoice(index)) return;
                 const beat = pulseCycleBoundaryAudioTime(pulse);
-                if (beat > ctx.currentTime) begin(beat);
+                if (beat > audioEngine.now()) begin(beat);
             });
             arm.timer = setTimeout(() => begin(null), ARM_TIMEOUT_MS);
         } else {
@@ -307,9 +305,8 @@ export const RecordingActions = {
      */
     async _startSyncLoop(active, taps, plan) {
         clearArm();
-        const ctx = AppState.audioContext;
         if (AppState.isPlaying) stopTone();
-        const t0 = ctx.currentTime + SYNC_LEAD_S;
+        const t0 = audioEngine.now() + SYNC_LEAD_S;
         await startTone({ startAt: t0 });
         takeFrequencies = AppState.currentSystem.ratios.map((r) => calculateFrequency(r));
         active.onEnded = (take) => {
@@ -329,7 +326,7 @@ export const RecordingActions = {
                 // until capture starts comfortably ahead. (Long loops take
                 // the other branch; a late start there only trims the head
                 // by the overrun instead of waiting out another period.)
-                while (atTime < ctx.currentTime + SYNC_WINDOW_MARGIN_S) atTime += plan.duration;
+                while (atTime < audioEngine.now() + SYNC_WINDOW_MARGIN_S) atTime += plan.duration;
             }
             endTime = atTime + plan.duration;
             showStatus(`Sync loop: ${plan.duration.toFixed(3)} s (${plan.periods} × fundamental period)`, 'info');
@@ -373,7 +370,7 @@ export const RecordingActions = {
         await initAudio();
         const p = ensurePlayer(recording);
         const offset = p.offset;
-        const at = AppState.audioContext.currentTime + PLAY_LEAD_S;
+        const at = audioEngine.now() + PLAY_LEAD_S;
         p.play(offset, at);
         midiPlayback.start(recording.midi, offset, at);
         setRecorder({ transport: 'playing' });
@@ -403,8 +400,8 @@ export const RecordingActions = {
      * a sync loop's capture window may still lie ahead of "now").
      */
     recordingElapsed() {
-        if (AppState.recorder.status !== 'recording' || takeStart == null || !AppState.audioContext) return 0;
-        return Math.max(0, AppState.audioContext.currentTime - takeStart);
+        if (AppState.recorder.status !== 'recording' || takeStart == null) return 0;
+        return Math.max(0, audioEngine.now() - takeStart);
     },
 
     /** Playback position in seconds (0 when nothing is loaded). */

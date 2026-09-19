@@ -1,5 +1,6 @@
 import { restartAudio } from '../../audio.js';
 import { AppState, FILTER_BANK_Q, SOURCE_MODES, updateAppState } from '../../config.js';
+import { audioEngine } from '../../dsp/engine/AudioEngine.js';
 import { sourceManager } from '../../dsp/SourceManager.js';
 import { showStatus } from '../../domUtils.js';
 import { SOURCE_CHANGED } from '../../events.js';
@@ -81,7 +82,7 @@ export const SourceActions = {
             // decodeAudioData needs one even before playback starts
             const { initAudio } = await import('../../audio.js');
             await initAudio();
-            const buffer = await AppState.audioContext.decodeAudioData(arrayBuffer);
+            const buffer = await audioEngine.context.decodeAudioData(arrayBuffer);
             sourceManager.setFileBuffer(buffer, file.name);
             updateAppState({ soundfileName: file.name });
             if (AppState.sourceMode === 'soundfile') {

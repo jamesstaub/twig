@@ -1,5 +1,6 @@
 import { AppState } from "../../config.js";
 import { midiConfig } from "../../appConfig.js";
+import { audioEngine } from "../../dsp/engine/AudioEngine.js";
 import { pulseBus } from "../pulse/pulseBus.js";
 import { audioTimeToPerformanceMs, pulseCycleBoundaryMs } from "../pulse/pulseTime.js";
 import { resolvePortSelector } from "./portUtils.js";
@@ -115,7 +116,7 @@ export class MidiOutputRouter {
             // Scheduled onto the cycle boundary (the audible click) — Web
             // MIDI future timestamps keep main-thread jitter away from the
             // receiver
-            if (blip) this.sendNoteAt(blip, pulseCycleBoundaryMs(AppState.audioContext, pulse));
+            if (blip) this.sendNoteAt(blip, pulseCycleBoundaryMs(audioEngine.context, pulse));
         }
         if (!this.clockOutput) return;
         if (isClockVoice(index)) {
@@ -150,7 +151,7 @@ export class MidiOutputRouter {
         // Anchor the tick grid on the cycle boundary so the downbeat lands
         // with the audible click; each pulse schedules the NEXT cycle's 24
         // ticks, so consecutive batches tile without gap or overlap
-        const boundary = pulseCycleBoundaryMs(AppState.audioContext, pulse);
+        const boundary = pulseCycleBoundaryMs(audioEngine.context, pulse);
         if (!this._clockRunning) {
             this.clockOutput.send([CLOCK_START], boundary);
             this._clockRunning = true;
@@ -177,7 +178,7 @@ export class MidiOutputRouter {
     sendTransportStart(atAudioTime = null) {
         if (!this.clockOutput) return;
         const at = atAudioTime != null
-            ? audioTimeToPerformanceMs(AppState.audioContext, atAudioTime)
+            ? audioTimeToPerformanceMs(audioEngine.context, atAudioTime)
             : window.performance.now();
         this.clockOutput.send([CLOCK_START], at);
         this._clockRunning = true;
@@ -187,7 +188,7 @@ export class MidiOutputRouter {
     sendTransportContinue(atAudioTime = null) {
         if (!this.clockOutput) return;
         const at = atAudioTime != null
-            ? audioTimeToPerformanceMs(AppState.audioContext, atAudioTime)
+            ? audioTimeToPerformanceMs(audioEngine.context, atAudioTime)
             : window.performance.now();
         this.clockOutput.send([CLOCK_CONTINUE], at);
         this._clockRunning = true;

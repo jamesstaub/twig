@@ -15,7 +15,7 @@ import { AppState, ENVELOPE_DEFAULTS, updateAppState, WAVETABLE_SIZE } from './c
 import { midiConfig } from './appConfig.js';
 import { calculateFrequency, generateFilenameParts, getVoicePan } from './utils.js';
 
-import { AudioEngine, WavetableManager, WAVExporter, WaveformGenerator } from './dsp/index.js';
+import { audioEngine, WavetableManager, WAVExporter, WaveformGenerator } from './dsp/index.js';
 import { irManager } from './dsp/IRManager.js';
 import { sourceManager } from './dsp/SourceManager.js';
 import { midiOutputRouter } from './modules/midi/midiOutputRouter.js';
@@ -37,25 +37,16 @@ const MAX_SPECTRUM_BIN = 2047;
 // DSP INSTANCES
 // ================================
 
-let audioEngine = null;
 let wavetableManager = null;
 
-// Pulse consumer (the pulse bus) — registered before the engine exists,
-// attached when initAudio constructs it
-let pulseHandler = null;
+/** Register the consumer of voice cycle pulses: fn(voiceIndex, pulse). */
 export function setPulseHandler(fn) {
-    pulseHandler = fn;
-    if (audioEngine) audioEngine.onPulse = fn;
+    audioEngine.onPulse = fn;
 }
 
 // Routing mode: 'mono', 'stereo', 'multichannel' (default: mono) for WAV export only
 export function setDownloadRoutingMode(mode) {
     AppState.downloadRoutingMode = mode;
-}
-
-// Accessors – SAFE to import anywhere
-export function getAudioEngine() {
-    return audioEngine;
 }
 
 export function getWavetableManager() {
@@ -68,34 +59,13 @@ export function getWavetableManager() {
 // ================================
 
 /**
- * Initializes the AudioContext and the audio graph.
- * Concurrent callers share one in-flight initialization — a second caller
- * must never see a constructed-but-uninitialized engine (voices created
- * against one throw and are silently lost).
+ * Initializes the AudioContext and the audio graph (once — concurrent
+ * callers share the engine's one in-flight initialization), and resumes a
+ * context the browser suspended.
  */
-let audioInitPromise = null;
-
 export async function initAudio() {
-    if (!audioInitPromise) {
-        audioInitPromise = (async () => {
-            audioEngine = new AudioEngine();
-            wavetableManager = new WavetableManager();
-
-            // Initialize the audio engine with oscillator-only synthesis
-            await audioEngine.initialize(AppState.masterGainValue);
-
-            // Voice cycle pulses → pulse bus
-            audioEngine.onPulse = pulseHandler;
-
-            // Store references for compatibility
-            AppState.audioContext = audioEngine.getContext();
-            AppState.compressor = audioEngine.compressor;
-            AppState.masterGain = audioEngine.masterGain;
-        })();
-    }
-    await audioInitPromise;
-
-    // Resume context if suspended
+    wavetableManager ??= new WavetableManager();
+    await audioEngine.initialize(AppState.masterGainValue);
     await audioEngine.resume();
 }
 
@@ -190,7 +160,7 @@ export async function startTone({ startAt = null } = {}) {
         updateAppState({ isPlaying: true });
         // MIDI transport start on the clock port, scheduled to the voices'
         // audible onset
-        midiOutputRouter.sendTransportStart(startAt ?? AppState.audioContext.currentTime);
+        midiOutputRouter.sendTransportStart(startAt ?? audioEngine.now());
         // Dispatched here — not by the play button — so every start path
         // (toggle, bridge, sync-record restart) keeps the UI and the
         // upstream bridge in step
@@ -208,7 +178,7 @@ export async function startTone({ startAt = null } = {}) {
  * oscillator, or a tap on the shared external source when one is passed.
  * Used at tone start and when a system switch adds partials mid-playback.
  */
-function createHarmonicOscillator(i, ratio, gain, startAt = null) {
+function createHarmonicVoice(i, ratio, gain, startAt = null) {
     // In an external source mode, every voice taps the shared source node
     // (also covers voices created mid-playback by a system switch)
     const source = AppState.sourceMode !== 'oscillators' ? sourceManager.node : null;
@@ -219,44 +189,36 @@ function createHarmonicOscillator(i, ratio, gain, startAt = null) {
     const frequencyCorrection = source ? 1 : getFrequencyCorrection(AppState.currentWaveform);
     const correctedFrequency = frequency * frequencyCorrection;
 
-    const oscData = audioEngine.createOscillator(correctedFrequency, waveform, gain, {
+    return audioEngine.addVoice(i, {
+        waveform,
         source,
         startAt,
-        pan: getVoicePan(i),
+        frequency: correctedFrequency,
+        gain,
+        envelopeOpen: AppState.envelopeMode !== 'adsr',
         gate: AppState.oscillatorGates[i],
+        sequencer: harmonicSequencerPayload(i),
+        pulseOut: harmonicPulseEnabled(i),
         drive: AppState.oscillatorDrives[i] || 0,
         filter: {
             cutoff: harmonicFilterCutoff(i, frequency),
             q: AppState.oscillatorFilters[i]?.q,
         },
-        voiceIndex: i,
-        pulseOut: harmonicPulseEnabled(i),
-        sequencer: harmonicSequencerPayload(i),
         convolution: harmonicConvolutionPayload(i),
-        envelopeOpen: AppState.envelopeMode !== 'adsr',
+        pan: getVoicePan(i),
     });
-    const oscKey = `harmonic_${i}`;
-    audioEngine.addOscillator(oscKey, oscData);
-    while (AppState.oscillators.length <= i) {
-        AppState.oscillators.push(null);
-    }
-    AppState.oscillators[i] = { key: oscKey, ratio: ratio };
-    return AppState.oscillators[i];
 }
 
 /**
  * Individual oscillator-based synthesis with period multiplier frequency correction
  */
 async function startToneWithOscillators(startAt = null) {
-    // Clear any existing oscillators
-    AppState.oscillators = [];
-
     // External source modes: one shared node feeds every voice chain in
     // place of its oscillator (see SourceManager). Voices keep their
     // frequency identity for the pitch-tracked filters and gate clocks.
     if (AppState.sourceMode !== 'oscillators') {
         try {
-            await sourceManager.prepare(AppState.audioContext, AppState.sourceMode, {
+            await sourceManager.prepare(audioEngine.context, AppState.sourceMode, {
                 deviceId: AppState.adcDeviceId,
                 channel: AppState.adcChannel,
             });
@@ -266,26 +228,17 @@ async function startToneWithOscillators(startAt = null) {
         }
     }
 
-    const numPartials = AppState.currentSystem.ratios.length;
-    for (let i = 0; i < AppState.harmonicAmplitudes.length; i++) {
-        if (i < numPartials) {
-            const ratio = AppState.currentSystem.ratios[i];
-            const amplitude = AppState.harmonicAmplitudes[i] || 0;
-            if (ratio > 0) {
-                try {
-                    createHarmonicOscillator(i, ratio, amplitude * AppState.masterGainValue, startAt);
-                } catch (error) {
-                    console.error(`Failed to create oscillator ${i}:`, error);
-                    AppState.oscillators[i] = null;
-                }
-            } else {
-                AppState.oscillators[i] = null;
-            }
-        } else {
-            // Partial beyond this system's count: no voice, but KEEP its
-            // stored amplitude — the store is grow-only so a return to a
-            // larger system restores the drawbars
-            AppState.oscillators[i] = null;
+    // The amplitude store is grow-only and can outlive the system's table:
+    // partials beyond this system's count get no voice
+    const count = Math.min(AppState.currentSystem.ratios.length, AppState.harmonicAmplitudes.length);
+    for (let i = 0; i < count; i++) {
+        const ratio = AppState.currentSystem.ratios[i];
+        if (!(ratio > 0)) continue;
+        const amplitude = AppState.harmonicAmplitudes[i] || 0;
+        try {
+            createHarmonicVoice(i, ratio, amplitude * AppState.masterGainValue, startAt);
+        } catch (error) {
+            console.error(`Failed to create voice ${i}:`, error);
         }
     }
 }
@@ -295,18 +248,14 @@ async function startToneWithOscillators(startAt = null) {
  * Stops all synthesis
  */
 export function stopTone() {
-    if (!AppState.isPlaying || !audioEngine) return;
+    if (!AppState.isPlaying) return;
 
-    // Stop individual oscillators
-    audioEngine.stopAllOscillators();
+    audioEngine.stopAllVoices();
     sourceManager.dispose();
 
     midiOutputRouter.sendTransportStop();
 
-    updateAppState({
-        oscillators: [],
-        isPlaying: false
-    });
+    updateAppState({ isPlaying: false });
     document.dispatchEvent(new CustomEvent(PLAY_STATE_CHANGED, { detail: { isPlaying: false } }));
 }
 
@@ -316,14 +265,14 @@ export function stopTone() {
  * setTargetAtTime, so this has no dependency on requestAnimationFrame.
  */
 export function updateHarmonicAmplitude(index, rampTime = AppState.masterSlewValue) {
-    if (!AppState.isPlaying || !audioEngine) return;
+    if (!AppState.isPlaying) return;
 
-    const node = AppState.oscillators[index];
-    if (node && node.key) {
+    const voice = audioEngine.voice(index);
+    if (voice) {
         const amplitude = AppState.harmonicAmplitudes[index] || 0;
-        audioEngine.updateOscillatorGain(node.key, amplitude * AppState.masterGainValue, rampTime);
+        voice.set({ gain: amplitude * AppState.masterGainValue }, rampTime);
     } else {
-        // No oscillator behind this index (system switched mid-playback) —
+        // No voice behind this index (system switched mid-playback) —
         // fall back to a full sync, which creates it
         updateAudioProperties();
     }
@@ -432,11 +381,7 @@ function harmonicSequencerPayload(index) {
  * Apply the sequencer config for one harmonic to its running voice.
  */
 export function updateHarmonicSequencer(index) {
-    if (!AppState.isPlaying || !audioEngine) return;
-    const node = AppState.oscillators[index];
-    if (node && node.key) {
-        audioEngine.updateOscillatorSequencer(node.key, harmonicSequencerPayload(index));
-    }
+    audioEngine.voice(index)?.set({ sequencer: harmonicSequencerPayload(index) });
 }
 
 /**
@@ -444,9 +389,7 @@ export function updateHarmonicSequencer(index) {
  * amplitude indicators. Cheap enough to poll per animation frame.
  */
 export function getVoiceLevel(index) {
-    if (!AppState.isPlaying || !audioEngine) return 0;
-    const node = AppState.oscillators[index];
-    return node && node.key ? audioEngine.getVoiceLevel(node.key) : 0;
+    return audioEngine.voice(index)?.level() ?? 0;
 }
 
 /**
@@ -455,7 +398,7 @@ export function getVoiceLevel(index) {
  * exists (first play).
  */
 export function getOutputAnalyser() {
-    return audioEngine?.outputAnalyser ?? null;
+    return audioEngine.master?.analyser ?? null;
 }
 
 /** True when any pulse consumer (MIDI, OSC, clock) wants this voice's cycles. */
@@ -479,11 +422,7 @@ export function updateAllHarmonicPulses() {
  * Apply the pulse-output enable for one harmonic to its running voice.
  */
 export function updateHarmonicPulse(index) {
-    if (!AppState.isPlaying || !audioEngine) return;
-    const node = AppState.oscillators[index];
-    if (node && node.key) {
-        audioEngine.updateOscillatorPulse(node.key, harmonicPulseEnabled(index));
-    }
+    audioEngine.voice(index)?.set({ pulseOut: harmonicPulseEnabled(index) });
 }
 
 /** ADSR of one harmonic, with unset fields falling back to the defaults. */
@@ -496,20 +435,14 @@ function harmonicEnvelope(index) {
  * in ADSR mode — in Open mode the envelope is pinned at unity.
  */
 export function triggerHarmonicAttack(index) {
-    if (AppState.envelopeMode !== 'adsr' || !AppState.isPlaying || !audioEngine) return;
-    const node = AppState.oscillators[index];
-    if (node && node.key) {
-        audioEngine.triggerOscillatorAttack(node.key, harmonicEnvelope(index));
-    }
+    if (AppState.envelopeMode !== 'adsr') return;
+    audioEngine.voice(index)?.attack(harmonicEnvelope(index));
 }
 
 /** Gate one harmonic's ADSR off (release to silence). */
 export function triggerHarmonicRelease(index) {
-    if (AppState.envelopeMode !== 'adsr' || !AppState.isPlaying || !audioEngine) return;
-    const node = AppState.oscillators[index];
-    if (node && node.key) {
-        audioEngine.triggerOscillatorRelease(node.key, harmonicEnvelope(index));
-    }
+    if (AppState.envelopeMode !== 'adsr') return;
+    audioEngine.voice(index)?.release(harmonicEnvelope(index));
 }
 
 /**
@@ -519,10 +452,7 @@ export function triggerHarmonicRelease(index) {
  */
 export function harmonicEnvelopeLevel(index) {
     if (AppState.envelopeMode !== 'adsr') return 1;
-    if (!AppState.isPlaying || !audioEngine) return 0;
-    const node = AppState.oscillators[index];
-    if (!node?.key) return 0;
-    return audioEngine.getOscillatorEnvelopeLevel(node.key);
+    return audioEngine.voice(index)?.envelopeLevel ?? 0;
 }
 
 /**
@@ -530,13 +460,8 @@ export function harmonicEnvelopeLevel(index) {
  * envelopes at unity, ADSR rests them silent until triggered.
  */
 export function updateAllHarmonicEnvelopeModes() {
-    if (!AppState.isPlaying || !audioEngine) return;
-    const open = AppState.envelopeMode !== 'adsr';
-    for (const node of AppState.oscillators) {
-        if (node && node.key) {
-            audioEngine.setOscillatorEnvelopeOpen(node.key, open);
-        }
-    }
+    const envelopeOpen = AppState.envelopeMode !== 'adsr';
+    for (const voice of audioEngine.voices.values()) voice.set({ envelopeOpen });
 }
 
 /**
@@ -544,11 +469,7 @@ export function updateAllHarmonicEnvelopeModes() {
  * State-only when not playing — configs land at the next tone start.
  */
 export function updateHarmonicGate(index) {
-    if (!AppState.isPlaying || !audioEngine) return;
-    const node = AppState.oscillators[index];
-    if (node && node.key) {
-        audioEngine.updateOscillatorGate(node.key, AppState.oscillatorGates[index] || { mode: 0 });
-    }
+    audioEngine.voice(index)?.set({ gate: AppState.oscillatorGates[index] || { mode: 0 } });
 }
 
 /** Whether a harmonic has a usable IR assigned (else its convolution is bypassed). */
@@ -559,34 +480,26 @@ function harmonicHasIR(index) {
 /**
  * Convolution send of one harmonic. The IR is pitched to the voice (see
  * IRManager.pitched) so each overtone rings through the timbre transposed
- * to its own frequency. Feedback period: the pitched IR's duration by
- * default (tune 0), or a series-relative partial of the voice (tune ≥ 1,
- * the filter cutoff's convention) for a comb on that partial.
+ * to its own frequency. The feedback loop resonates on the pitched IR's
+ * duration by default (tune 0), or on a series-relative partial of the
+ * voice (tune ≥ 1, the filter cutoff's convention) for a comb on that
+ * partial — the engine fits that period to what a loop can realize.
  */
 function harmonicConvolutionPayload(index) {
     const conv = AppState.oscillatorConvolutions[index] || {};
     const voiceFreq = calculateFrequency(AppState.currentSystem.ratios[index]);
-    const buffer = conv.ir ? irManager.pitched(conv.ir, voiceFreq, AppState.audioContext) : null;
+    const buffer = conv.ir ? irManager.pitched(conv.ir, voiceFreq, audioEngine.context) : null;
     const tune = conv.tune ?? 0;
     // No IR → bypass: fully dry, loop closed, whatever the send settings say
     if (!buffer) {
-        return { wet: 0, feedback: 0, gain: conv.gain ?? 1, buffer: null, delay: 0 };
-    }
-    let delay = buffer.duration;
-    if (tune > 0 && voiceFreq > 0) {
-        // A feedback loop can't be shorter than two render quanta, so use
-        // the smallest whole number of the partial's periods that clears
-        // it — the comb still resonates on that partial (and below it)
-        const period = 1 / partialFrequency(voiceFreq, tune);
-        const minLoop = 256 / AppState.audioContext.sampleRate;
-        delay = Math.max(1, Math.ceil(minLoop / period)) * period;
+        return { wet: 0, feedback: 0, gain: conv.gain ?? 1, buffer: null, period: 0 };
     }
     return {
         wet: conv.wet ?? 0,
         feedback: conv.feedback ?? 0,
         gain: conv.gain ?? 1,
         buffer,
-        delay,
+        period: tune > 0 && voiceFreq > 0 ? 1 / partialFrequency(voiceFreq, tune) : buffer.duration,
     };
 }
 
@@ -594,63 +507,49 @@ function harmonicConvolutionPayload(index) {
  * Apply the convolution send for one harmonic to its running voice.
  */
 export function updateHarmonicConvolution(index) {
-    if (!AppState.isPlaying || !audioEngine) return;
-    const node = AppState.oscillators[index];
-    if (node && node.key) {
-        audioEngine.updateOscillatorConvolution(node.key, harmonicConvolutionPayload(index));
-        // The sequencer's wet/feedback CV depths follow the bypass state
-        updateHarmonicSequencer(index);
-    }
+    const voice = audioEngine.voice(index);
+    if (!voice) return;
+    voice.set({ convolution: harmonicConvolutionPayload(index) });
+    // The sequencer's wet/feedback CV depths follow the bypass state
+    updateHarmonicSequencer(index);
 }
 
 /**
  * Apply the stereo pan for one harmonic to its running voice.
  */
 export function updateHarmonicPan(index) {
-    if (!AppState.isPlaying || !audioEngine) return;
-    const node = AppState.oscillators[index];
-    if (node && node.key) {
-        audioEngine.updateOscillatorPan(node.key, getVoicePan(index), AppState.masterSlewValue);
-    }
+    audioEngine.voice(index)?.set({ pan: getVoicePan(index) }, AppState.masterSlewValue);
 }
 
 /**
  * Apply the overdrive amount for one harmonic to its running voice.
  */
 export function updateHarmonicDrive(index) {
-    if (!AppState.isPlaying || !audioEngine) return;
-    const node = AppState.oscillators[index];
-    if (node && node.key) {
-        audioEngine.updateOscillatorDrive(node.key, AppState.oscillatorDrives[index] || 0);
-    }
+    audioEngine.voice(index)?.set({ drive: AppState.oscillatorDrives[index] || 0 });
 }
 
 /**
  * Apply the lowpass config for one harmonic to its running voice.
  */
 export function updateHarmonicFilter(index) {
-    if (!AppState.isPlaying || !audioEngine) return;
-    const node = AppState.oscillators[index];
-    if (node && node.key) {
-        const frequency = calculateFrequency(AppState.currentSystem.ratios[index]);
-        audioEngine.updateOscillatorFilter(
-            node.key,
-            {
-                cutoff: harmonicFilterCutoff(index, frequency),
-                q: AppState.oscillatorFilters[index]?.q,
-            },
-            AppState.masterSlewValue
-        );
-        // The cutoff-CV curve is anchored on the filter's base step
-        updateHarmonicSequencer(index);
-    }
+    const voice = audioEngine.voice(index);
+    if (!voice) return;
+    const frequency = calculateFrequency(AppState.currentSystem.ratios[index]);
+    voice.set({
+        filter: {
+            cutoff: harmonicFilterCutoff(index, frequency),
+            q: AppState.oscillatorFilters[index]?.q,
+        },
+    }, AppState.masterSlewValue);
+    // The cutoff-CV curve is anchored on the filter's base step
+    updateHarmonicSequencer(index);
 }
 
 /**
  * Updates synthesis parameters in real-time with period multiplier frequency correction
  */
 export function updateAudioProperties() {
-    if (!AppState.isPlaying || !audioEngine) return;
+    if (!AppState.isPlaying) return;
     // eventually we could have separate slew values for each param, but its fun to have it global
     const rampTime = AppState.masterSlewValue;
     updateAudioPropertiesOscillators(rampTime);
@@ -662,49 +561,42 @@ export function updateAudioProperties() {
 let lastSeqConfigSystem = null;
 
 function updateAudioPropertiesOscillators(rampTime) {
-    // Update Master Gain
-    audioEngine.updateMasterGain(AppState.masterGainValue, rampTime);
+    audioEngine.master.setGain(AppState.masterGainValue, rampTime);
 
     // A system switch changes the sequencer's cutoff-CV ratio curve —
     // push it to every voice once per switch (not per parameter tweak)
     const seqCurveStale = AppState.currentSystem !== lastSeqConfigSystem;
     lastSeqConfigSystem = AppState.currentSystem;
 
-    // Sync the oscillator bank with the current system: systems can have
+    // Sync the voice bank with the current system: systems can have
     // different partial counts, so a switch mid-playback may add partials
-    // (create their oscillators) or drop them (mute, keep for reuse).
+    // (create their voices) or drop them (mute, keep for reuse).
     const numPartials = AppState.currentSystem.ratios.length;
-    const count = Math.max(numPartials, AppState.oscillators.length);
 
-    for (let i = 0; i < count; i++) {
-        let node = AppState.oscillators[i];
+    for (const [i, voice] of audioEngine.voices) {
+        // Partial absent from the current system
+        if (i >= numPartials) voice.set({ gain: 0 }, rampTime);
+    }
 
-        if (i >= numPartials) {
-            // Partial absent from the current system
-            if (node && node.key) {
-                audioEngine.updateOscillatorGain(node.key, 0, rampTime);
-            }
-            continue;
-        }
-
+    for (let i = 0; i < numPartials; i++) {
         const ratio = AppState.currentSystem.ratios[i];
         const amplitude = AppState.harmonicAmplitudes[i] || 0;
         let newGain = amplitude * AppState.masterGainValue;
 
-        if (!node || !node.key) {
+        let voice = audioEngine.voice(i);
+        if (!voice) {
             if (!(ratio > 0)) continue;
             try {
                 // Create silent; the gain ramp below fades it in
-                node = createHarmonicOscillator(i, ratio, 0);
+                voice = createHarmonicVoice(i, ratio, 0);
             } catch (error) {
-                console.error(`Failed to create oscillator ${i}:`, error);
+                console.error(`Failed to create voice ${i}:`, error);
                 continue;
             }
         }
 
         if (seqCurveStale) updateHarmonicSequencer(i);
 
-        node.ratio = ratio;
         const baseFreq = calculateFrequency(ratio);
         const frequencyCorrection = getFrequencyCorrection(AppState.currentWaveform);
         const newFreq = baseFreq * frequencyCorrection;
@@ -713,18 +605,13 @@ function updateAudioPropertiesOscillators(rampTime) {
         if (!isFinite(newFreq) || isNaN(newFreq)) {
             newGain = 0;
         } else {
-            audioEngine.updateOscillatorFrequency(node.key, newFreq, rampTime);
-            // Pitched IR and series-relative feedback period follow the voice
-            updateHarmonicConvolution(i);
             // The lowpass cutoff is relative to the voice's pitch — retarget
             // it so filters track fundamental glides and system changes
-            audioEngine.updateOscillatorFilter(
-                node.key,
-                { cutoff: harmonicFilterCutoff(i, baseFreq) },
-                rampTime
-            );
+            voice.set({ frequency: newFreq, filter: { cutoff: harmonicFilterCutoff(i, baseFreq) } }, rampTime);
+            // Pitched IR and series-relative feedback period follow the voice
+            updateHarmonicConvolution(i);
         }
-        audioEngine.updateOscillatorGain(node.key, newGain, rampTime);
+        voice.set({ gain: newGain }, rampTime);
     }
 }
 
@@ -789,7 +676,7 @@ function resolvePrimitiveSource(waveformName) {
  */
 function collectBakePartials(isSubharmonic) {
     const { source, peak } = resolvePrimitiveSource(AppState.currentWaveform);
-    const nyquist = AppState.audioContext.sampleRate / 2;
+    const nyquist = audioEngine.sampleRate / 2;
     const f0 = AppState.fundamentalFrequency;
     const partials = [];
 
@@ -953,7 +840,7 @@ export async function sampleCurrentWaveform(routingMode = 'mono', isSubharmonic 
  * @param {number} numCycles - Number of cycles to export (default: 1)
  */
 export function exportAsWAV(data, numCycles = 1) {
-    if (!AppState.audioContext) {
+    if (!audioEngine.context) {
         showStatus("Error: Audio system not initialized. Please click 'Start Tone' first.", 'error');
         return;
     }
@@ -985,7 +872,7 @@ export function exportAsWAV(data, numCycles = 1) {
     }
 
     // Pitch-correct the sample rate based on periodMultiplier
-    const baseSampleRate = AppState.audioContext.sampleRate;
+    const baseSampleRate = audioEngine.sampleRate;
     const correctedSampleRate = baseSampleRate / periodMultiplier;
 
     console.log(
@@ -1079,7 +966,7 @@ export async function addWaveformToAudio(spectrum) {
     const waveKey = getWavetableManager().addFromSpectrum(
         spectrum.real,
         spectrum.imag,
-        AppState.audioContext,
+        audioEngine.context,
         spectrum.periodMultiplier
     );
 

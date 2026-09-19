@@ -12,6 +12,9 @@ description: Verify twig changes end-to-end in a headless browser — screenshot
   `PORT=3401 node server.js &` … and `lsof -ti :3401 | xargs kill` when done.
   Its bridge cache PERSISTS state between runs (envelope mode, pans,
   filters…): read state before asserting, never assume defaults.
+  If another session may be testing at the same time, pick your own port
+  (`PORT=3417`): two test pages on one bridge relay play/stop and every
+  parameter to each other, which reads as voices vanishing mid-test.
 - CSS or JS changed? `npm run build` (esbuild bundles both).
 - Test through the built bundle. Raw ESM imports of `js/` modules 404 in a
   page (extensionless imports, bare `p5` specifier).
@@ -26,7 +29,10 @@ description: Verify twig changes end-to-end in a headless browser — screenshot
 ## Page access
 
 - `window.TWIG.getState()` → live AppState; `window.TWIG.getAudioEngine()`
-  → engine (inspect `engine.oscillators.get('harmonic_0')` node chain).
+  → engine (`engine.voice(0).stages` — source, envelope, level, modulator,
+  drive, filter, convolution, pan, meter — each holding its nodes, e.g.
+  `stages.filter.biquad`, `stages.modulator.node.parameters.get('mode')`;
+  `engine.master` is the bus: `input`, `gain`, `limiter`, `analyser`).
 - Wait ~800ms after `networkidle2` for app init; Web MIDI init is ~2s
   delayed (wait ≥2500ms before MIDI assertions).
 - Embed layout: viewport `{width: 1000, height: 150}` + URL `?embed=1`.
@@ -77,8 +83,8 @@ description: Verify twig changes end-to-end in a headless browser — screenshot
 - Trigger: `.trigger-pad[data-index=N]` in `#pad-grid` (4 columns, 3 in
   portrait) — `pointerdown` (distinct `pointerId`s for chords) /
   `pointerup`; `.held` marks pressed pads. Silent unless Trigger mode AND
-  playing; spy on `TWIG.getAudioEngine().triggerOscillatorAttack/Release`
-  to assert gating. The Trigger/Drone switch is `#navbar-mode-root
+  playing; wrap `attack` / `release` on each of
+  `TWIG.getAudioEngine().voices.values()` to assert gating. The Trigger/Drone switch is `#navbar-mode-root
   .envelope-mode-switch` (navbar, beside Play), state named in
   `.envelope-mode-label`; `TWIG.getState().envelopeMode` is 'adsr'
   (Trigger) | 'open' (Drone); `body.adsr-mode` follows.
@@ -111,7 +117,11 @@ description: Verify twig changes end-to-end in a headless browser — screenshot
 
 Launch with `--autoplay-policy=no-user-gesture-required`, click the play
 toggle (`.play-toggle-container .toggle-switch`), wait ~800ms, then inspect
-nodes via `TWIG.getAudioEngine().oscillators`. Note: AudioParam `.value`
+nodes via `TWIG.getAudioEngine().voices` (Map, keyed by overtone index).
+Pulses only fire for voices ≤ 50 Hz — drop the fundamental before
+asserting them. On a cold headless launch the context clock can take a
+moment to start advancing; params then still read their defaults.
+Note: AudioParam `.value`
 getters can lag setTargetAtTime ramps — verify configuration (curve set,
 param targets), or behavior, not instantaneous values.
 `getOutputAnalyser()` (js/audio.js) is the post-limiter tap the scope reads.

@@ -16,16 +16,20 @@ Add the field to `AppState`. Per-overtone params are sparse objects keyed by
 voice index (`oscillatorDrives: {}`), so unset voices fall back to a default
 in the getter, not in the store. Document the range in the comment.
 
-## 2. Audio — `js/dsp/AudioEngine.js` + `js/audio.js`
+## 2. Audio — `js/dsp/engine/` + `js/audio.js`
 
-- Engine: accept the param in `createOscillator(options)`, create/configure
-  its node, add an `updateOscillatorX(key, …)` method, add the node to the
-  teardown list in `stopAllOscillators` and to the returned oscData object.
-  Create the node for EVERY voice with a passthrough "off" state (null
-  WaveShaper curve, open filter…) so it can be enabled mid-playback without
-  rewiring.
-- `js/audio.js`: pass the AppState value in `createHarmonicOscillator`, and
-  add `updateHarmonicX(index)` guarded by `if (!AppState.isPlaying || !audioEngine) return;`.
+- Engine: the param belongs to a stage in `js/dsp/engine/stages/` — add a
+  setter to the existing stage, or a new `Stage` subclass (`own()` every
+  node so `dispose()` unhooks it; build it in a passthrough "off" state —
+  null WaveShaper curve, open filter… — so it can be enabled mid-playback
+  without rewiring) placed in `Voice.js`'s `chain(…)`. Then add ONE entry
+  to `Voice.js`'s `APPLY` table mapping the param name to that setter (and
+  to the `VoiceParams` typedef). Creation and live updates both go through
+  `voice.set()`, so there is nothing else to write in the engine.
+- `js/audio.js`: pass the AppState value in `createHarmonicVoice`'s spec,
+  and add `updateHarmonicX(index)`:
+  `audioEngine.voice(index)?.set({ x: … }, AppState.masterSlewValue)` — a
+  stopped synth has no voices, so no playing guard is needed.
 
 ## 3. Actions — `js/modules/overtoneSignal/overtoneSignalActions.js` (or the relevant actions module)
 

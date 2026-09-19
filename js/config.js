@@ -10,8 +10,9 @@
  *  - appConfig.js: the user's local app configuration — MIDI routing and
  *    mappings, recorder modes. Persisted in localStorage, not bridged
  *    (exception: the note-out port also rides /twig/midiout).
- *  - Runtime references (audioContext, node handles, isPlaying, recorder
- *    status) live in AppState for convenience but persist nowhere.
+ *  - Runtime status (isPlaying, recorder status) lives in AppState for
+ *    convenience but persists nowhere. The audio graph itself — context,
+ *    nodes, running voices — belongs to the engine (js/dsp/engine/).
  */
 /**
  * CONFIGURATION MODULE
@@ -472,12 +473,6 @@ export const AppState = {
 
     // Custom waveforms
     customWaveCount: 0,
-
-    // Audio context references (initialized later)
-    audioContext: null,
-    compressor: null,
-    masterGain: null,
-    oscillators: [],
 
     // P5 instance reference
     p5Instance: null

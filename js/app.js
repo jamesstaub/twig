@@ -11,7 +11,7 @@ import { momentumSmoother } from './momentum-smoother.js';
 import { initUI, updateUI } from './ui.js';
 import { showStatus } from './domUtils.js';
 import { faviconService } from './modules/favicon/faviconService.js';
-import { getAudioEngine } from './audio.js';
+import { audioEngine } from './dsp/engine/AudioEngine.js';
 import { irManager } from './dsp/IRManager.js';
 import { recordingStore } from './modules/recording/RecordingStore.js';
 import { RecordingActions } from './modules/recording/recordingActions.js';
@@ -69,20 +69,9 @@ function cleanup() {
         // Clear momentum smoothing
         momentumSmoother.clear();
 
-        // Stop audio if playing
-        if (AppState.isPlaying && AppState.audioContext) {
-            AppState.oscillators.forEach(node => {
-                if (node.osc) {
-                    node.osc.stop();
-                    node.osc.disconnect();
-                    node.gainNode.disconnect();
-                }
-            });
-        }
-
-        // Close audio context
-        if (AppState.audioContext && AppState.audioContext.state !== 'closed') {
-            AppState.audioContext.close();
+        // Closing the context stops every voice with it
+        if (audioEngine.context && audioEngine.context.state !== 'closed') {
+            audioEngine.context.close();
         }
 
         console.log('Application cleaned up successfully');
@@ -168,8 +157,8 @@ window.TWIG = {
     // State access
     getState: () => AppState,
 
-    getAudioCtx: () => getAudioEngine().getContext(),
-    getAudioEngine: () => getAudioEngine(),
+    getAudioCtx: () => audioEngine.context,
+    getAudioEngine: () => audioEngine,
     getIRManager: () => irManager,
     getRecordingStore: () => recordingStore,
     recorder: RecordingActions,
