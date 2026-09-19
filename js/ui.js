@@ -33,6 +33,7 @@ import { SourceController } from './modules/source/sourceController.js';
 import { SpectrumController } from './modules/spectrum/spectrumController.js';
 import { ScopeController } from './modules/scope/scopeController.js';
 import { EnvelopeVizController } from './modules/envelopeViz/envelopeVizController.js';
+import { SequenceVizController } from './modules/sequenceViz/sequenceVizController.js';
 import { RecorderController } from './modules/recording/recorderController.js';
 import { SurfacesController } from './modules/surfaces/surfacesController.js';
 import { SURFACES } from './modules/surfaces/surfaceState.js';
@@ -40,9 +41,9 @@ import { InspectorController } from './modules/inspector/inspectorController.js'
 import { PadGridController } from './modules/pads/padGridController.js';
 import { SettingsController } from './modules/settings/settingsController.js';
 import { EnvelopeModeController } from './modules/envelopeMode/envelopeModeController.js';
-import { inspectorState } from './modules/inspector/inspectorState.js';
 
 let settingsController;
+let inspectorController;
 
 export function initUI() {
     setupMainButtons();
@@ -97,7 +98,7 @@ function setupPulseOutputs() {
 
 function setupDrawbars() {
     const drawbarsController = new DrawbarsController("#drawbars");
-    drawbarsController.onInspect = (index) => inspectorState.open(index);
+    drawbarsController.onInspect = (index) => inspectorController?.open(index);
     drawbarsController.init();
     // The strip's bottom bar: reset/randomize act on the showing family
     new OvertoneToolbarController('#drawbars-toolbar', {
@@ -121,20 +122,19 @@ function setupVisualizations() {
     // Convolution: the spectrum (Create IR bakes it) — see setupWaveformSelector
     // ADSR: every voice's envelope
     new EnvelopeVizController("#envelope-canvas-area").init();
+    new SequenceVizController("#sequence-canvas-area").init();
 }
 
 function setupFundamental() {
     new FundamentalController("#fundamental-control-root").init();
     // Trigger surface: one pad per overtone
-    const padGridController = new PadGridController('#pad-grid');
-    padGridController.onInspect = (index) => inspectorState.open(index);
-    padGridController.init();
+    new PadGridController('#pad-grid').init();
 }
 
 function setupSurfaces() {
     // After every panel is mounted (and its canvases sized while visible),
     // so the shell can hide the ones the default surface doesn't show
-    new SurfacesController('#surface-toolbar', '.page-content', '#surface-side-toggle').init();
+    new SurfacesController('#surface-toolbar', '.page-content', '.side-toggle-btn').init();
     // The Sequence panel's bottom bar: reset/randomize act on every
     // voice's gate; its slot carries the inspector's voice stepper
     const sequenceToolbar = new OvertoneToolbarController('#sequence-toolbar', {
@@ -142,9 +142,9 @@ function setupSurfaces() {
         onRandomize: () => OvertoneSignalActions.randomizeGates(),
     });
     sequenceToolbar.init();
-    // The per-overtone sequence editor: Sequence surface or the sheet
-    // beside any other
-    new InspectorController('#inspector-sheet', '#sequence-inspector', sequenceToolbar.slotEl).init();
+    // The per-overtone sequence editor
+    inspectorController = new InspectorController('#sequence-inspector', sequenceToolbar.slotEl, '.sequence-close');
+    inspectorController.init();
     // Link and shape are tools of the per-overtone surfaces: leaving them
     // drops both
     document.addEventListener(SURFACE_CHANGED, (e) => {

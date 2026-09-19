@@ -31,8 +31,9 @@ export const SURFACES = [
     { id: 'filter', label: 'Filter', roots: ['drawbars-control-root'], side: 'filter-viz-root', family: 'filter', tools: true },
     // `label` is what fits the rail; `title` is the full name (tooltip)
     { id: 'convolution', label: 'Conv', title: 'Convolution', roots: ['drawbars-control-root'], side: 'conv-viz-root', family: 'convolution', tools: true },
-    // The inspector: one voice's sequence, modulation and pulse outs
-    { id: 'sequence', label: 'Sequence', roots: ['sequence-control-root'], tools: true },
+    // The inspector: one voice's sequence, modulation and pulse outs,
+    // that sequence drawn in the side column
+    { id: 'sequence', label: 'Sequence', roots: ['sequence-control-root'], side: 'sequence-viz-root', tools: true },
     { id: 'settings', label: 'Settings', roots: ['settings-control-root'] },
 ];
 

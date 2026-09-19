@@ -124,6 +124,10 @@ export const DrawbarsActions = {
         document.dispatchEvent(new Event(DRAWBARS_RANDOMIZED));
     },
 
+    /**
+     * TODO: this function should happen the first time you click reset. the second time you click reset, it should fully clear all drawbars.
+     * toggle between them
+     */
     reset() {
         // Scoped like randomize: hidden tail state survives a reset
         const count = AppState.currentSystem.ratios.length;

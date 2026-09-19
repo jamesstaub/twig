@@ -67,7 +67,7 @@ export class PadGridComponent extends BaseComponent {
         };
         const openMenu = (x, y) => {
             release(); // never leave the voice sounding under the menu
-            openOvertoneMenu(index, x, y, { onInspect: (i) => this.onInspect?.(i) });
+            openOvertoneMenu(index, x, y);
         };
         this.bindEvent(pad, 'pointerdown', (e) => {
             if (e.button !== 0) return;

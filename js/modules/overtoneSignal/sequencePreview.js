@@ -91,13 +91,13 @@ export function previewCycleCount(gate, stretch) {
 
 /**
  * Draw the full sequence — pattern × shape × stretch — for a voice, exactly
- * the control signal the worklet produces (sans declick).
+ * the control signal the worklet produces (sans declick), into a `w` × `h`
+ * box of `ctx`'s current coordinate space (the caller owns the canvas and
+ * its DPR transform).
  */
-export function drawSequencePreview(canvas, index) {
+export function drawSequencePreview(ctx, index, w, h) {
     const gate = OvertoneSignalActions.getGate(index);
     const seq = OvertoneSignalActions.getSequencer(index);
-    const ctx = canvas.getContext('2d');
-    const { width: w, height: h } = canvas;
     const pad = 4;
 
     ctx.fillStyle = themeColor('--viz-bg');

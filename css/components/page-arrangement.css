@@ -14,7 +14,7 @@
    Every rule is scoped to a specific #id or a wrapper that exists only to
    place panels, never to a reusable component class on its own. */
 
-/* .page-shell is a flex row: [toolbar][page-content][sheet]. On the
+/* .page-shell is a flex row: [toolbar][page-content]. On the
    surfaces shell it is EXACTLY the viewport below the navbar (layout.css
    gives it a min-height for a page that may grow): a surface is a screen,
    never a scrolling page, so a panel taller than the screen (Settings,
@@ -149,8 +149,8 @@ body.surfaces .surface-side > #tonewheel-container {
 }
 
 /* --- Source surface: fundamental, source, overtone system — a grid that
-       follows the STACK's width (container query: the side column and the
-       inspector sheet narrow it, not just the viewport):
+       follows the STACK's width (container query: the toolbar narrows it,
+       not just the viewport):
          narrow   one column, natural heights
          wider    fundamental | source, the system across the bottom
        (the fundamental first — the markup order is the embed band's).

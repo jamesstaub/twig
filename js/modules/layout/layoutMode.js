@@ -12,7 +12,7 @@ import { LAYOUT_MODE_CHANGED } from '../../events.js';
  *                        time (desktop and touch alike).
  *   coarse: true when the primary pointer is a finger (`pointer: coarse`,
  *           or ?coarse=1 to preview touch layouts with a mouse) — swaps
- *           control density (bigger sliders, sheet instead of popover)
+ *           control density (bigger sliders and targets)
  *           without changing the shell.
  *
  * Exposed to CSS as body.embed | body.surfaces, plus body.coarse.

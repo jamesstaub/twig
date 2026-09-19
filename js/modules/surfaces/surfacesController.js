@@ -16,8 +16,12 @@ export class SurfacesController extends BaseController {
     constructor(toolbarSelector, shellSelector, sideToggleSelector) {
         super(toolbarSelector);
         this.shell = new SurfaceShellComponent(shellSelector);
-        this.sideToggle = new SideToggleComponent(sideToggleSelector);
-        this.sideToggle.onToggle = () => surfaceState.toggleSide();
+        // One per panel whose surfaces have a side column
+        this.sideToggles = [...document.querySelectorAll(sideToggleSelector)].map((el) => {
+            const toggle = new SideToggleComponent(el);
+            toggle.onToggle = () => surfaceState.toggleSide();
+            return toggle;
+        });
     }
 
     createComponent(selector) {
@@ -37,7 +41,7 @@ export class SurfacesController extends BaseController {
     update() {
         const props = super.update();
         this.shell.render(props);
-        this.sideToggle.render({ open: surfaceState.side });
+        for (const toggle of this.sideToggles) toggle.render({ open: surfaceState.side });
         return props;
     }
 

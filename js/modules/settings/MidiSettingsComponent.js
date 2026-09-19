@@ -188,14 +188,14 @@ export class MidiSettingsComponent extends BaseComponent {
         clockHint.textContent = 'Carries the overtone clock (24 ticks per cycle of the assigned voice) and transport start/stop on play. Clock messages are system-realtime — the MIDI spec gives them no channel.';
         clock.appendChild(clockHint);
 
-        const ccSection = this.section('Drawbar CC Mapping', true);
+        const ccSection = this.section('CC In: Drawbar Control', true);
         ccSection.appendChild(this.mappingTable(
             midiConfig.drawbarsCC.map((_, i) => `D${i + 1}`),
             midiConfig.drawbarsCC,
             updateMidiDrawbarCC,
         ));
 
-        const notesSection = this.section('Pulse Note Mapping', true);
+        const notesSection = this.section('Note Out: Overtone LF Pulse', true);
         notesSection.appendChild(this.mappingTable(
             midiConfig.pulseNotes.map((_, i) => `O${i + 1}`),
             midiConfig.pulseNotes,

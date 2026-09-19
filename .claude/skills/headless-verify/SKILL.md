@@ -56,14 +56,15 @@ description: Verify twig changes end-to-end in a headless browser — screenshot
   assert "nothing jumps", snapshot every button's rect, toggle shape,
   compare — and `scrollIntoView` the bar FIRST in embed (puppeteer's
   click scrolls the band sideways, which reads as a jump).
-- Sequence: click `#drawbar-label-N` (or the overtone menu's "Inspect")
-  → the sheet `#inspector-sheet` (`body.inspector-open`) beside the
-  current surface, sections Sequence / Modulation / Pulse Out, gate mode
-  in `.inspector-gate-mode select`, its fields as dials in
-  `.inspector-gate-params .mini-dial`; `.inspector-expand` → the Sequence
-  surface (editor in `#sequence-inspector`, the ‹ Overtone N › stepper
-  `.inspector-step` inside `#sequence-toolbar`), `.inspector-close` /
-  Escape closes the sheet.
+- Sequence: click `#drawbar-label-N` (or the toolbar) → the Sequence
+  surface on that voice: editor in `#sequence-inspector` (sections
+  Sequence / Modulation / Pulse Out, gate mode in `.inspector-gate-mode
+  select`, its fields as dials in `.inspector-gate-params .mini-dial`),
+  the ‹ Overtone N › stepper `.inspector-step` inside `#sequence-toolbar`,
+  the drawn sequence in the side column (`#sequence-canvas-area canvas` —
+  hash its pixels to assert a redraw). In embed the label click makes the
+  same panel a full-band overlay (`body.sequence-open`; `.sequence-close`
+  / Escape closes it). There is no inspector sheet.
 - Trigger: `.trigger-pad[data-index=N]` in `#pad-grid` (4 columns, 3 in
   portrait) — `pointerdown` (distinct `pointerId`s for chords) /
   `pointerup`; `.held` marks pressed pads. Silent unless Trigger mode AND

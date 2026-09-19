@@ -2,11 +2,15 @@
    INSPECTOR — the Sequence panel: one overtone's gate + shape,
    modulation, and pulse outputs
    ================================
-   Two homes for the same markup: the Sequence surface panel
-   (#sequence-control-root, full width, sections tile) and the inspector
-   sheet (#inspector-sheet: an in-flow side column in landscape, an
-   overlay bottom sheet in portrait — see the sheet rules at the end).
-   Section internals are the same in both; only the container differs. */
+   It lives in the Sequence panel (#sequence-control-root): the sections
+   tile and scroll above the panel's fixed bottom toolbar, whose slot
+   carries the header. In the embed band the panel is a full-band overlay
+   (inspector.embed.css). */
+
+/* The panel's own header. The close button is the embed overlay's. */
+.sequence-close {
+    display: none;
+}
 
 .inspector {
     display: flex;
@@ -16,7 +20,7 @@
     min-width: 0;
 }
 
-/* ---- Header: ‹ Overtone N · label · Hz ›  [expand] [close] ---- */
+/* ---- Header: ‹ Overtone N · label · Hz › ---- */
 
 .inspector-header {
     display: flex;
@@ -56,12 +60,7 @@
     text-align: center;
 }
 
-.inspector-header-spacer {
-    flex: 1;
-}
-
-.inspector-step,
-.inspector-icon-btn {
+.inspector-step {
     flex: 0 0 auto;
     display: inline-flex;
     align-items: center;
@@ -75,26 +74,16 @@
     border-radius: var(--radius-md);
     cursor: pointer;
     transition: color 0.15s, border-color 0.15s, background-color 0.15s;
-}
-
-.inspector-step {
     font-size: 1.4rem;
     line-height: 1;
 }
 
-.inspector-icon-btn svg {
-    width: 1.1rem;
-    height: 1.1rem;
-}
-
-.inspector-step:hover,
-.inspector-icon-btn:hover {
+.inspector-step:hover {
     color: var(--text-accent);
     border-color: var(--accent-primary);
 }
 
-body.coarse .inspector-step,
-body.coarse .inspector-icon-btn {
+body.coarse .inspector-step {
     width: 2.75rem;
     height: 2.75rem;
 }
@@ -186,12 +175,6 @@ body.coarse .inspector-icon-btn {
     flex-direction: column;
     gap: 0.375rem;
     margin-top: 0.5rem;
-}
-
-.inspector-shape-preview {
-    width: 100%;
-    height: 44px;
-    border-radius: var(--radius-sm);
 }
 
 .inspector-stretch-row {
@@ -303,75 +286,4 @@ body.coarse .inspector-target-slider {
 .inspector-pulse-warning {
     font-size: var(--font-size-xs);
     color: var(--status-warning);
-}
-
-/* ================================
-   THE SHEET — where the inspector sits beside another surface
-   ================================ */
-
-.inspector-sheet {
-    display: flex;
-    flex-direction: column;
-    padding: 0.75rem;
-    background-color: var(--surface-card);
-    overflow-y: auto;
-    overflow-x: hidden;
-}
-
-/* Landscape: an in-flow column at the right edge of the page shell
-   ([toolbar][content][sheet]); the surface gives up the width */
-body.surfaces .inspector-sheet {
-    flex: 0 0 var(--sheet-width);
-    width: var(--sheet-width);
-    min-width: 0;
-    max-height: calc(100vh - var(--navbar-height));
-    position: sticky;
-    top: var(--navbar-height);
-    border-left: 1px solid var(--border-subtle);
-}
-
-/* Stacked in the sheet: one column, sections in order */
-.inspector-sheet .inspector-sections {
-    flex-direction: column;
-}
-
-/* The header stays put while the sheet scrolls. The sheet's padding
-   moves onto the inspector body (sides/bottom only): a sticky element
-   can't leave its containing block, so padding on the scroll container
-   would hold the header 0.75rem below the scrollport edge and let
-   scrolled content show above it. */
-body.surfaces .inspector-sheet {
-    padding: 0;
-}
-
-body.surfaces .inspector-sheet .inspector {
-    padding: 0 0.75rem 0.75rem;
-}
-
-body.surfaces .inspector-sheet .inspector-header {
-    position: sticky;
-    top: 0;
-    z-index: 1;
-    margin: 0 -0.75rem;
-    padding: 0.75rem 0.75rem 0.5rem;
-    background-color: var(--surface-card);
-}
-
-/* Portrait: an overlay bottom sheet over the surface */
-@media (orientation: portrait) {
-    body.surfaces .inspector-sheet {
-        position: fixed;
-        left: var(--toolbar-width);
-        right: 0;
-        bottom: 0;
-        top: auto;
-        width: auto;
-        flex: none;
-        max-height: var(--sheet-height);
-        border-left: none;
-        border-top: 1px solid var(--border-default);
-        border-radius: var(--radius-xl) var(--radius-xl) 0 0;
-        box-shadow: var(--shadow-elevation-4);
-        z-index: 1500;
-    }
 }

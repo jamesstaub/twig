@@ -17,37 +17,59 @@ import {
 } from '../../events.js';
 
 /**
- * Homes the one InspectorComponent in either the Sequence surface's panel
- * (when that surface is active) or the inspector sheet beside any other
- * surface (while inspectorState.open), and re-renders it when the
- * selected voice or its state changes from outside the inspector.
+ * The Sequence panel's editor: renders the InspectorComponent for the
+ * selected voice while the panel shows, and re-renders it when the voice
+ * or its state changes from outside the inspector.
+ *
+ * The panel is the Sequence surface; in the embed band (no toolbar, no
+ * surfaces) it is a full-band overlay instead (body.sequence-open,
+ * inspector.embed.css) with its own close button — the same arrangement
+ * as Settings. `open(index)` gets there on either shell.
  */
 export class InspectorController extends BaseController {
 
     /**
-     * @param {string} sheetSelector   the inspector sheet
-     * @param {string} surfaceSelector the Sequence surface's editor area
-     * @param {HTMLElement} headerSlot where the voice stepper mounts on the
-     *   surface (the panel's bottom toolbar slot)
+     * @param {string} selector        the panel's editor area
+     * @param {HTMLElement} headerSlot where the voice stepper mounts (the
+     *   panel's bottom toolbar slot)
+     * @param {string} closeSelector   the panel's close button (embed)
      */
-    constructor(sheetSelector, surfaceSelector, headerSlot) {
-        super(sheetSelector);
-        this.sheetEl = document.querySelector(sheetSelector);
-        this.surfaceEl = document.querySelector(surfaceSelector);
+    constructor(selector, headerSlot, closeSelector) {
+        super(selector);
         this.headerSlot = headerSlot;
-        if (!this.surfaceEl) throw new Error(`InspectorController: missing ${surfaceSelector}`);
+        this.closeEl = document.querySelector(closeSelector);
     }
 
     createComponent(selector) {
         return new InspectorComponent(selector);
     }
 
+    get showing() {
+        return layoutMode.isEmbed
+            ? document.body.classList.contains('sequence-open')
+            : surfaceState.active === 'sequence';
+    }
+
+    /** Edit `index` in the Sequence panel. */
+    open(index) {
+        inspectorState.select(index);
+        if (layoutMode.isEmbed) {
+            document.body.classList.add('sequence-open');
+            this.update();
+        } else {
+            surfaceState.show('sequence');
+        }
+    }
+
+    close() {
+        document.body.classList.remove('sequence-open');
+        this.update();
+    }
+
     getProps() {
-        const inSurface = surfaceState.active === 'sequence';
         return {
             index: inspectorState.index,
-            host: inSurface ? 'surface' : 'sheet',
-            headerSlot: inSurface ? this.headerSlot : null,
+            headerSlot: this.headerSlot,
             dialSize: layoutMode.coarse ? 52 : 36,
             scope: this.scope(),
         };
@@ -61,40 +83,28 @@ export class InspectorController extends BaseController {
     }
 
     update() {
-        const inSurface = surfaceState.active === 'sequence';
-        const host = inSurface ? this.surfaceEl : this.sheetEl;
-        const sheetOpen = !inSurface && inspectorState.isOpen;
-
-        // Re-home the component: clear whatever it left in the other element
-        if (this.component.el !== host) {
+        if (!this.showing) {
+            // Nothing to show: don't keep a stale editor in a hidden panel
             this.component.teardown();
             this.component.el.innerHTML = '';
-            this.component.el = host;
-            this.headerSlot?.replaceChildren();
-        }
-
-        this.sheetEl.hidden = !sheetOpen;
-        document.body.classList.toggle('inspector-open', sheetOpen);
-
-        if (!inSurface && !sheetOpen) {
-            // Nothing to show: don't keep a stale editor in the hidden sheet
-            this.component.teardown();
-            this.sheetEl.innerHTML = '';
+            this.headerSlot.replaceChildren();
             return null;
         }
         return super.update();
     }
 
     bindComponentEvents() {
-        this.component.onClose = () => inspectorState.close();
         this.component.onStep = (delta) => inspectorState.step(delta);
-        this.component.onExpand = () => surfaceState.show('sequence');
+        this.closeEl?.addEventListener('click', () => this.close());
     }
 
     bindExternalEvents() {
         document.addEventListener(INSPECTOR_CHANGED, () => this.update());
         document.addEventListener(SURFACE_CHANGED, () => this.update());
-        document.addEventListener(LAYOUT_MODE_CHANGED, () => this.update());
+        document.addEventListener(LAYOUT_MODE_CHANGED, () => {
+            document.body.classList.remove('sequence-open');
+            this.update();
+        });
         // In place, never a re-render: shift can go down mid-drag
         const syncScope = () => this.component.setScope(this.scope());
         document.addEventListener(LINK_ALL_CHANGED, syncScope);
@@ -110,7 +120,7 @@ export class InspectorController extends BaseController {
             this.scheduleUpdate();
         });
         document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape' && !this.sheetEl.hidden) inspectorState.close();
+            if (e.key === 'Escape' && document.body.classList.contains('sequence-open')) this.close();
         });
     }
 }

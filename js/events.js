@@ -24,7 +24,7 @@ export const LAYOUT_MODE_CHANGED = 'layout-mode-changed';
 // Active surface or side-column flag changed — see js/modules/surfaces/
 // surfaceState.js. detail: { active, side }
 export const SURFACE_CHANGED = 'surface-changed';
-// Inspector selection / sheet open state (UI-only) — detail: { index, open }
+// The Sequence panel's selected overtone (UI-only) — detail: { index }
 export const INSPECTOR_CHANGED = 'inspector-changed';
 // The link-all lock toggled (UI-only) — detail: { locked }
 export const LINK_ALL_CHANGED = 'link-all-changed';

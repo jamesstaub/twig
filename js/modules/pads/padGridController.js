@@ -45,9 +45,6 @@ export class PadGridController extends BaseController {
     }
 
     bindComponentEvents() {
-        // Assigned by ui.js (this.onInspect) so the pads don't know about
-        // the inspector — same contract as the drawbar strip
-        this.component.onInspect = (index) => this.onInspect?.(index);
         this.component.onAttack = (index) => triggerHarmonicAttack(index);
         this.component.onRelease = (index) => triggerHarmonicRelease(index);
     }

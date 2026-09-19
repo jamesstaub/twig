@@ -25,7 +25,7 @@ const DRAWBAR_SLIDER_SELECTOR = ".drawbar-slider";
  * gestured parameter across the whole row instead of writing one voice.
  *
  * Props: { family, paramIndex, compact, isSubharmonic }. Callback set by
- * the controller: onInspect(index).
+ * the controller: onInspect(index) — a column label was clicked.
  */
 export class DrawbarsComponent extends BaseComponent {
 
@@ -106,7 +106,7 @@ export class DrawbarsComponent extends BaseComponent {
             const label = e.target.closest(".drawbar-label");
             const drawbar = label?.closest(".drawbar");
             if (!drawbar || drawbar.dataset.index === undefined) return;
-            this.openOvertoneSettings(Number(drawbar.dataset.index));
+            this.onInspect?.(Number(drawbar.dataset.index));
         });
 
         // Keyboard (arrow keys) still uses the native range input event
@@ -544,14 +544,9 @@ export class DrawbarsComponent extends BaseComponent {
         this.syncFill(e.target);
     }
 
-    /** Full per-overtone editor (the inspector) — label click, context menu. */
-    openOvertoneSettings(index) {
-        this.onInspect?.(index);
-    }
-
     /** The shared overtone menu, wherever it was summoned from. */
     showContextMenu(index, x, y) {
-        openOvertoneMenu(index, x, y, { onInspect: (i) => this.openOvertoneSettings(i) });
+        openOvertoneMenu(index, x, y);
     }
 
     teardown() {

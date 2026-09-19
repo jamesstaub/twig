@@ -123,8 +123,8 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
   column, layout.embed.css), the drawbar strip, the waveform and spectrum
   panels, the tonewheel. Hidden there: the toolbar, the pad grid, the
   scope and envelope panels, the settings panel (an overlay instead,
-  `body.settings-open`), the inspector's surface root (the sheet is a
-  full-band overlay). The band has no toolbar, so the strip's FAMILY tabs
+  `body.settings-open`) and the Sequence panel (likewise,
+  `body.sequence-open`). The band has no toolbar, so the strip's FAMILY tabs
   (gain/filter/convolution/adsr) show only there. There are no modals in
   the app.
 - Surfaces shell (`body.surfaces`, i.e. everything but embed):
@@ -134,13 +134,15 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
   ids; `label` is what fits the rail ("Conv"), optional `title` the full
   name for the tooltip;
   `family` names the drawbar strip's parameter family for the four
-  parameter surfaces, and `side` their visualization panel: a surface
+  parameter surfaces, and `side` a surface's visualization panel (those
+  four, and Sequence): a surface
   with `side` has a SIDE COLUMN — that panel over `SIDE_ROOTS`, the
   tonewheel — and the others have none; visible set + side flag, emits
   `SURFACE_CHANGED`), `ToolbarComponent` is the left icon rail (surfaces
   only), `SideToggleComponent` the icon button pinned to the top-right
-  corner of the drawbar panel (`#surface-side-toggle` — it lives only in
-  a panel whose surfaces have a side column, and opens/closes the WHOLE
+  corner of a panel (`.side-toggle-btn`, one per panel — it lives only
+  in the panels whose surfaces have a side column, the drawbar strip and
+  the Sequence panel, and opens/closes the WHOLE
   column, visualization and tonewheel; hidden in embed),
   `SurfaceShellComponent` applies state to the DOM: sets `hidden` on every
   panel root the active surface doesn't include (base.css has
@@ -200,9 +202,9 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
   DRAWS the parameter; a touch press-and-hold instead opens the overtone
   menu, restoring the row it would have drawn). `.drawbar-input-wrapper`
   and `.drawbar-slider` are `touch-action: none`; the column's label/aux
-  areas keep `pan-x`. The column label opens the inspector
-  (`onInspect(index)`, wired by ui.js — the strip never imports the
-  inspector). Under 40rem the columns are `flex: 1 1 0` with a 20px floor
+  areas keep `pan-x`. The column label opens that overtone's Sequence
+  editor (`onInspect(index)` → `InspectorController.open`, wired by ui.js
+  — the strip never imports the inspector). Under 40rem the columns are `flex: 1 1 0` with a 20px floor
   (12 voices fit a phone beside the toolbar; more scroll).
 - Overtone toolbar (`js/modules/overtoneToolbar/`, overtone-toolbar.css):
   the fixed bar at the bottom of every per-overtone panel — the drawbar
@@ -216,7 +218,7 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
   plus the `ShapePanel`) is always there, its controls grayed out and
   `disabled` (`ShapePanel.setEnabled`) until shape is in effect; link
   sits to its right, outside the box. Narrow (`@container` on the bar's
-  own width — a side sheet narrows it too; sooner when the slot is in
+  own width — the side column narrows it too; sooner when the slot is in
   use) the modes take a full-width row ABOVE the buttons; at phone widths
   the slot gets its own row, link/shape go icon-only and the contour
   preview drops out (the narrowest phones also lose the stepper's
@@ -244,25 +246,31 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
   probability 0–100%); entering a mode loads its defaults, because x/y
   mean different things per mode, and `Dial`'s `resetValue` makes
   double-click return there. Mode 4 keeps the 0/1 pattern text field.
-  `inspectorState` (UI-only: selected index + sheet open,
+  `inspectorState` (UI-only: the selected voice index,
   `INSPECTOR_CHANGED`) is the model; while link or shape is in effect
   (lock or held key) the title reads "All voices" (`setScope`, updated IN
   PLACE on `LINK_ALL_CHANGED` / `SHAPE_MODE_CHANGED` — shift can go down
   mid-drag, and a re-render would destroy the control; the title has a
-  fixed width in the bar so the ‹ › buttons don't move); `InspectorController` homes the ONE
-  component instance in the surface (`#sequence-inspector`, scrolling
-  above the panel's overtone toolbar, with the ‹ Overtone N › header
-  mounted in the toolbar's slot — `headerSlot`) or in the sheet
-  (`#inspector-sheet`, beside any other surface while open, header on
-  top with expand/close — in-flow side column in landscape with a sticky
-  header, overlay bottom sheet in portrait, full-band overlay in embed;
-  inspector.css, `--sheet-width` / `--sheet-height`). It re-renders on
+  fixed width in the bar so the ‹ › buttons don't move). The editor has
+  ONE home: `#sequence-inspector`, scrolling above the panel's overtone
+  toolbar, with the ‹ Overtone N › header mounted in the toolbar's slot
+  (`headerSlot`). There is no inspector sheet and no "Inspect" menu item:
+  `InspectorController.open(index)` selects the voice and shows the
+  Sequence surface — or, in embed (no surfaces), turns the same panel
+  into a full-band overlay (`body.sequence-open`, inspector.embed.css,
+  closed by its × or Escape — the Settings arrangement). It renders only
+  while the panel shows. The sequence itself (gate pattern × shape ×
+  stretch) is drawn in the panel's SIDE COLUMN, not in the editor:
+  `js/modules/sequenceViz/` (`#sequence-viz-root`) redraws from
+  `OVERTONE_SIGNAL_CHANGED` (`gate`/`seq` kinds, selected voice) and
+  `INSPECTOR_CHANGED` — the editor never talks to it;
+  `drawSequencePreview(ctx, index, w, h)` (sequencePreview.js) draws
+  into the caller's DPR-transformed context. The editor re-renders on
   `OVERTONE_SIGNAL_CHANGED` for the selected index EXCEPT its own writes
   (`apply()` / `applyValue()` set `component.writing`; re-rendering under
-  a control mid-drag would destroy it). Opened from a drawbar column
-  label, the overtone menu (right-click / press-and-hold on bars and
-  pads, `js/modules/generic/overtoneMenu.js`), or the toolbar; Escape
-  closes the sheet.
+  a control mid-drag would destroy it). The overtone menu (right-click /
+  press-and-hold on bars and pads, `js/modules/generic/overtoneMenu.js`)
+  is copy frequency + set as fundamental.
 - Trigger surface (`js/modules/pads/`): `#pad-grid-root` = a title over
   `#pad-grid`, the `PadGridComponent` root — one big pad per overtone,
   always 4 columns (3 in portrait) × rows that share the panel's height.
@@ -288,7 +296,7 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
   oscillator preview), overtone system. It is a GRID sized by container
   queries on the stack's own width (`.surface-stack` is `container:
   surface-stack / inline-size`, page-arrangement.css) — the viewport lies
-  once the toolbar or sheet take their share: one column under
+  once the toolbar takes its share: one column under
   40rem (phones), fundamental | source over an ALWAYS full-width system
   panel from 40rem. It fits the screen from tablets up; a phone scrolls
   inside the panel (portrait a little, landscape a row — there the system

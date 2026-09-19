@@ -61,9 +61,9 @@ export class DrawbarsController extends BaseController {
      * Wire Component → callbacks
      */
     bindComponentEvents() {
-        // Column label click / context menu → the overtone inspector.
-        // Assigned by ui.js (this.onInspect) so the strip doesn't know
-        // where the editor lives.
+        // Column label click → that overtone's Sequence editor. Assigned
+        // by ui.js (this.onInspect) so the strip doesn't know where the
+        // editor lives.
         this.component.onInspect = (index) => this.onInspect?.(index);
     }
 

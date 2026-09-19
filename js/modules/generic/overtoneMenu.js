@@ -4,16 +4,13 @@ import { showStatus } from '../../domUtils.js';
 import { DrawbarsActions } from '../drawbars/drawbarsActions.js';
 
 /**
- * The per-overtone context menu (copy frequency / set as fundamental /
- * inspect) and the press-and-hold gesture that opens it on touch.
+ * The per-overtone context menu (copy frequency / set as fundamental)
+ * and the press-and-hold gesture that opens it on touch.
  *
  * Shared because more than one surface exposes an overtone: the drawbar
  * strip's bars and trigger pads, and the Play surface's pads. Only ONE
  * menu exists at a time — it is body-attached and fixed, so no host's
  * overflow can clip it.
- *
- * Opening the inspector stays a callback (`onInspect`): the hosts don't
- * import the inspector, ui.js wires it (see CLAUDE.md).
  */
 
 // Press-and-hold timing, and the travel that turns a press into a drag
@@ -59,7 +56,7 @@ export function closeOvertoneMenu() {
 }
 
 /** Open the menu for one overtone at viewport point (x, y). */
-export function openOvertoneMenu(index, x, y, { onInspect } = {}) {
+export function openOvertoneMenu(index, x, y) {
     closeOvertoneMenu();
 
     const ratio = AppState.currentSystem.ratios[index];
@@ -84,7 +81,6 @@ export function openOvertoneMenu(index, x, y, { onInspect } = {}) {
 
     addItem(`Copy Frequency (${freqLabel})`, () => copyFrequency(freq));
     addItem('Set as Fundamental', () => DrawbarsActions.setDrawbarAsFundamental(index));
-    addItem('Inspect Overtone', () => onInspect?.(index));
 
     document.body.appendChild(menu);
     const rect = menu.getBoundingClientRect();

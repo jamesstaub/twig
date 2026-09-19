@@ -64,7 +64,8 @@ body.embed #gain-viz-root { order: 4; width: 300px; }
 body.embed #conv-viz-root { order: 5; width: 300px; }
 body.embed #tonewheel-container { order: 6; }
 
-/* No room in the band for the output scope or the envelope curves */
+/* No room in the band for the output scope or the envelope curves (the
+   sequence visualization shows with its overlay — inspector.embed.css) */
 body.embed #filter-viz-root,
 body.embed #adsr-viz-root {
     display: none;

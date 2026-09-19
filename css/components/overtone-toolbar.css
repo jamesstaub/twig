@@ -13,7 +13,7 @@
 
    - Wide: one row, the actions (and slot) left, the modes right.
    - Narrow (container query — the bar's own width, not the viewport's:
-     a side sheet narrows it too): the modes take a full-width row ABOVE
+     the side column narrows it too): the modes take a full-width row ABOVE
      the buttons, the shape box stretching to fill it. The slot gets its
      own row the same way, and the mode buttons drop their text. */
 

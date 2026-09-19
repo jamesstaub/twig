@@ -5,7 +5,6 @@ import { OvertoneSignalActions } from '../overtoneSignal/overtoneSignalActions.j
 import { midiOutputRouter } from '../midi/midiOutputRouter.js';
 import { noteForVoice } from '../midi/pulseMidi.js';
 import { oscClient } from '../osc/oscClient.js';
-import { drawSequencePreview } from '../overtoneSignal/sequencePreview.js';
 import { voiceTargets } from '../generic/linkAll.js';
 import { shapeMode } from '../shape/shapeMode.js';
 import { Dial } from '../generic/dial/Dial.js';
@@ -39,17 +38,13 @@ const GATE_PARAM_DIALS = {
 
 const ICON_PREV = '‹';
 const ICON_NEXT = '›';
-const ICON_EXPAND = '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M11.5 3.5h5v5M16.5 3.5 10 10M8.5 16.5h-5v-5M3.5 16.5 10 10"/></svg>';
-const ICON_CLOSE = '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M5 5l10 10M15 5 5 15"/></svg>';
 
 /**
- * Inspector — the Sequence panel for one overtone: cycle gate + shape,
- * modulation, pulse outputs. One component, two homes: the Sequence
- * surface (full width) and the inspector sheet beside another surface —
- * the controller decides which element it renders into. The header (the
- * ‹ Overtone N › voice stepper) tops the sheet, with its expand/close
- * chrome; on the surface it mounts into `headerSlot` instead — the
- * panel's bottom toolbar — so the editor scrolls above a fixed bar.
+ * Inspector — the Sequence panel's editor for one overtone: cycle gate +
+ * shape, modulation, pulse outputs. The header (the ‹ Overtone N › voice
+ * stepper) mounts into `headerSlot` — the panel's bottom toolbar — so the
+ * editor scrolls above a fixed bar. The sequence it produces is drawn in
+ * the panel's side column (js/modules/sequenceViz/), off the same events.
  *
  * While link or shape is in effect an edit lands on every voice, so the
  * title says so (`scope` prop / `setScope`, updated in place — a
@@ -62,20 +57,17 @@ const ICON_CLOSE = '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" s
  * changes. Its own writes set `writing` while the actions run so the
  * controller can tell them apart from external ones.
  *
- * Callbacks (assigned by the controller): onClose(), onStep(delta),
- * onExpand().
+ * Callback (assigned by the controller): onStep(delta).
  */
 export class InspectorComponent extends BaseComponent {
 
     constructor(target) {
         super(target);
         this.writing = false;
-        this.onClose = null;
         this.onStep = null;
-        this.onExpand = null;
     }
 
-    render({ index, host, headerSlot, dialSize, scope }) {
+    render({ index, headerSlot, dialSize, scope }) {
         this.teardown();
         this.index = index;
         this.dialSize = dialSize;
@@ -84,9 +76,7 @@ export class InspectorComponent extends BaseComponent {
 
         const root = document.createElement('div');
         root.className = 'inspector';
-        const header = this.buildHeader(index, host);
-        if (headerSlot) headerSlot.replaceChildren(header);
-        else root.appendChild(header);
+        headerSlot.replaceChildren(this.buildHeader(index));
         root.appendChild(this.buildSections(index));
         this.el.appendChild(root);
     }
@@ -116,7 +106,7 @@ export class InspectorComponent extends BaseComponent {
         }
     }
 
-    buildHeader(index, host) {
+    buildHeader(index) {
         const header = document.createElement('div');
         header.className = 'inspector-header';
 
@@ -141,16 +131,6 @@ export class InspectorComponent extends BaseComponent {
             title,
             this.iconButton({ html: ICON_NEXT, label: 'Next overtone', cls: 'inspector-step', onClick: () => this.onStep?.(1) }),
         );
-
-        if (host === 'sheet') {
-            const spacer = document.createElement('span');
-            spacer.className = 'inspector-header-spacer';
-            header.append(
-                spacer,
-                this.iconButton({ html: ICON_EXPAND, label: 'Open as the Sequence surface', cls: 'inspector-icon-btn inspector-expand', onClick: () => this.onExpand?.() }),
-                this.iconButton({ html: ICON_CLOSE, label: 'Close inspector', cls: 'inspector-icon-btn inspector-close', onClick: () => this.onClose?.() }),
-            );
-        }
         return header;
     }
 
@@ -217,7 +197,6 @@ export class InspectorComponent extends BaseComponent {
         // input change events carry no modifiers; the tracked state decides)
         const applyGate = (e) => {
             this.apply(index, e, (i) => OvertoneSignalActions.setGate(i, { ...gate, seq: [...(gate.seq || [])] }));
-            this._redrawSeqPreview?.();
         };
 
         const select = document.createElement('select');
@@ -270,7 +249,6 @@ export class InspectorComponent extends BaseComponent {
                                 // Only this field, shaped across the voices
                                 this.applyValue(index, e, { min, max, value: v }, (i, val) =>
                                     OvertoneSignalActions.setGate(i, { ...OvertoneSignalActions.getGate(i), [key]: Math.round(val) }));
-                                this._redrawSeqPreview?.();
                             } else {
                                 applyGate(e);
                             }
@@ -300,7 +278,7 @@ export class InspectorComponent extends BaseComponent {
         return el;
     }
 
-    /** Cycle contour: waveform selector (same options as the oscillator menu) + preview + stretch. */
+    /** Cycle contour: waveform selector (same options as the oscillator menu) + stretch. */
     buildShapeControls(index) {
         const wrap = document.createElement('div');
         wrap.className = 'inspector-shape';
@@ -320,19 +298,8 @@ export class InspectorComponent extends BaseComponent {
         }
         wrap.appendChild(select);
 
-        const canvas = document.createElement('canvas');
-        canvas.className = 'inspector-shape-preview';
-        canvas.width = 220;
-        canvas.height = 44;
-        wrap.appendChild(canvas);
-
-        // Shared: gate mode/param edits re-trigger it too
-        const draw = () => drawSequencePreview(canvas, index);
-        this._redrawSeqPreview = draw;
-
         select.addEventListener('change', (e) => {
             this.apply(index, e, (i) => OvertoneSignalActions.setSequencerShape(i, select.value));
-            draw();
         });
 
         // Stretch the shape over N cycles (powers of two) so a complex
@@ -353,14 +320,11 @@ export class InspectorComponent extends BaseComponent {
                 const next = OvertoneSignalActions.getSequencer(index).stretch * factor;
                 this.apply(index, e, (i) => OvertoneSignalActions.setSequencerStretch(i, next));
                 lenLabel.textContent = fmt(OvertoneSignalActions.getSequencer(index).stretch);
-                draw();
             });
             return b;
         };
         lenRow.append(mkBtn('÷2', 0.5), lenLabel, mkBtn('×2', 2));
         wrap.appendChild(lenRow);
-
-        draw();
         return wrap;
     }
 
