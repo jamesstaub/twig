@@ -369,7 +369,7 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
   has no dependency on the tonewheel's p5 instance. The Overtone System
   panel takes whatever height the Source panel has left (the grid's last
   row is `1fr`), and under its menu everything lives in `.system-body`,
-  which takes the panel's spare height: a wide panel lays it out as
+  which takes the panel's spare height: a wide panel (≥ 32rem) lays it out as
   toggle | dials over the list (`@container system-panel`), and the
   description (`#system-description`) OVERLAYS it — `position:absolute;
   inset:0` inside the body, so nothing below the menu moves — opened by
@@ -384,7 +384,11 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
   system-panel` — the panel is full-width alone, a third when docked, a
   column on a phone): twelve across, two rows of six under 52rem, and
   under 26rem a VERTICAL list — three columns of four, one-line entries,
-  the ratio label ellipsizing before the value ever clips. `renderFrequencies` rebuilds
+  the ratio label ellipsizing before the value ever clips. The list is the
+  panel's ELASTIC part: it takes the body's spare height, its rows share
+  it (`grid-auto-rows: 1fr`), and the entry text grows with the panel
+  (`--frequency-font-size`, in `cqi`, capped so six characters still fit a
+  twelfth of the width; fixed small on short screens, which scroll). `renderFrequencies` rebuilds
   items only when the voice count changes, and `FUNDAMENTAL_CHANGED`
   calls it alone (a sweep must not rebuild the menu). Hidden in embed.
   `formatFrequency` / `formatHz` (utils.js) are the one voice-frequency
