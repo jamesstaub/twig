@@ -2,9 +2,12 @@ import { AppState } from '../../config.js';
 import { calculateFrequency } from '../../utils.js';
 import { showStatus } from '../../domUtils.js';
 import { DrawbarsActions } from '../drawbars/drawbarsActions.js';
+import { midiOutputRouter } from '../midi/midiOutputRouter.js';
+import { OvertoneSignalActions } from '../overtoneSignal/overtoneSignalActions.js';
 
 /**
- * The per-overtone context menu (copy frequency / set as fundamental)
+ * The per-overtone context menu (copy frequency / set as fundamental /
+ * set as MIDI clock)
  * and the press-and-hold gesture that opens it on touch.
  *
  * Shared because more than one surface exposes an overtone: the drawbar
@@ -67,11 +70,12 @@ export function openOvertoneMenu(index, x, y) {
     menu = document.createElement('div');
     menu.className = 'drawbar-context-menu';
 
-    const addItem = (label, action) => {
+    const addItem = (label, action, enabled = true) => {
         const btn = document.createElement('button');
         btn.type = 'button';
         btn.className = 'drawbar-context-menu-item';
         btn.textContent = label;
+        btn.disabled = !enabled;
         btn.addEventListener('click', () => {
             closeOvertoneMenu();
             action();
@@ -81,6 +85,15 @@ export function openOvertoneMenu(index, x, y) {
 
     addItem(`Copy Frequency (${freqLabel})`, () => copyFrequency(freq));
     addItem('Set as Fundamental', () => DrawbarsActions.setDrawbarAsFundamental(index));
+    // A shortcut to the Sequence panel's "Output as MIDI clock" (exclusive:
+    // it takes the clock from whichever voice had it). Stays in the menu,
+    // disabled, where it doesn't apply — no MIDI output, or already the clock
+    const isClock = AppState.midiClockVoice === index;
+    addItem(
+        isClock ? 'MIDI Clock ✓' : 'Set as MIDI Clock',
+        () => OvertoneSignalActions.setMidiClockVoice(index),
+        midiOutputRouter.available && !isClock,
+    );
 
     document.body.appendChild(menu);
     const rect = menu.getBoundingClientRect();
@@ -99,6 +112,15 @@ export function openOvertoneMenu(index, x, y) {
         document.addEventListener('pointerdown', onDismiss);
         document.addEventListener('keydown', onEsc);
     }, 0);
+}
+
+/**
+ * True for a `contextmenu` a touch/pen press-and-hold raised (Android
+ * Chrome fires one natively; the event carries the pointerType there).
+ * Pads use it to refuse the menu on touch: holding a pad IS playing it.
+ */
+export function isTouchContextMenu(e) {
+    return Boolean(e.pointerType) && e.pointerType !== 'mouse';
 }
 
 /**

@@ -59,12 +59,12 @@ const STATE_ORDER = [
     'gain', 'slew', 'drawbars', 'drawbar', 'gate', 'filter', 'res', 'drive', 'pan',
     'conv', 'convir', 'irring',
     'adsr', 'seqshape', 'seqgain', 'seqfreq', 'seqres', 'seqwet', 'seqfb', 'seqstretch',
-    'pulsemidi', 'pulseosc', 'midiclock', 'midiout', 'envmode', 'play'
+    'pulsemidi', 'pulseosc', 'pulseoffset', 'midiclock', 'midiout', 'envmode', 'play'
 ];
 const PER_INDEX_COMMANDS = new Set([
     'drawbar', 'gate', 'filter', 'res', 'drive', 'pan', 'adsr', 'conv', 'convir',
     'seqshape', 'seqgain', 'seqfreq', 'seqres', 'seqwet', 'seqfb', 'seqstretch',
-    'pulsemidi', 'pulseosc'
+    'pulsemidi', 'pulseosc', 'pulseoffset'
 ]);
 const TRANSIENT_COMMANDS = new Set(['reset', 'randomize', 'setdrawbarfundamental']);
 const stateCache = new Map(); // cache key → {address, args}
@@ -186,7 +186,7 @@ if (Max) {
         'waveform', 'source', 'adcin', 'adcchannel', 'subharmonic', 'play', 'reset', 'randomize',
         'setdrawbarfundamental', 'gate', 'filter', 'res', 'drive', 'pan', 'conv', 'convir', 'irring',
         'seqshape', 'seqgain', 'seqfreq', 'seqres', 'seqwet', 'seqfb', 'seqstretch',
-        'pulsemidi', 'pulseosc', 'midiclock', 'adsr', 'envmode', 'midiout'
+        'pulsemidi', 'pulseosc', 'pulseoffset', 'midiclock', 'adsr', 'envmode', 'midiout'
     ];
     for (const cmd of APP_COMMANDS) {
         Max.addHandler(cmd, (...args) => {

@@ -25,14 +25,16 @@ export function audioTimeToPerformanceMs(ctx, audioTime) {
 }
 
 /**
- * Wall-clock ms of a pulse's next cycle boundary — the audible click of a
- * low-frequency square/saw. Gate worklets emit pulses at the cycle
- * MIDPOINT (phase 0.5 — half a period of scheduling lead) stamped with the
- * emission's audio-clock time; the boundary is half a period later. A
- * pulse that crossed a throttled main thread after its boundary passed
- * holds to the following boundary instead of firing at an arbitrary lag.
+ * Wall-clock ms at which a LEAD message's event lands. Gate worklets
+ * announce every pulse and clock beat half a period ahead — the
+ * scheduling lead — stamped with the announcement's audio-clock time; the
+ * event lands half a period later: the cycle's start (the audible click
+ * of a low-frequency square/saw), its midpoint for a voice with "offset
+ * pulse 50%", or a clock beat's boundary. A message that crossed a
+ * throttled main thread after its landing passed holds to the following
+ * period instead of firing at an arbitrary lag.
  */
-export function pulseCycleBoundaryMs(ctx, pulse) {
+export function pulseLandingMs(ctx, pulse) {
     const now = window.performance.now();
     if (!ctx || !(pulse?.frequency > 0) || !(pulse?.audioTime > 0)) return now;
     const periodMs = 1000 / pulse.frequency;
@@ -42,11 +44,11 @@ export function pulseCycleBoundaryMs(ctx, pulse) {
 }
 
 /**
- * Audio-clock time (seconds) of a pulse's cycle boundary — the click. The
- * exact, un-held counterpart of pulseCycleBoundaryMs for consumers that
- * log against the audio timeline instead of scheduling wall-clock events.
+ * Audio-clock time (seconds) at which a lead message's event lands. The
+ * exact, un-held counterpart of pulseLandingMs for consumers that log
+ * against the audio timeline instead of scheduling wall-clock events.
  */
-export function pulseCycleBoundaryAudioTime(pulse) {
+export function pulseLandingAudioTime(pulse) {
     if (!(pulse?.frequency > 0) || !(pulse?.audioTime >= 0)) return pulse?.audioTime ?? 0;
     return pulse.audioTime + 0.5 / pulse.frequency;
 }

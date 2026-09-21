@@ -8,7 +8,7 @@ import { shapeMode } from "../shape/shapeMode.js";
 import { Dial } from "../generic/dial/Dial.js";
 import { cycleStepper } from "../generic/cycleStepper.js";
 import { voiceTargets } from "../generic/linkAll.js";
-import { openOvertoneMenu, closeOvertoneMenu, armLongPress } from "../generic/overtoneMenu.js";
+import { openOvertoneMenu, closeOvertoneMenu, armLongPress, isTouchContextMenu } from "../generic/overtoneMenu.js";
 import { irManager } from "../../dsp/IRManager.js";
 
 const DRAWBAR_SLIDER_SELECTOR = ".drawbar-slider";
@@ -88,14 +88,26 @@ export class DrawbarsComponent extends BaseComponent {
         this.sliders = this.qAll(DRAWBAR_SLIDER_SELECTOR);
 
         // Right-click anywhere on a column: the overtone menu. Touch has
-        // no right-click, so a press-and-hold on the bar or the trigger
-        // pad opens the same menu (see armLongPress below).
+        // no right-click, so a press-and-hold on the BAR opens the same
+        // menu (see armLongPress below) — never on the trigger pad, where
+        // holding is how you sustain the note.
         this.bindEvent(this.el, "contextmenu", (e) => {
             const drawbar = e.target.closest(".drawbar");
             if (!drawbar || drawbar.dataset.index === undefined) return;
             e.preventDefault();
             this.showContextMenu(Number(drawbar.dataset.index), e.clientX, e.clientY);
         });
+
+        // Touch: the native range input would ALSO drag itself — cancelling
+        // pointerdown only stops the mouse path. It keeps the touch it
+        // started with, and since it's rotated -90deg a finger swiping
+        // ACROSS the row reads as dragging along its own axis, so the
+        // column the swipe began on kept following the finger through its
+        // `input` event. Cancelling touchstart (non-passive) hands the
+        // whole gesture to the pointer handler below.
+        this.bindEvent(this.el, "touchstart", (e) => {
+            if (e.target.closest(".drawbar-input-wrapper")) e.preventDefault();
+        }, { passive: false });
 
         // Keyboard (arrow keys) still uses the native range input event
         this.sliders.forEach((slider) => {
@@ -366,7 +378,10 @@ export class DrawbarsComponent extends BaseComponent {
         // Always-visible readout under the bar; syncFill keeps it current
         const readout = document.createElement("span");
         readout.className = "drawbar-value";
-        readout.textContent = param.format(index, value);
+        // A parameter whose readout CAN be two lines reserves both on every
+        // column, whatever this one currently reads
+        if (param.lines === 2) readout.classList.add("drawbar-value-two-line");
+        this.setReadout(readout, param.format(index, value));
         wrapper.appendChild(readout);
 
         wrapper.appendChild(this.createAux(index));
@@ -440,6 +455,7 @@ export class DrawbarsComponent extends BaseComponent {
             for (const param of dialParams) {
                 const dial = new Dial({
                     min: param.min, max: param.max, step: param.step, value: param.get(index),
+                    size: 28,
                     label: param.label,
                     ...(param.color ? { color: param.color } : {}),
                     format: (v) => param.format(index, v),
@@ -490,17 +506,17 @@ export class DrawbarsComponent extends BaseComponent {
             } catch { /* synthetic pointer — hold still works */ }
             pad.classList.add("held");
             triggerHarmonicAttack(index);
-            // Press-and-hold = the overtone menu (touch's right-click).
-            // Let the note go first, or it would sustain under the menu.
-            armLongPress(pad, e, (x, y) => {
-                release();
-                this.showContextMenu(index, x, y);
-            });
             pad.addEventListener("pointerup", release, { once: true });
             pad.addEventListener("pointercancel", release, { once: true });
         });
         pad.addEventListener("contextmenu", (e) => {
             e.preventDefault();
+            // A touch hold is a sustained note: no menu, and keep the
+            // event from reaching the column's delegated handler
+            if (isTouchContextMenu(e)) {
+                e.stopPropagation();
+                return;
+            }
             release();
             this.showContextMenu(index, e.clientX, e.clientY);
         });
@@ -515,7 +531,33 @@ export class DrawbarsComponent extends BaseComponent {
         if (!bar) return;
         bar.style.setProperty("--drawbar-fill", (value - param.min) / (param.max - param.min || 1));
         const readout = bar.querySelector(".drawbar-value");
-        if (readout) readout.textContent = param.format(Number(slider.dataset.index), value);
+        if (readout) this.setReadout(readout, param.format(Number(slider.dataset.index), value));
+    }
+
+    /**
+     * Write a formatted value into a column's readout. A two-line format
+     * (the cutoff's "partial\nHz") becomes two spans, told apart the way
+     * the system's frequency list does it: the label muted above, the
+     * frequency in full contrast below.
+     */
+    setReadout(el, text) {
+        const [label, hz] = String(text).split("\n");
+        // A one-line value in a one-line parameter is just text; in a
+        // two-line one (an `open` cutoff) it still gets both spans, so
+        // every column of the row is the same box and the dials below
+        // them stay on one line
+        if (hz === undefined && !el.classList.contains("drawbar-value-two-line")) {
+            el.textContent = text;
+            return;
+        }
+        el.textContent = "";
+        const top = document.createElement("span");
+        top.className = "drawbar-value-label";
+        top.textContent = label;
+        const bottom = document.createElement("span");
+        bottom.className = "drawbar-value-hz";
+        bottom.textContent = hz ?? "";
+        el.append(top, bottom);
     }
 
     /**

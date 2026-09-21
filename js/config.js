@@ -445,8 +445,9 @@ export const AppState = {
     oscillatorEnvelopes: {},
 
     // Per-overtone pulse outputs, sparse objects keyed by partial index:
-    // { midi: bool, osc: bool }. Pulses fire once per oscillator cycle
-    // (audible-gate cycles only) while the voice is <= 50 Hz.
+    // { midi: bool, osc: bool, offset: bool }. Pulses fire once per
+    // oscillator cycle (audible-gate cycles only) while the voice is
+    // <= 50 Hz — at the cycle's start, or at 50% of it with `offset`.
     oscillatorPulseOuts: {},
 
     // Per-overtone sequencer (1:1 with voices for now), sparse by index:
@@ -490,14 +491,57 @@ export function getCurrentSystem() {
     return AppState.currentSystem;
 }
 
-export function setCurrentSystem(systemIndex) {
-    AppState.currentSystemIndex = systemIndex;
-    AppState.currentSystem = systemWithStart(systemIndex, AppState.startHarmonic, {
+/** The tunable parameters a generative system is currently built with. */
+export function currentSystemOptions() {
+    return {
         stiffnessB: AppState.stiffnessB,
         tubeClosedness: AppState.tubeClosedness,
         stretchA: AppState.stretchA,
         compressA: AppState.compressA,
-    });
+    };
+}
+
+export function setCurrentSystem(systemIndex) {
+    AppState.currentSystemIndex = systemIndex;
+    AppState.currentSystem = systemWithStart(systemIndex, AppState.startHarmonic, currentSystemOptions());
+}
+
+/**
+ * The `step`-th partial (1-based) of the current system, for the places
+ * that count IN the system past the drawbars — the filter cutoff and the
+ * convolution tuning, which reach MAX_FILTER_PARTIALS.
+ *
+ * Inside the table it is simply that entry. Past it, a GENERATIVE system
+ * keeps counting in its own terms: the formula is asked for the partial
+ * at that step, so the harmonic series reads 13:1, 14:1 … and the golden
+ * ratio φ^12, φ^13 …, each label matching the frequency actually used.
+ * Only a measured or historical table (a bonang, a Hammond drawbar set)
+ * has nothing to count with — there the series continues geometrically
+ * from the table's last interval and the label says how far past it is.
+ */
+export function seriesStepAt(step) {
+    const system = AppState.currentSystem;
+    const ratios = system?.ratios || [1];
+    const labels = system?.labels || [];
+    const n = Math.max(1, Math.round(step));
+    if (n <= ratios.length) {
+        return { ratio: Math.abs(ratios[n - 1]) || 1, label: labels[n - 1] ?? `${n}` };
+    }
+    if (system.generate) {
+        // The window starts at startHarmonic, so this step's partial is
+        // startHarmonic + n - 1; generate it and take the first entry
+        const partial = (AppState.startHarmonic || DEFAULT_PARTIAL_START) + n - 1;
+        const extended = system.generate(partial, currentSystemOptions());
+        return {
+            ratio: Math.abs(extended.ratios[0]) || 1,
+            label: extended.labels[0] ?? `${partial}`,
+        };
+    }
+    const count = ratios.length;
+    const last = Math.abs(ratios[count - 1]) || 1;
+    const prev = count > 1 ? Math.abs(ratios[count - 2]) || 1 : 1;
+    const interval = last > prev && prev > 0 ? last / prev : 2;
+    return { ratio: last * Math.pow(interval, n - count), label: `+${n - count}` };
 }
 
 export function getHarmonicAmplitude(index) {

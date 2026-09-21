@@ -1,6 +1,6 @@
 import BaseComponent from '../base/BaseComponent.js';
 import { partialColor } from '../../theme.js';
-import { openOvertoneMenu, armLongPress } from '../generic/overtoneMenu.js';
+import { openOvertoneMenu, isTouchContextMenu } from '../generic/overtoneMenu.js';
 
 /**
  * Pad grid — one big playable pad per overtone (drum-machine style).
@@ -78,14 +78,14 @@ export class PadGridComponent extends BaseComponent {
             this._held.add(index);
             pad.classList.add('held');
             this.onAttack?.(index);
-            // Press-and-hold is touch's right-click: the same overtone menu
-            // the drawbar strip opens
-            armLongPress(pad, e, openMenu);
             pad.addEventListener('pointerup', release, { once: true });
             pad.addEventListener('pointercancel', release, { once: true });
         });
+        // Right-click only: on touch, holding a pad is how you sustain it,
+        // so a press-and-hold must never turn into a menu
         this.bindEvent(pad, 'contextmenu', (e) => {
             e.preventDefault();
+            if (isTouchContextMenu(e)) return;
             openMenu(e.clientX, e.clientY);
         });
         // A finger sliding off a pad keeps capture, so up/cancel still

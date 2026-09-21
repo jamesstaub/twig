@@ -137,7 +137,9 @@ export class Dial {
     }
 
     _display(v) {
-        if (this.format) return this.format(v);
+        // A two-line format (the cutoff's "partial\nHz") joins up: a dial's
+        // readout is one line
+        if (this.format) return String(this.format(v)).replace('\n', ' · ');
         const decimals = this.step >= 1 ? 0 : Math.min(2, Math.ceil(-Math.log10(this.step)));
         return v.toFixed(decimals);
     }

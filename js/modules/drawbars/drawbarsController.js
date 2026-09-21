@@ -20,6 +20,7 @@ const ROOT_ID = "drawbars-control-root";
 const TITLE_ID = "drawbars-title";
 const PARAM_TABS_ID = "drawbars-tabs";
 const NOTE_ID = "drawbars-note";
+const PAGER_ID = "drawbars-pager";
 
 // Below this panel height there is no room for dials under the bars: the
 // family's other parameters become tabs that put them on the bars instead
@@ -88,6 +89,50 @@ export class DrawbarsController extends BaseController {
         this.update();
     }
 
+    /** Both measured things the strip's own size decides. */
+    syncSize() {
+        this.syncCompact();
+        this.syncPager();
+    }
+
+    /**
+     * The ‹ › pager: shown only while the strip actually overflows (a
+     * phone, mostly portrait, where columns keep a usable width instead of
+     * squeezing every voice on screen). Each press scrolls one screenful.
+     */
+    bindPager() {
+        const pager = document.getElementById(PAGER_ID);
+        const strip = document.getElementById("drawbars");
+        if (!pager || !strip) return;
+        pager.querySelectorAll("[data-page]").forEach((btn) => {
+            btn.addEventListener("click", () => {
+                const page = Math.max(strip.clientWidth - 40, 80);
+                strip.scrollBy({ left: page * Number(btn.dataset.page), behavior: "smooth" });
+            });
+        });
+        strip.addEventListener("scroll", () => this.syncPager(), { passive: true });
+    }
+
+    /** Show/hide the pager and grey out whichever end the strip is at. */
+    syncPager() {
+        const pager = document.getElementById(PAGER_ID);
+        const strip = document.getElementById("drawbars");
+        if (!pager || !strip) return;
+        const overflow = strip.scrollWidth - strip.clientWidth;
+        pager.hidden = overflow <= 2;
+        const prev = pager.querySelector('[data-page="-1"]');
+        const next = pager.querySelector('[data-page="1"]');
+        if (prev) prev.disabled = strip.scrollLeft <= 1;
+        if (next) next.disabled = strip.scrollLeft >= overflow - 1;
+    }
+
+    /** Re-render, then re-measure: new columns, new scroll width. */
+    update() {
+        const done = super.update();
+        this.syncPager();
+        return done;
+    }
+
     updateDrawbar({ index }) {
         this.component.refreshColumn(index);
     }
@@ -135,18 +180,19 @@ export class DrawbarsController extends BaseController {
         // Height-driven compact mode (tabs instead of dials)
         const root = document.getElementById(ROOT_ID);
         if (root && window.ResizeObserver) {
-            new ResizeObserver(() => this.syncCompact()).observe(root);
+            new ResizeObserver(() => this.syncSize()).observe(root);
         }
-        window.addEventListener("resize", () => this.syncCompact());
+        window.addEventListener("resize", () => this.syncSize());
 
         this.renderHeader();
         this.refreshNote();
     }
 
-    /** First render: the compact measurement needs the panel laid out. */
+    /** First render: the measurements need the panel laid out. */
     init() {
         super.init();
-        this.syncCompact();
+        this.bindPager();
+        this.syncSize();
     }
 
     /**

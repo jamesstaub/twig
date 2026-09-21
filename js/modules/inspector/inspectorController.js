@@ -10,6 +10,8 @@ import {
     LAYOUT_MODE_CHANGED,
     LINK_ALL_CHANGED,
     MIDI_OUTPUT_CHANGED,
+    MIDI_PORTS_CHANGED,
+    FUNDAMENTAL_CHANGED,
     OVERTONE_SIGNAL_CHANGED,
     SHAPE_MODE_CHANGED,
     SPECTRAL_SYSTEM_CHANGED,
@@ -78,6 +80,9 @@ export class InspectorController extends BaseController {
         document.addEventListener(SHAPE_MODE_CHANGED, syncScope);
         document.addEventListener(SPECTRAL_SYSTEM_CHANGED, () => this.scheduleUpdate());
         document.addEventListener(MIDI_OUTPUT_CHANGED, () => this.scheduleUpdate());
+        document.addEventListener(MIDI_PORTS_CHANGED, () => this.scheduleUpdate());
+        // The clock's tempo follows the fundamental — text only, no re-render
+        document.addEventListener(FUNDAMENTAL_CHANGED, () => this.component.refreshClockDetail?.());
         // The selected voice changed from outside (OSC, a linked write from
         // another voice's controls) — mirror it. Our own writes are
         // already on screen.

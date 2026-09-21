@@ -6,7 +6,9 @@
  * protocol: parameter names, output indices and port messages.
  *
  * Off (mode 0) is a passthrough with every control signal at 0. Pulses —
- * one message per cycle, the app's clock taps — still fire when enabled.
+ * one message per cycle, the app's rhythm taps — still fire when enabled,
+ * as do the clock voice's beat messages ({type:'clock'}); both reach the
+ * host through onPulse, told apart by `type`.
  */
 
 import { Stage, setParam } from '../Stage.js';
@@ -41,7 +43,7 @@ export class ModulatorStage extends Stage {
 
     /**
      * @param {AudioContext} ctx
-     * @param {function(Object)} onPulse - Receives each cycle's pulse message
+     * @param {function(Object)} onPulse - Receives each pulse and clock message
      */
     constructor(ctx, onPulse) {
         super();
@@ -53,7 +55,7 @@ export class ModulatorStage extends Stage {
         }));
         this.input = this.output = this.node;
         this.node.port.onmessage = (e) => {
-            if (e.data?.type === 'pulse') onPulse(e.data);
+            if (e.data?.type === 'pulse' || e.data?.type === 'clock') onPulse(e.data);
         };
     }
 
@@ -110,6 +112,16 @@ export class ModulatorStage extends Stage {
     /** Enable/disable the per-cycle pulse messages. */
     setPulseOut(enabled, time) {
         this.param('pulseOut').setValueAtTime(enabled ? 1 : 0, time);
+    }
+
+    /** Where in its cycle a pulse lands: false = the start, true = 50%. */
+    setPulseOffset(offset, time) {
+        this.param('pulseOffset').setValueAtTime(offset ? 0.5 : 0, time);
+    }
+
+    /** Make this voice the MIDI clock source (beat messages) or not. */
+    setClockOut(enabled, time) {
+        this.param('clockOut').setValueAtTime(enabled ? 1 : 0, time);
     }
 
     param(name) {

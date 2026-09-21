@@ -1,13 +1,10 @@
 import BaseComponent from '../base/BaseComponent.js';
-import { midiConfig } from '../../appConfig.js';
+import { midiConfig, MIDI_RANGE_SPAN } from '../../appConfig.js';
 import { midiInputRouter } from '../midi/midiInputRouter.js';
 import { midiOutputRouter } from '../midi/midiOutputRouter.js';
 import {
-    updateMidiInputChannel,
-    updateMidiOutputChannel,
-    updateMidiInputNoteMin,
-    updateMidiDrawbarCC,
-    updatePulseNote,
+    MIDI_SETTING_RANGES,
+    updateMidiSetting,
     setPulseOutputEnabled,
     updateMidiOutputPort,
     updateMidiClockOutputPort,
@@ -15,27 +12,57 @@ import {
 } from '../midi/midiConfigActions.js';
 
 /**
- * MIDI routing and mapping settings — one card per role (note/CC in,
- * note out, clock/transport out), each with its own port (and channel
- * where the MIDI spec has one), over the mapping tables (drawbar CCs,
- * pulse notes). Renders in place on the Settings surface; every change
- * goes through midiConfigActions.
+ * MIDI routing and mapping settings. One card holds the two ports (one
+ * in, one out); then one card per concern, each with its own channel:
+ * fundamental note in, ADSR trigger note in, CC in, pulse note out — and
+ * the clock/transport card with its own port (system-realtime, no
+ * channel). Per-overtone mappings are a START value covering the next 12
+ * numbers, read out beside the input. Renders in place on the Settings
+ * surface; every change goes through midiConfigActions.
  */
 export class MidiSettingsComponent extends BaseComponent {
 
-    /** Range-checked number input. */
-    numInput(value, min, max, onChange) {
+    /** Number input bound to one midiConfig key (MIDI_SETTING_RANGES). */
+    settingInput(key, onChange = null) {
+        const [min, max] = MIDI_SETTING_RANGES[key];
         const input = document.createElement('input');
         input.type = 'number';
         input.min = min;
         input.max = max;
-        input.value = value;
+        input.value = midiConfig[key];
         input.className = 'midi-num-input';
-        input.addEventListener('change', (e) => {
-            const val = parseInt(e.target.value, 10);
-            if (val >= min && val <= max) onChange(val);
+        input.addEventListener('change', () => {
+            const val = parseInt(input.value, 10);
+            if (Number.isFinite(val)) updateMidiSetting(key, val);
+            // Show what was stored — the action clamps
+            input.value = midiConfig[key];
+            onChange?.();
         });
         return input;
+    }
+
+    /**
+     * Start-of-range input with its span read out beside it
+     * ("13 – 24"): the 12 numbers the overtones take from there.
+     */
+    rangeInput(key) {
+        const wrap = document.createElement('div');
+        wrap.className = 'midi-range-input';
+        const span = document.createElement('output');
+        span.className = 'midi-range-span';
+        const sync = () => {
+            span.textContent = `– ${midiConfig[key] + MIDI_RANGE_SPAN - 1}`;
+        };
+        sync();
+        wrap.append(this.settingInput(key, sync), span);
+        return wrap;
+    }
+
+    hint(text) {
+        const p = document.createElement('p');
+        p.className = 'settings-hint';
+        p.textContent = text;
+        return p;
     }
 
     /** "label ........ [control]" row inside a section. */
@@ -49,37 +76,14 @@ export class MidiSettingsComponent extends BaseComponent {
     }
 
     /** Raised card with an uppercase title. */
-    section(title, wide = false) {
+    section(title) {
         const sec = document.createElement('section');
-        sec.className = 'settings-section' + (wide ? ' settings-section-wide' : '');
+        sec.className = 'settings-section';
         const heading = document.createElement('div');
         heading.className = 'settings-section-title';
         heading.textContent = title;
         sec.appendChild(heading);
         return sec;
-    }
-
-    /**
-     * Two-row mapping table: labels across the top, an editable value per
-     * column beneath. Scrolls horizontally rather than wrapping.
-     */
-    mappingTable(labels, values, onChange) {
-        const scroll = document.createElement('div');
-        scroll.className = 'midi-map-scroll';
-        const table = document.createElement('table');
-        table.className = 'midi-map-table';
-        const head = table.createTHead().insertRow();
-        const body = table.createTBody().insertRow();
-        labels.forEach((label, i) => {
-            const th = document.createElement('th');
-            th.textContent = label;
-            head.appendChild(th);
-            body.insertCell().appendChild(
-                this.numInput(values[i], 0, 127, (val) => onChange(i, val))
-            );
-        });
-        scroll.appendChild(table);
-        return scroll;
     }
 
     toggleRow(text, key, kind) {
@@ -137,41 +141,60 @@ export class MidiSettingsComponent extends BaseComponent {
         this.teardown();
         this.el.innerHTML = '';
 
-        // All sections share one flow container: the role cards side by
-        // side with the mapping tables wrapping to full-width rows beneath;
-        // the embed band flows everything into one horizontal row instead.
+        // All sections share one flow container: cards side by side,
+        // wrapping; the embed band flows them into one horizontal row.
         const cards = document.createElement('div');
         cards.className = 'settings-sections';
 
         const midiUp = Boolean(midiOutputRouter.midi || midiInputRouter.midi);
 
-        const input = this.section('Note / CC In');
-        input.append(
-            this.settingRow('Port', this.portSelect(
+        const ports = this.section('MIDI Ports');
+        ports.append(
+            this.settingRow('In', this.portSelect(
                 midiInputRouter.inputPorts(),
                 midiConfig.inputId,
                 updateMidiInputPort,
                 { noneLabel: 'All inputs', unavailable: !midiUp },
             )),
-            this.settingRow('Channel', this.numInput(midiConfig.inputChannel, 1, 16, updateMidiInputChannel)),
-            this.settingRow('Ignore notes below', this.numInput(midiConfig.inputNoteMin, 0, 127, updateMidiInputNoteMin)),
-        );
-        const inputHint = document.createElement('p');
-        inputHint.className = 'settings-hint';
-        inputHint.textContent = 'Notes below the floor are ignored so the pulse notes (1–12 by default) can’t loop back into the fundamental.';
-        input.appendChild(inputHint);
-
-        const output = this.section('Note Out');
-        output.append(
-            this.settingRow('Port', this.portSelect(
+            this.settingRow('Out', this.portSelect(
                 midiOutputRouter.outputPorts(),
                 midiOutputRouter.output?.id ?? null,
                 updateMidiOutputPort,
                 { unavailable: !midiUp },
             )),
-            this.settingRow('Channel', this.numInput(midiConfig.outputChannel, 1, 16, updateMidiOutputChannel)),
+            this.hint('Every note and CC input shares the one port in; pulse notes leave on the port out. Each section below has its own channel.'),
+        );
+
+        const fundamental = this.section('Fundamental Note In');
+        fundamental.append(
+            this.settingRow('Channel', this.settingInput('fundamentalChannel')),
+            this.settingRow('Transpose octave', this.settingInput('fundamentalTranspose')),
+            this.hint('Any note on this channel sets the fundamental.'),
+        );
+
+        const trigger = this.section('ADSR Trigger Note In');
+        trigger.append(
+            this.settingRow('Channel', this.settingInput('triggerChannel')),
+            this.settingRow('First note', this.rangeInput('triggerNoteStart')),
+            this.hint('Twelve notes from the first gate overtones 1–12 in Trigger mode: note on attacks, note off releases. On a channel shared with the fundamental, these notes only trigger.'),
+        );
+
+        const cc = this.section('CC In');
+        cc.append(
+            this.settingRow('Channel', this.settingInput('ccChannel')),
+            this.settingRow('Gain', this.rangeInput('gainCCStart')),
+            this.settingRow('Filter cutoff', this.rangeInput('cutoffCCStart')),
+            this.settingRow('Conv wet/dry', this.rangeInput('convWetCCStart')),
+            this.hint('Set each parameter’s first CC: it takes the twelve from there, one per overtone. CC 7 is the master gain.'),
+        );
+
+        const pulse = this.section('Note Out: Overtone LF Pulse');
+        pulse.append(
+            this.settingRow('Channel', this.settingInput('pulseChannel')),
+            this.settingRow('First note', this.rangeInput('pulseNoteStart')),
             this.toggleRow('MIDI pulse out', 'pulseMidiEnabled', 'midi'),
             this.toggleRow('OSC pulse out', 'pulseOscEnabled', 'osc'),
+            this.hint('Overtones 1–12 send twelve notes from the first. Keep them clear of the trigger notes when in and out share a port.'),
         );
 
         const clock = this.section('Clock / Transport Out');
@@ -180,29 +203,12 @@ export class MidiSettingsComponent extends BaseComponent {
                 midiOutputRouter.outputPorts(),
                 midiConfig.clockOutputId,
                 updateMidiClockOutputPort,
-                { noneLabel: 'Same as note out', unavailable: !midiUp },
+                { noneLabel: 'Same as MIDI out', unavailable: !midiUp },
             )),
+            this.hint('Carries the overtone clock (24 ticks per cycle of the assigned voice) and transport start/stop on play. Clock messages are system-realtime — the MIDI spec gives them no channel.'),
         );
-        const clockHint = document.createElement('p');
-        clockHint.className = 'settings-hint';
-        clockHint.textContent = 'Carries the overtone clock (24 ticks per cycle of the assigned voice) and transport start/stop on play. Clock messages are system-realtime — the MIDI spec gives them no channel.';
-        clock.appendChild(clockHint);
 
-        const ccSection = this.section('CC In: Drawbar Control', true);
-        ccSection.appendChild(this.mappingTable(
-            midiConfig.drawbarsCC.map((_, i) => `D${i + 1}`),
-            midiConfig.drawbarsCC,
-            updateMidiDrawbarCC,
-        ));
-
-        const notesSection = this.section('Note Out: Overtone LF Pulse', true);
-        notesSection.appendChild(this.mappingTable(
-            midiConfig.pulseNotes.map((_, i) => `O${i + 1}`),
-            midiConfig.pulseNotes,
-            updatePulseNote,
-        ));
-
-        cards.append(input, output, clock, ccSection, notesSection);
+        cards.append(ports, fundamental, trigger, cc, pulse, clock);
         this.el.appendChild(cards);
     }
 }

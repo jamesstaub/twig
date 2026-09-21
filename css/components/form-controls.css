@@ -178,15 +178,20 @@ body.surfaces #spectral-system-root {
     container: system-panel / inline-size;
 }
 
+/* The list is the panel's elastic part: it takes whatever height the body
+   has left, its rows sharing it, each entry's text centered in its cell */
 .system-frequencies-row {
+    flex: 1 1 auto;
+    min-height: 0;
     display: flex;
-    align-items: center;
+    align-items: stretch;
     gap: 0.4rem;
     min-width: 0;
 }
 
 .system-frequencies-unit {
     flex: 0 0 auto;
+    align-self: center;
     font-size: var(--font-size-xs);
     color: var(--text-muted);
 }
@@ -196,7 +201,11 @@ body.surfaces #spectral-system-root {
     min-width: 0;
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(3.75rem, 1fr));
+    grid-auto-rows: minmax(min-content, 1fr);
     gap: 0.25rem;
+    /* Entry text grows with the panel (cqi = the system panel's width), as
+       far as six characters still fit a twelfth of it */
+    --frequency-font-size: clamp(var(--font-size-xs), 1.9cqi, 1.3rem);
     margin: 0;
     padding: 0;
     list-style: none;
@@ -207,6 +216,7 @@ body.surfaces #spectral-system-root {
     display: flex;
     flex-direction: column;
     align-items: center;
+    justify-content: center;
     padding: 0.15rem 0.25rem;
     font-family: var(--font-mono);
     line-height: 1.2;
@@ -217,13 +227,13 @@ body.surfaces #spectral-system-root {
 }
 
 .system-frequency > .system-frequency-label {
-    font-size: var(--font-size-2xs-alt);
+    font-size: calc(var(--frequency-font-size) * 0.85);
     font-weight: var(--font-weight-bold);
     color: var(--text-muted);
 }
 
 .system-frequency > .system-frequency-hz {
-    font-size: var(--font-size-xs);
+    font-size: var(--frequency-font-size);
     font-weight: var(--font-weight-normal);
     color: var(--text-primary);
     white-space: nowrap;
@@ -233,6 +243,14 @@ body.surfaces #spectral-system-root {
 @container system-panel (min-width: 26rem) and (max-width: 52rem) {
     .system-frequencies {
         grid-template-columns: repeat(6, minmax(0, 1fr));
+        --frequency-font-size: clamp(var(--font-size-xs), 3.4cqi, 1.3rem);
+    }
+}
+
+/* A short screen scrolls the Source surface: no spare height to grow into */
+@media (max-height: 30rem) {
+    .system-frequencies {
+        --frequency-font-size: var(--font-size-xs);
     }
 }
 
@@ -246,20 +264,21 @@ body.surfaces #spectral-system-root {
     }
 
     .system-frequencies-unit {
+        align-self: flex-end;
         line-height: 1;
-        text-align: right;
     }
 
     .system-frequencies {
         grid-template-columns: none;
-        grid-template-rows: repeat(4, auto);
+        grid-template-rows: repeat(4, minmax(min-content, 1fr));
+        --frequency-font-size: var(--font-size-xs);
         grid-auto-flow: column;
         grid-auto-columns: minmax(0, 1fr);
     }
 
     .system-frequency {
         flex-direction: row;
-        align-items: baseline;
+        align-items: center;
         justify-content: space-between;
         gap: 0.15rem;
         padding: 0 0.15rem;
@@ -283,11 +302,11 @@ body.surfaces #spectral-system-root {
 /* A wide panel (full-width on the Source surface): one column of
    controls would leave most of it empty — the dials sit beside the toggle,
    the list across the bottom */
-@container system-panel (min-width: 40rem) {
+@container system-panel (min-width: 32rem) {
     .system-body {
         display: grid;
         grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
-        align-content: start;
+        grid-template-rows: auto minmax(min-content, 1fr);
         align-items: center;
         gap: 0.4rem 1.5rem;
     }
@@ -302,6 +321,7 @@ body.surfaces #spectral-system-root {
 
     .system-body > .system-frequencies-row {
         grid-column: 1 / -1;
+        align-self: stretch;
     }
 }
 

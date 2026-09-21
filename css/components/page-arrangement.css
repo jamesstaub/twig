@@ -50,6 +50,13 @@ body.surfaces .page-content {
     margin: 0;
 }
 
+/* The card is the surface, not a column of prose: it spends the whole
+   page width (layout.css caps it at a reading width by default), which
+   on a big screen is what buys the drawbars their spacing */
+body.surfaces .control-card {
+    max-width: none;
+}
+
 /* --- The card is exactly two cells: the surface stack (every main panel,
        one column) and the side column (the surface's visualization over
        the tonewheel — only the parameter surfaces have one, opened and
@@ -212,11 +219,6 @@ body.source-docked #m4l-fundamental-source-panel {
 }
 
 @media (min-width: 120rem) {
-    /* The card's reading-width cap would squeeze the surface instead */
-    body.source-docked .control-card {
-        max-width: 100rem;
-    }
-
     body.source-docked .surface-stack {
         flex-direction: row;
     }

@@ -203,6 +203,12 @@
                         <span id="drawbars-title">Gain</span>
                         <span id="drawbars-tabs" class="drawbars-tabs" hidden></span>
                         <span id="drawbars-note" class="drawbars-note hidden"></span>
+                        <!-- Steps the strip a screenful at a time when the
+                             columns don't all fit (drawbarsController) -->
+                        <span id="drawbars-pager" class="drawbars-pager" hidden>
+                            <button type="button" class="drawbars-pager-btn" data-page="-1" aria-label="Previous overtones">‹</button>
+                            <button type="button" class="drawbars-pager-btn" data-page="1" aria-label="Next overtones">›</button>
+                        </span>
                         <!-- Opens/closes this surface's side column (SideToggleComponent) -->
                         <button type="button" class="side-toggle-btn"></button>
                     </span>

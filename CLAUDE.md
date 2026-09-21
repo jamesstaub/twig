@@ -116,7 +116,15 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
 - Filter cutoffs are series-relative, not absolute Hz: the multiplier is a
   1-based partial index into the current system's ratio table applied to the
   voice's audible base (lowest integer multiple of its pitch clearing 20 Hz)
-  — see `harmonicFilterCutoff` in `js/audio.js`.
+  — see `harmonicFilterCutoff` in `js/audio.js`. Those indexes run to
+  `MAX_FILTER_PARTIALS` (24), past the twelve drawbars, so `seriesStepAt`
+  (config.js) is the ONE place that answers "what is step n" — ratio AND
+  label together, so a cutoff's readout and its frequency always describe
+  the same partial. Past the table a GENERATIVE system is asked for that
+  partial (`generate(startHarmonic + n - 1)`) and keeps counting in its own
+  terms — 13:1, φ^12, 3^(13/13); only a measured/historical table (bonang,
+  Hammond drawbars) has nothing to count with, and there alone the series
+  continues geometrically from the last interval with a `+1, +2` label.
 - To add a new bridged parameter, follow the checklist in
   `.claude/skills/add-bridged-param`.
 - Layout mode (`js/modules/layout/layoutMode.js`, UI-only, never bridged):
@@ -204,7 +212,10 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
   surface's visualization panel — `#gain-viz-root` waveform + Create
   Oscillator/Download, `#filter-viz-root` output scope, `#conv-viz-root`
   spectrum + Create IR/ring, `#adsr-viz-root` envelope curves — plus
-  `#tonewheel-container`). page-arrangement.css: when the side wrapper is
+  `#tonewheel-container`). page-arrangement.css: the card drops
+  layout.css's reading-width cap (`max-width: none`) — a surface is the
+  page, and on a big screen that width is what buys the drawbars their
+  spacing; when the side wrapper is
   not hidden the card is a two-column grid (`:has()`), stack |
   `--dock-width`; in portrait a band on top sized to its content (`auto`
   row, 64px canvases; on a phone the tonewheel square shrinks so the
@@ -243,8 +254,12 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
   menu, restoring the row it would have drawn). `.drawbar-input-wrapper`
   and `.drawbar-slider` are `touch-action: none`; the column's label/aux
   areas keep `pan-x`. The column label is only a label (nothing
-  navigates from the strip). Under 40rem the columns are `flex: 1 1 0` with a 20px floor
-  (12 voices fit a phone beside the toolbar; more scroll).
+  navigates from the strip). Columns are `flex: 0 1 72px` with a 44px floor —
+  wide enough for the family's dials, shrinking when the row is tight and
+  never past a fingertip; past that the strip scrolls and the header's
+  ‹ › pager (`drawbarsController.syncPager`, shown only while it actually
+  overflows) steps a screenful at a time, so a phone pages through the
+  voices instead of squeezing all twelve on screen.
 - Overtone toolbar (`js/modules/overtoneToolbar/`, overtone-toolbar.css):
   the fixed bar at the bottom of every per-overtone panel — the drawbar
   strip (`#drawbars-toolbar`) and the Sequence panel (`#sequence-toolbar`)
@@ -304,9 +319,11 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
   into the caller's DPR-transformed context. The editor re-renders on
   `OVERTONE_SIGNAL_CHANGED` for the selected index EXCEPT its own writes
   (`apply()` / `applyValue()` set `component.writing`; re-rendering under
-  a control mid-drag would destroy it). The overtone menu (right-click /
-  press-and-hold on bars and pads, `js/modules/generic/overtoneMenu.js`)
-  is copy frequency + set as fundamental.
+  a control mid-drag would destroy it). The overtone menu (right-click on bars
+  and pads, press-and-hold on bars only — holding a pad plays it, `js/modules/generic/overtoneMenu.js`)
+  is copy frequency + set as fundamental + set as MIDI clock (a shortcut
+  to the Sequence panel's exclusive "Output as MIDI clock"; disabled in
+  place without a MIDI output or on the voice that already is the clock).
 - Trigger surface (`js/modules/pads/`): `#pad-grid-root` = a title over
   `#pad-grid`, the `PadGridComponent` root — one big pad per overtone,
   always 4 columns (3 in portrait) × rows that share the panel's height.
@@ -476,15 +493,16 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
   way: the DSP/codec files must stay portable to a native rewrite.
 - Alignment contract: audio sample 0 == MIDI time 0 on the AudioContext
   clock. The worklet reports the exact frame it started; MIDI events are
-  the gate worklets' cycle-boundary times (`pulseCycleBoundaryAudioTime`),
+  the gate worklets' pulse landing times (`pulseLandingAudioTime`),
   so no wall-clock hop is involved. The master chain's two
   DynamicsCompressors add a fixed look-ahead delay (12 ms — measured at
   init by `MasterBus.measureLatency`, an offline impulse render)
   which the recorder trims from master-tapped takes; stems
   (`master.stemTap(i)`, a persistent per-index GainNode fed by each
   voice's convolution-stage output, before the panner) have none. Verified to ~0.01 ms.
-- Tempo: the overtone set as MIDI clock defines the beat (one cycle = one
-  quarter note, as the live clock does). Arming waits for that voice's
+- Tempo: the overtone set as MIDI clock defines the beat (one clock beat
+  = one quarter note, as the live clock does — the voice's cycle, folded
+  by octaves into 30–300 BPM; see "MIDI clock beats"). Arming waits for that voice's
   next boundary so the take starts ON a beat; the tempo map comes from
   the measured beat times (`tempoMapFromBeats`, runs averaged so
   sub-sample stamping jitter can't accumulate), so clock-voice notes land
@@ -572,19 +590,83 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
   entirely (the OSC bridge is the control path there); hidden/occluded pages
   get their main-thread timers throttled — audio-critical paths must not
   depend on rAF or setTimeout.
-- MIDI feedback-loop guard: input drops notes below
-  `midiConfig.inputNoteMin` (default 13) so IAC-looped pulse note-outs
-  (1–12 by default) can't retrigger the fundamental. A pulse note remapped
-  above the floor on a shared port will still loop — the separate
-  input/output channel settings cover that case.
-- `midiConfig` (js/appConfig.js: channels, CC/note maps, note floor, input
-  port `inputId`, clock/transport port `clockOutputId`) persists in
-  localStorage, not through Max. Exception: the note-out port (`outputId`)
-  is additionally bridged as `/twig/midiout`, and the bridge value wins at
-  boot. MIDI roles are split: note
-  blips → `outputId`+`outputChannel`; clock ticks and play-toggle transport
-  start/stop → `clockOutputId` (defaults to note-out port; channel-less by
-  MIDI spec); note/CC in → `inputId` (null = all inputs) + `inputChannel`.
+- MIDI routing (`midiConfig`, js/appConfig.js) is ONE port in (`inputId`,
+  null = all inputs), ONE port out (`outputId`) and the clock/transport
+  port (`clockOutputId`, defaults to the port out; channel-less by MIDI
+  spec) — and a CHANNEL PER CONCERN: fundamental note in
+  (`fundamentalChannel` 1, whole note range, `fundamentalTranspose`
+  octaves), ADSR trigger note in (`triggerChannel` 2, `triggerNoteStart`
+  1: note on/off → `triggerHarmonicAttack/Release`, the pads' path), CC in
+  (`ccChannel` 1; `gainCCStart` 20, `cutoffCCStart` 40, `convWetCCStart`
+  102 sweep the drawbar-strip descriptors via `findParam`; CC 7 = master
+  gain), pulse note out (`pulseChannel` 2, `pulseNoteStart` 13). Every
+  per-overtone mapping is a START value spanning `MIDI_RANGE_SPAN` (12)
+  numbers — there are no per-overtone tables. All numeric settings write
+  through `updateMidiSetting(key, value)`, clamped by
+  `MIDI_SETTING_RANGES`, which the settings panel reads for its bounds.
+- MIDI feedback loops: there is no note floor. The defaults keep an
+  in/out loop on one port (IAC) open-circuit — pulses leave on channel 2
+  from note 13, above the trigger range 1–12, and the fundamental listens
+  on channel 1. Where the trigger and fundamental channels coincide the
+  trigger range only triggers (it never retunes).
+- `midiConfig` persists in localStorage, not through Max. Exception: the
+  note-out port (`outputId`) is additionally bridged as `/twig/midiout`,
+  and the bridge value wins at boot. The routers dispatch
+  `MIDI_PORTS_CHANGED` (UI-only) when Web MIDI comes up or a device
+  changes; `MIDI_OUTPUT_CHANGED` is the bridged one — never dispatch it
+  for a port-list change, it emits `/twig/midiout` upstream.
+- Pulses (per-cycle, ≤ 50 Hz, `oscillatorPulseOuts[i]` = `{ midi, osc,
+  offset }`): a pulse LANDS at its cycle's start (with the gate
+  transition and the clock's downbeat) or, with `offset` — the inspector's
+  "Offset pulse 50%", bridged as `/twig/pulseoffset/<n>`, worklet param
+  `pulseOffset` — at the cycle's midpoint. The worklet posts every pulse
+  TWICE (`postPulse`), at the two half-cycle points around it: a LEAD
+  (`lead: true`) half a period before it lands, and the LANDING.
+  `pulseBus.dispatch` routes leads to consumers that SCHEDULE
+  (`addLeadSink`: the MIDI router's notes via Web MIDI timestamps,
+  `MidiCapture`) — they place the event at `pulseLandingMs` /
+  `pulseLandingAudioTime` (pulseTime.js) = lead audioTime + half a period —
+  and landings to consumers that REACT (`addSink`: the OSC relay,
+  `TWIG.pulses.subscribe`, the DOM `PULSE` event). Never schedule from a
+  landing or react to a lead. A lead for a cycle START is posted from the
+  previous cycle's midpoint, so that cycle's gate is decided there
+  (`nextGate`, consumed at the wrap): the announced gate IS the audible
+  one, and probability mode rolls once.
+- MIDI clock beats: the clock is NOT driven by pulses. The clock voice's
+  gate worklet (`clockOut` AudioParam, set with `pulseOut` by
+  `updateHarmonicPulse`) posts `{type:'clock', frequency, fold,
+  audioTime}` once per clock BEAT at the beat's midpoint; a beat is the
+  voice's cycle while that is a followable tempo (`CLOCK_MIN_HZ` 0.5 –
+  `CLOCK_MAX_HZ` 5 = 30–300 BPM, what slaved hardware like an Octatrack
+  follows) and otherwise the cycle folded by octaves into that window —
+  `clockFold(hz)`: 0 inside the window (so octave jumps there ARE tempo
+  jumps), else the fewest halvings/doublings; a pure function of the
+  rate, no hysteresis; defined in clockTicks.js and MIRRORED in
+  gate-processor.js (no imports there). Folding on the audio thread is
+  what lets a clock voice above the 50 Hz pulse cap clock at all, and
+  beat boundaries always sit on the voice's cycle grid. The messages ride
+  the engine's `onPulse` path and `pulseBus.dispatch` splits them by
+  `type` to the CLOCK sinks (`addClockSink`: the router's ticks,
+  `MidiCapture`'s beat log, record arming) — so a take's tempo map is the
+  tempo external gear ran at. The inspector's clock row reads the tempo
+  out (`refreshClockDetail`, in place on `FUNDAMENTAL_CHANGED`).
+- MIDI clock resilience (`js/modules/midi/clockTicks.js`, pure, +
+  `MidiOutputRouter`): each beat message schedules the NEXT beat's
+  24 ticks with Web MIDI future timestamps, which can't be recalled
+  (Chrome has no `MIDIOutput.clear()`). The router therefore tracks the
+  tick CURSOR (last tick handed to the port) and plans around it: on a
+  rate rise the committed ticks count toward the new cycle and only the
+  remainder is spread from the cursor to the cycle's end (never two
+  interleaved grids — that read as a four-digit tempo); on a rate drop
+  the hole is LEFT (filling it adds ticks the cycle doesn't own and walks
+  the receiver off the beat) and, when it is long enough to read as a
+  lost clock (`isClockDropout`: > 4 tick intervals and > 250 ms), the next ticks
+  are preceded by CONTINUE, not START (START would rewind the receiver).
+  Transport START/CONTINUE are never scheduled before the cursor: a
+  stopped run's stale ticks landing after START start the receiver early
+  and then starve it until the first real cycle. Probe tick streams with
+  a stubbed output recording `(data, timestamp)` and sort by timestamp —
+  that is the order a receiver sees.
 - The app self-diagnoses a stale bridge process: `GET /state` carries an
   `x-twig-commands` header (the server's `STATE_ORDER`), and the client
   warns on boot when its commands are missing from it.

@@ -171,11 +171,15 @@ export const OvertoneSignalActions = {
         return {
             midi: midiConfig.pulseMidiEnabled,
             osc: midiConfig.pulseOscEnabled,
+            offset: false,
             ...AppState.oscillatorPulseOuts[index],
         };
     },
 
-    /** Merge pulse-output flags for a voice: { midi?, osc? }. */
+    /**
+     * Merge pulse-output flags for a voice: { midi?, osc?, offset? } —
+     * `offset` lands the voice's pulses at 50% of the cycle, not its start.
+     */
     setPulseOut(index, flags) {
         AppState.oscillatorPulseOuts[index] = { ...this.getPulseOut(index), ...flags };
         updateHarmonicPulse(index);

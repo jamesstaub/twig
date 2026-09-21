@@ -3,7 +3,9 @@ import { AppState } from '../../config.js';
 import { calculateFrequency } from '../../utils.js';
 import { OvertoneSignalActions } from '../overtoneSignal/overtoneSignalActions.js';
 import { midiOutputRouter } from '../midi/midiOutputRouter.js';
-import { noteForVoice } from '../midi/pulseMidi.js';
+import { noteForVoice, pulseChannel } from '../midi/pulseMidi.js';
+import { clockFold } from '../midi/clockTicks.js';
+import { getFrequencyCorrection } from '../../audio.js';
 import { oscClient } from '../osc/oscClient.js';
 import { voiceTargets } from '../generic/linkAll.js';
 import { shapeMode } from '../shape/shapeMode.js';
@@ -385,7 +387,7 @@ export class InspectorComponent extends BaseComponent {
         const midiAvailable = midiOutputRouter.available;
         rows.appendChild(this.pulseRow({
             text: 'MIDI out',
-            detail: `note ${note} · ch 1${midiAvailable ? '' : ' · no output available'}`,
+            detail: `note ${note} · ch ${pulseChannel()}${midiAvailable ? '' : ' · no output available'}`,
             enabled: midiAvailable,
             value: OvertoneSignalActions.getPulseOut(index).midi,
             onToggle: (on, e) => this.apply(index, e, (i) => OvertoneSignalActions.setPulseOut(i, { midi: on })),
@@ -401,12 +403,36 @@ export class InspectorComponent extends BaseComponent {
             onToggle: (on, e) => this.apply(index, e, (i) => OvertoneSignalActions.setPulseOut(i, { osc: on })),
         }));
 
-        // Exclusive: one voice may drive the MIDI clock (24 ticks/cycle)
+        // Where this voice's pulses (MIDI and OSC alike) land in its cycle
+        const offsetDetail = (on) => (on ? 'pulses land mid-cycle' : 'pulses land on the cycle start');
+        const offsetRow = this.pulseRow({
+            text: 'Offset pulse 50%',
+            detail: offsetDetail(OvertoneSignalActions.getPulseOut(index).offset),
+            enabled: true,
+            value: OvertoneSignalActions.getPulseOut(index).offset,
+            onToggle: (on, e) => {
+                this.apply(index, e, (i) => OvertoneSignalActions.setPulseOut(i, { offset: on }));
+                offsetRow.querySelector('.inspector-pulse-detail').textContent = offsetDetail(on);
+            },
+        });
+        rows.appendChild(offsetRow);
+
+        // Exclusive: one voice may drive the MIDI clock. Its tempo is the
+        // voice's cycle rate while that is 30-300 BPM, else that rate
+        // folded by octaves into the window (clockFold) — read out here,
+        // since it is what slaved hardware is told
         const clockDetail = () => {
             const c = AppState.midiClockVoice;
-            if (c === index) return '24 ppq · this voice is the clock';
-            if (c !== null) return `currently overtone ${c + 1}`;
-            return '24 ticks per cycle';
+            if (c !== null && c !== index) return `currently overtone ${c + 1}`;
+            // The gate clock runs at the oscillator's corrected rate
+            const correction = AppState.sourceMode === 'oscillators' ? getFrequencyCorrection(AppState.currentWaveform) : 1;
+            const hz = calculateFrequency(AppState.currentSystem.ratios[index]) * correction;
+            if (!(hz > 0)) return '24 ticks per beat';
+            const fold = clockFold(hz);
+            const bpm = hz * 2 ** fold * 60;
+            const tempo = `${bpm >= 100 ? bpm.toFixed(0) : bpm.toFixed(1)} BPM`;
+            if (fold === 0) return `${tempo} · beat = cycle`;
+            return fold < 0 ? `${tempo} · beat = ${2 ** -fold} cycles` : `${tempo} · ${2 ** fold} beats per cycle`;
         };
         const clockRow = this.pulseRow({
             text: 'Output as MIDI clock',
@@ -425,11 +451,16 @@ export class InspectorComponent extends BaseComponent {
             },
         });
         rows.appendChild(clockRow);
+        // In place — the fundamental can sweep, and a re-render would
+        // destroy whatever control is mid-drag
+        this.refreshClockDetail = () => {
+            clockRow.querySelector('.inspector-pulse-detail').textContent = clockDetail();
+        };
 
         if (voiceFreq > PULSE_MAX_HZ) {
             const warn = document.createElement('div');
             warn.className = 'inspector-pulse-warning';
-            warn.textContent = `pulses pause above ${PULSE_MAX_HZ} Hz — this voice is at ${Math.round(voiceFreq)} Hz`;
+            warn.textContent = `MIDI/OSC pulses pause above ${PULSE_MAX_HZ} Hz — this voice is at ${Math.round(voiceFreq)} Hz (the clock keeps running)`;
             el.sectionBody.appendChild(warn);
         }
         return el;

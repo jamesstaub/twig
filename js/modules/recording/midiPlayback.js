@@ -11,7 +11,7 @@
  */
 
 import { midiOutputRouter } from '../midi/midiOutputRouter.js';
-import { CLOCK_PPQN } from '../midi/pulseMidi.js';
+import { CLOCK_PPQN } from '../midi/clockTicks.js';
 import { audioTimeToPerformanceMs } from '../pulse/pulseTime.js';
 import { audioEngine } from '../../dsp/engine/AudioEngine.js';
 import { normalizeTempoMap } from '../../dsp/midiFile.js';

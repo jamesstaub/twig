@@ -11,7 +11,7 @@
  */
 
 import { PLAY_STATE_CHANGED } from './events.js';
-import { AppState, ENVELOPE_DEFAULTS, updateAppState, WAVETABLE_SIZE } from './config.js';
+import { AppState, ENVELOPE_DEFAULTS, seriesStepAt, updateAppState, WAVETABLE_SIZE } from './config.js';
 import { midiConfig } from './appConfig.js';
 import { calculateFrequency, generateFilenameParts, getVoicePan } from './utils.js';
 
@@ -199,6 +199,8 @@ function createHarmonicVoice(i, ratio, gain, startAt = null) {
         gate: AppState.oscillatorGates[i],
         sequencer: harmonicSequencerPayload(i),
         pulseOut: harmonicPulseEnabled(i),
+        pulseOffset: Boolean(AppState.oscillatorPulseOuts[i]?.offset),
+        clockOut: AppState.midiClockVoice === i,
         drive: AppState.oscillatorDrives[i] || 0,
         filter: {
             cutoff: harmonicFilterCutoff(i, frequency),
@@ -297,20 +299,12 @@ const MIN_AUDIBLE_HZ = 20;
 export const MAX_FILTER_PARTIALS = 24;
 
 /**
- * Ratio of the `step`-th filter partial (1-based) under the current system.
- * Steps beyond the system's ratio table continue the series geometrically
- * from its last interval — exact for equal-division systems (BP), and a
- * musically consistent extrapolation for tabulated ones.
+ * Ratio of the `step`-th filter partial (1-based) under the current
+ * system — see seriesStepAt (config.js), which the labels read from too,
+ * so a cutoff's label and its frequency always describe the same partial.
  */
 export function filterPartialRatio(step) {
-    const ratios = AppState.currentSystem.ratios;
-    const count = ratios.length;
-    const clamped = Math.min(MAX_FILTER_PARTIALS, Math.max(1, Math.round(step)));
-    if (clamped <= count) return Math.abs(ratios[clamped - 1]) || 1;
-    const last = Math.abs(ratios[count - 1]) || 1;
-    const prev = count > 1 ? Math.abs(ratios[count - 2]) || 1 : 1;
-    const interval = last > prev && prev > 0 ? last / prev : 2;
-    return last * Math.pow(interval, clamped - count);
+    return seriesStepAt(Math.min(MAX_FILTER_PARTIALS, Math.max(1, Math.round(step)))).ratio;
 }
 
 export function harmonicFilterCutoff(index, frequency) {
@@ -401,13 +395,12 @@ export function getOutputAnalyser() {
     return audioEngine.master?.analyser ?? null;
 }
 
-/** True when any pulse consumer (MIDI, OSC, clock) wants this voice's cycles. */
+/** True when a pulse consumer (MIDI notes, OSC) wants this voice's cycles. */
 export function harmonicPulseEnabled(index) {
     const out = AppState.oscillatorPulseOuts[index];
     return Boolean(
         (out?.midi ?? midiConfig.pulseMidiEnabled) ||
-        (out?.osc ?? midiConfig.pulseOscEnabled) ||
-        AppState.midiClockVoice === index
+        (out?.osc ?? midiConfig.pulseOscEnabled)
     );
 }
 
@@ -419,10 +412,15 @@ export function updateAllHarmonicPulses() {
 }
 
 /**
- * Apply the pulse-output enable for one harmonic to its running voice.
+ * Apply the pulse-output enable for one harmonic to its running voice —
+ * and whether it is the MIDI clock (its own message stream: clock beats).
  */
 export function updateHarmonicPulse(index) {
-    audioEngine.voice(index)?.set({ pulseOut: harmonicPulseEnabled(index) });
+    audioEngine.voice(index)?.set({
+        pulseOut: harmonicPulseEnabled(index),
+        pulseOffset: Boolean(AppState.oscillatorPulseOuts[index]?.offset),
+        clockOut: AppState.midiClockVoice === index,
+    });
 }
 
 /** ADSR of one harmonic, with unset fields falling back to the defaults. */

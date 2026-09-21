@@ -12,17 +12,18 @@ import { midiConfig } from '../../appConfig.js';
 /** Note blip length: note-off follows note-on this much later. */
 export const BLIP_MS = 50;
 
-/** MIDI clock resolution: one voice cycle = one quarter note = 24 ticks. */
-export const CLOCK_PPQN = 24;
-
 /**
- * MIDI note for a voice: linear — overtone 1 sends note 1, overtone 12
- * sends note 12 — reassignable per overtone in the MIDI modal. Pulses are
- * triggers, not pitches, so identity beats frequency-matching.
+ * MIDI note for a voice: linear from the configured start — overtone 1
+ * sends note 13, overtone 12 note 24 by default. Pulses are triggers, not
+ * pitches, so identity beats frequency-matching.
  */
 export function noteForVoice(index) {
-    const note = midiConfig.pulseNotes[index] ?? index + 1;
-    return Math.max(0, Math.min(127, Math.round(note)));
+    return Math.max(0, Math.min(127, midiConfig.pulseNoteStart + index));
+}
+
+/** MIDI channel (1-16) the pulse note blips go out on. */
+export function pulseChannel() {
+    return midiConfig.pulseChannel;
 }
 
 /** 1-127 from the overtone's drawbar amplitude; 0 = drawbar silent. */
@@ -41,7 +42,7 @@ export function blipForPulse(index, pulse) {
     if (!midiOn || !pulse.gateOn) return null;
     const velocity = velocityForVoice(index);
     if (velocity === 0) return null;
-    return { note: noteForVoice(index), velocity, channel: midiConfig.outputChannel || 1, durationMs: BLIP_MS };
+    return { note: noteForVoice(index), velocity, channel: pulseChannel(), durationMs: BLIP_MS };
 }
 
 /** True when this voice is the configured MIDI beat clock. */

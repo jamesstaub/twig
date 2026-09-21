@@ -21,6 +21,7 @@
       the desktop slider keeps its fixed length untouched. */
 
 body.embed .drawbar-container {
+    gap: 0.15rem; /* the band is tight — base's roomier gap doesn't fit */
     padding: 2px 0 2px 0.5rem;
     overflow-x: visible;
     /* Base's max-width:100% would resolve against #drawbars-control-root's

@@ -81,10 +81,38 @@ function cleanup() {
 }
 
 /**
- * Sets up cleanup handlers
+ * What a close would throw away. Synth state is bridged and restored, but
+ * these only live in the tab: the sound in the air, a take being captured,
+ * and the recordings and IRs made this session (RecordingStore and
+ * IRManager are memory-only by design).
+ */
+function hasUnsavedWork() {
+    return AppState.isPlaying
+        || AppState.recorder.status !== 'idle'   // armed or recording
+        || recordingStore.list().length > 0
+        || irManager.list().length > 0;
+}
+
+/**
+ * Closing is nearly always a slip — cmd+W and cmd+Q sit right beside the
+ * keys the app plays with. The browser renders its own confirmation (the
+ * text is not ours to set); it only offers one at all once the page has
+ * been interacted with, which any of the above guarantees.
+ */
+function confirmClose(event) {
+    if (!hasUnsavedWork()) return;
+    event.preventDefault();
+    event.returnValue = ''; // older engines show the prompt off this alone
+}
+
+/**
+ * Teardown runs on `pagehide` ONLY: it closes the AudioContext, and
+ * `beforeunload` fires while the page may yet survive — doing it there
+ * would silence a session the moment the confirmation above appears,
+ * even when the answer is "stay".
  */
 function setupCleanup() {
-    window.addEventListener('beforeunload', cleanup);
+    window.addEventListener('beforeunload', confirmClose);
     window.addEventListener('pagehide', cleanup);
 }
 

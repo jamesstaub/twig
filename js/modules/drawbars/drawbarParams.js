@@ -1,6 +1,6 @@
-import { AppState } from '../../config.js';
-import { getVoicePan } from '../../utils.js';
-import { MAX_FILTER_PARTIALS } from '../../audio.js';
+import { AppState, seriesStepAt } from '../../config.js';
+import { getVoicePan, calculateFrequency, formatHz } from '../../utils.js';
+import { MAX_FILTER_PARTIALS, partialFrequency } from '../../audio.js';
 import { DrawbarsActions } from './drawbarsActions.js';
 import {
     OvertoneSignalActions, Q_MAX, DRIVE_MAX, CONV_FEEDBACK_MAX, ENV_TIME_MAX,
@@ -26,10 +26,13 @@ import {
 const pct = (v) => `${Math.round(v * 100)}%`;
 const seconds = (v) => (v >= 1 ? `${v.toFixed(2)} s` : `${Math.round(v * 1000)} ms`);
 
-/** The current system's label for 1-based series step `n` (past the table: +1, +2 …). */
+/**
+ * The current system's label for 1-based series step `n`. Past the
+ * drawbars a generative system keeps counting in its own terms (13:1,
+ * φ^12 …); only a measured table falls back to +1, +2 — see seriesStepAt.
+ */
 function partialLabel(n) {
-    const labels = AppState.currentSystem.labels;
-    return n <= labels.length ? labels[n - 1] : `+${n - labels.length}`;
+    return seriesStepAt(n).label;
 }
 
 const gain = {
@@ -50,9 +53,20 @@ const pan = {
 // system) of the voice's audible base; 0 = open
 const cutoff = {
     key: 'cutoff', label: 'cutoff', min: 0, max: MAX_FILTER_PARTIALS, step: 1,
+    // Two-line readout (partial over Hz) — reserved for every column of
+    // the row, so an `open` one doesn't ride up and take its dials with it
+    lines: 2,
     get: (i) => OvertoneSignalActions.getFilter(i).multiplier,
     set: (i, v) => OvertoneSignalActions.setFilter(i, { ...OvertoneSignalActions.getFilter(i), multiplier: Math.round(v) }),
-    format: (i, v) => (Math.round(v) === 0 ? 'open' : partialLabel(Math.round(v))),
+    // Two lines: the series partial it sits on, then where that lands in
+    // Hz for THIS voice (a readout renders them stacked, a dial joins them
+    // with a separator)
+    format: (i, v) => {
+        const step = Math.round(v);
+        if (step === 0) return 'open';
+        const voiceHz = calculateFrequency(AppState.currentSystem.ratios[i]);
+        return `${partialLabel(step)}\n${formatHz(partialFrequency(voiceHz, step))}`;
+    },
 };
 
 const resonance = {
@@ -143,6 +157,11 @@ export const FAMILIES = {
         randomize: () => OvertoneSignalActions.randomizeEnvelopes(),
     },
 };
+
+/** One parameter descriptor, by family name and parameter key. */
+export function findParam(family, key) {
+    return FAMILIES[family].params.find((param) => param.key === key);
+}
 
 /** Snap `v` to the parameter's step (and range), avoiding float dust. */
 export function quantize(param, v) {

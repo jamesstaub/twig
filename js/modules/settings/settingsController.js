@@ -1,7 +1,7 @@
 import { MidiSettingsComponent } from './MidiSettingsComponent.js';
 import { RecorderSettingsComponent } from './RecorderSettingsComponent.js';
 import { surfaceState } from '../surfaces/surfaceState.js';
-import { MIDI_OUTPUT_CHANGED, RECORDER_CHANGED } from '../../events.js';
+import { MIDI_OUTPUT_CHANGED, MIDI_PORTS_CHANGED, RECORDER_CHANGED } from '../../events.js';
 
 /**
  * The Settings surface: MIDI routing/mapping and recording settings, two
@@ -22,6 +22,7 @@ export class SettingsController {
         this.recorder.render();
         // Port lists arrive after Web MIDI's delayed init and change with
         // devices; the note-out port is also bridged from Max
+        document.addEventListener(MIDI_PORTS_CHANGED, () => this.midi.render());
         document.addEventListener(MIDI_OUTPUT_CHANGED, () => this.midi.render());
         document.addEventListener(RECORDER_CHANGED, () => this.recorder.syncChecked());
         this.root.querySelectorAll('.settings-tab').forEach((btn) => {

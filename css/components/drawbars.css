@@ -2,6 +2,7 @@
 
 .drawbar-container {
     display: flex;
+    gap: 0.5rem;
     padding: 6px 0 6px 1.5rem; /* extra left padding for scroll */
     overflow-x: auto;
     max-width: 100%;
@@ -28,8 +29,13 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    width: 64px;
-    flex-shrink: 0;
+    /* 72px is wide enough for the family's two dials side by side under
+       the bar; columns give that width back when the row is tight, down
+       to a fingertip — past which the strip scrolls and the header's ‹ ›
+       pager steps through it (drawbarsController.syncPager) */
+    flex: 0 1 72px;
+    width: auto;
+    min-width: 44px;
     /* Stretches (align-items:stretch, .drawbar-container's default) to
        match the container's now-flexible height */
     height: auto;
@@ -52,13 +58,45 @@
    following the pointer. Fixed height so a value appearing/changing
    never reflows the column. */
 .drawbar-value {
-    height: 1.2em;
+    /* One line, or two when the parameter has a unit to show under its
+       name (the cutoff's series partial over its frequency) — a fixed
+       min-height so a value appearing never reflows the column */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    min-height: 1.2em;
     font-size: var(--font-size-2xs);
     line-height: 1.2;
     font-family: var(--font-mono);
     color: var(--text-accent);
     text-align: center;
     white-space: nowrap;
+}
+
+/* Two-line parameters (the cutoff) render BOTH spans on every column,
+   even when one reads `open` and has no frequency — so the box is the
+   same height across the row and the dials below stay on one line.
+   Each line is its own block: layout.css's `.labeled-control span` rule
+   would otherwise make these flex headings with a bottom margin, which
+   is exactly what made an `open` column 9px shorter than its neighbours. */
+.drawbar-value > span {
+    display: block;
+    margin: 0;
+    line-height: 1.2;
+}
+
+/* Told apart the way .system-frequency does it: the label muted above,
+   the frequency in full contrast below */
+.drawbar-value > .drawbar-value-label {
+    font-size: var(--font-size-2xs-alt);
+    font-weight: var(--font-weight-bold);
+    color: var(--text-muted);
+}
+
+.drawbar-value > .drawbar-value-hz {
+    color: var(--text-primary);
+    min-height: 1.2em; /* an empty one still holds its line */
 }
 .drawbar-input-wrapper {
     position: relative;
@@ -323,14 +361,20 @@
     white-space: nowrap;
 }
 
-.drawbar-context-menu-item:hover {
+.drawbar-context-menu-item:hover:not(:disabled) {
     background: var(--surface-hover);
     color: var(--text-accent);
 }
 
-/* Phones: every column shares the width so all voices fit on screen at
-   once (swipe-draw needs the whole row under the finger) — columns and
-   handles slim down to a 24px floor before the strip scrolls */
+.drawbar-context-menu-item:disabled {
+    opacity: 0.4;
+    cursor: default;
+}
+
+/* Phones: columns keep a usable width rather than squeezing every voice
+   on screen; when they don't all fit, the strip scrolls and the header's
+   ‹ › pager steps through it a screenful at a time (drawbarsController's
+   syncPager). Swipe-draw still draws across whatever is on screen. */
 @media (max-width: 40rem) {
     .drawbar-container {
         justify-content: flex-start;
@@ -344,32 +388,9 @@
         height: 0px;
         background: transparent;
     }
-    /* 20px floor: twelve voices fit a 390px phone beside the toolbar
-       (12 × 20 = 240 of the ~260px the strip gets) */
-    .drawbar {
-        flex: 1 1 0;
-        width: auto;
-        min-width: 20px;
-    }
     .drawbar-label {
         font-size: var(--font-size-3xs);
         padding: 0.2rem 0;
-    }
-    .drawbar-input-wrapper {
-        width: 20px;
-    }
-    .drawbar-slider {
-        --drawbar-thumb-length: 20px;
-        height: 20px;
-    }
-    .drawbar-slider::-webkit-slider-thumb {
-        height: 16px;
-    }
-    .drawbar-slider::-moz-range-thumb {
-        height: 16px;
-    }
-    .drawbar-trigger {
-        width: 20px;
     }
     .drawbar-value {
         font-size: var(--font-size-3xs);
@@ -510,4 +531,39 @@ body.link-all .drawbar-slider::-moz-range-thumb {
 body.link-all .drawbar-dial-stack .cycle-stepper-arrow,
 body.link-all .drawbar-dial-stack .cycle-stepper-current {
     border-color: color-mix(in srgb, var(--accent-primary) 60%, transparent);
+}
+
+/* ---- Header pager: steps the strip a screenful at a time when the
+       columns don't all fit (phones, mostly portrait) ---- */
+
+.drawbars-pager {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.15rem;
+    margin-left: auto; /* sits at the header's end, before the side toggle */
+}
+
+.drawbars-pager-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.5rem;
+    padding: 0.1rem 0.3rem;
+    font-size: var(--font-size-xs);
+    line-height: 1;
+    color: var(--text-secondary);
+    background: var(--surface-deep);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+}
+
+.drawbars-pager-btn:hover:not(:disabled) {
+    color: var(--text-primary);
+    border-color: var(--border-strong);
+}
+
+.drawbars-pager-btn:disabled {
+    opacity: 0.35;
+    cursor: default;
 }

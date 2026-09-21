@@ -1,39 +1,41 @@
 // midiConfigActions.js
 // Actions for updating midiConfig and propagating changes
 import { AppState } from '../../config.js';
-import { midiConfig, persistAppConfig } from '../../appConfig.js';
+import { midiConfig, persistAppConfig, MIDI_RANGE_SPAN } from '../../appConfig.js';
 import { midiInputRouter } from './midiInputRouter.js';
 import { midiOutputRouter } from './midiOutputRouter.js';
 import { OvertoneSignalActions } from '../overtoneSignal/overtoneSignalActions.js';
 import { MIDI_OUTPUT_CHANGED } from '../../events.js';
 
-const listeners = [];
+const clampInt = (value, min, max) => Math.max(min, Math.min(max, Math.round(value)));
 
-export function updateMidiInputChannel(channel) {
-    midiConfig.inputChannel = channel;
-    notifyListeners();
-}
+// Highest start of a per-overtone note/CC range that still fits 0-127
+const MIDI_RANGE_START_MAX = 128 - MIDI_RANGE_SPAN;
 
-export function updateMidiOutputChannel(channel) {
-    midiConfig.outputChannel = Math.max(1, Math.min(16, Math.round(channel)));
-    notifyListeners();
-}
+// Octave transpose limit for the fundamental note input
+const TRANSPOSE_MAX = 5;
 
-/** Notes below this number are ignored on input (feedback-loop guard). */
-export function updateMidiInputNoteMin(note) {
-    midiConfig.inputNoteMin = Math.max(0, Math.min(127, Math.round(note)));
-    notifyListeners();
-}
+// What each numeric setting accepts; the settings panel reads the same
+// table for its inputs' bounds
+export const MIDI_SETTING_RANGES = {
+    fundamentalChannel: [1, 16],
+    fundamentalTranspose: [-TRANSPOSE_MAX, TRANSPOSE_MAX],
+    triggerChannel: [1, 16],
+    triggerNoteStart: [0, MIDI_RANGE_START_MAX],
+    ccChannel: [1, 16],
+    gainCCStart: [0, MIDI_RANGE_START_MAX],
+    cutoffCCStart: [0, MIDI_RANGE_START_MAX],
+    convWetCCStart: [0, MIDI_RANGE_START_MAX],
+    pulseChannel: [1, 16],
+    pulseNoteStart: [0, MIDI_RANGE_START_MAX],
+};
 
-export function updateMidiDrawbarCC(index, cc) {
-    midiConfig.drawbarsCC[index] = cc;
-    notifyListeners();
-}
-
-/** Reassign the MIDI note sent for one overtone's pulses (0-based index). */
-export function updatePulseNote(index, note) {
-    midiConfig.pulseNotes[index] = Math.max(0, Math.min(127, Math.round(note)));
-    notifyListeners();
+/** Set one numeric MIDI setting (a MIDI_SETTING_RANGES key), clamped. */
+export function updateMidiSetting(key, value) {
+    const range = MIDI_SETTING_RANGES[key];
+    if (!range || !Number.isFinite(value)) return;
+    midiConfig[key] = clampInt(value, range[0], range[1]);
+    persistAppConfig();
 }
 
 /**
@@ -54,39 +56,30 @@ export function setPulseOutputEnabled(kind, enabled) {
         OvertoneSignalActions.setPulseOut(i, { [flag]: on });
     }
 
-    notifyListeners();
+    persistAppConfig();
 }
 
 /**
  * Select the note-out port — by port id, 0-based index, or name (null/'' =
- * first available). The single write path shared by the MIDI modal and the
+ * first available). The single write path shared by the settings panel and the
  * OSC bridge, so the choice syncs upstream and persists across reloads.
  * Safe before the router initializes — the selector is kept and resolved
  * when Web MIDI comes up.
  */
 export function updateMidiOutputPort(selector) {
     midiOutputRouter.selectOutput(selector);
-    notifyListeners();
+    persistAppConfig();
     document.dispatchEvent(new CustomEvent(MIDI_OUTPUT_CHANGED));
 }
 
 /** Select the clock/transport-out port (null/'' = same as note out). */
 export function updateMidiClockOutputPort(selector) {
     midiOutputRouter.selectClockOutput(selector);
-    notifyListeners();
+    persistAppConfig();
 }
 
 /** Select the note/CC input port (null/'' = all inputs). */
 export function updateMidiInputPort(selector) {
     midiInputRouter.selectInput(selector);
-    notifyListeners();
-}
-
-export function onMidiConfigChange(listener) {
-    listeners.push(listener);
-}
-
-function notifyListeners() {
     persistAppConfig();
-    listeners.forEach(fn => fn(midiConfig));
 }

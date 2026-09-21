@@ -1,15 +1,31 @@
 
 import { smoothUpdateMasterGain } from "../../utils.js";
-import { DrawbarsActions } from "../drawbars/drawbarsActions.js";
+import { triggerHarmonicAttack, triggerHarmonicRelease } from "../../audio.js";
+import { findParam, quantize } from "../drawbars/drawbarParams.js";
 import { FundamentalActions } from "../fundamental/fundamentalActions.js";
-import { midiConfig } from "../../appConfig.js";
+import { midiConfig, MIDI_RANGE_SPAN } from "../../appConfig.js";
 import { resolvePortSelector } from "./portUtils.js";
 import { showStatus } from "../../domUtils.js";
+import { MIDI_PORTS_CHANGED } from "../../events.js";
 
 // A CC event older than this sat in a suspended task queue (hidden browser
 // tab / occluded jweb view) rather than arriving live.
 const STALE_EVENT_MS = 250;
 const THROTTLE_WARN_INTERVAL_MS = 30000;
+
+// CC in: each range (midiConfig[startKey] .. +11) sweeps one per-overtone
+// parameter over its full range, exactly as its drawbar would
+const CC_TARGETS = [
+    { startKey: 'gainCCStart', param: findParam('gain', 'gain') },
+    { startKey: 'cutoffCCStart', param: findParam('filter', 'cutoff') },
+    { startKey: 'convWetCCStart', param: findParam('convolution', 'wet') },
+];
+
+/** 0-based overtone index of `number` within the range at `start`, or -1. */
+function rangeIndex(number, start) {
+    const index = number - start;
+    return index >= 0 && index < MIDI_RANGE_SPAN ? index : -1;
+}
 
 export class MidiInputRouter {
 
@@ -30,8 +46,12 @@ export class MidiInputRouter {
             console.info(`[midi] Web MIDI unavailable (${err.name}) — OSC/WebSocket control unaffected`);
             return;
         }
-        this._bind();
-        this.midi.onstatechange = () => this._bind();
+        const portsChanged = () => {
+            this._bind();
+            document.dispatchEvent(new CustomEvent(MIDI_PORTS_CHANGED));
+        };
+        portsChanged();
+        this.midi.onstatechange = portsChanged;
     }
 
     /** Attach the handler to the selected input port, or all when unset. */
@@ -48,7 +68,7 @@ export class MidiInputRouter {
         }
     }
 
-    /** Available system input ports, for the MIDI modal's selector. */
+    /** Available system input ports, for the settings panel's selector. */
     inputPorts() {
         return this.midi ? [...this.midi.inputs.values()].map((i) => ({ id: i.id, name: i.name })) : [];
     }
@@ -65,29 +85,36 @@ export class MidiInputRouter {
     }
 
 
+    /**
+     * Each inbound concern listens on its own channel: CCs on the CC
+     * channel, trigger notes on the trigger channel, every other note on
+     * the fundamental channel. Where the trigger and fundamental channels
+     * coincide, the trigger range wins — a pad hit must not also retune.
+     */
     route(msg) {
         const [status, data1, data2] = msg.data;
+        const kind = status & 0xF0;
         const channel = (status & 0x0F) + 1; // MIDI channels are 1-16
 
-        // Only respond to configured input channel (midiConfig is the live
-        // singleton — no snapshot needed)
-        if (channel !== midiConfig.inputChannel) return;
+        if (kind === 0xB0) {
+            if (channel !== midiConfig.ccChannel) return;
+            // msg.timeStamp is when the browser's MIDI service received the
+            // message; a large gap to now means the page was suspended meanwhile.
+            return this.handleCC(data1, data2, performance.now() - msg.timeStamp);
+        }
 
-        // msg.timeStamp is when the browser's MIDI service received the
-        // message; a large gap to now means the page was suspended meanwhile.
-        const age = performance.now() - msg.timeStamp;
+        if (kind !== 0x90 && kind !== 0x80) return;
+        const isNoteOn = kind === 0x90 && data2 > 0;
 
-        const isCC = (status & 0xF0) === 0xB0;
-        if (isCC) return this.handleCC(data1, data2, age);
-
-        const isNoteOn = (status & 0xF0) === 0x90 && data2 > 0;
-        const isNoteOff = (status & 0xF0) === 0x80 || data2 === 0;
-        if (isNoteOn || isNoteOff) {
-            // Feedback-loop guard: our own pulse outputs send low note
-            // numbers (1..12 by default) — ignore them on the way back in
-            // so an IAC in/out loop can't retrigger the fundamental.
-            if (data1 < midiConfig.inputNoteMin) return;
-            return isNoteOn ? this.handleNoteOn(data1, data2) : this.handleNoteOff(data1);
+        if (channel === midiConfig.triggerChannel) {
+            const index = rangeIndex(data1, midiConfig.triggerNoteStart);
+            if (index !== -1) {
+                return isNoteOn ? triggerHarmonicAttack(index) : triggerHarmonicRelease(index);
+            }
+        }
+        if (isNoteOn && channel === midiConfig.fundamentalChannel) {
+            const note = data1 + 12 * midiConfig.fundamentalTranspose;
+            FundamentalActions.setFundamentalByMidi(Math.max(0, Math.min(127, note)));
         }
     }
 
@@ -128,10 +155,10 @@ export class MidiInputRouter {
         if (this.lastCC[cc] === val) return;
         this.lastCC[cc] = val;
 
-        // Drawbar CCs from current config
-        const drawbarIdx = midiConfig.drawbarsCC.indexOf(cc);
-        if (drawbarIdx !== -1) {
-            DrawbarsActions.setDrawbar(drawbarIdx, norm);
+        for (const { startKey, param } of CC_TARGETS) {
+            const index = rangeIndex(cc, midiConfig[startKey]);
+            if (index === -1) continue;
+            param.set(index, quantize(param, param.min + norm * (param.max - param.min)));
         }
     }
 
@@ -145,14 +172,6 @@ export class MidiInputRouter {
             `Keep the window visible, or launch the browser with --disable-backgrounding-occluded-windows --disable-renderer-backgrounding.`
         );
         showStatus(`MIDI arriving ${seconds}s late — window is throttled while hidden`, 'warning');
-    }
-
-    handleNoteOn(note) {
-        FundamentalActions.setFundamentalByMidi(note);
-    }
-
-    handleNoteOff(note) {
-        // AudioActions.noteOff(note);
     }
 }
 

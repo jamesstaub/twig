@@ -75,6 +75,12 @@
  *   /twig/envmode [i 0|1]         envelope mode: 0 = Open (voices drone),
  *                                 1 = ADSR (voices rest silent, gated by
  *                                 keyboard/pad triggers)
+ *   /twig/pulsemidi/<n> [i 0|1]   per-overtone pulse outputs (n=0 → all):
+ *   /twig/pulseosc/<n> [i 0|1]    one MIDI note blip / one upstream
+ *                                 /twig/pulse/<n> message per audible
+ *                                 cycle, while the voice is <= 50 Hz
+ *   /twig/pulseoffset/<n> [i 0|1] where those pulses land: 0 = the cycle's
+ *                                 start (with its gate), 1 = 50% of it
  *   /twig/midiout [id|index|name] Web MIDI output port for pulse note
  *                                 blips and clock: exact port id, 0-based
  *                                 index into the outputs, or port name
@@ -133,7 +139,7 @@ const COMMANDS = new Set([
     'system', 'startharmonic', 'stiffness', 'closedness', 'stretch', 'compress',
     'waveform', 'source', 'adcin', 'adcchannel', 'subharmonic', 'play', 'reset', 'randomize',
     'setdrawbarfundamental', 'gate', 'filter', 'res', 'drive', 'pan', 'conv', 'convir', 'irring',
-    'pulsemidi', 'pulseosc', 'midiclock',
+    'pulsemidi', 'pulseosc', 'pulseoffset', 'midiclock',
     'seqshape', 'seqgain', 'seqfreq', 'seqres', 'seqwet', 'seqfb', 'seqstretch',
     'adsr', 'envmode', 'midiout'
 ]);
@@ -545,17 +551,18 @@ export class OscClient {
                 );
                 break;
             case 'pulsemidi':
-            case 'pulseosc': {
-                // /twig/pulsemidi/<n> [0|1] — per-voice pulse outputs
+            case 'pulseosc':
+            case 'pulseoffset': {
+                // /twig/pulsemidi/<n> [0|1] — per-voice pulse outputs;
+                // /twig/pulseoffset/<n> [0|1] — pulses land at 50% of the cycle
                 const [n, rest] = perVoiceArgs(sub, args);
                 if (n === null || rest[0] === undefined) break;
-                const flag = { [command === 'pulsemidi' ? 'midi' : 'osc']: Boolean(Number(rest[0])) };
+                const key = { pulsemidi: 'midi', pulseosc: 'osc', pulseoffset: 'offset' }[command];
+                const flag = { [key]: Boolean(Number(rest[0])) };
                 this.forVoices(n, (i) => {
-                    AppState.oscillatorPulseOuts[i] = {
-                        midi: false, osc: false,
-                        ...AppState.oscillatorPulseOuts[i],
-                        ...flag,
-                    };
+                    // From the getter's defaults — a lone flag for an unset
+                    // voice must not switch its other pulse outputs off
+                    AppState.oscillatorPulseOuts[i] = { ...OvertoneSignalActions.getPulseOut(i), ...flag };
                     updateHarmonicPulse(i);
                 });
                 break;
@@ -691,6 +698,7 @@ export class OscClient {
                 const out = AppState.oscillatorPulseOuts[index] || {};
                 this.emit(`pulsemidi/${n}`, [out.midi ? 1 : 0]);
                 this.emit(`pulseosc/${n}`, [out.osc ? 1 : 0]);
+                this.emit(`pulseoffset/${n}`, [out.offset ? 1 : 0]);
             } else if (kind === 'clock') {
                 this.emit('midiclock', [AppState.midiClockVoice === null ? 0 : AppState.midiClockVoice + 1]);
             } else if (kind === 'gate') {

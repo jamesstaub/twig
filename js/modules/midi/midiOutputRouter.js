@@ -2,9 +2,11 @@ import { AppState } from "../../config.js";
 import { midiConfig } from "../../appConfig.js";
 import { audioEngine } from "../../dsp/engine/AudioEngine.js";
 import { pulseBus } from "../pulse/pulseBus.js";
-import { audioTimeToPerformanceMs, pulseCycleBoundaryMs } from "../pulse/pulseTime.js";
+import { audioTimeToPerformanceMs, pulseLandingMs } from "../pulse/pulseTime.js";
 import { resolvePortSelector } from "./portUtils.js";
-import { blipForPulse, isClockVoice, CLOCK_PPQN } from "./pulseMidi.js";
+import { blipForPulse, isClockVoice } from "./pulseMidi.js";
+import { planCycleTicks, isClockDropout, CLOCK_PPQN } from "./clockTicks.js";
+import { MIDI_PORTS_CHANGED } from "../../events.js";
 
 const NOTE_ON = 0x90;
 const NOTE_OFF = 0x80;
@@ -13,18 +15,33 @@ const CLOCK_START = 0xfa;
 const CLOCK_CONTINUE = 0xfb;
 const CLOCK_STOP = 0xfc;
 
+// Margin between the last scheduled tick and a transport message; planned
+// ticks are never closer together than ~0.4 ms (half a tick at 50 Hz)
+const TRANSPORT_AFTER_TICK_MS = 0.1;
+
 /**
  * MidiOutputRouter — turns voice pulses into Web MIDI events.
  *
  *  - Note blips: voices with pulse-MIDI enabled send a note-on/note-off
- *    pair per audible (gate-open) cycle, scheduled onto the cycle BOUNDARY
- *    (the audible click of a low-frequency square/saw) via Web MIDI future
- *    timestamps. All wall-clock scheduling maps through pulseTime.js so
+ *    pair per audible (gate-open) cycle, scheduled onto the cycle's START
+ *    (the audible click of a low-frequency square/saw; its midpoint for a
+ *    voice with "offset pulse 50%") via Web MIDI future timestamps. All wall-clock scheduling maps through pulseTime.js so
  *    blips, clock, and transport agree with each other and the audio.
  *  - MIDI clock: the single voice assigned as clock source emits 24
- *    evenly-spaced 0xF8 ticks per cycle (cycle = quarter note), scheduled
- *    ahead across the coming period so timing survives throttling. Clock
- *    ticks fire on every cycle, gated or not — a clock must not stutter.
+ *    evenly-spaced 0xF8 ticks per clock BEAT (= quarter note), scheduled
+ *    ahead across the coming beat so timing survives throttling. A beat
+ *    is the voice's cycle while that is a followable tempo (30-300 BPM)
+ *    and otherwise the cycle folded by octaves into that window — done in
+ *    the gate worklet (see clockFold), so a clock voice at audio rate
+ *    still clocks. Ticks fire on every beat, gated or not — a clock must
+ *    not stutter.
+ *    Scheduled ticks can't be recalled, so the router tracks what it has
+ *    handed to the port (the tick cursor) and plans each cycle around it
+ *    (clockTicks.js): a rate change never interleaves two tick grids, a
+ *    hole long enough to read as a lost clock — a big rate drop, or the
+ *    voice spending time above the 50 Hz pulse cap — is followed by
+ *    CONTINUE so the receiver picks the clock back up, and a START never
+ *    lands among the previous run's still-scheduled ticks.
  *  - Transport: play start/stop sends 0xFA/0xFC, scheduled to the voices'
  *    audible onset (see sendTransportStart).
  *
@@ -43,19 +60,30 @@ export class MidiOutputRouter {
         this.clockOutput = null;
         this.available = false;
         this._clockRunning = false;
+        // Clock tick stream bookkeeping (see clockTicks.js)
+        this._tickCursor = -Infinity; // time of the last tick handed to the port
+        this._streamTicks = [];       // the running stream's ticks still ahead
+        this._tickSpacing = null;     // interval the receiver last heard; null = none yet
     }
 
     async init() {
         if (!navigator.requestMIDIAccess) return;
         try {
             this.midi = await navigator.requestMIDIAccess();
-            this._pick();
-            this.midi.onstatechange = () => this._pick();
+            const portsChanged = () => {
+                this._pick();
+                document.dispatchEvent(new CustomEvent(MIDI_PORTS_CHANGED));
+            };
+            portsChanged();
+            this.midi.onstatechange = portsChanged;
         } catch {
             // Denied (expected in embedded webviews) — OSC pulses still work
             return;
         }
-        pulseBus.addSink((index, pulse) => this.onPulse(index, pulse));
+        pulseBus.addLeadSink((index, pulse) => this.onPulse(index, pulse));
+        pulseBus.addClockSink((index, beat) => {
+            if (this.clockOutput && isClockVoice(index)) this.sendClockTicks(beat);
+        });
     }
 
     /** Resolve the active outputs: configured ports if present, else first. */
@@ -77,7 +105,7 @@ export class MidiOutputRouter {
         this.available = Boolean(this.output);
     }
 
-    /** Available system output ports, for the MIDI modal's selectors. */
+    /** Available system output ports, for the settings panel's selectors. */
     outputPorts() {
         return this.midi ? [...this.midi.outputs.values()].map((o) => ({ id: o.id, name: o.name })) : [];
     }
@@ -100,10 +128,7 @@ export class MidiOutputRouter {
      * port first so downstream gear doesn't free-run.
      */
     selectClockOutput(selector) {
-        if (this._clockRunning && this.clockOutput) {
-            this.clockOutput.send([CLOCK_STOP]);
-            this._clockRunning = false;
-        }
+        this.stopClock();
         const cleared = selector == null || selector === '';
         this._clockSelector = cleared ? null : selector;
         midiConfig.clockOutputId = cleared ? null : resolvePortSelector(this.outputPorts(), selector);
@@ -113,18 +138,13 @@ export class MidiOutputRouter {
     onPulse(index, pulse) {
         if (this.output) {
             const blip = blipForPulse(index, pulse);
-            // Scheduled onto the cycle boundary (the audible click) — Web
-            // MIDI future timestamps keep main-thread jitter away from the
-            // receiver
-            if (blip) this.sendNoteAt(blip, pulseCycleBoundaryMs(audioEngine.context, pulse));
+            // Scheduled onto the pulse's landing — the cycle's start (the
+            // audible click), or its midpoint for an offset voice — Web
+            // MIDI future timestamps keep main-thread jitter away from
+            // the receiver
+            if (blip) this.sendNoteAt(blip, pulseLandingMs(audioEngine.context, pulse));
         }
-        if (!this.clockOutput) return;
-        if (isClockVoice(index)) {
-            this.sendClockTicks(pulse);
-        } else if (this._clockRunning && AppState.midiClockVoice === null) {
-            this.clockOutput.send([CLOCK_STOP]);
-            this._clockRunning = false;
-        }
+        if (AppState.midiClockVoice === null) this.stopClock();
     }
 
     /**
@@ -141,32 +161,67 @@ export class MidiOutputRouter {
 
     /** One clock tick on the clock port at wall-clock `atMs`. */
     sendClockTickAt(atMs) {
-        this.clockOutput?.send([CLOCK_TICK], atMs);
+        if (!this.clockOutput) return;
+        this.clockOutput.send([CLOCK_TICK], atMs);
+        this._tickCursor = Math.max(this._tickCursor, atMs);
     }
 
-    sendClockTicks(pulse) {
-        const freq = pulse.frequency;
+    /** Schedule one clock beat's ticks from its {frequency, audioTime} message. */
+    sendClockTicks(beat) {
+        const freq = beat.frequency;
         if (!(freq > 0)) return;
         const periodMs = 1000 / freq;
-        // Anchor the tick grid on the cycle boundary so the downbeat lands
-        // with the audible click; each pulse schedules the NEXT cycle's 24
-        // ticks, so consecutive batches tile without gap or overlap
-        const boundary = pulseCycleBoundaryMs(audioEngine.context, pulse);
+        // Anchor the tick grid on the beat boundary — always one of the
+        // voice's cycle boundaries, so the downbeat lands with an audible
+        // click; each message schedules the NEXT beat's 24 ticks, so
+        // consecutive batches tile without gap or overlap — and when the
+        // rate changed, around the ticks already scheduled
+        const boundary = pulseLandingMs(audioEngine.context, beat);
+        const ahead = this._streamTicks.filter((t) => t >= boundary);
+        const ticks = planCycleTicks({ boundary, periodMs, cursor: this._tickCursor, carried: ahead.length });
+        if (ticks.length === 0) return;
+
         if (!this._clockRunning) {
-            this.clockOutput.send([CLOCK_START], boundary);
+            this.clockOutput.send([CLOCK_START], ticks[0]);
             this._clockRunning = true;
+        } else if (this._tickSpacing !== null && isClockDropout(this._tickCursor, ticks[0], this._tickSpacing)) {
+            // The receiver may have given the clock up over the silence;
+            // CONTINUE resumes it in place (START would rewind it)
+            this.clockOutput.send([CLOCK_CONTINUE], ticks[0]);
         }
-        // 24 PPQN: one voice cycle = one quarter note
-        for (let k = 0; k < CLOCK_PPQN; k++) {
-            this.clockOutput.send([CLOCK_TICK], boundary + (k * periodMs) / CLOCK_PPQN);
-        }
+        for (const t of ticks) this.clockOutput.send([CLOCK_TICK], t);
+        this._streamTicks = [...ahead, ...ticks];
+        this._tickCursor = ticks[ticks.length - 1];
+        this._tickSpacing = periodMs / CLOCK_PPQN;
+    }
+
+    /**
+     * End the tick stream's bookkeeping. The cursor stays: ticks already
+     * scheduled still fire, and the next START must come after them.
+     */
+    _endStream() {
+        this._clockRunning = false;
+        this._streamTicks = [];
+        this._tickSpacing = null;
     }
 
     stopClock() {
-        if (this.clockOutput && this._clockRunning) {
-            this.clockOutput.send([CLOCK_STOP]);
-            this._clockRunning = false;
-        }
+        if (this.clockOutput && this._clockRunning) this.clockOutput.send([CLOCK_STOP]);
+        this._endStream();
+    }
+
+    /**
+     * Wall-clock send time for a transport message at audio-clock
+     * `atAudioTime` (null = now) — never before the last scheduled tick: a
+     * previous run's ticks landing after START would start the receiver
+     * early and then leave it without a clock until the first real cycle.
+     */
+    _transportMs(atAudioTime) {
+        const at = atAudioTime != null
+            ? audioTimeToPerformanceMs(audioEngine.context, atAudioTime)
+            : window.performance.now();
+        // Strictly after — equal timestamps would lean on the port's send order
+        return Math.max(at, this._tickCursor + TRANSPORT_AFTER_TICK_MS);
     }
 
     /**
@@ -177,20 +232,16 @@ export class MidiOutputRouter {
      */
     sendTransportStart(atAudioTime = null) {
         if (!this.clockOutput) return;
-        const at = atAudioTime != null
-            ? audioTimeToPerformanceMs(audioEngine.context, atAudioTime)
-            : window.performance.now();
-        this.clockOutput.send([CLOCK_START], at);
+        this._endStream();
+        this.clockOutput.send([CLOCK_START], this._transportMs(atAudioTime));
         this._clockRunning = true;
     }
 
     /** Transport continue (resume from a paused position) on the clock port. */
     sendTransportContinue(atAudioTime = null) {
         if (!this.clockOutput) return;
-        const at = atAudioTime != null
-            ? audioTimeToPerformanceMs(audioEngine.context, atAudioTime)
-            : window.performance.now();
-        this.clockOutput.send([CLOCK_CONTINUE], at);
+        this._endStream();
+        this.clockOutput.send([CLOCK_CONTINUE], this._transportMs(atAudioTime));
         this._clockRunning = true;
     }
 
@@ -198,7 +249,7 @@ export class MidiOutputRouter {
     sendTransportStop() {
         if (!this.clockOutput) return;
         this.clockOutput.send([CLOCK_STOP]);
-        this._clockRunning = false;
+        this._endStream();
     }
 }
 

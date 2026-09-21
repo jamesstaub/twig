@@ -119,54 +119,19 @@ body.coarse .settings-tab {
     text-align: center;
 }
 
-/* Mapping tables: labels over inputs, scrolling sideways instead of wrapping */
-.midi-map-scroll {
-    overflow-x: auto;
-    scrollbar-width: thin;
-    scrollbar-color: var(--border-default) transparent;
+/* Start-of-range input with the end of its 12-number span beside it */
+.midi-range-input {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
 }
 
-.midi-map-scroll::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
-}
-
-.midi-map-scroll::-webkit-scrollbar-track {
-    background: transparent;
-}
-
-.midi-map-scroll::-webkit-scrollbar-thumb {
-    background: var(--border-default);
-    border-radius: 4px;
-}
-
-.midi-map-table {
-    border-collapse: collapse;
-    width: 100%;
-}
-
-.midi-map-table th {
-    font-size: var(--font-size-xs-alt);
-    font-weight: var(--font-weight-semibold);
+.midi-range-input > .midi-range-span {
+    display: inline;
+    min-width: 2.75em;
+    font-size: var(--font-size-sm);
+    font-variant-numeric: tabular-nums;
     color: var(--text-muted);
-    text-align: center;
-    padding: 0.15rem 0.2rem;
-    border-bottom: 1px solid var(--border-subtle);
-}
-
-.midi-map-table td {
-    padding: 0.35rem 0.2rem 0.1rem;
-    text-align: center;
-}
-
-.midi-map-table td:not(:last-child),
-.midi-map-table th:not(:last-child) {
-    border-right: 1px solid var(--border-subtle);
-}
-
-.midi-map-table .midi-num-input {
-    width: 3em;
-    margin-left: 0;
 }
 
 .midi-pulse-toggle {

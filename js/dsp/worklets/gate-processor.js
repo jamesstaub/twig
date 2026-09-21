@@ -50,6 +50,25 @@ const TWO_PI = Math.PI * 2;
 // Pulses only make sense in the LFO/rhythm regime; cap protects the port
 const PULSE_MAX_HZ = 50;
 
+// MIDI clock window (30-300 BPM, one beat = one quarter note) — mirrors
+// CLOCK_MIN_HZ / CLOCK_MAX_HZ and clockFold() in modules/midi/clockTicks.js
+const CLOCK_MIN_HZ = 0.5;
+const CLOCK_MAX_HZ = 5;
+
+/**
+ * Octaves to shift a voice's rate by so its clock lands in the window:
+ * 0 while the voice is inside it (the clock IS the voice, octave jumps
+ * and all), else the fewest halvings (negative) or doublings that bring
+ * it back. A pure function of the rate — no memory, no hysteresis.
+ */
+function clockFold(hz) {
+    if (!(hz > 0)) return 0;
+    let fold = 0;
+    while (hz * 2 ** fold > CLOCK_MAX_HZ) fold--;
+    while (hz * 2 ** fold < CLOCK_MIN_HZ) fold++;
+    return fold;
+}
+
 /** Bjorklund/euclidean rhythm: distribute `pulses` as evenly as possible over `steps`. */
 function euclideanPattern(pulses, steps) {
     const pattern = new Array(steps).fill(false);
@@ -135,6 +154,14 @@ class OvertoneGateProcessor extends AudioWorkletProcessor {
             // When 1, each cycle wrap posts a {type:'pulse'} message so the
             // main thread can drive MIDI/OSC/sequencer consumers
             { name: 'pulseOut', defaultValue: 0, minValue: 0, maxValue: 1, automationRate: 'k-rate' },
+            // Where in its cycle a pulse LANDS: 0 = the cycle's start (with
+            // the gate transition), 0.5 = its midpoint ("offset pulse 50%")
+            { name: 'pulseOffset', defaultValue: 0, minValue: 0, maxValue: 0.5, automationRate: 'k-rate' },
+            // When 1, this voice is the MIDI clock: each clock BEAT (the
+            // cycle folded by octaves into the clock window) posts a
+            // {type:'clock'} message — a few per second at any voice rate,
+            // so unlike pulses it has no frequency cap
+            { name: 'clockOut', defaultValue: 0, minValue: 0, maxValue: 1, automationRate: 'k-rate' },
             // Cycle amplitude contour (see shapeValue) and modulation depths
             { name: 'shape', defaultValue: 0, minValue: 0, maxValue: 6, automationRate: 'k-rate' },
             // Shape period in oscillator cycles: 2 = contour spans two
@@ -157,10 +184,20 @@ class OvertoneGateProcessor extends AudioWorkletProcessor {
         super();
         this.phase = 0;
         this.cycle = 0;
-        // Pulses fire at each cycle's MIDPOINT (phase 0.5), not the wrap:
-        // external MIDI gear adds latency downstream, and the half-cycle
-        // lead keeps triggered instruments in step with the audible gate
+        // Every pulse is posted TWICE, at the two half-cycle points around
+        // it: a LEAD half a cycle before it lands — so consumers that
+        // schedule (Web MIDI timestamps) stay sample-accurate through
+        // main-thread jitter — and the LANDING itself, for consumers that
+        // react (OSC relay, JS subscribers). See postPulse.
         this.pulsedThisCycle = false;
+        // The next cycle's gate, decided early when its pulse is announced
+        // ahead of the wrap — the announcement and the audible gate must
+        // agree, and probability mode rolls only once
+        this.nextGate = null;
+        // Clock beats count in (cycle + phase) × 2^fold; like pulses they
+        // are announced at their MIDPOINT, half a beat ahead of the boundary
+        this.clockFold = null;
+        this.clockBeat = 0;
         this.gateTarget = null; // decided on first process() once params exist
         this.gain = 1;
         this.patternState = { pattern: null, patternKey: '' };
@@ -218,6 +255,34 @@ class OvertoneGateProcessor extends AudioWorkletProcessor {
         return base * (ratio - ratios[baseStep - 1]);
     }
 
+    /**
+     * Post the pulse message for half-cycle point `at` (0 = the wrap, 0.5 =
+     * the midpoint). At the pulse's own phase (`offset`) it is the LANDING;
+     * at the other point it is the LEAD for the pulse landing half a cycle
+     * later — which, from the midpoint, is the NEXT cycle's start, so that
+     * cycle's gate is decided here and kept for the wrap.
+     */
+    postPulse(at, offset, f, i, mode, x, y) {
+        const lead = at !== offset;
+        let cycle = this.cycle;
+        let gateOn = this.gateTarget === 1;
+        if (lead && at === 0.5) {
+            this.nextGate = gateForCycle(this.patternState, this.cycle + 1, mode, x, y);
+            cycle = this.cycle + 1;
+            gateOn = this.nextGate;
+        }
+        this.port.postMessage({
+            type: 'pulse',
+            lead,
+            cycle,
+            gateOn,
+            frequency: f,
+            // Audio-clock time of this exact emission point: a lead's pulse
+            // lands half a period after it, however late the message arrives
+            audioTime: currentFrame / sampleRate + i / sampleRate,
+        });
+    }
+
     process(inputs, outputs, parameters) {
         if (this.stopped) return false;
         const input = inputs[0];
@@ -235,6 +300,21 @@ class OvertoneGateProcessor extends AudioWorkletProcessor {
         // Pulse emission is for the LFO/rhythm regime — above the cap a
         // voice would flood the message port with thousands of events/sec
         const pulseOut = parameters.pulseOut[0] >= 0.5;
+        const pulseOffset = parameters.pulseOffset[0] >= 0.25 ? 0.5 : 0;
+        const clockOut = parameters.clockOut[0] >= 0.5;
+        let clockRatio = 0;
+        if (clockOut) {
+            const fold = clockFold(freq[0]);
+            clockRatio = 2 ** fold;
+            if (fold !== this.clockFold) {
+                // Beats renumber under a new fold — adopt the count without
+                // announcing; boundaries stay on the voice's cycle grid
+                this.clockFold = fold;
+                this.clockBeat = Math.floor((this.cycle + this.phase) * clockRatio + 0.5);
+            }
+        } else {
+            this.clockFold = null;
+        }
         const shape = parameters.shape[0] | 0;
         const stretch = parameters.stretch[0] || 1;
         const amtGain = parameters.amtGain[0];
@@ -258,25 +338,27 @@ class OvertoneGateProcessor extends AudioWorkletProcessor {
             if (this.phase >= 1) {
                 this.phase -= Math.floor(this.phase);
                 this.cycle++;
-                this.gateTarget = gateForCycle(this.patternState, this.cycle, mode, x, y) ? 1 : 0;
+                const gate = this.nextGate !== null ? this.nextGate : gateForCycle(this.patternState, this.cycle, mode, x, y);
+                this.nextGate = null;
+                this.gateTarget = gate ? 1 : 0;
                 this.updateSmoothing(f);
                 this.pulsedThisCycle = false;
+                if (pulseOut && f <= PULSE_MAX_HZ) this.postPulse(0, pulseOffset, f, i, mode, x, y);
             }
-            // Half-cycle pulse: fire once per cycle at phase 0.5 — the
-            // opposite end from the gate transition, so externally
-            // triggered instruments (which add their own latency) land
-            // with the audible cycle instead of trailing it
             if (!this.pulsedThisCycle && this.phase >= 0.5) {
                 this.pulsedThisCycle = true;
-                if (pulseOut && f <= PULSE_MAX_HZ) {
+                if (pulseOut && f <= PULSE_MAX_HZ) this.postPulse(0.5, pulseOffset, f, i, mode, x, y);
+            }
+            if (clockOut) {
+                const beat = Math.floor((this.cycle + this.phase) * clockRatio + 0.5);
+                if (beat !== this.clockBeat) {
+                    this.clockBeat = beat;
                     this.port.postMessage({
-                        type: 'pulse',
-                        cycle: this.cycle,
-                        gateOn: this.gateTarget === 1,
-                        frequency: f,
-                        // Audio-clock time of this exact emission point, so
-                        // consumers can schedule against it even when this
-                        // message arrives late (throttled main thread)
+                        type: 'clock',
+                        // The BEAT's rate — consumers place the boundary
+                        // half a beat after audioTime, as they do a pulse's
+                        frequency: f * clockRatio,
+                        fold: this.clockFold,
                         audioTime: currentFrame / sampleRate + i / sampleRate,
                     });
                 }

@@ -30,7 +30,7 @@ import { encodeMidiFile } from '../../dsp/midiFile.js';
 import { buildZip } from '../../dsp/zipStore.js';
 import { choosePeriodMultiplier } from '../../dsp/PartialSpectrum.js';
 import { pulseBus } from '../pulse/pulseBus.js';
-import { pulseCycleBoundaryAudioTime } from '../pulse/pulseTime.js';
+import { pulseLandingAudioTime } from '../pulse/pulseTime.js';
 import { isClockVoice } from '../midi/pulseMidi.js';
 import { MidiCapture } from './midiCapture.js';
 import { buildMidiDocument } from './midiDocument.js';
@@ -44,8 +44,6 @@ export const LENGTH_MODES = ['manual', 'loop'];
 
 // Arming waits this long for a clock beat before starting unaligned
 const ARM_TIMEOUT_MS = 3000;
-// Voices above this don't emit pulses (gate worklet PULSE_MAX_HZ)
-const PULSE_MAX_HZ = 50;
 // Playback starts this far ahead so audio and MIDI schedule to one instant
 const PLAY_LEAD_S = 0.08;
 // Sync loop: longest realignment period worth waiting for, and the lead
@@ -111,12 +109,10 @@ function syncLoopPlan() {
     return { periods, duration: duration <= SYNC_MAX_SECONDS ? duration : null };
 }
 
-/** A clock voice is playing and slow enough to pulse — worth waiting for. */
-function clockWillPulse() {
+/** A clock voice is playing — its next beat (≤ 2 s off) is worth waiting for. */
+function clockWillBeat() {
     const index = AppState.midiClockVoice;
-    if (!AppState.isPlaying || index == null) return false;
-    const ratio = AppState.currentSystem.ratios[index];
-    return ratio > 0 && calculateFrequency(ratio) <= PULSE_MAX_HZ;
+    return AppState.isPlaying && index != null && AppState.currentSystem.ratios[index] > 0;
 }
 
 function pad2(n) {
@@ -279,11 +275,11 @@ export const RecordingActions = {
             }
             showStatus('Sync loop needs the oscillators source — recording until stopped', 'warning');
         }
-        if (clockWillPulse()) {
-            // Start exactly on the clock voice's next cycle boundary
-            arm.unsubscribe = pulseBus.addSink((index, pulse) => {
+        if (clockWillBeat()) {
+            // Start exactly on the clock voice's next beat boundary
+            arm.unsubscribe = pulseBus.addClockSink((index, message) => {
                 if (!isClockVoice(index)) return;
-                const beat = pulseCycleBoundaryAudioTime(pulse);
+                const beat = pulseLandingAudioTime(message);
                 if (beat > audioEngine.now()) begin(beat);
             });
             arm.timer = setTimeout(() => begin(null), ARM_TIMEOUT_MS);

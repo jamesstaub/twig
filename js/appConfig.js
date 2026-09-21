@@ -18,30 +18,42 @@
  * stale blobs can't inject unknown fields.
  */
 
+/** Per-overtone MIDI ranges (trigger notes, CCs, pulse notes) span this many. */
+export const MIDI_RANGE_SPAN = 12;
+
 export const midiConfig = {
-    // --- Note/CC in ---
-    inputChannel: 1, // MIDI channel 1 by default (1-16)
-    // Input port id; null = listen on every input
+    // --- Ports ---
+    // One input port for everything inbound; null = listen on every input
     inputId: null,
-    // Incoming notes below this are ignored. Default 13 keeps the pulse
-    // outputs' own notes (1..12) from feeding back into the fundamental
-    // when in and out share a port (e.g. an IAC loop).
-    inputNoteMin: 13,
-    drawbarsCC: [20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31], // Default CCs for 12 drawbars
-
-    // --- Note out (pulse blips) ---
-    outputChannel: 1, // channel for pulse note blips (1-16)
-    // Web MIDI output port id; null = first available
+    // One output port for note out; null = first available
     outputId: null,
-
-    // --- Clock/transport out ---
     // Port for MIDI clock ticks and transport start/stop; null = same port
     // as note out. Clock messages are system-realtime — no channel exists.
     clockOutputId: null,
 
-    // Pulse outputs: note per overtone (linear 1..N by default, reassignable
-    // in the MIDI modal) and global master switches for the two pulse paths
-    pulseNotes: Array.from({ length: 16 }, (_, i) => i + 1),
+    // Every inbound concern has its own channel (1-16). The defaults keep an
+    // in/out loop on one port (e.g. IAC) from feeding back: pulses leave on
+    // channel 2 from note 13, above the trigger range, and the fundamental
+    // listens on channel 1.
+
+    // --- Fundamental note in: the whole note range sets the fundamental ---
+    fundamentalChannel: 1,
+    fundamentalTranspose: 0, // octaves added to the incoming note
+
+    // --- ADSR trigger note in: start..start+11 gate overtones 1..12 ---
+    triggerChannel: 2,
+    triggerNoteStart: 1,
+
+    // --- CC in: each start..start+11 drives overtones 1..12 ---
+    ccChannel: 1,
+    gainCCStart: 20,
+    cutoffCCStart: 40,
+    convWetCCStart: 102,
+
+    // --- Note out (overtone LF pulse blips): start..start+11 ---
+    pulseChannel: 2,
+    pulseNoteStart: 13,
+    // Global master switches for the two pulse paths
     pulseMidiEnabled: true,
     pulseOscEnabled: true,
 };

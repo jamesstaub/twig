@@ -18,7 +18,9 @@
  * @property {boolean} envelopeOpen - true pins the envelope at unity (Drone)
  * @property {Object} gate - { mode, x, y, seq } — see ModulatorStage.setGate
  * @property {Object} sequencer - { shape, stretch, amounts, table, config }
- * @property {boolean} pulseOut - Emit a pulse message per cycle
+ * @property {boolean} pulseOut - Emit pulse messages, one pulse per cycle
+ * @property {boolean} pulseOffset - Pulses land at 50% of the cycle, not its start
+ * @property {boolean} clockOut - Emit a clock message per (octave-folded) beat
  * @property {number} drive - Overdrive amount, 0-5
  * @property {Object} filter - { cutoff (Hz), q }
  * @property {Object} convolution - { wet, feedback, gain, buffer, period }
@@ -58,6 +60,8 @@ const APPLY = {
     gate: (s, gate, time) => s.modulator.setGate(gate, time),
     sequencer: (s, sequencer, time) => s.modulator.setSequencer(sequencer, time),
     pulseOut: (s, enabled, time) => s.modulator.setPulseOut(enabled, time),
+    pulseOffset: (s, offset, time) => s.modulator.setPulseOffset(offset, time),
+    clockOut: (s, enabled, time) => s.modulator.setClockOut(enabled, time),
     drive: (s, amount) => s.drive.setAmount(amount),
     filter: (s, filter, time, ramp) => s.filter.set(filter, time, ramp),
     convolution(s, conv, time, ramp) {
