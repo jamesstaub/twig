@@ -1,10 +1,24 @@
 import BaseComponent from '../base/BaseComponent.js';
 
+// Inline SVG in currentColor, never Unicode symbols: iOS Safari draws ⚙ ▶
+// ⏮ ● as full-color emoji, whatever the font stack says.
+const svg = (body) => `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${body}</svg>`;
+const ICONS = {
+    record: svg('<circle cx="10" cy="10" r="4.5" fill="currentColor" stroke="none"/>'),
+    config: svg('<circle cx="10" cy="10" r="2.5"/><path d="M10 2.5v2.2M10 15.3v2.2M2.5 10h2.2M15.3 10h2.2M4.7 4.7l1.6 1.6M13.7 13.7l1.6 1.6M4.7 15.3l1.6-1.6M13.7 6.3l1.6-1.6"/>'),
+    play: svg('<path d="M6.5 4.5v11l9-5.5z" fill="currentColor"/>'),
+    pause: svg('<path d="M7 4.5v11M13 4.5v11" stroke-width="2.4"/>'),
+    reset: svg('<path d="M5 4.5v11" stroke-width="2"/><path d="M15.5 4.5v11l-8-5.5z" fill="currentColor"/>'),
+    download: svg('<path d="M10 3.5v9M6 9l4 4 4-4M4.5 16.5h11"/>'),
+    expand: svg('<path d="M8 5l5 5-5 5"/>'),
+    collapse: svg('<path d="M12 5l-5 5 5 5"/>'),
+};
+
 /**
  * RecorderComponent — navbar strip: record + elapsed, settings, take menu
  * with prev/next steppers (native selects don't open inside jweb),
- * play/pause, reset, and a ↓ button opening a download menu (custom DOM,
- * not <select>, for the same jweb reason). Pure DOM; callbacks are set by
+ * play/pause, reset, and a download button opening a download menu (custom
+ * DOM, not <select>, for the same jweb reason). Pure DOM; callbacks are set by
  * the controller: onRecord, onConfig, onSelect(key), onSelectStep(±1),
  * onTogglePlay, onReset, onDownload('wav'|'mid'|'zip').
  */
@@ -12,7 +26,7 @@ export class RecorderComponent extends BaseComponent {
 
     constructor(target) {
         super(target);
-        // Phones collapse the strip to ● + an expand button (recorder.css);
+        // Phones collapse the strip to record + an expand button (recorder.css);
         // the choice outlives re-renders
         this.expanded = false;
     }
@@ -25,7 +39,7 @@ export class RecorderComponent extends BaseComponent {
         const armed = status === 'armed';
 
         this.el.append(
-            this.button('rec-btn' + (recording ? ' recording' : armed ? ' armed' : ''), '●', 'record',
+            this.button('rec-btn' + (recording ? ' recording' : armed ? ' armed' : ''), ICONS.record, 'record',
                 recording ? 'Stop recording' : armed ? 'Waiting for beat — click to cancel' : 'Record'),
         );
         if (recording || armed) {
@@ -34,22 +48,22 @@ export class RecorderComponent extends BaseComponent {
             elapsed.textContent = '0:00';
             this.el.appendChild(elapsed);
         }
-        const expand = this.button('action-btn rec-icon-btn rec-expand-btn', this.expanded ? '‹' : '›', 'expand',
+        const expand = this.button('action-btn rec-icon-btn rec-expand-btn', this.expanded ? ICONS.collapse : ICONS.expand, 'expand',
             this.expanded ? 'Hide recorder controls' : 'Recorder controls');
         expand.setAttribute('aria-expanded', String(this.expanded));
         this.el.appendChild(expand);
         this.el.append(
-            this.button('action-btn rec-icon-btn', '⚙', 'config', 'Recording settings'),
+            this.button('action-btn rec-icon-btn', ICONS.config, 'config', 'Recording settings'),
             this.stepper(recordings, selected),
-            this.button('action-btn rec-icon-btn', transport === 'playing' ? '❚❚' : '▶', 'toggle',
+            this.button('action-btn rec-icon-btn', transport === 'playing' ? ICONS.pause : ICONS.play, 'toggle',
                 transport === 'playing' ? 'Pause' : 'Play', !has),
-            this.button('action-btn rec-icon-btn', '⏮', 'reset', 'Reset to start', !has),
-            this.button('action-btn rec-icon-btn rec-download-btn', '↓', 'download', 'Download take…', !has),
+            this.button('action-btn rec-icon-btn', ICONS.reset, 'reset', 'Reset to start', !has),
+            this.button('action-btn rec-icon-btn rec-download-btn', ICONS.download, 'download', 'Download take…', !has),
         );
         this.el.appendChild(this.downloadMenu(has, stemsAvailable));
     }
 
-    /** The ↓ button's menu: one item per export format. */
+    /** The download button's menu: one item per export format. */
     downloadMenu(has, stemsAvailable) {
         const menu = document.createElement('div');
         menu.className = 'rec-menu hidden';
@@ -84,11 +98,12 @@ export class RecorderComponent extends BaseComponent {
         el.textContent = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
     }
 
-    button(className, text, action, title, disabled = false) {
+    /** `content` is trusted markup: an ICONS entry or a plain label. */
+    button(className, content, action, title, disabled = false) {
         const btn = document.createElement('button');
         btn.type = 'button';
         btn.className = className;
-        btn.textContent = text;
+        btn.innerHTML = content;
         btn.dataset.action = action;
         btn.title = title;
         btn.setAttribute('aria-label', title);
@@ -163,7 +178,7 @@ export class RecorderComponent extends BaseComponent {
                 this.el.classList.toggle('rec-expanded', this.expanded);
                 const btn = this.q('.rec-expand-btn');
                 if (btn) {
-                    btn.textContent = this.expanded ? '‹' : '›';
+                    btn.innerHTML = this.expanded ? ICONS.collapse : ICONS.expand;
                     btn.setAttribute('aria-expanded', String(this.expanded));
                 }
                 return undefined;

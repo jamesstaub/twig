@@ -11,7 +11,7 @@
 /* Fixed width so "Trigger" / "Drone" don't reflow neighboring layout as
    the mode changes. */
 .envelope-mode-label {
-    width: 3.6rem;
+    width: 3.6em;
 }
 
 /* The navbar root gets the same framed "label + switch" box as

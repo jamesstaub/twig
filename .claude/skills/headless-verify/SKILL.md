@@ -69,12 +69,18 @@ description: Verify twig changes end-to-end in a headless browser — screenshot
   `.inspector-step` inside `#sequence-toolbar`, the drawn sequence in the
   side column (`#sequence-canvas-area canvas` — hash its pixels to assert
   a redraw). Column labels navigate nowhere; there is no inspector sheet.
-- Source docking: at ≥1361×864 (or 1280×912) the page opens with
+- Source docking: at ≥1361×864 the page opens with
   `body.source-docked` — Source above the active surface, BOTH toolbar
   buttons pressed; the Source button toggles the dock. To test one
   surface at a time, click Source once first (or use 1180×720, where
   Source is a surface of its own). Guard clicks with the button's
   `aria-pressed`, since a second click undocks.
+- Narrow (≤1360px wide, `body.narrow`): master Gain/Slew are upright range
+  inputs in `#master-rail` (right edge), not in the navbar — drag them
+  vertically (up = more). The System description is an overlay over
+  `.system-body`; `#system-info-btn` reads "?" / "×". Recorder buttons
+  carry SVG, no text: select them by `[data-action="record|config|toggle|
+  reset|download|expand"]`. `#play-label` reads "Playing" / "Stopped".
 - Embed (`?embed=1`, test at 1000×150): the toolbar is a row across the
   top (`.surface-toolbar-btn[data-surface=…]`, click via `evaluate` — the
   band scrolls sideways under puppeteer's own click),

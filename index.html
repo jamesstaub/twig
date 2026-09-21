@@ -42,7 +42,7 @@
             <div class="navbar-section">
                 <!-- Play/Stop Toggle -->
                 <div class="play-toggle-container">
-                    <span id="play-label" class="toggle-label active">Play</span>
+                    <span id="play-label" class="toggle-label active">Stopped</span>
                     <div id="play-toggle" class="toggle-switch" role="switch" aria-checked="false"
                         aria-label="Play/Stop control">
                     </div>
@@ -164,7 +164,9 @@
                             <button type="button" class="action-btn select-step-btn" data-target="ratio-system-select"
                                 data-step="1" aria-label="Next overtone system">-&gt;</button>
                         </div>
-                        <!-- The system's description, disclosed by the "?" button -->
+                        <!-- Everything under the menu; it takes the panel's spare
+                             height, and the description ("?") overlays it -->
+                        <div class="system-body">
                         <div id="system-description" class="system-description" hidden></div>
                         <!-- Start harmonic + any system-specific dials (stiffness,
                              stretch, …), always laid out inline together -->
@@ -185,6 +187,7 @@
                             <div class="system-frequencies-unit">Hz</div>
                             <ol id="system-frequencies" class="system-frequencies"
                                 aria-label="Overtone frequencies in hertz"></ol>
+                        </div>
                         </div>
                     </div>
                 </div>
@@ -329,6 +332,9 @@
                 </div>
             </div>
         </div>
+        <!-- Master rail: Gain and Slew stand here, upright, while the layout
+             is narrow (MasterRailController moves their roots in and out) -->
+        <aside id="master-rail" class="master-rail" aria-label="Master gain and slew"></aside>
     </div>
 
 

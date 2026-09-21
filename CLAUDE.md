@@ -125,10 +125,11 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
   share it), exposed as `body.embed` | `body.surfaces`; **coarse**
   (`pointer: coarse`, or `?coarse=1` to preview touch density with a
   mouse) is `body.coarse` and swaps control density without changing the
-  shell; **roomy** = the Source panel fits on screen TOGETHER with another
-  surface (`ROOMY_QUERY`: a desktop-sized window, ≥ 54rem tall — 57rem
-  under 85rem wide, where the navbar is two rows — and ≥ 80rem wide; the
-  embed band always is, being as wide as it needs). Changes dispatch
+  shell; **narrow** (`body.narrow`, ≤ 85rem wide on the surfaces shell)
+  is the tablet-and-smaller arrangement — wrapping navbar, master rail;
+  **roomy** = the Source panel fits on screen TOGETHER with another
+  surface (`ROOMY_QUERY`: ≥ 54rem tall and wider than narrow; the embed
+  band always is, being as wide as it needs). Changes dispatch
   `LAYOUT_MODE_CHANGED`.
 - Readouts are inline, never floating: `Dial` renders its own caption
   above the arc and value below it (`.mini-dial-label` / `.mini-dial-value`,
@@ -334,9 +335,7 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
   once the toolbar takes its share. ALONE (a surface of its own — short
   or narrow screens): one column under 40rem (phones), fundamental |
   source over an ALWAYS full-width system panel from 40rem; it fits the
-  screen from tablets up, a phone scrolls inside the panel (portrait a
-  little, landscape a row — there the system panel spends width instead:
-  menu | toggle | dials on one row). DOCKED (`body.source-docked`, where
+  screen from tablets up, a phone scrolls inside the panel. DOCKED (`body.source-docked`, where
   `layoutMode.roomy`): it takes only its own height — all three panels
   across ONE row above the active surface, which keeps the rest (the
   roomy thresholds guarantee the strip under it stays out of compact
@@ -350,11 +349,15 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
   (`#current-waveform-canvas-area`: `flex:1`, a `vh`-scaled floor) with
   the canvas absolutely filling it — `WaveformComponent.boxSize()` sizes
   the bitmap from that box (width AND height changes, ResizeObserver) and
-  has no dependency on the tonewheel's p5 instance. Where the system panel
-  is full-width its dials sit beside the menu (form-controls.css). The
-  Overtone System's description is an in-flow disclosure
-  (`#system-description`) toggled by the "?" button — click, not hover
-  (jweb/touch have no reliable hover), in flow, not floating;
+  has no dependency on the tonewheel's p5 instance. The Overtone System
+  panel takes whatever height the Source panel has left (the grid's last
+  row is `1fr`), and under its menu everything lives in `.system-body`,
+  which takes the panel's spare height: a wide panel lays it out as
+  toggle | dials over the list (`@container system-panel`), and the
+  description (`#system-description`) OVERLAYS it — `position:absolute;
+  inset:0` inside the body, so nothing below the menu moves — opened by
+  the "?" button, which becomes the "×" that closes it; click, not hover
+  (jweb/touch have no reliable hover), inside the panel, not floating.
   `setDescription` writes trusted config.js HTML only. Start harmonic and
   the system's tunable params render as one inline row of Dials
   (`#system-dials-row`). Under them, `#system-frequencies`: every
@@ -393,26 +396,38 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
   sizes its square from `Math.min(clientWidth, clientHeight)`.
 - Settings surface (`js/modules/settings/`, `#settings-control-root`):
   MIDI | Recording tabs (`selectTab`) over `MidiSettingsComponent`
-  (ports/channels per MIDI role, pulse toggles, mapping tables;
-  re-rendered on `MIDI_OUTPUT_CHANGED` since ports arrive late) and
+  (a ports card, then one card per concern with its own channel and
+  start-of-range inputs; re-rendered on `MIDI_PORTS_CHANGED` /
+  `MIDI_OUTPUT_CHANGED` since ports arrive late) and
   `RecorderSettingsComponent` (wav/mid layout, take length, tempo mode;
   `syncChecked` on `RECORDER_CHANGED`). The toolbar button and the
   recorder's ⚙ (`SettingsController.open(tab)`) get there, on both shells.
-- Navbar: Play/Stop, Trigger/Drone, the recorder strip, Gain/Slew. Above
-  85rem it is the fixed one-row bar with `.app-container` padded to
-  `--navbar-height` (base.css) — one row of everything needs ~1350px; the
-  two toggle boxes never shrink (their switch would wrap under its
-  label), Gain/Slew are what gives. Below 85rem on the surfaces shell
-  (phones, tablets, small laptops) it becomes a
-  STATIC, WRAPPING block at the top of a full-height flex column
-  (`body.surfaces.app-container`, page-arrangement.css): Play·Trigger/
-  Drone·recorder / Gain·Slew — under 64rem the recorder collapses to ● + an
-  expand button (`RecorderComponent.expanded`, `.rec-expanded`), joining
-  row 1 while collapsed and taking its own row on a phone when expanded. A wrapping navbar has no known height, which is
-  why the fixed-navbar + padding scheme can't be used there; the logo is
-  dropped; the Gain/Slew range inputs must be allowed to shrink
-  (`min-width:0`). On short viewports (`max-height: 30rem`) the toolbar
-  rail goes icons-only and scrolls.
+- Navbar: Playing/Stopped, Trigger/Drone, the recorder strip, Gain/Slew.
+  Every label + switch names its CURRENT STATE (switch on = Playing /
+  Trigger), never the action. Wide, it is the fixed one-row bar with
+  `.app-container` padded to `--navbar-height` (base.css); the two toggle
+  boxes never shrink (their switch would wrap under its label), Gain/Slew
+  are what gives. NARROW (`body.narrow` = `layoutMode.narrow`, ≤ 85rem on
+  the surfaces shell — a tablet in landscape and smaller; CSS keys off the
+  class, never its own copy of the breakpoint) it becomes a STATIC,
+  WRAPPING block at the top of a full-height flex column
+  (`body.narrow.app-container`, page-arrangement.css): Playing · Trigger/
+  Drone · recorder — and Gain/Slew LEAVE it for the master rail
+  (`js/modules/masterRail/`, `#master-rail`, master-rail.css): a 2.5rem
+  column down the right edge of the page shell, the two native range
+  inputs upright (`writing-mode: vertical-lr; direction: rtl`, bottom =
+  min). `MasterRailController` moves the two slider ROOTS between the
+  navbar and the rail on `LAYOUT_MODE_CHANGED` (components scope lookups
+  to their root, the OSC client finds them by id); never in embed. Under
+  64rem the recorder collapses to record + an expand button
+  (`RecorderComponent.expanded`, `.rec-expanded`), joining row 1 while
+  collapsed and taking its own row on a phone when expanded. A wrapping
+  navbar has no known height, which is why the fixed-navbar + padding
+  scheme can't be used there; the logo is dropped. The recorder's icons
+  are inline SVG in currentColor (`ICONS` in RecorderComponent) — never
+  Unicode symbols, which iOS Safari draws as full-color emoji. On short
+  viewports (`max-height: 30rem`) the toolbar rail goes icons-only and
+  scrolls.
 - `--drawbar-track-length`: the strip's sliders grow to the column's
   measured height — a rotated `<input type=range>`'s PRE-rotation `width`
   becomes its visual length, and CSS can't derive one axis from the other

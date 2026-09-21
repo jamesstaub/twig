@@ -126,9 +126,23 @@
     border-color: var(--text-accent);
 }
 
-/* The disclosed description: in flow under the system menu, so it can't
-   land under a finger or off-screen the way a floating popover could */
+/* The Overtone System panel's body — everything under the menu. It takes
+   the panel's spare height, and the description ("?" → "×") OVERLAYS it:
+   inside the panel, so it can't land under a finger or off-screen the way
+   a floating popover could, and nothing below it is pushed around. */
+.system-body {
+    position: relative;
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
 .system-description {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
     font-size: var(--font-size-xs);
     line-height: 1.4;
     color: var(--text-secondary);
@@ -136,7 +150,6 @@
     background-color: var(--surface-deep);
     border: 1px solid var(--border-subtle);
     border-radius: var(--radius-md);
-    max-height: 9rem;
     overflow-y: auto;
 }
 
@@ -267,63 +280,28 @@ body.surfaces #spectral-system-root {
     }
 }
 
-/* Where the Overtone System panel runs the full width of the Source
-   surface (page-arrangement.css: any stack from 40rem) one column of
-   controls leaves most of it empty — the dials move beside the menu
-   instead: [menu / description / toggle] | [dials]. Not while Source is
-   docked: the panel is a narrow third (or column) there. */
-@container surface-stack (min-width: 40rem) {
-    body.surfaces:not(.source-docked) #spectral-system-root {
+/* A wide panel (full-width on the Source surface): one column of
+   controls would leave most of it empty — the dials sit beside the toggle,
+   the list across the bottom */
+@container system-panel (min-width: 40rem) {
+    .system-body {
         display: grid;
         grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
-        align-items: start;
+        align-content: start;
+        align-items: center;
         gap: 0.4rem 1.5rem;
     }
 
-    body.surfaces #spectral-system-root > label,
-    body.surfaces #spectral-system-root > .system-frequencies-row {
+    .system-body > .overtone-controls {
+        grid-area: 1 / 1;
+    }
+
+    .system-body > .system-dials-row {
+        grid-area: 1 / 2;
+    }
+
+    .system-body > .system-frequencies-row {
         grid-column: 1 / -1;
-    }
-
-    body.surfaces #spectral-system-root > * {
-        grid-column: 1;
-    }
-
-    body.surfaces #spectral-system-root > #system-dials-row {
-        grid-column: 2;
-        grid-row: 2 / span 3;
-    }
-}
-
-/* A short screen (a phone in landscape) scrolls the Source surface, so
-   the panel spends width instead of height: menu | toggle | dials on one
-   row, the description and the list across underneath */
-@media (max-height: 30rem) {
-    @container surface-stack (min-width: 40rem) {
-        body.surfaces #spectral-system-root {
-            grid-template-columns: minmax(0, 1fr) auto auto;
-            align-items: center;
-        }
-
-        body.surfaces #spectral-system-root > .select-stepper {
-            grid-area: 2 / 1;
-        }
-
-        body.surfaces #spectral-system-root > .overtone-controls {
-            grid-area: 2 / 2;
-        }
-
-        body.surfaces #spectral-system-root > #system-dials-row {
-            grid-area: 2 / 3;
-        }
-
-        body.surfaces #spectral-system-root > .system-description {
-            grid-area: 3 / 1 / auto / -1;
-        }
-
-        body.surfaces #spectral-system-root > .system-frequencies-row {
-            grid-row: 4;
-        }
     }
 }
 

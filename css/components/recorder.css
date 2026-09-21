@@ -1,5 +1,6 @@
-/* Performance recorder strip in the navbar: ● ⚙ ‹ take › ▶ ⏮ wav mid.
-   Temporary home — the navbar is due for a redesign. */
+/* Performance recorder strip in the navbar: record, settings, ‹ take ›,
+   play/pause, reset, download. Its icons are inline SVG in currentColor
+   (RecorderComponent) — Unicode symbols turn into emoji on iOS. */
 
 .recorder-root {
     position: relative; /* anchors the download menu */
@@ -20,10 +21,25 @@
     border: 1px solid var(--border-subtle);
     background: none;
     color: var(--accent-negative);
-    font-size: var(--font-size-md);
-    line-height: 1;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     cursor: pointer;
     transition: background 0.2s, color 0.2s;
+}
+
+.rec-btn svg,
+.rec-icon-btn svg {
+    display: block;
+    width: 1.05rem;
+    height: 1.05rem;
+}
+
+.rec-icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .rec-btn:hover {

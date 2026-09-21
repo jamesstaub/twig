@@ -72,6 +72,10 @@ body.embed #m4l-fundamental-source-panel > .labeled-control:last-child {
     border-bottom: none;
 }
 
+body.embed .system-body {
+    gap: 0.1rem;
+}
+
 body.embed #fundamental-control-root { grid-area: 1 / 1; }
 body.embed #oscillator-control-root { grid-area: 2 / 1; border-bottom: none; }
 body.embed #spectral-system-root { grid-area: 1 / 2 / span 2; }

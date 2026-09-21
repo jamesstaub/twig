@@ -239,10 +239,12 @@ export class SpectralSystemComponent extends BaseComponent {
     }
 
     /**
-     * "?" button: click-toggles the in-flow description block under the
-     * menu (#system-description). Click-to-toggle rather than hover, since
-     * jweb/touch contexts have no reliable hover; in flow rather than a
-     * floating popover so it can't land under a finger or off-screen.
+     * "?" button: click-toggles the description (#system-description),
+     * which overlays the panel's body — everything under the menu — and
+     * turns the button into the "×" that closes it. Click-to-toggle rather
+     * than hover, since jweb/touch contexts have no reliable hover; inside
+     * the panel rather than a floating popover so it can't land under a
+     * finger or off-screen.
      */
     bindInfoButton() {
         const btn = this.q('#system-info-btn');
@@ -252,12 +254,18 @@ export class SpectralSystemComponent extends BaseComponent {
         if (this._infoBtnHandler) {
             btn.removeEventListener('click', this._infoBtnHandler);
         }
+        const sync = () => {
+            const open = !desc.hidden;
+            btn.textContent = open ? '\u00d7' : '?';
+            btn.setAttribute('aria-expanded', String(open));
+            btn.setAttribute('aria-label', open ? 'Close the description' : 'About this overtone system');
+            btn.classList.toggle('active', open);
+        };
         this._infoBtnHandler = () => {
             desc.hidden = !desc.hidden;
-            btn.setAttribute('aria-expanded', String(!desc.hidden));
-            btn.classList.toggle('active', !desc.hidden);
+            sync();
         };
-        btn.setAttribute('aria-expanded', String(!desc.hidden));
+        sync();
         btn.addEventListener('click', this._infoBtnHandler);
     }
 

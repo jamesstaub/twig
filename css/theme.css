@@ -94,6 +94,7 @@
 
     /* ---- Layout ---- */
     --toolbar-width: 4.25rem;        /* surface toolbar (left rail); 3.5rem on phones (surfaces.css) */
+    --master-rail-width: 2.5rem;     /* master Gain/Slew column (narrow layouts) */
     --dock-width: 20rem;             /* side column beside a surface (landscape) */
     --dock-height: 9rem;             /* side band above a surface (portrait): the tonewheel's square */
     --navbar-height: 5rem;

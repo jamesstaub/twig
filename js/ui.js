@@ -34,6 +34,7 @@ import { SpectrumController } from './modules/spectrum/spectrumController.js';
 import { ScopeController } from './modules/scope/scopeController.js';
 import { EnvelopeVizController } from './modules/envelopeViz/envelopeVizController.js';
 import { SequenceVizController } from './modules/sequenceViz/sequenceVizController.js';
+import { MasterRailController } from './modules/masterRail/masterRailController.js';
 import { RecorderController } from './modules/recording/recorderController.js';
 import { SurfacesController } from './modules/surfaces/surfacesController.js';
 import { surfaceState } from './modules/surfaces/surfaceState.js';
@@ -211,6 +212,10 @@ function setupControlSliders() {
         updateAppState({ masterSlewValue: value });
         document.dispatchEvent(new CustomEvent(MASTER_SLEW_CHANGED, { detail: { value } }));
     }).init();
+
+    // Narrow layouts move the two into the rail down the right edge
+    new MasterRailController('#master-rail', '.navbar-section.center',
+        ['#master-gain-slider-root', '#master-slew-slider-root']).init();
 }
 
 // ================================

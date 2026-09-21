@@ -15,6 +15,7 @@
 @import "./base.css";
 @import "./components/layout.css";
 @import "./components/surfaces.css";
+@import "./components/master-rail.css";
 @import "./components/page-arrangement.css";
 @import "./components/navbar.css";
 @import "./components/recorder.css";

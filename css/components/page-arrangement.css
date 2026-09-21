@@ -26,25 +26,21 @@ body.surfaces .page-shell {
     min-height: 0;
 }
 
-/* Under 85rem (phones, tablets, small laptops — navbar.css): body is the
-   full-height column — static wrapping navbar on top (navbar.css), the
-   shell below taking the rest */
-@media (max-width: 85rem) {
-    body.surfaces.app-container {
-        display: flex;
-        flex-direction: column;
-        height: 100vh;
-        min-height: 0;
-        padding-top: 0;
-    }
+/* Narrow (body.narrow — phones, tablets, small laptops; navbar.css): body
+   is the full-height column — static wrapping navbar on top, the shell
+   below taking the rest */
+body.narrow.app-container {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    min-height: 0;
+    padding-top: 0;
 }
 
-/* Wider: the fixed one-row navbar + body padding-top scheme (base.css),
+/* Otherwise: the fixed one-row navbar + body padding-top scheme (base.css),
    so the shell is the viewport minus the navbar */
-@media (min-width: 85.01rem) {
-    body.surfaces .page-shell {
-        height: calc(100vh - var(--navbar-height));
-    }
+body.surfaces:not(.narrow) .page-shell {
+    height: calc(100vh - var(--navbar-height));
 }
 
 body.surfaces .page-content {
@@ -165,7 +161,8 @@ body.surfaces .surface-stack {
 body.surfaces #m4l-fundamental-source-panel {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
-    align-content: start;
+    /* The last panel — the overtone system — takes whatever height is left */
+    grid-template-rows: auto auto minmax(min-content, 1fr);
     gap: 0.5rem;
     flex: 1 1 auto;
     min-height: 0;
@@ -184,7 +181,7 @@ body.surfaces #fundamental-control-root {
 @container surface-stack (min-width: 40rem) {
     body.surfaces #m4l-fundamental-source-panel {
         grid-template-columns: repeat(2, minmax(0, 1fr));
-        grid-template-rows: minmax(min-content, 17rem) auto;
+        grid-template-rows: minmax(min-content, 17rem) minmax(min-content, 1fr);
     }
 
     body.surfaces #spectral-system-root {
@@ -227,6 +224,7 @@ body.source-docked #m4l-fundamental-source-panel {
     body.source-docked #m4l-fundamental-source-panel {
         flex: 0 0 22rem;
         grid-template-columns: minmax(0, 1fr);
+        grid-template-rows: auto auto minmax(min-content, 1fr);
         overflow-y: auto;
     }
 

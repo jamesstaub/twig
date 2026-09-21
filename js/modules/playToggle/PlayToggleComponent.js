@@ -5,7 +5,9 @@ export class PlayToggleComponent extends BaseComponent {
         const label = this.q('#play-label');
         const toggle = this.q('#play-toggle');
 
-        if (label) label.textContent = isPlaying ? 'Stop' : 'Play';
+        // Names the current STATE, like every label + switch in the app
+        // (Trigger/Drone): on = Playing, off = Stopped
+        if (label) label.textContent = isPlaying ? 'Playing' : 'Stopped';
         if (toggle) {
             toggle.classList.toggle('active', isPlaying);
             toggle.setAttribute('aria-checked', String(isPlaying));
