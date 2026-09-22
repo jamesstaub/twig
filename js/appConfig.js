@@ -7,8 +7,9 @@
  *     OSC/WebSocket so the Max patch can persist it in Live params, and
  *     restored from the bridge cache (GET /state) at boot.
  *   - appConfig (this file) is how THIS browser is set up: MIDI routing
- *     and mappings, recorder modes. It is not part of the patch — it
- *     lives in localStorage and survives reloads without the bridge.
+ *     and mappings, recorder modes, the preset crossfader's A/B
+ *     assignment. It is not part of the patch — it lives in localStorage
+ *     and survives reloads without the bridge.
  *
  * loadAppConfig() applies the stored blob at boot BEFORE the bridge
  * bootstrap, so the few values that are also bridged (e.g. the note-out
@@ -49,6 +50,8 @@ export const midiConfig = {
     gainCCStart: 20,
     cutoffCCStart: 40,
     convWetCCStart: 102,
+    // One CC sweeps the preset crossfader (A → B over its 128 values)
+    crossfaderCC: 1,
 
     // --- Note out (overtone LF pulse blips): start..start+11 ---
     pulseChannel: 2,
@@ -72,6 +75,17 @@ export const recorderConfig = {
     lengthMode: 'manual',
 };
 
+/**
+ * Preset interpolation: the two banks (0-31, or null) the crossfader runs
+ * between and where it stands (0-127). The banks themselves are in
+ * presetStore.js.
+ */
+export const presetConfig = {
+    slotA: null,
+    slotB: null,
+    position: 0,
+};
+
 const STORAGE_KEY = 'twig.appConfig';
 
 function write() {
@@ -79,6 +93,7 @@ function write() {
         localStorage.setItem(STORAGE_KEY, JSON.stringify({
             midi: { ...midiConfig },
             recorder: { ...recorderConfig },
+            presets: { ...presetConfig },
         }));
     } catch {
         // Storage unavailable (blocked webview, private mode) — config
@@ -108,6 +123,7 @@ export function loadAppConfig() {
     if (!saved || typeof saved !== 'object') return;
     applyKnown(midiConfig, saved.midi);
     applyKnown(recorderConfig, saved.recorder);
+    applyKnown(presetConfig, saved.presets);
 }
 
 function applyKnown(target, source) {

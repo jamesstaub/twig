@@ -1,5 +1,5 @@
 import { AppState } from "../../config.js";
-import { DRAWBAR_CHANGE, DRAWBARS_RANDOMIZED, DRAWBARS_RESET, SPECTRAL_SYSTEM_CHANGED, SUBHARMONIC_TOGGLED } from "../../events.js";
+import { DRAWBAR_CHANGE, DRAWBARS_RANDOMIZED, DRAWBARS_RESET, PRESETS_CHANGED, SPECTRAL_SYSTEM_CHANGED, SUBHARMONIC_TOGGLED } from "../../events.js";
 import { BaseController } from "../base/BaseController.js";
 import { CURRENT_WAVEFORM_CHANGED } from "./waveformActions.js";
 import WaveformComponent from "./WaveformComponent.js";
@@ -16,11 +16,12 @@ export class WaveformController extends BaseController {
     }
 
     getProps() {
-        const { harmonicAmplitudes, currentSystem, currentWaveform, customWaveCoefficients, isSubharmonic } = AppState;
+        const { harmonicAmplitudes, currentSystem, currentWaveform, waveformMorph, customWaveCoefficients, isSubharmonic } = AppState;
         return {
             harmonicAmplitudes,
             currentSystem,
             currentWaveform,
+            waveformMorph,
             customWaveCoefficients,
             isSubharmonic,
             mode: this.mode,
@@ -37,5 +38,7 @@ export class WaveformController extends BaseController {
         document.addEventListener(DRAWBAR_CHANGE, () => this.scheduleUpdate());
         document.addEventListener(DRAWBARS_RANDOMIZED, () => this.scheduleUpdate());
         document.addEventListener(CURRENT_WAVEFORM_CHANGED, () => this.scheduleUpdate());
+        // A crossfade step moves the waveform morph without renaming it
+        document.addEventListener(PRESETS_CHANGED, () => this.scheduleUpdate());
     }
 }

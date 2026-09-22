@@ -66,6 +66,7 @@ body.embed #m4l-fundamental-source-panel { order: 2; }
 body.embed #drawbars-control-root { order: 3; flex: 1 1 320px; min-width: max-content; }
 body.embed #pad-grid-root,
 body.embed #sequence-control-root,
+body.embed #presets-control-root,
 body.embed #settings-control-root { order: 3; }
 body.embed .viz-panel { order: 4; width: 300px; }
 body.embed #tonewheel-container { order: 5; }

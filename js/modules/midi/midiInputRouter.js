@@ -3,6 +3,7 @@ import { smoothUpdateMasterGain } from "../../utils.js";
 import { triggerHarmonicAttack, triggerHarmonicRelease } from "../../audio.js";
 import { findParam, quantize } from "../drawbars/drawbarParams.js";
 import { FundamentalActions } from "../fundamental/fundamentalActions.js";
+import { PresetActions } from "../presets/presetActions.js";
 import { midiConfig, MIDI_RANGE_SPAN } from "../../appConfig.js";
 import { resolvePortSelector } from "./portUtils.js";
 import { showStatus } from "../../domUtils.js";
@@ -154,6 +155,8 @@ export class MidiInputRouter {
         // throttle flood of CC changes
         if (this.lastCC[cc] === val) return;
         this.lastCC[cc] = val;
+
+        if (cc === midiConfig.crossfaderCC) PresetActions.setCrossfade(val);
 
         for (const { startKey, param } of CC_TARGETS) {
             const index = rangeIndex(cc, midiConfig[startKey]);

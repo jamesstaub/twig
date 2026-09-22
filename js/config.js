@@ -423,6 +423,10 @@ export const AppState = {
     })(),
     isSubharmonic: false,
     currentWaveform: 'square',
+    // A preset crossfade between two waveforms: { a, b, t } (names, 0-1)
+    // while one is in progress, else null. currentWaveform is then the
+    // nearer endpoint — what the picker, the bake and the bridge see.
+    waveformMorph: null,
 
     // Per-overtone cycle gates and lowpass filters, sparse objects keyed by
     // partial index. Gate: { mode: 0 off | 1 alternating | 2 euclidean |

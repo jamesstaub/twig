@@ -290,7 +290,7 @@ export class InspectorComponent extends BaseComponent {
         const select = document.createElement('select');
         select.className = 'control-select';
         const source = document.getElementById('waveform-select');
-        const options = source ? Array.from(source.options) : [];
+        const options = source ? Array.from(source.options).filter((o) => !o.disabled) : [];
         for (const opt of options) {
             const o = document.createElement('option');
             o.value = opt.value;

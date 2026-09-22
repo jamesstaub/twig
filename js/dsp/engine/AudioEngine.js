@@ -15,7 +15,7 @@ import { MasterBus } from './MasterBus.js';
 import { ModulatorStage } from './stages/modulator.js';
 import { Voice } from './Voice.js';
 
-/** Band-limited PeriodicWaves built once per context ('sine' is native). */
+/** Band-limited PeriodicWaves built once per context. */
 const STANDARD_WAVEFORMS = ['square', 'sawtooth', 'triangle'];
 const STANDARD_WAVEFORM_HARMONICS = 128;
 
@@ -59,6 +59,8 @@ export class AudioEngine {
         for (const type of STANDARD_WAVEFORMS) {
             this.standardWaves.set(type, WaveformGenerator.createBandLimitedWaveform(ctx, type, STANDARD_WAVEFORM_HARMONICS));
         }
+        // Sine as a table too, so it can sit in a wave slot like any other
+        this.standardWaves.set('sine', ctx.createPeriodicWave(new Float32Array([0, 0]), new Float32Array([0, 1])));
 
         this.context = ctx;
         this.master = master;
@@ -82,20 +84,18 @@ export class AudioEngine {
      * Build, start and register the voice for overtone `index`.
      * @param {number} index
      * @param {Object} spec - VoiceParams (see Voice.js), plus what the voice is made of:
-     * @param {string|PeriodicWave} spec.waveform - 'sine', a standard waveform name, or a baked wave
-     * @param {AudioNode|null} [spec.source] - Shared external node to tap instead of an oscillator
+     * @param {AudioNode|null} [spec.source] - Shared external node to tap instead of oscillators
      * @param {number|null} [spec.startAt] - Audio-clock start time, shared by a
      *   bank to put every voice at phase 0 on the same frame (null = now)
      * @returns {Voice}
      */
-    addVoice(index, { waveform, source = null, startAt = null, ...params }) {
+    addVoice(index, { source = null, startAt = null, ...params }) {
         if (!this.master) throw new Error('AudioEngine must be initialized before adding voices');
         // A voice already at this index would be orphaned by the overwrite —
         // still connected and sounding, but unreachable. Stop it first.
         this.voices.get(index)?.stop();
 
         const voice = new Voice(this.context, {
-            wave: source ? null : this.periodicWave(waveform),
             external: source,
             startAt,
             onPulse: (pulse) => this.onPulse?.(index, pulse),
@@ -115,12 +115,10 @@ export class AudioEngine {
         this.voices.clear();
     }
 
-    /** Oscillator wave for a waveform: null for the native sine. */
-    periodicWave(waveform) {
-        if (waveform === 'sine') return null;
-        if (waveform instanceof PeriodicWave) return waveform;
-        const wave = this.standardWaves.get(waveform);
-        if (!wave) throw new Error(`Unknown waveform: ${waveform}`);
+    /** The table of a standard waveform ('sine', 'square', 'sawtooth', 'triangle'). */
+    standardWave(name) {
+        const wave = this.standardWaves.get(name);
+        if (!wave) throw new Error(`Unknown waveform: ${name}`);
         return wave;
     }
 }

@@ -94,6 +94,17 @@ description: Verify twig changes end-to-end in a headless browser — screenshot
   .envelope-mode-switch` (navbar, beside Play), state named in
   `.envelope-mode-label`; `TWIG.getState().envelopeMode` is 'adsr'
   (Trigger) | 'open' (Drone); `body.adsr-mode` follows.
+- Presets: `.surface-toolbar-btn[data-surface="presets"]` → `#presets-panel`:
+  `.preset-bank[data-index=N]` (click selects, dblclick recalls; classes
+  `stored` / `selected` / `loaded`, `.preset-bank-badge` reads A/B),
+  `.preset-btn` Store / Recall / Clear / Show state / Copy / Apply,
+  `.preset-name-input`, `.preset-status` (`.dirty` = modified),
+  `.preset-slot-stepper` A and B, `.preset-crossfader-input` (0-127),
+  `.preset-json` textarea. `TWIG.presets` = PresetActions (`select`,
+  `store`, `recall`, `setSlotA/B`, `setCrossfade`, `toJSON`, `applyJSON`,
+  getters `selected/loaded/dirty/slotA/slotB/position`). Banks live in
+  localStorage `twig.presets` — clear it (once, not on every document)
+  for a known start. Mid-crossfade `getState().currentSystemIndex` is −1.
 - Settings: the toolbar button or the recorder's ⚙ → tabs
   `.settings-tab[data-tab="midi|recorder"]` over `#midi-settings` /
   `#recorder-settings`, no dock; in embed an overlay (`body.settings-open`,

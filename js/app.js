@@ -15,6 +15,7 @@ import { audioEngine } from './dsp/engine/AudioEngine.js';
 import { irManager } from './dsp/IRManager.js';
 import { recordingStore } from './modules/recording/RecordingStore.js';
 import { RecordingActions } from './modules/recording/recordingActions.js';
+import { PresetActions } from './modules/presets/presetActions.js';
 import { oscClient, oscEnabled } from './modules/osc/oscClient.js';
 import { pulseBus } from './modules/pulse/pulseBus.js';
 import { layoutMode } from './modules/layout/layoutMode.js';
@@ -192,6 +193,7 @@ window.TWIG = {
     recorder: RecordingActions,
     getAppConfig: () => ({ midiConfig, recorderConfig }),
     midiConfigActions,
+    presets: PresetActions,
 
     // Per-cycle voice pulses (subaudible clock taps): subscribe(voiceIndex |
     // '*', fn(index, {cycle, gateOn, frequency, audioTime})) → unsubscribe fn

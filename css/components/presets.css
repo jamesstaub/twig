@@ -1,0 +1,216 @@
+/* ================================
+   PRESETS SURFACE — 32 banks, A/B crossfader, JSON state
+   ================================
+   #presets-control-root: a settings-style header over three cards
+   (.settings-section) in #presets-panel. Cards and hints reuse the
+   Settings surface's styles; what is preset-specific is here. */
+
+#presets-control-root {
+    gap: 0.75rem;
+}
+
+/* Cards share the width (settings-section); on a phone each takes a row */
+.preset-card {
+    min-width: min(14rem, 100%);
+}
+
+/* --- Banks: 8 × 4 squares --- */
+
+.preset-grid {
+    display: grid;
+    grid-template-columns: repeat(8, minmax(0, 1fr));
+    gap: 0.375rem;
+}
+
+.preset-bank {
+    position: relative;
+    aspect-ratio: 1;
+    min-width: 0;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: var(--font-size-sm);
+    font-variant-numeric: tabular-nums;
+    color: var(--text-muted);
+    background: var(--surface-app);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.preset-bank:hover {
+    border-color: var(--text-accent);
+    color: var(--text-accent);
+}
+
+/* A stored bank is a filled square; an empty one is an outline */
+.preset-bank.stored {
+    color: var(--text-primary);
+    background: var(--surface-hover);
+}
+
+.preset-bank.selected {
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 0 1px var(--accent-primary);
+}
+
+/* The bank the sound came from */
+.preset-bank.loaded {
+    background: color-mix(in srgb, var(--accent-primary) 35%, var(--surface-hover));
+    color: var(--text-primary);
+}
+
+/* A / B crossfader assignment */
+.preset-bank-badge {
+    position: absolute;
+    top: 1px;
+    right: 3px;
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-bold);
+    line-height: 1;
+    color: var(--text-accent);
+}
+
+body.coarse .preset-grid {
+    gap: 0.5rem;
+}
+
+/* --- Store / Recall row --- */
+
+.preset-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.375rem;
+}
+
+.preset-name-input {
+    flex: 1 1 8rem;
+    min-width: 0;
+    padding: 0.25rem 0.5rem;
+    font-size: var(--font-size-sm);
+    color: var(--text-primary);
+    background: var(--surface-app);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-sm);
+}
+
+.preset-btn {
+    padding: 0.25rem 0.75rem;
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    color: var(--text-label);
+    background: none;
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: background-color 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.preset-btn:hover:not(:disabled) {
+    background: var(--surface-panel);
+    color: var(--text-accent);
+    border-color: var(--text-accent);
+}
+
+.preset-btn[aria-pressed="true"] {
+    color: var(--text-accent);
+    border-color: var(--accent-primary);
+}
+
+.preset-btn:disabled {
+    opacity: 0.4;
+    cursor: default;
+}
+
+body.coarse .preset-btn {
+    padding: 0.45rem 0.9rem;
+}
+
+/* Loaded bank + dirty marker */
+.preset-status {
+    margin: 0;
+    font-size: var(--font-size-sm);
+    color: var(--text-muted);
+}
+
+.preset-status.dirty {
+    color: var(--status-warning);
+}
+
+.preset-status.dirty::before {
+    content: '● ';
+}
+
+/* --- Interpolate --- */
+
+.preset-slots {
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+}
+
+.preset-slot {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.preset-slot-letter {
+    width: 1.25rem;
+    font-weight: var(--font-weight-bold);
+    color: var(--text-accent);
+}
+
+.preset-slot-stepper {
+    flex: 1 1 auto;
+}
+
+.preset-slot-stepper .cycle-stepper-current {
+    flex: 1 1 auto;
+    min-width: 6rem;
+    text-align: center;
+}
+
+.preset-crossfader {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.preset-crossfader-input {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.preset-crossfader-input:disabled {
+    opacity: 0.4;
+}
+
+.preset-crossfader-value {
+    min-width: 2.25em;
+    text-align: right;
+    font-size: var(--font-size-sm);
+    font-variant-numeric: tabular-nums;
+    color: var(--text-muted);
+}
+
+/* --- JSON --- */
+
+.preset-json {
+    width: 100%;
+    min-height: 8rem;
+    resize: vertical;
+    padding: 0.5rem;
+    font-family: var(--font-mono, ui-monospace, Menlo, monospace);
+    font-size: var(--font-size-xs-alt);
+    line-height: 1.4;
+    color: var(--text-primary);
+    background: var(--surface-app);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-sm);
+    white-space: pre;
+    overflow: auto;
+}

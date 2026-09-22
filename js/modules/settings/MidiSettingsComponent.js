@@ -185,7 +185,8 @@ export class MidiSettingsComponent extends BaseComponent {
             this.settingRow('Gain', this.rangeInput('gainCCStart')),
             this.settingRow('Filter cutoff', this.rangeInput('cutoffCCStart')),
             this.settingRow('Conv wet/dry', this.rangeInput('convWetCCStart')),
-            this.hint('Set each parameter’s first CC: it takes the twelve from there, one per overtone. CC 7 is the master gain.'),
+            this.settingRow('Preset crossfader', this.settingInput('crossfaderCC')),
+            this.hint('Set each parameter’s first CC: it takes the twelve from there, one per overtone. CC 7 is the master gain; the crossfader CC sweeps presets A → B.'),
         );
 
         const pulse = this.section('Note Out: Overtone LF Pulse');

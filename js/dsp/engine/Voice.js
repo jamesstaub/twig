@@ -13,7 +13,9 @@
  * same path live updates take, so nothing is written in two places.
  *
  * @typedef {Object} VoiceParams - every key optional; set() applies those present
- * @property {number} frequency - Hz: the oscillator's pitch and the modulator's clock
+ * @property {Object} waveform - { a: WaveSlot, b?: WaveSlot, morph?: 0-1 } — see SourceStage.setWaveform
+ * @property {number} frequency - Hz: the voice's pitch (each wave slot corrects for its
+ *   own table period; the modulator's clock runs at the audible table's rate)
  * @property {number} gain - Drawbar level, 0-1
  * @property {boolean} envelopeOpen - true pins the envelope at unity (Drone)
  * @property {Object} gate - { mode, x, y, seq } — see ModulatorStage.setGate
@@ -45,15 +47,21 @@ const TEARDOWN_TAU = 0.002;
 const TEARDOWN_MS = 15;
 
 /**
- * Parameter → the stage setters it drives. The two parameters that span
- * stages are visible here and nowhere else: frequency is also the
- * modulator's clock, and the modulator clamps its wet/feedback control
- * signals against the convolution's base values.
+ * Parameter → the stage setters it drives, in the order they apply (the
+ * waveform decides the table periods the pitch and clock divide by). The
+ * parameters that span stages are visible here and nowhere else: the
+ * pitch — and the waveform's period — also set the modulator's clock,
+ * and the modulator clamps its wet/feedback control signals against the
+ * convolution's base values.
  */
 const APPLY = {
+    waveform(s, waveform, time, ramp) {
+        s.source.setWaveform(waveform, time, ramp);
+        s.modulator.setFrequency(s.source.clockFrequency, time, ramp);
+    },
     frequency(s, hz, time, ramp) {
         s.source.setFrequency(hz, time, ramp);
-        s.modulator.setFrequency(hz, time, ramp);
+        s.modulator.setFrequency(s.source.clockFrequency, time, ramp);
     },
     gain: (s, gain, time, ramp) => s.level.setGain(gain, time, ramp),
     envelopeOpen: (s, open, time, ramp) => s.envelope.setOpen(open, time, ramp),
@@ -76,16 +84,15 @@ export class Voice {
     /**
      * @param {AudioContext} ctx
      * @param {Object} head - What the voice is made of (fixed for its lifetime)
-     * @param {PeriodicWave|null} head.wave - Oscillator wave (null = sine)
-     * @param {AudioNode|null} head.external - Shared source to tap instead of an oscillator
+     * @param {AudioNode|null} head.external - Shared source to tap instead of oscillators
      * @param {number|null} head.startAt - Audio-clock time to start at (null = now)
      * @param {function(Object)} head.onPulse - Receives the modulator's pulse messages
      * @param {VoiceParams} params - Initial parameters
      */
-    constructor(ctx, { wave, external, startAt, onPulse }, params) {
+    constructor(ctx, { external, startAt, onPulse }, params) {
         this.ctx = ctx;
         const s = this.stages = {
-            source: new SourceStage(ctx, { wave, external }),
+            source: new SourceStage(ctx, { external }),
             envelope: new EnvelopeStage(ctx),
             level: new LevelStage(ctx),
             modulator: new ModulatorStage(ctx, onPulse),
@@ -125,8 +132,8 @@ export class Voice {
      */
     set(params, ramp = DEFAULT_RAMP) {
         const time = this.ctx.currentTime;
-        for (const [name, value] of Object.entries(params)) {
-            if (value !== undefined) APPLY[name](this.stages, value, time, ramp);
+        for (const name of Object.keys(APPLY)) {
+            if (params[name] !== undefined) APPLY[name](this.stages, params[name], time, ramp);
         }
     }
 

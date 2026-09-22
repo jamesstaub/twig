@@ -41,6 +41,8 @@ export const SURFACES = [
     // The inspector: one voice's sequence, modulation and pulse outs,
     // that sequence drawn in the side column
     { id: 'sequence', label: 'Sequence', roots: ['sequence-control-root'], side: 'sequence-viz-root', tools: true, withSource: true },
+    // Storage banks, the A/B crossfader and the JSON state view
+    { id: 'presets', label: 'Presets', roots: ['presets-control-root'] },
     { id: 'settings', label: 'Settings', roots: ['settings-control-root'] },
 ];
 

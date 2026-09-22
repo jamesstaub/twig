@@ -75,26 +75,38 @@ function createWaveformSketch(component) {
             p.strokeWeight(1);
             p.line(0, height / 2, width, height / 2);
 
-            p.stroke(themeColor("--viz-trace"));
+            // A preset crossfade between two waveforms: the pair and how far
+            // between them (see AppState.waveformMorph)
+            const morph = props.waveformMorph;
+            const value = (name, phase) => getWaveValue(name, phase, props.customWaveCoefficients?.[name]);
+            const trace = themeColor("--viz-trace");
             p.strokeWeight(2);
             p.noFill();
-            p.beginShape();
 
             if (props.mode === "single") {
-                // Only first partial
-                for (let x = 0; x < width; x++) {
-                    const theta = p.map(x, 0, width, 0, p.TWO_PI * 2);
-                    const ratio = props.currentSystem.ratios[0];
-
-                    const wave = getWaveValue(
-                        props.currentWaveform,
-                        ratio * theta,
-                        props.customWaveCoefficients?.[props.currentWaveform]
-                    );
-                    const y = height / 2 - wave * ampScale;
-                    p.vertex(x, y);
+                // Only first partial — mid-morph, both waves overlaid, each as
+                // opaque as its share of the mix
+                const ratio = props.currentSystem.ratios[0];
+                const layers = morph
+                    ? [[morph.a, 1 - morph.t], [morph.b, morph.t]]
+                    : [[props.currentWaveform, 1]];
+                for (const [name, share] of layers) {
+                    const color = p.color(trace);
+                    color.setAlpha(Math.round(255 * Math.max(0.08, share)));
+                    p.stroke(color);
+                    p.beginShape();
+                    for (let x = 0; x < width; x++) {
+                        const theta = p.map(x, 0, width, 0, p.TWO_PI * 2);
+                        p.vertex(x, height / 2 - value(name, ratio * theta) * ampScale);
+                    }
+                    p.endShape();
                 }
-            } else {
+                return;
+            }
+
+            p.stroke(trace);
+            p.beginShape();
+            {
                 // Summed waveform
                 // Determine full period multiplier for phase continuity
                 let fullPeriodMultiplier = 2; // default: show 2 periods in harmonic mode
@@ -128,11 +140,11 @@ function createWaveformSketch(component) {
                             const ratio = props.currentSystem.ratios[h];
                             // Use division for subharmonics, multiplication for normal harmonics
                             const harmonicPhase = props.isSubharmonic ? theta / ratio : ratio * theta;
-                            sum += getWaveValue(
-                                props.currentWaveform,
-                                harmonicPhase,
-                                component.props.customWaveCoefficients?.[props.currentWaveform]
-                            ) * amp;
+                            // The sum sounds the morph's mix, so draw that
+                            const wave = morph
+                                ? value(morph.a, harmonicPhase) * (1 - morph.t) + value(morph.b, harmonicPhase) * morph.t
+                                : value(props.currentWaveform, harmonicPhase);
+                            sum += wave * amp;
                             totalAmp += amp;
                         }
                     }

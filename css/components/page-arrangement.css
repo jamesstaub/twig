@@ -256,7 +256,8 @@ body.surfaces #pad-grid-root {
     min-height: 0;
 }
 
-/* --- Settings surface: a form; scrolls inside the panel when tall --- */
+/* --- Settings and Presets surfaces: forms; scroll inside the panel when tall --- */
+body.surfaces #presets-control-root,
 body.surfaces #settings-control-root {
     width: 100%;
     flex: 1 1 auto;

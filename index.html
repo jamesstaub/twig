@@ -110,6 +110,8 @@
                                 <option value="square">Square</option>
                                 <option value="triangle">Triangle</option>
                                 <option value="sawtooth">Sawtooth</option>
+                                <!-- Shown while a preset crossfade morphs between two waveforms; not a choice -->
+                                <option value="" disabled hidden>Interpolated</option>
                             </select>
                             <button type="button" class="action-btn select-step-btn" data-target="waveform-select"
                                 data-step="1" aria-label="Next oscillator">-&gt;</button>
@@ -238,8 +240,21 @@
                 <div id="pad-grid-root" class="labeled-control">
                     <div class="pad-grid-header">
                         <span class="pad-grid-title">Trigger</span>
+                        <!-- Flips what a pad does: play the voice, or make it
+                             the fundamental (padGridController) -->
+                        <button type="button" id="pad-fundamental-toggle" class="overtone-mode-btn"
+                            aria-pressed="false"
+                            title="Set fundamental: tapping a pad promotes that overtone to the fundamental instead of playing it">Set Fundamental</button>
                     </div>
                     <div id="pad-grid" class="pad-grid"></div>
+                </div>
+
+                <!-- Presets surface: 32 banks, A/B crossfader, JSON state -->
+                <div id="presets-control-root" class="labeled-control">
+                    <div class="settings-header">
+                        <span class="settings-title">Presets</span>
+                    </div>
+                    <div id="presets-panel" class="settings-sections"></div>
                 </div>
 
                 <!-- Settings surface: MIDI routing/mapping + recording settings -->

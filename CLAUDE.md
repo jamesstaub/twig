@@ -101,8 +101,28 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
   enabled mid-playback without rewiring; "off" states are passthrough
   (null WaveShaper curve, 20 kHz cutoff, gate mode 0, conv dry 1/wet 0/no
   buffer). Pure math (e.g. `js/dsp/driveCurve.js`) stays out of the engine.
-- The voice's head is an OscillatorNode in `sourceMode: 'oscillators'`, or
-  a per-voice tap on one shared external node (`js/dsp/SourceManager.js`:
+- The voice's head (`stages/source.js`) is a PAIR of OscillatorNodes in
+  `sourceMode: 'oscillators'` — two wave slots mixed by a morph position.
+  Two oscillators started on the same frame at the same frequency are
+  sample-exactly phase-locked and PeriodicWave synthesis is linear, so a
+  gain crossfade between them IS the interpolation of their tables
+  (verified: the residual against a single oscillator on the lerped
+  coefficients is float noise). `voice.set({ waveform: { a, b, morph } })`
+  (slots = `{ wave: PeriodicWave, period }`, `harmonicWaveformPayload()`
+  in audio.js resolves names) loads a new endpoint into the SILENT slot
+  and fades — a `setPeriodicWave` on a sounding oscillator is a click
+  (measured: a saw→square swap steps 0.47) — so a waveform change
+  (`setCurrentWaveform`, `updateAllHarmonicWaveforms`) is a 20 ms morph,
+  never a restart; only a SOURCE change restarts the bank. Each slot
+  corrects its own frequency for its table's period (the voice's
+  `frequency` param is the true pitch; the modulator clock runs at the
+  audible slot's rate, `clockFrequency`); slots with equal periods mix
+  linearly (exact), unequal ones equal-power. `AppState.waveformMorph`
+  (`{ a, b, t }` or null) is a preset crossfade in progress;
+  `currentWaveform` is then the nearer endpoint (what the picker, the bake
+  and the bridge see). 'sine' is a one-coefficient PeriodicWave in the
+  engine's standard table so it can sit in a slot. Or the head is a
+  per-voice tap on one shared external node (`js/dsp/SourceManager.js`:
   ADC/soundfile/pink/white) — voices keep their frequency identity so the
   pitch-tracked lowpasses (forced to multiplier 1 / Q 30 on entering an
   external mode) form a resonant filter bank. The gate worklet, sequencer,
@@ -415,6 +435,54 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
   inside a grid-stretched ancestor is a circular sizing dependency that
   Chromium resolves by falling back to its WIDTH; the tonewheel sketch
   sizes its square from `Math.min(clientWidth, clientHeight)`.
+- Presets surface (`js/modules/presets/`, `#presets-control-root`, the
+  toolbar item above Settings): 32 storage banks, an A/B crossfader and
+  the JSON state view. Frontend-only for now — `presetStore.js` keeps the
+  banks in localStorage (`twig.presets`) and is the one file a backend
+  datastore replaces later. `presetSchema.js` is the contract: a preset
+  is a plain JSON tree of the SOUND (fundamental, system + its tunables,
+  master gain/slew, waveform, source, envelope mode, IR ring, and per
+  voice: amplitude, pan, drive, filter, convolution, envelope, gate,
+  sequencer) — never MIDI/recorder config, pulse/clock outputs, export
+  modes or play state; `SPEC` gives every leaf a range, default and
+  interpolation kind (`linear` levels, `geometric` frequencies/periods,
+  `integer` steps, `snap` choices — source, gate mode, shape, IR: A
+  below the midpoint, B from it — and `morph` for the waveform, which
+  crossfades between the two tables in the voices' wave slots and is
+  stored as a name or `{ a, b, t }`); `capture()` reads AppState,
+  `sanitize()` coerces any blob (pasted JSON, old banks), `interpolate(a,
+  b, t)` is pure. Systems are NOT interpolated by menu index: each
+  voice's resulting frequency is (geometrically), and the frame carries
+  the ratio table as a synthetic system (`currentSystemIndex` −1, name
+  "Interpolated", shown as a hidden disabled option in the system select;
+  never bridged — SPECTRAL_SYSTEM_CHANGED goes out without an index). A
+  baked wave or IR is stored by key; one the session no longer has
+  applies as sine / none. `presetApply.js` is the ONE bulk write path
+  (the actions layer is one parameter per event): it diffs the snapshot
+  against `capture()`, writes AppState, pushes every changed continuous
+  parameter of every running voice straight to the engine (the fast
+  path, so a CC-driven crossfade lands at the CC's rate), and coalesces
+  the structural work (voice-bank sync, IR retunes, gate/sequencer
+  messages, a restart on a waveform/source change) and the UI events
+  onto the next animation frame — SPECTRAL_SYSTEM_CHANGED at most every
+  150 ms while interpolated, since the strip rebuilds on it. A waveform
+  difference is a fast-path morph, not a restart.
+  `presetActions.js`: select/store/recall/rename/clear, the crossfader
+  (`setCrossfade(0-127)`; frames memoized per position until A, B or
+  their banks change — a frame is a few hundred lerps, no worker;
+  `clearInterpolation()` — the Interpolate card's Clear — unassigns A/B
+  and restores the sound captured when the fader first moved, which a
+  store/recall/JSON apply or any edit made outside a crossfade step
+  supersedes), JSON
+  in/out, and "dirty" (the sound vs. the state captured right after the
+  last store/recall, re-checked on rAF after any sound event). The A/B
+  banks and position are app config (`presetConfig`, appConfig.js);
+  `midiConfig.crossfaderCC` (Settings › MIDI › CC In) sweeps the fader
+  from the input router. `PRESETS_CHANGED` carries no detail; the panel
+  is built once and `sync()`ed on rAF (the JSON box and a mid-sweep
+  fader survive). Adding a synth parameter = one leaf in `SPEC` plus its
+  line in `capture()` and `presetApply.writeAppState` (see the
+  add-bridged-param skill).
 - Settings surface (`js/modules/settings/`, `#settings-control-root`):
   MIDI | Recording tabs (`selectTab`) over `MidiSettingsComponent`
   (a ports card, then one card per concern with its own channel and

@@ -21,6 +21,8 @@ export const CONVOLUTION_IRS_CHANGED = 'convolution-irs-changed';
 export const IR_RING_CHANGED = 'ir-ring-changed';
 export const RECORDER_CHANGED = 'recorder-changed';
 export const RECORDINGS_CHANGED = 'recordings-changed';
+// Preset banks, selection, loaded/dirty state or the A/B crossfader changed
+export const PRESETS_CHANGED = 'presets-changed';
 // Shell (embed | surfaces) or pointer density (coarse) changed — see
 // js/modules/layout/layoutMode.js. detail: { shell, coarse }
 export const LAYOUT_MODE_CHANGED = 'layout-mode-changed';

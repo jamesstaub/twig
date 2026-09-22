@@ -9,7 +9,7 @@ export class WaveformSelectorController extends BaseController {
     }
 
     getProps() {
-        return { currentWaveform: AppState.currentWaveform };
+        return { currentWaveform: AppState.currentWaveform, morphing: Boolean(AppState.waveformMorph) };
     }
 
     bindComponentEvents() {

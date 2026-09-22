@@ -1,4 +1,5 @@
 import { shapeMode } from './shapeMode.js';
+import { waveformMenuNames } from '../waveform/waveformActions.js';
 import { cycleStepper } from '../generic/cycleStepper.js';
 import { drawShapeContour, shapeIconDataURL } from '../overtoneSignal/sequencePreview.js';
 
@@ -76,6 +77,5 @@ export class ShapePanel {
 
 /** Waveform option list — always the main oscillator menu (customs included). */
 function waveformNames() {
-    const source = document.getElementById('waveform-select');
-    return source ? [...source.options].map((o) => o.value) : ['sine', 'square', 'triangle', 'sawtooth'];
+    return waveformMenuNames();
 }

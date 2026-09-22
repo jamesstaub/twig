@@ -33,6 +33,7 @@
 @import "./components/scope.css";
 @import "./components/envelope-viz.css";
 @import "./components/settings.css";
+@import "./components/presets.css";
 @import "./components/inspector.css";
 @import "./components/pads.css";
 @import "./components/status.css";
@@ -55,6 +56,7 @@
 @import "./components/overtone-toolbar.embed.css";
 @import "./components/viz.embed.css";
 @import "./components/settings.embed.css";
+@import "./components/presets.embed.css";
 @import "./components/inspector.embed.css";
 @import "./components/pads.embed.css";
 @import "./components/surfaces.embed.css";

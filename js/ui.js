@@ -7,7 +7,7 @@
 
 import { AppState, updateAppState } from './config.js';
 import { midiConfig } from './appConfig.js';
-import { MASTER_SLEW_CHANGED, ENVELOPE_MODE_CHANGED, SURFACE_CHANGED } from './events.js';
+import { MASTER_GAIN_CHANGED, MASTER_SLEW_CHANGED, ENVELOPE_MODE_CHANGED, SURFACE_CHANGED } from './events.js';
 import { OvertoneSignalActions } from './modules/overtoneSignal/overtoneSignalActions.js';
 import { updateValue } from './domUtils.js';
 import { DrawbarsController } from './modules/drawbars/drawbarsController.js';
@@ -41,6 +41,7 @@ import { surfaceState } from './modules/surfaces/surfaceState.js';
 import { InspectorController } from './modules/inspector/inspectorController.js';
 import { PadGridController } from './modules/pads/padGridController.js';
 import { SettingsController } from './modules/settings/settingsController.js';
+import { PresetsController } from './modules/presets/presetsController.js';
 import { EnvelopeModeController } from './modules/envelopeMode/envelopeModeController.js';
 
 let settingsController;
@@ -150,6 +151,10 @@ function setupSurfaces() {
         shapeMode.reset();
         linkLock.set(false);
     });
+    // Presets surface: banks, crossfader, JSON — mounted before the
+    // surfaces controller so the panel has sized itself while visible
+    new PresetsController('#presets-control-root').init();
+
     // Settings surface (MIDI + recording) — the recorder's ⚙ lands here
     settingsController = new SettingsController('#settings-control-root');
     settingsController.init();
@@ -180,7 +185,7 @@ function setupEnvelopeMode() {
 
 function setupControlSliders() {
     // Master Gain Slider
-    new SliderController('#master-gain-slider-root', {
+    const gainSlider = new SliderController('#master-gain-slider-root', {
         min: 0,
         max: 1,
         step: 0.01,
@@ -189,10 +194,11 @@ function setupControlSliders() {
         formatValue: (v) => `${(v * 100).toFixed(0)}%`,
     }, (value) => {
         smoothUpdateMasterGain(value);
-    }).init();
+    });
+    gainSlider.init();
 
     // Master Slew Slider
-    new SliderController('#master-slew-slider-root', {
+    const slewSlider = new SliderController('#master-slew-slider-root', {
         min: 0,
         max: 10,
         step: 0.01,
@@ -211,7 +217,16 @@ function setupControlSliders() {
     }, (value) => {
         updateAppState({ masterSlewValue: value });
         document.dispatchEvent(new CustomEvent(MASTER_SLEW_CHANGED, { detail: { value } }));
-    }).init();
+    });
+    slewSlider.init();
+
+    // Both follow changes made elsewhere (a preset recall, a crossfade, the
+    // bridge); a slider's own write lands on the value it already shows
+    const follow = (slider, read) => () => {
+        if (Math.abs(parseFloat(slider.component.input.value) - read()) > 1e-9) slider.setValue(read());
+    };
+    document.addEventListener(MASTER_GAIN_CHANGED, follow(gainSlider, () => AppState.masterGainValue));
+    document.addEventListener(MASTER_SLEW_CHANGED, follow(slewSlider, () => AppState.masterSlewValue));
 
     // Narrow layouts move the two into the rail down the right edge
     new MasterRailController('#master-rail', '.navbar-section.center',
@@ -244,7 +259,10 @@ function setupSelectSteppers() {
             if (!select || select.options.length === 0) return;
             const step = parseInt(btn.dataset.step, 10) || 1;
             const count = select.options.length;
-            select.selectedIndex = (select.selectedIndex + step + count) % count;
+            let index = select.selectedIndex;
+            // Skip display-only entries (the waveform menu's "Interpolated")
+            do { index = (index + step + count) % count; } while (select.options[index].disabled);
+            select.selectedIndex = index;
             select.dispatchEvent(new Event('change', { bubbles: true }));
         });
     });
@@ -258,5 +276,5 @@ function setupSelectSteppers() {
 export function updateUI() {
 
     // Update waveform selector
-    updateValue('waveform-select', AppState.currentWaveform);
+    updateValue('waveform-select', AppState.waveformMorph ? '' : AppState.currentWaveform);
 }

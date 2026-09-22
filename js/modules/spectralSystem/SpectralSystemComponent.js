@@ -94,6 +94,15 @@ export class SpectralSystemComponent extends BaseComponent {
             if (index === currentSystemIndex) option.selected = true;
             selectEl.appendChild(option);
         });
+        // A preset crossfade between two systems sounds a ratio table that
+        // is on no menu: the select shows that, but can't be set to it
+        const interpolated = document.createElement('option');
+        interpolated.textContent = 'Interpolated';
+        interpolated.value = -1;
+        interpolated.disabled = true;
+        interpolated.hidden = true;
+        interpolated.selected = currentSystemIndex < 0;
+        selectEl.appendChild(interpolated);
 
         this.setDescription(currentSystem?.description || '');
 
@@ -108,7 +117,7 @@ export class SpectralSystemComponent extends BaseComponent {
         const selectEl = this.q('#ratio-system-select');
         if (!selectEl) return;
 
-        if (currentSystemIndex >= 0) selectEl.value = currentSystemIndex;
+        selectEl.value = currentSystemIndex >= 0 ? currentSystemIndex : -1;
         this.setDescription(currentSystem?.description || '');
         this.renderDials({ currentSystem, startHarmonic, systemParams });
     }

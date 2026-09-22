@@ -26,6 +26,7 @@ export const MIDI_SETTING_RANGES = {
     gainCCStart: [0, MIDI_RANGE_START_MAX],
     cutoffCCStart: [0, MIDI_RANGE_START_MAX],
     convWetCCStart: [0, MIDI_RANGE_START_MAX],
+    crossfaderCC: [0, 127],
     pulseChannel: [1, 16],
     pulseNoteStart: [0, MIDI_RANGE_START_MAX],
 };

@@ -1,4 +1,4 @@
-import { addWaveformToAudio, buildCurrentSpectrum, restartAudio } from "../../audio.js";
+import { addWaveformToAudio, buildCurrentSpectrum, updateAllHarmonicWaveforms } from "../../audio.js";
 import { AppState, updateAppState } from "../../config.js";
 import { showStatus } from "../../domUtils.js";
 import { generateFilenameParts } from "../../utils.js";
@@ -7,18 +7,29 @@ import { TonewheelActions } from "../tonewheel/tonewheelActions.js";
 
 export const CURRENT_WAVEFORM_CHANGED = 'currentWaveformChanged';
 
-export function handleWaveformChange(e) {
-    const currentWaveform = e.target.value
+/**
+ * The oscillator menu's choosable waveform names, in menu order (built-ins,
+ * then baked waves) — skipping the disabled "Interpolated" display option.
+ */
+export function waveformMenuNames() {
+    const select = document.getElementById('waveform-select');
+    return select ? [...select.options].filter((o) => !o.disabled).map((o) => o.value) : ['sine', 'square', 'triangle', 'sawtooth'];
+}
 
-    updateAppState({ currentWaveform });
+export function handleWaveformChange(e) {
+    setCurrentWaveform(e.target.value);
+}
+
+/** Choose the waveform: running voices morph onto it — no restart, no click. */
+export function setCurrentWaveform(currentWaveform) {
+    if (!currentWaveform) return; // the menu's display-only "Interpolated" entry
+    updateAppState({ currentWaveform, waveformMorph: null });
 
     document.dispatchEvent(new CustomEvent(CURRENT_WAVEFORM_CHANGED, {
         detail: { currentWaveform }
     }));
 
-    if (AppState.isPlaying) {
-        restartAudio();
-    }
+    updateAllHarmonicWaveforms();
 }
 
 
@@ -109,15 +120,11 @@ export function addWaveformToUI(AppState, waveKey, customWaveIndex) {
 
     select.appendChild(option);
 
-    updateAppState({ currentWaveform: waveKey });
     select.value = waveKey;
+    setCurrentWaveform(waveKey);
 
     showStatus(
         `Successfully added new waveform: Custom ${customWaveIndex}. Now synthesizing with it!`,
         "success"
     );
-
-    if (AppState.isPlaying) {
-        restartAudio();
-    }
 }

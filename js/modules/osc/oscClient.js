@@ -115,7 +115,7 @@ import { DrawbarsActions } from "../drawbars/drawbarsActions.js";
 import { SpectralSystemActions } from "../spectralSystem/spectralSystemActions.js";
 import { FundamentalActions } from "../fundamental/fundamentalActions.js";
 import { PlayToggleActions } from "../playToggle/playToggleActions.js";
-import { handleWaveformChange, CURRENT_WAVEFORM_CHANGED } from "../waveform/waveformActions.js";
+import { setCurrentWaveform, waveformMenuNames, CURRENT_WAVEFORM_CHANGED } from "../waveform/waveformActions.js";
 import { smoothUpdateMasterGain } from "../../utils.js";
 import {
     DRAWBAR_CHANGE,
@@ -373,9 +373,7 @@ export class OscClient {
                 // (0-3 built-ins, then custom waveforms in creation order).
                 // Max/Live can't know how many custom waveforms exist, so
                 // anything unknown or out of range is a silent no-op.
-                const select = document.getElementById('waveform-select');
-                if (!select) break;
-                const options = Array.from(select.options).map(o => o.value);
+                const options = waveformMenuNames();
                 let name = null;
                 if (typeof args[0] === 'string' && options.includes(args[0])) {
                     name = args[0];
@@ -383,7 +381,7 @@ export class OscClient {
                     name = options[Math.round(args[0])] ?? null;
                 }
                 if (name !== null && name !== AppState.currentWaveform) {
-                    handleWaveformChange({ target: { value: name } });
+                    setCurrentWaveform(name);
                 }
                 break;
             }
@@ -498,8 +496,7 @@ export class OscClient {
                 // options as the oscillator menu (index into it, or name)
                 const [n, rest] = perVoiceArgs(sub, args);
                 if (n === null || rest[0] === undefined) break;
-                const select = document.getElementById('waveform-select');
-                const options = select ? Array.from(select.options).map((o) => o.value) : [];
+                const options = waveformMenuNames();
                 let name = null;
                 if (typeof rest[0] === 'string' && options.includes(rest[0])) {
                     name = rest[0];
@@ -752,10 +749,7 @@ export class OscClient {
         document.addEventListener(CURRENT_WAVEFORM_CHANGED, () => {
             // Index first so a Live int param can store it directly; name
             // second for readability ([unpack i s] and use what you need)
-            const select = document.getElementById('waveform-select');
-            const index = select
-                ? Array.from(select.options).findIndex(o => o.value === AppState.currentWaveform)
-                : -1;
+            const index = waveformMenuNames().indexOf(AppState.currentWaveform);
             this.emit('waveform', index >= 0
                 ? [index, AppState.currentWaveform]
                 : [AppState.currentWaveform]);

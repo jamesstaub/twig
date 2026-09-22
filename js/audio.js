@@ -74,21 +74,39 @@ export async function initAudio() {
 // ================================
 
 /**
- * Resolves waveform parameter to a proper Web Audio API format
- * @param {string} waveformName - Waveform name from AppState
- * @returns {string|PeriodicWave} Resolved waveform
+ * A waveform name as a voice wave slot: its table and the fundamental
+ * periods the table spans (a baked wave plays at frequency / period). A
+ * baked wave the session no longer has plays as a sine.
+ * @returns {{wave: PeriodicWave, period: number}}
  */
-function resolveWaveform(waveformName) {
-    if (!waveformName) {
-        return 'sine';
+function waveSlot(name) {
+    if (name?.startsWith('custom_')) {
+        const wave = wavetableManager.getWaveform(name);
+        if (wave) return { wave, period: wavetableManager.getPeriodMultiplier(name) };
     }
+    return { wave: audioEngine.standardWave(name || 'sine'), period: 1 };
+}
 
-    if (waveformName.startsWith('custom_')) {
-        const customWave = wavetableManager.getWaveform(waveformName);
-        return customWave || 'sine';
-    }
+/**
+ * The voices' waveform parameter: the current wave, or the preset
+ * crossfade in progress between two (see SourceStage.setWaveform).
+ */
+export function harmonicWaveformPayload() {
+    const morph = AppState.waveformMorph;
+    if (morph) return { a: waveSlot(morph.a), b: waveSlot(morph.b), morph: morph.t };
+    return { a: waveSlot(AppState.currentWaveform) };
+}
 
-    return waveformName;
+/** Seconds a waveform change takes to morph onto the new table. */
+const WAVEFORM_MORPH_S = 0.02;
+
+/** Apply the current waveform (or crossfade) to every running voice, click-free. */
+export function updateAllHarmonicWaveforms(ramp = WAVEFORM_MORPH_S) {
+    // Nothing to morph while stopped (a bank is built from AppState) or in
+    // an external source mode
+    if (AppState.sourceMode !== 'oscillators' || audioEngine.voices.size === 0) return;
+    const waveform = harmonicWaveformPayload();
+    for (const voice of audioEngine.voices.values()) voice.set({ waveform }, ramp);
 }
 
 /**
@@ -183,17 +201,14 @@ function createHarmonicVoice(i, ratio, gain, startAt = null) {
     // (also covers voices created mid-playback by a system switch)
     const source = AppState.sourceMode !== 'oscillators' ? sourceManager.node : null;
     const frequency = calculateFrequency(ratio);
-    const waveform = resolveWaveform(AppState.currentWaveform);
-    // External-source voices skip period correction — there is no packed
-    // wavetable playing; frequency only tunes the filter and gate clock
-    const frequencyCorrection = source ? 1 : getFrequencyCorrection(AppState.currentWaveform);
-    const correctedFrequency = frequency * frequencyCorrection;
 
     return audioEngine.addVoice(i, {
-        waveform,
         source,
         startAt,
-        frequency: correctedFrequency,
+        // The wave slots correct for their own table periods; an
+        // external-source voice has none (frequency tunes its filter and clock)
+        waveform: source ? undefined : harmonicWaveformPayload(),
+        frequency,
         gain,
         envelopeOpen: AppState.envelopeMode !== 'adsr',
         gate: AppState.oscillatorGates[i],
@@ -596,16 +611,14 @@ function updateAudioPropertiesOscillators(rampTime) {
         if (seqCurveStale) updateHarmonicSequencer(i);
 
         const baseFreq = calculateFrequency(ratio);
-        const frequencyCorrection = getFrequencyCorrection(AppState.currentWaveform);
-        const newFreq = baseFreq * frequencyCorrection;
 
         // Prevent non-finite frequency values
-        if (!isFinite(newFreq) || isNaN(newFreq)) {
+        if (!isFinite(baseFreq) || isNaN(baseFreq)) {
             newGain = 0;
         } else {
             // The lowpass cutoff is relative to the voice's pitch — retarget
             // it so filters track fundamental glides and system changes
-            voice.set({ frequency: newFreq, filter: { cutoff: harmonicFilterCutoff(i, baseFreq) } }, rampTime);
+            voice.set({ frequency: baseFreq, filter: { cutoff: harmonicFilterCutoff(i, baseFreq) } }, rampTime);
             // Pitched IR and series-relative feedback period follow the voice
             updateHarmonicConvolution(i);
         }

@@ -40,6 +40,20 @@ in the getter, not in the store. Document the range in the comment.
 - Consider the bulk ops: should view-scoped Reset/Randomize
   (`resetFilters` etc.) include it?
 
+## 3b. Presets — `js/modules/presets/presetSchema.js` + `presetApply.js`
+
+Every synth parameter is preset-storable and crossfadable:
+- `presetSchema.js`: add the leaf to `SPEC` / `VOICE_SPEC` (`num(min, max,
+  kind, default)` — kind `linear` for a level, `geometric` for a
+  frequency/period, `integer` for a stepped index, `snap` for a choice —
+  or `snap(default)` for a non-number) and read it in `capture()`.
+- `presetApply.js`: write it in `writeAppState`; a continuous per-voice
+  parameter also goes into `writeAudioFast` (the engine write for a
+  crossfade step) and its `updateHarmonicX` into `flush()` for the
+  structural case; global ones get their event dispatched in `flush()`.
+- If a new event announces it, add that event to `SOUND_EVENTS` in
+  `presetsController.js` so a change marks the loaded preset dirty.
+
 ## 4. OSC bridge — `js/modules/osc/oscClient.js` AND `server.js`
 
 Client:
