@@ -37,10 +37,11 @@ import { LAYOUT_MODE_CHANGED } from '../../events.js';
 const NARROW_QUERY = '(max-width: 85rem)';
 
 // Source above a surface takes ~320px, and the drawbar strip under it must
-// stay out of its compact mode (420px); its three-across row needs a
-// stack ~50rem wide even with the side column open beside it — a desktop
-// window, never a narrow one.
-const ROOMY_QUERY = '(min-height: 54rem) and (min-width: 85.01rem)';
+// stay out of its compact mode (420px) — under a one-row navbar that is
+// ~54rem tall. Its three-across row needs a stack ~36rem wide beside the
+// side column: a 1100px window (68.75rem). Tablets and phones keep one
+// surface at a time.
+const ROOMY_QUERY = '(min-height: 54rem) and (min-width: 68.75rem)';
 
 const state = { shell: 'surfaces', coarse: false, narrow: false, roomy: false };
 

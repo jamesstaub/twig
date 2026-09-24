@@ -66,6 +66,19 @@
     margin-bottom: 0;
 }
 
+/* The narrowest System panel (a docked third at 1100px): "Overtone ⇄
+   Subharmonic" is wider than the panel — the labels shrink and lose their
+   Partch sublabels */
+@container system-panel (max-width: 15rem) {
+    .subharmonic-toggle-container .toggle-label {
+        font-size: var(--font-size-sm);
+    }
+
+    .subharmonic-toggle-container .toggle-sublabel {
+        display: none;
+    }
+}
+
 .toggle-sublabel {
     display: block;
     font-size: 0.7em;

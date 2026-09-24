@@ -284,6 +284,14 @@ body.surfaces #spectral-system-root {
         padding: 0 0.15rem;
     }
 
+    /* The narrowest panels (a docked third at 1100px): smaller text, so
+       "12:1 1569.8" still fits a third of the panel */
+    @container system-panel (max-width: 15rem) {
+        .system-frequencies {
+            --frequency-font-size: var(--font-size-2xs-alt);
+        }
+    }
+
     /* The frequency is the point: in the narrowest panels a long ratio
        label gives way, never the value */
     .system-frequency > .system-frequency-label {

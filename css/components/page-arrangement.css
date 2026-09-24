@@ -57,6 +57,13 @@ body.surfaces .control-card {
     max-width: none;
 }
 
+/* Narrow: the side column gives up a quarter of its width — at 1100px it
+   would otherwise take a third of the window, and the docked Source
+   panel's three panels the leftovers */
+body.narrow {
+    --dock-width: 15rem;
+}
+
 /* --- The card is exactly two cells: the surface stack (every main panel,
        one column) and the side column (the surface's visualization over
        the tonewheel — only the parameter surfaces have one, opened and
@@ -207,7 +214,9 @@ body.source-docked #m4l-fundamental-source-panel {
     overflow-y: visible;
 }
 
-@container surface-stack (min-width: 40rem) {
+/* Three across from a narrower stack than the alone layout's two: docked
+   height is the scarce thing, and a 1100px window's stack is ~36rem */
+@container surface-stack (min-width: 34rem) {
     body.source-docked #m4l-fundamental-source-panel {
         grid-template-columns: repeat(3, minmax(0, 1fr));
         grid-template-rows: auto;

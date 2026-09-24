@@ -156,8 +156,9 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
   shell; **narrow** (`body.narrow`, ≤ 85rem wide on the surfaces shell)
   is the tablet-and-smaller arrangement — wrapping navbar, master rail;
   **roomy** = the Source panel fits on screen TOGETHER with another
-  surface (`ROOMY_QUERY`: ≥ 54rem tall and wider than narrow; the embed
-  band always is, being as wide as it needs). Changes dispatch
+  surface (`ROOMY_QUERY`: ≥ 54rem tall and ≥ 68.75rem = 1100px wide —
+  so it overlaps narrow, where the side column narrows to 15rem to make
+  room; the embed band always is, being as wide as it needs). Changes dispatch
   `LAYOUT_MODE_CHANGED`.
 - Readouts are inline, never floating: `Dial` renders its own caption
   above the arc and value below it (`.mini-dial-label` / `.mini-dial-value`,
@@ -374,9 +375,9 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
   source over an ALWAYS full-width system panel from 40rem; it fits the
   screen from tablets up, a phone scrolls inside the panel. DOCKED (`body.source-docked`, where
   `layoutMode.roomy`): it takes only its own height — all three panels
-  across ONE row above the active surface, which keeps the rest (the
-  roomy thresholds guarantee the strip under it stays out of compact
-  mode); from 120rem it stands BESIDE the surface instead, one 22rem
+  across ONE row above the active surface (from a 34rem stack — a 1100px
+  window's), which keeps the rest (the roomy thresholds guarantee the
+  strip under it stays out of compact mode); from 120rem it stands BESIDE the surface instead, one 22rem
   column, and the card's max-width is lifted so the surface isn't
   squeezed.
   Everything in it flexes rather than
