@@ -40,8 +40,7 @@ import { SurfacesController } from './modules/surfaces/surfacesController.js';
 import { surfaceState } from './modules/surfaces/surfaceState.js';
 import { InspectorController } from './modules/inspector/inspectorController.js';
 import { PadGridController } from './modules/pads/padGridController.js';
-import { SettingsController } from './modules/settings/settingsController.js';
-import { PresetsController } from './modules/presets/presetsController.js';
+import { initPresets } from './modules/presets/presetsController.js';
 import { EnvelopeModeController } from './modules/envelopeMode/envelopeModeController.js';
 
 let settingsController;
@@ -151,20 +150,49 @@ function setupSurfaces() {
         shapeMode.reset();
         linkLock.set(false);
     });
-    // Presets surface: banks, crossfader, JSON — mounted before the
-    // surfaces controller so the panel has sized itself while visible
-    new PresetsController('#presets-control-root').init();
+    // The preset banks and their dirty tracking load now (a MIDI
+    // crossfade must work before the panel is ever opened); the panel
+    // itself, like Settings, is built the first time it is shown —
+    // together they are ~28 kB of code and a few hundred nodes that most
+    // sessions never look at.
+    initPresets();
+    document.addEventListener(SURFACE_CHANGED, () => mountPanelFor(surfaceState.active));
+}
 
-    // Settings surface (MIDI + recording) — the recorder's ⚙ lands here
-    settingsController = new SettingsController('#settings-control-root');
-    settingsController.init();
+/** Panels built on first show: id → the mount, run once. */
+const LAZY_PANELS = {
+    presets: async () => {
+        const [{ PresetsController }, { PresetsComponent }] = await Promise.all([
+            import('./modules/presets/presetsController.js'),
+            import('./modules/presets/PresetsComponent.js'),
+        ]);
+        new PresetsController('#presets-control-root', PresetsComponent).init();
+    },
+    settings: async () => {
+        const { SettingsController } = await import('./modules/settings/settingsController.js');
+        settingsController = new SettingsController('#settings-control-root');
+        settingsController.init();
+    },
+};
+const mounted = new Map();
+
+/** Build a lazy panel if this surface has one; resolves once it is up. */
+export function mountPanelFor(surfaceId) {
+    const mount = LAZY_PANELS[surfaceId];
+    if (!mount) return Promise.resolve();
+    if (!mounted.has(surfaceId)) mounted.set(surfaceId, mount());
+    return mounted.get(surfaceId);
 }
 
 function setupMainButtons() {
     new PlayToggleController('.play-toggle-container').init();
     setupEnvelopeMode();
     const recorder = new RecorderController('#recorder-root');
-    recorder.onOpenSettings = () => settingsController?.open('recorder');
+    // The ⚙ can be the first thing that ever needs the settings panel
+    recorder.onOpenSettings = async () => {
+        await mountPanelFor('settings');
+        settingsController?.open('recorder');
+    };
     recorder.init();
 }
 

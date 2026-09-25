@@ -3,6 +3,7 @@ import { midiConfig } from "../../appConfig.js";
 import { updateHarmonicGate, updateHarmonicFilter, updateHarmonicDrive, updateHarmonicConvolution, updateHarmonicPan, updateHarmonicPulse, updateHarmonicSequencer, updateAllHarmonicEnvelopeModes, MAX_FILTER_PARTIALS } from "../../audio.js";
 import { getVoicePan } from "../../utils.js";
 import { irManager } from "../../dsp/IRManager.js";
+import { PATTERNS } from "../../dsp/gate/patterns.js";
 import { OVERTONE_SIGNAL_CHANGED, ENVELOPE_MODE_CHANGED } from "../../events.js";
 
 /**
@@ -281,9 +282,12 @@ export const OvertoneSignalActions = {
      * inaudible, which reads as a broken button).
      */
     randomizeGates() {
+        // Only the patterns that say they are worth landing on: randomizing
+        // x/y under "off" would be inaudible, which reads as a broken button
+        const choices = PATTERNS.filter((p) => p.randomizable);
         for (let i = 0; i < this._voiceCount(); i++) {
             this.setGate(i, {
-                mode: 1 + Math.floor(Math.random() * 2),
+                mode: choices[Math.floor(Math.random() * choices.length)].id,
                 x: 1 + Math.floor(Math.random() * 8),
                 y: 2 + Math.floor(Math.random() * 15),
                 seq: [],

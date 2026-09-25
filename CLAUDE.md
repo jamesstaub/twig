@@ -32,8 +32,23 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
 ## Build & run
 
 - `npm run build` (= `node build.js`) — esbuild bundles `js/` to
-  `dist/app.js` and resolves `css/styles.css`'s @import chain into
-  `dist/styles-compiled.css`. One step covers JS and CSS changes.
+  `dist/app.js` (+ `dist/chunks/`, see below), the gate worklet to
+  `dist/gate-processor.js`, and resolves `css/styles.css`'s @import chain
+  into `dist/styles-compiled.css`. One step covers all three.
+- The app build uses CODE SPLITTING: a `import()` becomes its own chunk
+  fetched on first use, not at boot. What is deferred today: the Presets
+  and Settings panels (built the first time their surface is shown —
+  `LAZY_PANELS` / `mountPanelFor` in ui.js; the presets STATE still boots
+  eagerly, since a MIDI crossfade must work before the panel is opened).
+  Boot is ~80 kB gzipped over 8 files.
+- `server.js` gzips what it serves (`compression`), so measure transfer
+  with `PerformanceResourceTiming.transferSize` — a gzipped response has
+  no `content-length`.
+- NO p5 (or any rendering library): the visualizations draw on
+  `js/modules/generic/sketch/Sketch.js`, the app's own canvas runtime.
+  p5 was 1.3 MB of the 1.55 MB bundle and ~350 ms of mobile boot for a
+  few dozen 2D calls, and it ran a JS parser (acorn) and a schema
+  validator (zod) at page load. Keep it out.
 - `node server.js` (PORT env, default 3333) — static host + OSC/WebSocket
   bridge. The same file runs under `[node.script]` inside the M4L device,
   binding an ephemeral port announced via `[outlet port <n>]`.
@@ -166,7 +181,7 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
   the top (`triggerHarmonicAttack` → `voice.retrigger()` in poly,
   `sourceManager.retrigger()` in mono) — in Drone mode it then plays
   once. PULSES IN SAMPLE MODE follow the sample, not its pitch: a voice's
-  cycle clock (the gate worklet's `frequency`) is its LOOP rate —
+  cycle clock (the worklet's `cycleRate`) is its LOOP rate —
   playback rate ÷ range length (`SourceStage.clockFrequency`; the mono
   player's `1 / loopSeconds`, handed to every voice as the `clock` param
   with the player's start time, `updateAllHarmonicClocks`) — and the
@@ -193,10 +208,34 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
   audio data"), so `js/dsp/aiff.js` (pure) reads AIFF/AIFF-C PCM itself —
   8/16/24/32-bit big-endian, 'sowt' little-endian (Apple/Logic), fl32/fl64;
   compressed AIFF-C (ima4, ulaw…) throws a clear message.
-- The gate worklet (`js/dsp/worklets/gate-processor.js`) is served
-  **unbundled** — no imports allowed in that file. Arbitrary data (0/1
-  sequences, shape tables) goes over `port.postMessage`, numbers go as
-  AudioParams.
+- The SEQUENCER worklet — one per voice, between its level and drive
+  stages. `js/dsp/worklets/gate-processor.js` is only the wiring (the
+  AudioParams, the port protocol, the sample loop); what it runs lives in
+  `js/dsp/gate/`, split by concern and each piece usable on its own:
+  `cycleClock.js` (the voice's cycles and phase, and restarts scheduled at
+  an audio-clock time), `patterns.js` (WHICH cycles sound),
+  `contours.js` (the shape WITHIN a cycle), `gateSignal.js` (pattern ×
+  contour × declick = the one unipolar 0-1 modulation SOURCE),
+  `modTargets.js` (its DESTINATIONS — the gated audio, and a CV per
+  target summed into another stage's AudioParam) and `clockBeats.js` (the
+  MIDI clock's octave folding). Source and destinations are deliberately
+  apart: driving one voice's parameter from ANOTHER voice's sequence is
+  then a routing change, not a rewrite.
+  - It is **bundled** (build.js → `dist/gate-processor.js`, which
+    `ModulatorStage` loads): AudioWorklet modules can import at runtime
+    in Chromium, but a bundle is one dependency-free file on every
+    runtime this ships to, jweb included. `npm run build` after editing
+    any of it; `npm run dev` watches it.
+  - `patterns.js` and `contours.js` are SHARED with the app (the preview
+    draws exactly what the worklet plays, the inspector's mode list and
+    dials come from the registry, the bridge parses pattern names from
+    it, Randomize picks among the `randomizable` ones). ADDING A PATTERN
+    TYPE or a contour is one entry in the registry — ids are the stored
+    and bridged value, so never renumber.
+  - Arbitrary data (0/1 sequences, contour tables, the cutoff CV's series
+    curve) goes over `port.postMessage`; numbers go as AudioParams. The
+    app's names are translated to the worklet's in ModulatorStage, the
+    one place that knows the protocol.
 - Filter cutoffs are series-relative, not absolute Hz: the multiplier is a
   1-based partial index into the current system's ratio table applied to the
   voice's audible base (lowest integer multiple of its pitch clearing 20 Hz)
@@ -288,9 +327,7 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
   `SurfacesController` mounts LAST in `initUI()` so every panel has sized
   itself while visible. The side column defaults OPEN for fine pointers
   and CLOSED for `body.coarse` — resolved lazily (`sideDefault()`), NOT at
-  module import, because `layoutMode.init()` runs later than imports. p5
-  gotcha: the tonewheel sketch's `windowResized` can run before `setup()`,
-  so it early-returns until `canvasReady`.
+  module import, because `layoutMode.init()` runs later than imports.
 - Page markup (`index.html`): `.control-card` holds exactly two children
   — the `.surface-stack` (every main panel, a flex column; the LAST
   visible one carries `flex:1`) and the `.surface-side` (each parameter
@@ -376,8 +413,8 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
   ‹ › stepper it and the IR picker share. The strip shapes bars and
   dials (`shapeParamRow`, snapped to the parameter's step); the inspector
   shapes its ranged controls (`applyValue`). Gate contours are unipolar
-  0-1 and share one definition, mirrored in `shapeContour()`
-  (sequencePreview.js) and `shapeValue()` (gate-processor.js).
+  0-1 and have ONE definition — `js/dsp/gate/contours.js`, which the
+  worklet plays and `shapeContour()` (sequencePreview.js) draws.
 - Sequence surface = the inspector (`js/modules/inspector/`): one voice's
   sequence gate + shape, modulation depths and pulse outs. Gate fields
   are `Dial`s with per-mode ranges and defaults (`GATE_PARAM_DIALS`:
@@ -451,7 +488,7 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
   (`#current-waveform-canvas-area`: `flex:1`, a `vh`-scaled floor) with
   the canvas absolutely filling it — `WaveformComponent.boxSize()` sizes
   the bitmap from that box (width AND height changes, ResizeObserver) and
-  has no dependency on the tonewheel's p5 instance. The Overtone System
+  has no dependency on the tonewheel's sketch. The Overtone System
   panel takes whatever height the Source panel has left (the grid's last
   row is `1fr`), and under its menu everything lives in `.system-body`,
   which takes the panel's spare height: a wide panel (≥ 32rem) lays it out as
@@ -479,7 +516,35 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
   `formatFrequency` / `formatHz` (utils.js) are the one voice-frequency
   formatter (pads, this list) — precision by magnitude, six characters
   at most, which the list's column widths rely on.
-- Visualizations (side column): waveform (`WaveformController`, p5,
+- `js/modules/generic/sketch/Sketch.js` is the canvas runtime the
+  animated visualizations use: it owns one canvas, sizes its backing
+  store to `devicePixelRatio` (drawing stays in CSS pixels), and runs a
+  rAF loop (`loop: false` = repaint only on `redraw()`, which is how the
+  waveform previews work). `FIT.SQUARE` sizes to the container's smaller
+  side (the tonewheel is a circle). It exists so effects (`ctx.filter`, a
+  post-pass, a WebGL variant behind the same `draw(ctx, sketch)`
+  contract) and video export (`sketch.canvas.captureStream(fps)` into a
+  MediaRecorder) have one owned canvas to hook. `ctx.lineCap` defaults to
+  `round` here — that was p5's default and the visuals were drawn against
+  it; Canvas2D's own default is `butt`. A closed ring is drawn with
+  `ellipse(...)` + `closePath()` so its seam is a join, not two line ends.
+- RENDERING DISCIPLINE: `BaseController.scheduleUpdate()` does NOT render
+  a panel that is off screen — it remembers the update and runs it when
+  the surface appears (`flushDeferredUpdate`, driven by the surfaces
+  controller through `flushHiddenControllers`). Most controllers listen
+  to app-wide events, so without this a fundamental sweep re-rendered
+  hidden panels on every step. Anything that must run while hidden calls
+  `update()` directly. For a readout that changes at gesture rate, write
+  `node.nodeValue` rather than `el.textContent`: textContent destroys and
+  rebuilds the text node every time (see `setText` in
+  SpectralSystemComponent).
+- The live favicon (`modules/favicon/`) is a thumbnail of the tonewheel:
+  it starts on the first Play (never at boot), stops when the sound stops
+  or the tab is hidden, and refreshes at 100 ms on a fine pointer /
+  2000 ms on `layoutMode.coarse` — it costs a crop, a pixel pass and a
+  PNG encode per frame.
+- Visualizations (side column): waveform (`WaveformController`, a
+  stopped `Sketch` repainted on demand,
   `#waveform-canvas-area`; the Source panel has a second, `mode: 'single'`
   instance for the chosen oscillator), spectrum (`SpectrumComponent`,
   `HEIGHT = 96` written as an inline `!important` style — keep it equal to
@@ -710,9 +775,8 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
 
 - **NEVER test against port 3333** — that is the user's live session. Use
   `PORT=3401 node server.js`.
-- Source modules cannot be imported raw in a page (extensionless imports in
-  the fundamental modules, bare `p5` specifier) — always test through the
-  built bundle.
+- Source modules cannot be imported raw in a page (extensionless imports
+  in the fundamental modules) — always test through the built bundle.
 - `window.TWIG` debug API: `getState()`, `getAudioEngine()`,
   `pulses.subscribe(voice|'*', fn)`.
 - Headless browser recipe (Brave + puppeteer-core, MIDI stubbing, dial
@@ -780,8 +844,8 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
   follows) and otherwise the cycle folded by octaves into that window —
   `clockFold(hz)`: 0 inside the window (so octave jumps there ARE tempo
   jumps), else the fewest halvings/doublings; a pure function of the
-  rate, no hysteresis; defined in clockTicks.js and MIRRORED in
-  gate-processor.js (no imports there). Folding on the audio thread is
+  rate, no hysteresis; defined once in `js/dsp/gate/clockBeats.js`, which
+  the worklet counts beats with and clockTicks.js re-exports. Folding on the audio thread is
   what lets a clock voice above the 50 Hz pulse cap clock at all, and
   beat boundaries always sit on the voice's cycle grid. The messages ride
   the engine's `onPulse` path and `pulseBus.dispatch` splits them by

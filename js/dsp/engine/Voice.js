@@ -60,21 +60,21 @@ const TEARDOWN_MS = 15;
 const APPLY = {
     waveform(s, waveform, time, ramp) {
         s.source.setWaveform(waveform, time, ramp);
-        s.modulator.setFrequency(s.source.clockFrequency, time, ramp);
+        s.modulator.setCycleRate(s.source.clockFrequency, time, ramp);
     },
     sample(s, sample, time, ramp) {
         const restartedAt = s.source.setSample(sample, time, ramp);
-        s.modulator.setFrequency(s.source.clockFrequency, time, ramp);
+        s.modulator.setCycleRate(s.source.clockFrequency, time, ramp);
         if (restartedAt !== null) s.modulator.resetPhase(restartedAt);
     },
     clock(s, { frequency, at }, time, ramp) {
         s.source.setClock(frequency ?? null);
-        s.modulator.setFrequency(s.source.clockFrequency, time, ramp);
+        s.modulator.setCycleRate(s.source.clockFrequency, time, ramp);
         if (at != null) s.modulator.resetPhase(at);
     },
     frequency(s, hz, time, ramp) {
         s.source.setFrequency(hz, time, ramp);
-        s.modulator.setFrequency(s.source.clockFrequency, time, ramp);
+        s.modulator.setCycleRate(s.source.clockFrequency, time, ramp);
         s.modulator.setPitch(hz, time, ramp);
     },
     gain: (s, gain, time, ramp) => s.level.setGain(gain, time, ramp),

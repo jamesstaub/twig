@@ -5,6 +5,7 @@ import { OvertoneSignalActions } from '../overtoneSignal/overtoneSignalActions.j
 import { midiOutputRouter } from '../midi/midiOutputRouter.js';
 import { noteForVoice, pulseChannel } from '../midi/pulseMidi.js';
 import { clockFold } from '../midi/clockTicks.js';
+import { PATTERNS, patternParams } from '../../dsp/gate/patterns.js';
 import { getFrequencyCorrection } from '../../audio.js';
 import { oscClient } from '../osc/oscClient.js';
 import { voiceTargets } from '../generic/linkAll.js';
@@ -13,30 +14,12 @@ import { Dial } from '../generic/dial/Dial.js';
 
 const PULSE_MAX_HZ = 50; // mirrors the cap in gate-processor.js
 
-const GATE_MODE_OPTIONS = [
-    { value: 0, label: 'Off' },
-    { value: 1, label: 'Alternating' },
-    { value: 2, label: 'Euclidean' },
-    { value: 3, label: 'Probability' },
-    { value: 4, label: 'Sequence' },
-];
-
-// Dials per gate mode. x and y mean different things in each mode, so
-// each has its own range — and its own default, loaded on entering the
-// mode (a "1" carried over from cycles-on would be a 1% probability).
-const GATE_PARAM_DIALS = {
-    1: [
-        { key: 'x', label: 'cycles on', min: 1, max: 32, def: 1 },
-        { key: 'y', label: 'cycles off', min: 0, max: 32, def: 1 },
-    ],
-    2: [
-        { key: 'x', label: 'pulses', min: 0, max: 32, def: 3 },
-        { key: 'y', label: 'steps', min: 1, max: 32, def: 8 },
-    ],
-    3: [
-        { key: 'x', label: 'probability', min: 0, max: 100, def: 50, format: (v) => `${Math.round(v)}%` },
-    ],
-};
+// The modes, and the dials for each mode's x/y, come from the pattern
+// registry (js/dsp/gate/patterns.js) — a new pattern type appears here
+// with no edit. x and y mean different things per pattern, so each brings
+// its own range and its own default, loaded on entering the mode (a "1"
+// carried over from cycles-on would be a 1% probability).
+const GATE_MODE_OPTIONS = PATTERNS.map((p) => ({ value: p.id, label: p.label }));
 
 const ICON_PREV = '‹';
 const ICON_NEXT = '›';
@@ -239,7 +222,7 @@ export class InspectorComponent extends BaseComponent {
                 lab.appendChild(input);
                 params.appendChild(lab);
             } else {
-                for (const { key, label, min, max, def, format } of GATE_PARAM_DIALS[gate.mode] || []) {
+                for (const { key, label, min, max, def, format } of patternParams(gate.mode)) {
                     const dial = new Dial({
                         min, max, step: 1, value: gate[key] ?? def, resetValue: def,
                         size: this.dialSize, label,
@@ -263,7 +246,7 @@ export class InspectorComponent extends BaseComponent {
 
         select.addEventListener('change', (e) => {
             gate.mode = parseInt(select.value, 10);
-            for (const { key, def } of GATE_PARAM_DIALS[gate.mode] || []) gate[key] = def;
+            for (const { key, def } of patternParams(gate.mode)) gate[key] = def;
             renderParams();
             applyGate(e);
         });

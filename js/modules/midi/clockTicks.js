@@ -25,26 +25,10 @@
 /** MIDI clock resolution: one clock beat = one quarter note = 24 ticks. */
 export const CLOCK_PPQN = 24;
 
-// The tempo window the clock is kept in — what slaved hardware follows
-// (Elektron boxes: 30-300 BPM). Mirrored in worklets/gate-processor.js,
-// which does the folding on the audio thread (it cannot import).
-export const CLOCK_MIN_HZ = 0.5;
-export const CLOCK_MAX_HZ = 5;
-
-/**
- * Octaves the clock is shifted from its voice: 0 while the voice is inside
- * the window — the clock IS the voice, so an octave jump there is an
- * octave jump in tempo — else the fewest halvings (negative) or doublings
- * that bring it back in. One clock beat = 2^-fold voice cycles. A pure
- * function of the rate: the same voice always gives the same tempo.
- */
-export function clockFold(hz) {
-    if (!(hz > 0)) return 0;
-    let fold = 0;
-    while (hz * 2 ** fold > CLOCK_MAX_HZ) fold--;
-    while (hz * 2 ** fold < CLOCK_MIN_HZ) fold++;
-    return fold;
-}
+// The tempo window and the folding itself live in the dsp layer, with the
+// worklet that counts the beats on the audio thread — one definition, so
+// what this schedules and what the voice announces can't drift apart.
+export { CLOCK_MAX_HZ, CLOCK_MIN_HZ, clockFold } from '../../dsp/gate/clockBeats.js';
 
 // A hole longer than this many tick intervals — and this many ms — may
 // have read as a lost clock downstream. The floor: a receiver that can

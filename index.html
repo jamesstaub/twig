@@ -32,6 +32,12 @@
     <link rel="icon" type="image/x-icon" href="assets/favicon.ico">
 
     <!-- Application Styles -->
+    <!-- The font is fetched in parallel with the stylesheet: an @import
+         inside the CSS made the browser download and parse our CSS first,
+         serializing two round trips before any text could paint. -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap">
     <link rel="stylesheet" href="dist/styles-compiled.css">
 </head>
 

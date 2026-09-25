@@ -1,295 +1,168 @@
 /**
- * overtone-gate — per-voice cycle sequencer AudioWorkletProcessor.
+ * overtone-gate — the per-voice sequencer, on the audio thread.
  *
- * The processor tracks its own phase from the `frequency` parameter (kept in
- * sync with the voice by its ModulatorStage) and builds a unipolar
- * control signal per sample:
+ * Each voice has one of these between its level and drive stages. It runs
+ * the voice's own clock (cycleClock.js), builds ONE unipolar 0-1
+ * modulation signal from a pattern and a contour (gateSignal.js), and
+ * sends that signal to its destinations (modTargets.js) — the gated audio
+ * on output 0, a control signal per target on the outputs after it. It
+ * also reports the voice's rhythm to the main thread: a `pulse` per cycle
+ * and, for the voice driving the MIDI clock, a `clock` per beat
+ * (clockBeats.js).
  *
- *     s = pattern(cycle) × shape(phase)
+ * This file is the WIRING: the parameters, the port protocol and the
+ * sample loop. What a pattern or a destination actually is lives in
+ * js/dsp/gate/ — patterns and contours are shared with the app, so the
+ * preview draws exactly what this plays.
  *
- * PATTERN (sequence mode) decides which cycles are active:
- *   mode 0  off          no modulation at all — audio passes through
- *                        untouched and the CVs stay at 0; pulses still
- *                        fire every cycle, at each cycle's midpoint
- *                        (use alternating 1/0 for a shape-LFO on every
- *                        cycle)
- *   mode 1  alternating  x cycles on, then y cycles off
- *   mode 2  euclidean    x pulses distributed over y cycles (Bjorklund)
- *   mode 3  probability  each cycle is on with x percent probability
- *   mode 4  sequence     arbitrary 0/1 step pattern, sent over the port as
- *                        { type: 'sequence', steps: [1,0,1,…] }
- * Pattern edges are shaped with a ~1 ms one-pole ramp to avoid clicks.
+ * Everything here runs on the audio thread: no main-thread timers, so
+ * sequencing stays sample-accurate even when the page (jweb) is throttled
+ * or hidden.
  *
- * SHAPE is the amplitude contour within each active cycle (`shape` param):
- *   0 square (50% pulse, high then low), 1 sine (boundary-zero
- *   raised cosine, click-free by construction), 2 triangle (tent),
- *   3 saw decay, 4 saw rise, 5 custom (0-1 table via
- *   { type: 'shapetable', table: Float32Array }), 6 hold (constant 1 —
- *   no contour, pattern gating only).
+ * PORT — in:
+ *   'stop'                                  tear down (the processor ends)
+ *   { type: 'phase', at }                   restart the cycle at that audio-clock time
+ *   { type: 'sequence', steps }             the `sequence` pattern's 0/1 steps
+ *   { type: 'contourTable', table }         the `custom` contour's 0-1 table
+ *   { type: 'seriesConfig', ratios, baseStep }  the cutoff target's series curve
+ * PORT — out (a cross-thread contract; see modules/pulse/pulseBus.js):
+ *   { type: 'pulse', lead, cycle, gateOn, frequency, audioTime }
+ *   { type: 'clock', frequency, fold, audioTime }
  *
- * TARGETS: s modulates up to three destinations, scaled by amount params:
- *   output 0  audio     gain = 1 − amtGain × (1 − s)
- *   output 1  freq CV   Hz delta along the overtone-series cutoff curve —
- *             connect to BiquadFilter.frequency (base value stays owned by
- *             the main thread; CV carries only the modulation term). Needs
- *             { type: 'seqconfig', ratios, baseStep } from the port.
- *   output 2  Q CV      amtRes × s × 24 — connect to BiquadFilter.Q
- *
- * Everything runs on the audio thread: no main-thread timers, so sequencing
- * stays sample-accurate even when the page (jweb) is throttled or hidden.
- *
- * NOTE: this file is loaded via audioWorklet.addModule() and must remain
- * dependency-free (it is served as-is, not bundled).
+ * NOTE: bundled by build.js to dist/gate-processor.js, which is what
+ * addModule() loads — edit the sources here, then `npm run build`.
  */
 
-const Q_SPAN = 24;
-// Convolution feedback ceiling (mirrors CONV_FEEDBACK_MAX in the actions)
-const FB_MAX = 0.99;
-const TWO_PI = Math.PI * 2;
+import { CycleClock, PAST_MIDPOINT, WRAPPED } from '../gate/cycleClock.js';
+import { ClockBeats } from '../gate/clockBeats.js';
+import { GateSignal } from '../gate/gateSignal.js';
+import { audioGain, MOD_TARGETS } from '../gate/modTargets.js';
 
-// Pulses only make sense in the LFO/rhythm regime; cap protects the port
+/** Pulses are the rhythm regime only: above this they would flood the port. */
 const PULSE_MAX_HZ = 50;
 
-// MIDI clock window (30-300 BPM, one beat = one quarter note) — mirrors
-// CLOCK_MIN_HZ / CLOCK_MAX_HZ and clockFold() in modules/midi/clockTicks.js
-const CLOCK_MIN_HZ = 0.5;
-const CLOCK_MAX_HZ = 5;
-
-/**
- * Octaves to shift a voice's rate by so its clock lands in the window:
- * 0 while the voice is inside it (the clock IS the voice, octave jumps
- * and all), else the fewest halvings (negative) or doublings that bring
- * it back. A pure function of the rate — no memory, no hysteresis.
- */
-function clockFold(hz) {
-    if (!(hz > 0)) return 0;
-    let fold = 0;
-    while (hz * 2 ** fold > CLOCK_MAX_HZ) fold--;
-    while (hz * 2 ** fold < CLOCK_MIN_HZ) fold++;
-    return fold;
-}
-
-/** Bjorklund/euclidean rhythm: distribute `pulses` as evenly as possible over `steps`. */
-function euclideanPattern(pulses, steps) {
-    const pattern = new Array(steps).fill(false);
-    if (pulses <= 0) return pattern;
-    if (pulses >= steps) return pattern.fill(true);
-    // Bresenham formulation — equivalent to Bjorklund up to rotation
-    let bucket = 0;
-    for (let i = 0; i < steps; i++) {
-        bucket += pulses;
-        if (bucket >= steps) {
-            bucket -= steps;
-            pattern[i] = true;
-        }
-    }
-    return pattern;
-}
-
-/**
- * Amplitude contour within a cycle, unipolar 0-1.
- * Sine is the boundary-zero raised cosine: active cycles start and end at
- * silence, so pattern transitions are click-free without the declick ramp.
- */
-function shapeValue(shape, phase, table) {
-    switch (shape) {
-        case 0: // square: 50% pulse — high first half, low second half
-            return phase < 0.5 ? 1 : 0;
-        case 1: // sine (raised cosine window)
-            return (1 - Math.cos(TWO_PI * phase)) / 2;
-        case 2: // triangle (tent)
-            return 1 - Math.abs(2 * phase - 1);
-        case 3: // saw decay
-            return 1 - phase;
-        case 4: // saw rise
-            return phase;
-        case 5: { // custom 0-1 table from the port
-            if (!table || table.length === 0) return 1;
-            const pos = phase * table.length;
-            const i0 = Math.floor(pos) % table.length;
-            const i1 = (i0 + 1) % table.length;
-            return table[i0] + (table[i1] - table[i0]) * (pos - i0);
-        }
-        default: // 6 = hold: no contour, pattern gating only (SHAPE_HOLD)
-            return 1;
-    }
-}
-
-/** Decide whether cycle number `cycle` is audible for the given gate config. */
-function gateForCycle(state, cycle, mode, x, y) {
-    switch (mode) {
-        case 1: { // alternating: x on, y off
-            const period = Math.max(1, Math.round(x) + Math.round(y));
-            return (cycle % period) < Math.round(x);
-        }
-        case 2: { // euclidean: x pulses in y slots
-            const steps = Math.max(1, Math.round(y));
-            const pulses = Math.min(Math.round(x), steps);
-            const key = `${pulses}/${steps}`;
-            if (state.patternKey !== key) {
-                state.pattern = euclideanPattern(pulses, steps);
-                state.patternKey = key;
-            }
-            return state.pattern[cycle % steps];
-        }
-        case 3: // probability: x percent per cycle
-            return Math.random() * 100 < x;
-        case 4: { // sequence: explicit 0/1 steps from the port
-            const seq = state.customSeq;
-            if (!seq || seq.length === 0) return true;
-            return seq[cycle % seq.length] > 0.5;
-        }
-        default: // off / unknown: always open
-            return true;
-    }
-}
+/** Where in its cycle a pulse lands, and so where its lead is announced. */
+const PULSE_AT_START = 0;
+const PULSE_AT_MIDPOINT = 0.5;
 
 class OvertoneGateProcessor extends AudioWorkletProcessor {
     static get parameterDescriptors() {
         return [
-            { name: 'frequency', defaultValue: 440, minValue: 0, maxValue: 24000, automationRate: 'a-rate' },
-            // The voice's PITCH when the clock isn't it — a sampler voice's
-            // clock is its loop rate; the cutoff-CV curve still needs the
-            // pitch. 0 = the clock frequency is the pitch.
+            // The voice's CYCLE rate: its pitch for an oscillator, its loop
+            // rate for a sampler. Everything here counts in these cycles.
+            { name: 'cycleRate', defaultValue: 440, minValue: 0, maxValue: 24000, automationRate: 'a-rate' },
+            // The voice's PITCH, when the cycle isn't it (a sampler's loop).
+            // Only the cutoff target reads it. 0 = the cycle rate is the pitch.
             { name: 'pitch', defaultValue: 0, minValue: 0, maxValue: 24000, automationRate: 'k-rate' },
-            { name: 'mode', defaultValue: 0, minValue: 0, maxValue: 4, automationRate: 'k-rate' },
-            { name: 'x', defaultValue: 1, minValue: 0, maxValue: 1024, automationRate: 'k-rate' },
-            { name: 'y', defaultValue: 1, minValue: 0, maxValue: 1024, automationRate: 'k-rate' },
-            // When 1, each cycle wrap posts a {type:'pulse'} message so the
-            // main thread can drive MIDI/OSC/sequencer consumers
-            { name: 'pulseOut', defaultValue: 0, minValue: 0, maxValue: 1, automationRate: 'k-rate' },
-            // Where in its cycle a pulse LANDS: 0 = the cycle's start (with
-            // the gate transition), 0.5 = its midpoint ("offset pulse 50%")
-            { name: 'pulseOffset', defaultValue: 0, minValue: 0, maxValue: 0.5, automationRate: 'k-rate' },
-            // When 1, this voice is the MIDI clock: each clock BEAT (the
-            // cycle folded by octaves into the clock window) posts a
-            // {type:'clock'} message — a few per second at any voice rate,
-            // so unlike pulses it has no frequency cap
-            { name: 'clockOut', defaultValue: 0, minValue: 0, maxValue: 1, automationRate: 'k-rate' },
-            // Cycle amplitude contour (see shapeValue) and modulation depths
-            { name: 'shape', defaultValue: 0, minValue: 0, maxValue: 6, automationRate: 'k-rate' },
-            // Shape period in oscillator cycles: 2 = contour spans two
-            // cycles (slower LFO), 1/64 = 64 times per cycle. Cycle-locked.
-            { name: 'stretch', defaultValue: 1, minValue: 1 / 64, maxValue: 64, automationRate: 'k-rate' },
-            { name: 'amtGain', defaultValue: 1, minValue: 0, maxValue: 1, automationRate: 'k-rate' },
-            { name: 'amtFreq', defaultValue: 0, minValue: -1, maxValue: 1, automationRate: 'k-rate' },
-            { name: 'amtRes', defaultValue: 0, minValue: 0, maxValue: 1, automationRate: 'k-rate' },
-            // Convolution send modulation. The CVs are deltas summed into
-            // the wet/feedback gains, so the bases are passed in to clamp
-            // the modulated values (feedback ≥ 1 would run away).
-            { name: 'amtWet', defaultValue: 0, minValue: 0, maxValue: 1, automationRate: 'k-rate' },
-            { name: 'amtFb', defaultValue: 0, minValue: 0, maxValue: 1, automationRate: 'k-rate' },
+
+            // --- which cycles sound (js/dsp/gate/patterns.js) ---
+            { name: 'pattern', defaultValue: 0, minValue: 0, maxValue: 64, automationRate: 'k-rate' },
+            // The pattern's two values; what they mean is its own (cycles
+            // on/off, pulses in steps, percent…)
+            { name: 'patternX', defaultValue: 1, minValue: 0, maxValue: 1024, automationRate: 'k-rate' },
+            { name: 'patternY', defaultValue: 1, minValue: 0, maxValue: 1024, automationRate: 'k-rate' },
+
+            // --- the shape within a cycle (js/dsp/gate/contours.js) ---
+            // Room for contours yet to be added: an id clamped by the param
+            // would silently play a different shape
+            { name: 'contour', defaultValue: 0, minValue: 0, maxValue: 64, automationRate: 'k-rate' },
+            // Cycles one turn of the contour spans: 2 = half-speed LFO,
+            // 1/64 = 64 turns per cycle. Cycle-locked either way.
+            { name: 'contourStretch', defaultValue: 1, minValue: 1 / 64, maxValue: 64, automationRate: 'k-rate' },
+
+            // --- how far the signal drives each destination ---
+            { name: 'depthGain', defaultValue: 1, minValue: 0, maxValue: 1, automationRate: 'k-rate' },
+            { name: 'depthCutoff', defaultValue: 0, minValue: -1, maxValue: 1, automationRate: 'k-rate' },
+            { name: 'depthRes', defaultValue: 0, minValue: 0, maxValue: 1, automationRate: 'k-rate' },
+            { name: 'depthWet', defaultValue: 0, minValue: 0, maxValue: 1, automationRate: 'k-rate' },
+            { name: 'depthFeedback', defaultValue: 0, minValue: 0, maxValue: 1, automationRate: 'k-rate' },
+            // The bases of the bounded destinations, so their modulated sum
+            // can be clamped here (feedback ≥ 1 would run away)
             { name: 'baseWet', defaultValue: 0, minValue: 0, maxValue: 1, automationRate: 'k-rate' },
-            { name: 'baseFb', defaultValue: 0, minValue: -0.99, maxValue: 0.99, automationRate: 'k-rate' },
+            { name: 'baseFeedback', defaultValue: 0, minValue: -0.99, maxValue: 0.99, automationRate: 'k-rate' },
+
+            // --- what the voice reports ---
+            { name: 'pulseOut', defaultValue: 0, minValue: 0, maxValue: 1, automationRate: 'k-rate' },
+            // Where in the cycle the pulse lands: 0 = its start (with the
+            // gate transition), 0.5 = its midpoint ("offset pulse 50%")
+            { name: 'pulseOffset', defaultValue: 0, minValue: 0, maxValue: 0.5, automationRate: 'k-rate' },
+            // This voice drives the MIDI clock: a beat message per clock
+            // beat, at any voice rate (folded), so no frequency cap
+            { name: 'clockOut', defaultValue: 0, minValue: 0, maxValue: 1, automationRate: 'k-rate' },
         ];
     }
 
     constructor() {
         super();
-        this.phase = 0;
-        this.cycle = 0;
-        // Every pulse is posted TWICE, at the two half-cycle points around
-        // it: a LEAD half a cycle before it lands — so consumers that
-        // schedule (Web MIDI timestamps) stay sample-accurate through
-        // main-thread jitter — and the LANDING itself, for consumers that
-        // react (OSC relay, JS subscribers). See postPulse.
-        this.pulsedThisCycle = false;
-        // The next cycle's gate, decided early when its pulse is announced
-        // ahead of the wrap — the announcement and the audible gate must
-        // agree, and probability mode rolls only once
-        this.nextGate = null;
-        // Clock beats count in (cycle + phase) × 2^fold; like pulses they
-        // are announced at their MIDPOINT, half a beat ahead of the boundary
-        this.clockFold = null;
-        this.clockBeat = 0;
-        this.gateTarget = null; // decided on first process() once params exist
-        this.gain = 1;
-        this.patternState = { pattern: null, patternKey: '' };
-        this.smooth = 1 - Math.exp(-1 / (0.001 * sampleRate));
-        // Worklet processors returning true are kept alive indefinitely;
-        // the engine posts 'stop' when the voice is torn down
-        this.shapeTable = null;   // custom 0-1 contour
-        this.seqRatios = null;    // extended overtone-series ratio table
-        this.seqBaseStep = 0;     // filter's base partial index (0 = open)
+        this.clock = new CycleClock();
+        this.signal = new GateSignal();
+        this.beats = new ClockBeats();
         this.stopped = false;
-        // A { type: 'phase', at } message restarts the cycle at that
-        // audio-clock time — a sampler's player (re)started then, and its
-        // pulses, gate and contour follow the loop from its start
-        this.phaseResetAt = null;
-        this.port.onmessage = (e) => {
-            if (e.data === 'stop') {
-                this.stopped = true;
-            } else if (e.data && e.data.type === 'phase') {
-                this.phaseResetAt = Number(e.data.at) || 0;
-            } else if (e.data && e.data.type === 'sequence') {
-                this.patternState.customSeq = Array.isArray(e.data.steps) ? e.data.steps : null;
-            } else if (e.data && e.data.type === 'shapetable') {
-                this.shapeTable = e.data.table || null;
-            } else if (e.data && e.data.type === 'seqconfig') {
-                this.seqRatios = e.data.ratios || null;
-                this.seqBaseStep = e.data.baseStep || 0;
-            }
+        // The block's parameter snapshot, reused every block and handed to
+        // the targets (no per-sample allocation on the audio thread)
+        this.params = {
+            depthGain: 1, depthCutoff: 0, depthRes: 0, depthWet: 0, depthFeedback: 0,
+            baseWet: 0, baseFeedback: 0, ratios: null, baseStep: 0, tone: 0,
         };
+        this.port.onmessage = (e) => this.receive(e.data);
     }
 
-    /**
-     * Declick ramp scaled to the cycle: 1 ms for slow (subaudible) cycles,
-     * but never slower than 1/8 of a period, so fast cycles still gate
-     * cleanly instead of smearing into a half-open average.
-     */
-    updateSmoothing(freq) {
-        const tau = freq > 0 ? Math.min(0.001, 1 / (freq * 8)) : 0.001;
-        this.smooth = 1 - Math.exp(-1 / (tau * sampleRate));
-    }
-
-    /**
-     * Hz delta between the modulated and base cutoff along the overtone-
-     * series curve, for a continuous (interpolated) partial index.
-     */
-    freqDelta(f, s, amtFreq) {
-        const ratios = this.seqRatios;
-        const baseStep = this.seqBaseStep;
-        if (!ratios || ratios.length === 0 || baseStep < 1 || amtFreq === 0 || !(f > 0)) return 0;
-
-        const n = ratios.length;
-        const span = amtFreq > 0 ? n - baseStep : baseStep - 1;
-        const idx = Math.min(n, Math.max(1, baseStep + amtFreq * s * span));
-        const i0 = Math.floor(idx);
-        const frac = idx - i0;
-        const r0 = ratios[Math.min(n, i0) - 1];
-        const r1 = ratios[Math.min(n, i0 + 1) - 1];
-        const ratio = r0 + (r1 - r0) * frac;
-
-        // Audible base: lowest integer multiple of the voice clearing 20 Hz
-        const base = f * Math.max(1, Math.ceil(20 / f));
-        return base * (ratio - ratios[baseStep - 1]);
-    }
-
-    /**
-     * Post the pulse message for half-cycle point `at` (0 = the wrap, 0.5 =
-     * the midpoint). At the pulse's own phase (`offset`) it is the LANDING;
-     * at the other point it is the LEAD for the pulse landing half a cycle
-     * later — which, from the midpoint, is the NEXT cycle's start, so that
-     * cycle's gate is decided here and kept for the wrap.
-     */
-    postPulse(at, offset, f, i, mode, x, y) {
-        const lead = at !== offset;
-        let cycle = this.cycle;
-        let gateOn = this.gateTarget === 1;
-        if (lead && at === 0.5) {
-            this.nextGate = gateForCycle(this.patternState, this.cycle + 1, mode, x, y);
-            cycle = this.cycle + 1;
-            gateOn = this.nextGate;
+    receive(message) {
+        if (message === 'stop') {
+            // Processors live as long as process() returns true; the engine
+            // says when a voice is gone
+            this.stopped = true;
+            return;
         }
+        switch (message?.type) {
+            case 'phase':
+                this.clock.scheduleRestart(message.at);
+                break;
+            case 'sequence':
+                this.signal.steps = Array.isArray(message.steps) ? message.steps : null;
+                break;
+            case 'contourTable':
+                this.signal.table = message.table || null;
+                break;
+            case 'seriesConfig':
+                this.params.ratios = message.ratios || null;
+                this.params.baseStep = message.baseStep || 0;
+                break;
+        }
+    }
+
+    /**
+     * Tell the main thread about a cycle's pulse, at one of the two
+     * half-cycle points around it. At the pulse's own phase this is the
+     * LANDING; at the other it is the LEAD for the pulse landing half a
+     * cycle later — which, announced from the midpoint, belongs to the NEXT
+     * cycle, so that cycle's gate is decided now and kept for the wrap.
+     */
+    postPulse(at, offset, rate, frame, pattern, ctx) {
+        const lead = at !== offset;
+        const announcesNext = lead && at === PULSE_AT_MIDPOINT;
         this.port.postMessage({
             type: 'pulse',
             lead,
-            cycle,
-            gateOn,
-            frequency: f,
-            // Audio-clock time of this exact emission point: a lead's pulse
-            // lands half a period after it, however late the message arrives
-            audioTime: currentFrame / sampleRate + i / sampleRate,
+            cycle: announcesNext ? this.clock.cycle + 1 : this.clock.cycle,
+            gateOn: announcesNext
+                ? this.signal.preroll(pattern, this.clock.cycle + 1, ctx)
+                : this.signal.open,
+            frequency: rate,
+            // This exact emission point: a lead's pulse lands half a period
+            // after it, however late the message arrives
+            audioTime: currentFrame / sampleRate + frame / sampleRate,
+        });
+    }
+
+    postClockBeat(beatRate, frame) {
+        this.port.postMessage({
+            type: 'clock',
+            // The BEAT's rate — consumers place the boundary half a beat
+            // after audioTime, as they do a pulse's
+            frequency: beatRate,
+            fold: this.beats.fold,
+            audioTime: currentFrame / sampleRate + frame / sampleRate,
         });
     }
 
@@ -298,124 +171,84 @@ class OvertoneGateProcessor extends AudioWorkletProcessor {
         const input = inputs[0];
         const output = outputs[0];
         if (!input || input.length === 0 || !output || output.length === 0) return true;
-        const freqCV = outputs[1] && outputs[1][0];
-        const qCV = outputs[2] && outputs[2][0];
-        const wetCV = outputs[3] && outputs[3][0];
-        const fbCV = outputs[4] && outputs[4][0];
 
-        const freq = parameters.frequency;
-        const pitchParam = parameters.pitch[0];
-        const mode = parameters.mode[0] | 0;
-        const x = parameters.x[0];
-        const y = parameters.y[0];
-        // Pulse emission is for the LFO/rhythm regime — above the cap a
-        // voice would flood the message port with thousands of events/sec
+        // --- the block's parameters ---
+        const rates = parameters.cycleRate;
+        const pitch = parameters.pitch[0];
+        const pattern = parameters.pattern[0] | 0;
+        const contour = parameters.contour[0] | 0;
+        const stretch = parameters.contourStretch[0] || 1;
         const pulseOut = parameters.pulseOut[0] >= 0.5;
-        const pulseOffset = parameters.pulseOffset[0] >= 0.25 ? 0.5 : 0;
+        const pulseAt = parameters.pulseOffset[0] >= 0.25 ? PULSE_AT_MIDPOINT : PULSE_AT_START;
         const clockOut = parameters.clockOut[0] >= 0.5;
-        let clockRatio = 0;
-        if (clockOut) {
-            const fold = clockFold(freq[0]);
-            clockRatio = 2 ** fold;
-            if (fold !== this.clockFold) {
-                // Beats renumber under a new fold — adopt the count without
-                // announcing; boundaries stay on the voice's cycle grid
-                this.clockFold = fold;
-                this.clockBeat = Math.floor((this.cycle + this.phase) * clockRatio + 0.5);
-            }
-        } else {
-            this.clockFold = null;
-        }
-        const shape = parameters.shape[0] | 0;
-        const stretch = parameters.stretch[0] || 1;
-        const amtGain = parameters.amtGain[0];
-        const amtFreq = parameters.amtFreq[0];
-        const amtRes = parameters.amtRes[0];
-        const amtWet = parameters.amtWet[0];
-        const amtFb = parameters.amtFb[0];
-        const baseWet = parameters.baseWet[0];
-        const baseFb = parameters.baseFb[0];
+        const p = this.params;
+        p.depthGain = parameters.depthGain[0];
+        p.depthCutoff = parameters.depthCutoff[0];
+        p.depthRes = parameters.depthRes[0];
+        p.depthWet = parameters.depthWet[0];
+        p.depthFeedback = parameters.depthFeedback[0];
+        p.baseWet = parameters.baseWet[0];
+        p.baseFeedback = parameters.baseFeedback[0];
 
-        if (this.gateTarget === null) {
-            this.gateTarget = gateForCycle(this.patternState, 0, mode, x, y) ? 1 : 0;
-            this.gain = this.gateTarget;
-            this.updateSmoothing(freq[0]);
-        }
+        const ctx = this.signal.context(parameters.patternX[0], parameters.patternY[0]);
+        // Off: the voice passes through untouched and every CV rests at 0
+        const bypass = GateSignal.bypasses(pattern);
 
         const frames = output[0].length;
-        // A pending phase reset: at its frame within this block, or — the
-        // message arrived after the fact — wherever the phase would be now
-        // had the cycle restarted then
-        let resetFrame = -1;
-        if (this.phaseResetAt !== null) {
-            const blockStart = currentFrame / sampleRate;
-            if (this.phaseResetAt <= blockStart) {
-                this.phase = ((blockStart - this.phaseResetAt) * freq[0]) % 1;
-                this.pulsedThisCycle = false;
-                this.phaseResetAt = null;
-            } else if (this.phaseResetAt < blockStart + frames / sampleRate) {
-                resetFrame = Math.round((this.phaseResetAt - blockStart) * sampleRate);
-                this.phaseResetAt = null;
-            }
-        }
-        for (let i = 0; i < frames; i++) {
-            const f = freq.length > 1 ? freq[i] : freq[0];
-            if (i === resetFrame) {
-                this.phase = 0;
-                this.pulsedThisCycle = false;
-            }
-            this.phase += f / sampleRate;
-            if (this.phase >= 1) {
-                this.phase -= Math.floor(this.phase);
-                this.cycle++;
-                const gate = this.nextGate !== null ? this.nextGate : gateForCycle(this.patternState, this.cycle, mode, x, y);
-                this.nextGate = null;
-                this.gateTarget = gate ? 1 : 0;
-                this.updateSmoothing(f);
-                this.pulsedThisCycle = false;
-                if (pulseOut && f <= PULSE_MAX_HZ) this.postPulse(0, pulseOffset, f, i, mode, x, y);
-            }
-            if (!this.pulsedThisCycle && this.phase >= 0.5) {
-                this.pulsedThisCycle = true;
-                if (pulseOut && f <= PULSE_MAX_HZ) this.postPulse(0.5, pulseOffset, f, i, mode, x, y);
-            }
-            if (clockOut) {
-                const beat = Math.floor((this.cycle + this.phase) * clockRatio + 0.5);
-                if (beat !== this.clockBeat) {
-                    this.clockBeat = beat;
-                    this.port.postMessage({
-                        type: 'clock',
-                        // The BEAT's rate — consumers place the boundary
-                        // half a beat after audioTime, as they do a pulse's
-                        frequency: f * clockRatio,
-                        fold: this.clockFold,
-                        audioTime: currentFrame / sampleRate + i / sampleRate,
-                    });
-                }
-            }
-            // Pattern gate (declick-smoothed) × cycle contour = control signal.
-            // Mode 0 = sequencer off: pure passthrough, zero modulation.
-            this.gain += (this.gateTarget - this.gain) * this.smooth;
-            const off = mode === 0;
-            // Shape phase spans `stretch` oscillator cycles, staying locked
-            // to the cycle counter so patterns and stretch stay in step
-            const shapePhase = ((this.cycle + this.phase) / stretch) % 1;
-            const s = off ? 1 : this.gain * shapeValue(shape, shapePhase, this.shapeTable);
+        let beatRatio = 0;
+        if (clockOut) beatRatio = this.beats.follow(rates[0], this.clock.position);
+        else this.beats.release();
 
-            // Target: audio gain
-            const g = off ? 1 : 1 - amtGain * (1 - s);
+        // The first block decides the gate outright — there is no previous
+        // state to ramp from
+        if (this.signal.open === null) {
+            this.signal.snap(this.signal.gateFor(pattern, this.clock.cycle, ctx));
+            this.signal.retune(rates[0], sampleRate);
+        }
+
+        // A sampler's player (re)started: its loop is cycle 0 from there
+        const restartFrame = this.clock.beginBlock(currentFrame / sampleRate, frames, rates[0], sampleRate);
+        // The destinations' buffers, in target order (a CV output the host
+        // did not ask for is simply absent)
+        const cvs = MOD_TARGETS.map((target) => outputs[target.output]?.[0] ?? null);
+
+        for (let i = 0; i < frames; i++) {
+            const rate = rates.length > 1 ? rates[i] : rates[0];
+            if (i === restartFrame) {
+                this.clock.restart();
+                this.signal.restart();
+                this.signal.setOpen(this.signal.gateFor(pattern, 0, ctx));
+                if (clockOut) this.beats.rebaseline(this.clock.position);
+            }
+
+            const events = this.clock.advance(rate, sampleRate);
+            if (events & WRAPPED) {
+                this.signal.setOpen(this.signal.gateFor(pattern, this.clock.cycle, ctx));
+                this.signal.retune(rate, sampleRate);
+                if (pulseOut && rate <= PULSE_MAX_HZ) this.postPulse(PULSE_AT_START, pulseAt, rate, i, pattern, ctx);
+            }
+            if ((events & PAST_MIDPOINT) && pulseOut && rate <= PULSE_MAX_HZ) {
+                this.postPulse(PULSE_AT_MIDPOINT, pulseAt, rate, i, pattern, ctx);
+            }
+            if (clockOut && this.beats.reached(this.clock.position) !== null) {
+                this.postClockBeat(rate * beatRatio, i);
+            }
+
+            // --- the signal, and where it goes ---
+            // Always advanced, bypassed or not: the ramp has to be where the
+            // gate is by the time the sequencer is switched back on
+            const signal = this.signal.next(contour, this.clock.position, stretch);
+            const s = bypass ? 1 : signal;
+            const gain = bypass ? 1 : audioGain(s, p.depthGain);
             for (let ch = 0; ch < output.length; ch++) {
                 const inCh = input[ch] || input[0];
-                output[ch][i] = inCh[i] * g;
+                output[ch][i] = inCh[i] * gain;
             }
-            // Targets: filter cutoff (Hz delta CV) and resonance (Q CV)
-            if (freqCV) freqCV[i] = off ? 0 : this.freqDelta(pitchParam > 0 ? pitchParam : f, s, amtFreq);
-            if (qCV) qCV[i] = off ? 0 : amtRes * s * Q_SPAN;
-            // Convolution: contour adds to the base send, clamped to range
-            if (wetCV) wetCV[i] = off ? 0 : Math.min(1, baseWet + amtWet * s) - baseWet;
-            // Feedback may be negative (inverting loop): modulation pushes
-            // its magnitude toward the ceiling, keeping the sign
-            if (fbCV) fbCV[i] = off ? 0 : Math.max(-FB_MAX, Math.min(FB_MAX, baseFb + Math.sign(baseFb || 1) * amtFb * s)) - baseFb;
+            p.tone = pitch > 0 ? pitch : rate;
+            for (let t = 0; t < MOD_TARGETS.length; t++) {
+                const cv = cvs[t];
+                if (cv) cv[i] = bypass ? 0 : MOD_TARGETS[t].value(s, p);
+            }
         }
         return true;
     }

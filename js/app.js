@@ -38,7 +38,8 @@ async function initApp() {
 
         // Initialize UI components
         initUI();
-        faviconService.start();
+        // The live favicon follows the sound: it starts with the first Play
+        faviconService.init();
 
         updateUI();
 

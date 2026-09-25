@@ -18,6 +18,7 @@ import { calculateFrequency, generateFilenameParts, getVoicePan } from './utils.
 import { audioEngine, WavetableManager, WAVExporter, WaveformGenerator } from './dsp/index.js';
 import { irManager } from './dsp/IRManager.js';
 import { sourceManager } from './dsp/SourceManager.js';
+import { CONTOUR, contourIdFor } from './dsp/gate/contours.js';
 import { midiOutputRouter } from './modules/midi/midiOutputRouter.js';
 import {
     buildSpectrum,
@@ -391,12 +392,6 @@ export function partialFrequency(frequency, step) {
     return base * filterPartialRatio(step);
 }
 
-// Shape names → worklet shape indices (5 = custom table)
-const SHAPE_INDICES = { square: 0, sine: 1, triangle: 2, sawtooth: 3 };
-// Worklet index for "no contour" — pattern gating only. Square is a real
-// pulse now, so it is no longer the hold shape. Must stay inside the
-// shape AudioParam's range or setValueAtTime clamps it.
-const SHAPE_HOLD = 6;
 
 /**
  * Resolve a sequencer config into the engine payload: shape index, amounts,
@@ -406,11 +401,10 @@ const SHAPE_HOLD = 6;
 function harmonicSequencerPayload(index) {
     const seq = AppState.oscillatorSequencers[index] || {};
     const shapeName = seq.shape || 'square';
-    let shape = SHAPE_INDICES[shapeName];
+    let shape = contourIdFor(shapeName);
     let table;
-    if (shape === undefined) {
-        // Custom waveform: bake its cycle into a min-max-normalized 0-1 table
-        shape = 5;
+    if (shape === CONTOUR.custom) {
+        // A baked waveform: its cycle as a min-max-normalized 0-1 table
         const coeffs = AppState.customWaveCoefficients?.[shapeName];
         if (coeffs) {
             const raw = precomputeWavetableFromCoefficients(coeffs, 512);
@@ -419,7 +413,7 @@ function harmonicSequencerPayload(index) {
             const span = max - min || 1;
             table = Float32Array.from(raw, (v) => (v - min) / span);
         } else {
-            shape = SHAPE_HOLD; // deleted custom wave — no contour
+            shape = CONTOUR.hold; // deleted custom wave — no contour
         }
     }
     return {

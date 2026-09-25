@@ -15,7 +15,11 @@ description: Verify twig changes end-to-end in a headless browser — screenshot
   If another session may be testing at the same time, pick your own port
   (`PORT=3417`): two test pages on one bridge relay play/stop and every
   parameter to each other, which reads as voices vanishing mid-test.
-- CSS or JS changed? `npm run build` (esbuild bundles both).
+- CSS or JS changed? `npm run build` (esbuild bundles the app, the gate
+  worklet and the CSS). The app is CODE SPLIT: `dist/app.js` plus
+  `dist/chunks/`. Panels that build on first show (Presets, Settings) are
+  NOT in the DOM until their surface has been opened — open the surface
+  before asserting on their markup.
 - Test through the built bundle. Raw ESM imports of `js/` modules 404 in a
   page (extensionless imports, bare `p5` specifier).
 - No Chrome/Chromium is installed; use Brave with puppeteer-core:
@@ -31,7 +35,12 @@ description: Verify twig changes end-to-end in a headless browser — screenshot
 - `window.TWIG.getState()` → live AppState; `window.TWIG.getAudioEngine()`
   → engine (`engine.voice(0).stages` — source, envelope, level, modulator,
   drive, filter, convolution, pan, meter — each holding its nodes, e.g.
-  `stages.filter.biquad`, `stages.modulator.node.parameters.get('mode')`;
+  `stages.filter.biquad`, `stages.modulator.node.parameters.get('pattern')`
+  (the worklet's params are `cycleRate`, `pitch`, `pattern`, `patternX/Y`,
+  `contour`, `contourStretch`, `depth*`, `base*`, `pulseOut`,
+  `pulseOffset`, `clockOut`); a CV is read from the worklet's OUTPUT
+  (`modulator.node.connect(analyser, 1)`) — `AudioParam.value` never
+  includes the signal summed into it;
   `engine.master` is the bus: `input`, `gain`, `limiter`, `analyser`).
 - Wait ~800ms after `networkidle2` for app init; Web MIDI init is ~2s
   delayed (wait ≥2500ms before MIDI assertions).

@@ -1,19 +1,21 @@
 /**
- * MODULATOR — the per-voice cycle gate / sequencer worklet
- * (worklets/gate-processor.js). Audio passes through output 0, gated; the
- * other outputs are control signals that route() sums into other stages'
+ * MODULATOR — the per-voice sequencer worklet (worklets/gate-processor.js,
+ * bundled to dist/). Audio passes through output 0, gated; the other
+ * outputs are control signals that route() sums into other stages'
  * AudioParams. This file is the only place that knows the worklet's
- * protocol: parameter names, output indices and port messages.
+ * protocol: parameter names, output indices and port messages — the app's
+ * own names for these things are translated here.
  *
- * Off (mode 0) is a passthrough with every control signal at 0. Pulses —
- * one message per cycle, the app's rhythm taps — still fire when enabled,
- * as do the clock voice's beat messages ({type:'clock'}); both reach the
- * host through onPulse, told apart by `type`.
+ * The "off" pattern is a passthrough with every control signal at 0.
+ * Pulses — one message per cycle, the app's rhythm taps — still fire when
+ * enabled, as do the clock voice's beat messages ({type:'clock'}); both
+ * reach the host through onPulse, told apart by `type`.
  */
 
 import { Stage, setParam } from '../Stage.js';
 
-const WORKLET_URL = 'js/dsp/worklets/gate-processor.js';
+/** The BUILT worklet: its sources are js/dsp/worklets/ + js/dsp/gate/. */
+const WORKLET_URL = 'dist/gate-processor.js';
 const PROCESSOR_NAME = 'overtone-gate';
 
 /** Worklet output index of each control signal (output 0 is the audio). */
@@ -24,15 +26,18 @@ const CV_OUTPUTS = { cutoff: 1, q: 2, wet: 3, feedback: 4 };
  * the base value so it can clamp the modulated sum (feedback ≥ 1 would
  * run away).
  */
-const CV_BASES = { wet: 'baseWet', feedback: 'baseFb' };
+const CV_BASES = { wet: 'baseWet', feedback: 'baseFeedback' };
 
-/** Sequencer modulation depths → worklet parameters, with their neutral values. */
-const AMOUNTS = {
-    gain: ['amtGain', 1],
-    freq: ['amtFreq', 0],
-    res: ['amtRes', 0],
-    wet: ['amtWet', 0],
-    fb: ['amtFb', 0],
+/**
+ * The app's modulation-depth names → the worklet's, with the value that
+ * means "this destination is not driven".
+ */
+const DEPTHS = {
+    gain: ['depthGain', 1],
+    freq: ['depthCutoff', 0],
+    res: ['depthRes', 0],
+    wet: ['depthWet', 0],
+    fb: ['depthFeedback', 0],
 };
 
 export class ModulatorStage extends Stage {
@@ -69,9 +74,9 @@ export class ModulatorStage extends Stage {
         }
     }
 
-    /** The modulator's clock: the voice's cycle rate (its pitch, or a sampler's loop rate). */
-    setFrequency(frequency, time, ramp) {
-        setParam(this.param('frequency'), frequency, time, ramp);
+    /** The voice's cycle rate — its pitch, or a sampler's loop rate. */
+    setCycleRate(hz, time, ramp) {
+        setParam(this.param('cycleRate'), hz, time, ramp);
     }
 
     /** The voice's pitch, when the clock isn't it (the cutoff-CV curve reads it). */
@@ -90,14 +95,15 @@ export class ModulatorStage extends Stage {
     }
 
     /**
-     * The cycle gate: which cycles are on.
+     * The cycle gate: which cycles sound (a pattern id and its two values —
+     * see js/dsp/gate/patterns.js).
      * @param {{mode?: number, x?: number, y?: number, seq?: number[]}} gate
      */
     setGate({ mode = 0, x = 1, y = 1, seq } = {}, time) {
-        this.param('mode').setValueAtTime(mode, time);
-        this.param('x').setValueAtTime(x, time);
-        this.param('y').setValueAtTime(y, time);
-        // Arbitrary 0/1 patterns can't travel as AudioParams
+        this.param('pattern').setValueAtTime(mode, time);
+        this.param('patternX').setValueAtTime(x, time);
+        this.param('patternY').setValueAtTime(y, time);
+        // An explicit 0/1 sequence can't travel as an AudioParam
         if (seq !== undefined) this.node.port.postMessage({ type: 'sequence', steps: seq });
     }
 
@@ -108,15 +114,18 @@ export class ModulatorStage extends Stage {
      *   table (custom 0-1 contour), config: { ratios, baseStep } (the cutoff CV curve) }
      */
     setSequencer({ shape, stretch, amounts, table, config }, time) {
-        if (shape !== undefined) this.param('shape').setValueAtTime(shape, time);
-        if (stretch !== undefined) this.param('stretch').setValueAtTime(stretch, time);
+        if (shape !== undefined) this.param('contour').setValueAtTime(shape, time);
+        if (stretch !== undefined) this.param('contourStretch').setValueAtTime(stretch, time);
         if (amounts) {
-            for (const [name, [param, neutral]] of Object.entries(AMOUNTS)) {
-                this.param(param).setValueAtTime(amounts[name] ?? neutral, time);
+            for (const [name, [param, neutral]] of Object.entries(DEPTHS)) {
+                // Only the depths actually passed: the rest keep their value
+                // (the app sends the whole set, but a partial one must not
+                // silently undrive the others)
+                if (name in amounts) this.param(param).setValueAtTime(amounts[name] ?? neutral, time);
             }
         }
-        if (table !== undefined) this.node.port.postMessage({ type: 'shapetable', table });
-        if (config) this.node.port.postMessage({ type: 'seqconfig', ratios: config.ratios, baseStep: config.baseStep });
+        if (table !== undefined) this.node.port.postMessage({ type: 'contourTable', table });
+        if (config) this.node.port.postMessage({ type: 'seriesConfig', ratios: config.ratios, baseStep: config.baseStep });
     }
 
     /** Enable/disable the per-cycle pulse messages. */

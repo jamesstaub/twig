@@ -1,6 +1,11 @@
 import BaseComponent from "../base/BaseComponent.js";
 
-
+/**
+ * The tonewheel's home: a positioned box (#tonewheel-canvas) the sketch
+ * draws into. The component owns the box; the sketch (built by
+ * TonewheelActions.initVisualization) owns the canvas inside it and its
+ * own frame loop.
+ */
 export class TonewheelComponent extends BaseComponent {
     constructor(selector) {
         super(selector);
@@ -8,48 +13,25 @@ export class TonewheelComponent extends BaseComponent {
     }
 
     render(props) {
-        // Ensure the canvas container exists
-        let container = this.el;
+        const container = this.el;
         if (!container) return;
 
-        // Remove any previous canvas
-        const oldCanvas = container.querySelector('canvas');
-        if (oldCanvas) {
-            oldCanvas.remove();
-        }
+        this._sketch?.destroy();
+        this._sketch = null;
+        container.querySelector(`#${this.canvasId}`)?.remove();
 
-        // Remove any previous p5 instance
-        if (this._p5Instance && this._p5Instance.remove) {
-            this._p5Instance.remove();
-            this._p5Instance = null;
-        }
+        const box = document.createElement('div');
+        box.id = this.canvasId;
+        container.appendChild(box);
 
-        // Create a new canvas element for p5 to use
-        const canvas = document.createElement('div');
-        canvas.id = this.canvasId;
-        container.appendChild(canvas);
-
-        // Attach the p5 instance if provided
-        if (props && props.p5Instance) {
-            this._p5Instance = props.p5Instance;
-            // Move the canvas DOM node into our container if needed
-            if (this._p5Instance.canvas && this._p5Instance.canvas.parentNode !== canvas) {
-                canvas.appendChild(this._p5Instance.canvas);
-            }
-        }
+        // The box exists now, so the sketch can measure and mount into it
+        this._sketch = props?.createSketch?.() ?? null;
     }
 
     teardown() {
-        // Remove the p5 instance if it exists
-        if (this._p5Instance && this._p5Instance.remove) {
-            this._p5Instance.remove();
-            this._p5Instance = null;
-        }
-        // Remove the canvas on teardown
-        const canvas = this.el.querySelector(`#${this.canvasId}`);
-        if (canvas) {
-            canvas.remove();
-        }
+        this._sketch?.destroy();
+        this._sketch = null;
+        this.el.querySelector(`#${this.canvasId}`)?.remove();
         super.teardown?.();
     }
 }

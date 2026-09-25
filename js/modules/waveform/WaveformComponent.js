@@ -2,7 +2,7 @@
 import BaseComponent from "../base/BaseComponent.js";
 import { getWaveValue } from "../tonewheel/tonewheelActions.js";
 import { themeColor } from "../../theme.js";
-import p5 from "p5";
+import { Sketch, strokePath, withAlpha } from "../generic/sketch/Sketch.js";
 
 function lcm(a, b) {
     return (a * b) / gcd(a, b);
@@ -19,69 +19,37 @@ export function lcmArray(arr) {
 const DEFAULT_HEIGHT = 150;
 
 /**
- * Create a reusable p5 sketch for waveform drawing
- * @param {WaveformComponent} component - The component instance
+ * One frame of a waveform preview: the chosen oscillator (or the loaded
+ * sound file) in `single` mode, the summed drawbar wavetable otherwise.
+ * Drawn on the app's own canvas runtime (generic/sketch/Sketch.js) — the
+ * sketch is stopped and repainted on demand, so it costs nothing at rest.
+ * @param {WaveformComponent} component - Reads its live props at draw time
  */
 function createWaveformSketch(component) {
-    return function (p) {
-        component._waveformP5 = p;
-
-        // The bitmap matches the container's box: its width always, and its
-        // height where CSS gives the container one (the Source panel's
-        // preview stretches with its panel) — an empty, unsized container
-        // measures 0 and gets the default.
-        const boxSize = () => ({
-            width: component.el?.clientWidth || 400,
-            height: component.el?.clientHeight || DEFAULT_HEIGHT,
-        });
-
-        p.setup = function () {
-            const { width, height } = boxSize();
-            p.createCanvas(width, height).parent(component.el);
-            p.noLoop(); // Only redraw on demand
-        };
-
-        p.windowResized = function () {
-            const { width, height } = boxSize();
-            p.resizeCanvas(width, height);
-            p.redraw();
-        };
-        // Container reflows that aren't window resizes (panel gating,
-        // layout settling after load, a surface being shown) — keep the
-        // bitmap at the real size
-        if (typeof ResizeObserver !== "undefined" && component.el) {
-            // Resizing the canvas inside the callback would itself change the
-            // observed box in the same frame ("ResizeObserver loop" errors) —
-            // defer to the next frame instead
-            let last = boxSize();
-            new ResizeObserver(() => {
-                const next = boxSize();
-                if (!component.el.clientWidth || (next.width === last.width && next.height === last.height)) return;
-                last = next;
-                requestAnimationFrame(() => p.windowResized());
-            }).observe(component.el);
-        }
-
-        p.draw = function () {
+    return function (ctx, sk) {
+        {
             const props = component.props;
             if (!props?.harmonicAmplitudes?.length) return;
 
-            const width = p.width;
-            const height = p.height;
+            const width = sk.width;
+            const height = sk.height;
             const ampScale = height * 0.4;
 
-            p.background(themeColor("--viz-bg"));
-            p.stroke(themeColor("--viz-grid"));
-            p.strokeWeight(1);
-            p.line(0, height / 2, width, height / 2);
+            ctx.fillStyle = themeColor("--viz-bg");
+            ctx.fillRect(0, 0, width, height);
+            ctx.strokeStyle = themeColor("--viz-grid");
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(0, height / 2);
+            ctx.lineTo(width, height / 2);
+            ctx.stroke();
 
             // A preset crossfade between two waveforms: the pair and how far
             // between them (see AppState.waveformMorph)
             const morph = props.waveformMorph;
             const value = (name, phase) => getWaveValue(name, phase, props.customWaveCoefficients?.[name]);
             const trace = themeColor("--viz-trace");
-            p.strokeWeight(2);
-            p.noFill();
+            ctx.lineWidth = 2;
 
             if (props.mode === "single" && props.sourceMode === "soundfile") {
                 // The loaded file: its min/max envelope across the box
@@ -91,17 +59,19 @@ function createWaveformSketch(component) {
                 const bin = (x) => Math.floor((x / width) * ov.max.length);
                 // Filled envelope for a long file; the stroke keeps a short
                 // one (a single cycle, one sample per bin) visible
-                p.noStroke();
-                p.fill(trace);
-                p.beginShape();
-                for (let x = 0; x < width; x++) p.vertex(x, height / 2 - ov.max[bin(x)] * ampScale);
-                for (let x = width - 1; x >= 0; x--) p.vertex(x, height / 2 - ov.min[bin(x)] * ampScale);
-                p.endShape(p.CLOSE);
-                p.noFill();
-                p.stroke(trace);
-                p.beginShape();
-                for (let x = 0; x < width; x++) p.vertex(x, height / 2 - ((ov.max[bin(x)] + ov.min[bin(x)]) / 2) * ampScale);
-                p.endShape();
+                const envelope = [];
+                for (let x = 0; x < width; x++) envelope.push(x, height / 2 - ov.max[bin(x)] * ampScale);
+                for (let x = width - 1; x >= 0; x--) envelope.push(x, height / 2 - ov.min[bin(x)] * ampScale);
+                ctx.fillStyle = trace;
+                ctx.beginPath();
+                ctx.moveTo(envelope[0], envelope[1]);
+                for (let i = 2; i < envelope.length; i += 2) ctx.lineTo(envelope[i], envelope[i + 1]);
+                ctx.closePath();
+                ctx.fill();
+                ctx.strokeStyle = trace;
+                const mid = [];
+                for (let x = 0; x < width; x++) mid.push(x, height / 2 - ((ov.max[bin(x)] + ov.min[bin(x)]) / 2) * ampScale);
+                strokePath(ctx, mid);
                 return;
             }
 
@@ -113,21 +83,19 @@ function createWaveformSketch(component) {
                     ? [[morph.a, 1 - morph.t], [morph.b, morph.t]]
                     : [[props.currentWaveform, 1]];
                 for (const [name, share] of layers) {
-                    const color = p.color(trace);
-                    color.setAlpha(Math.round(255 * Math.max(0.08, share)));
-                    p.stroke(color);
-                    p.beginShape();
+                    ctx.strokeStyle = withAlpha(trace, Math.round(255 * Math.max(0.08, share)) / 255);
+                    const wave = [];
                     for (let x = 0; x < width; x++) {
-                        const theta = p.map(x, 0, width, 0, p.TWO_PI * 2);
-                        p.vertex(x, height / 2 - value(name, ratio * theta) * ampScale);
+                        const theta = (x / width) * (Math.PI * 2) * 2;
+                        wave.push(x, height / 2 - value(name, ratio * theta) * ampScale);
                     }
-                    p.endShape();
+                    strokePath(ctx, wave);
                 }
                 return;
             }
 
-            p.stroke(trace);
-            p.beginShape();
+            ctx.strokeStyle = trace;
+            const summed = [];
             {
                 // Summed waveform
                 // Determine full period multiplier for phase continuity
@@ -148,7 +116,7 @@ function createWaveformSketch(component) {
                 }
 
                 // Precompute theta mapping for canvas width
-                const thetaScale = (p.TWO_PI * fullPeriodMultiplier) / width;
+                const thetaScale = (Math.PI * 2 * fullPeriodMultiplier) / width;
 
                 for (let x = 0; x < width; x++) {
                     const theta = x * thetaScale;
@@ -172,24 +140,24 @@ function createWaveformSketch(component) {
                     }
 
                     const y = height / 2 - (sum / (totalAmp || 1)) * ampScale;
-                    p.vertex(x, y);
+                    summed.push(x, y);
                 }
 
             }
 
-            p.endShape();
-        };
+            strokePath(ctx, summed);
+        }
     };
 }
 
 /**
  * WaveformComponent
- * Displays a live waveform preview using p5.js
+ * Displays a live waveform preview on the app's canvas runtime
  */
 export default class WaveformComponent extends BaseComponent {
     constructor(elementId) {
         super(elementId);
-        this._waveformP5 = null;
+        this._sketch = null;
         this.props = {};
     }
 
@@ -200,20 +168,23 @@ export default class WaveformComponent extends BaseComponent {
     render(props) {
         this.props = props;
 
-        if (!this._waveformP5) {
+        if (!this._sketch) {
             // Create the sketch and its canvas exactly once
-            const sketch = createWaveformSketch(this);
-            this._waveformP5 = new p5(sketch, this.el);
+            this._sketch = new Sketch(this.el, {
+                draw: createWaveformSketch(this),
+                loop: false, // repainted on demand, not animated
+                fallbackSize: DEFAULT_HEIGHT,
+            });
         } else {
             // The sketch reads component.props at draw time — repaint only.
-            // (Recreating the p5 instance per update leaks canvas contexts
-            // and collapses under OSC/MIDI drawbar streams.)
-            this._waveformP5.redraw();
+            // (Rebuilding it per update leaks canvas contexts and collapses
+            // under OSC/MIDI drawbar streams.)
+            this._sketch.redraw();
         }
     }
 
     /**
-     * Unbind tracked events; the p5 instance survives updates.
+     * Unbind tracked events; the sketch survives updates.
      */
     teardown() {
         super.teardown?.();
@@ -223,10 +194,8 @@ export default class WaveformComponent extends BaseComponent {
      * Full cleanup — only for actually discarding the component.
      */
     destroy() {
-        if (this._waveformP5?.remove) {
-            this._waveformP5.remove();
-            this._waveformP5 = null;
-        }
+        this._sketch?.destroy();
+        this._sketch = null;
         this.teardown();
     }
 }

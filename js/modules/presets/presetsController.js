@@ -1,4 +1,3 @@
-import { PresetsComponent } from './PresetsComponent.js';
 import { PresetActions } from './presetActions.js';
 import { presetStore } from './presetStore.js';
 import {
@@ -16,13 +15,23 @@ const SOUND_EVENTS = [
 ];
 
 /**
- * The Presets surface (#presets-control-root): loads the banks, mounts
- * the panel, and keeps it in sync — coalesced onto animation frames, since
- * a crossfader sweep changes state at MIDI rate.
+ * The banks and the dirty tracking, loaded at boot: a MIDI crossfader or a
+ * bridged recall must work whether or not the panel has ever been opened.
+ * The PANEL itself is a separate, lazily mounted module (mountPresetsPanel).
+ */
+export function initPresets() {
+    presetStore.load();
+    PresetActions.watch(SOUND_EVENTS);
+}
+
+/**
+ * The Presets surface (#presets-control-root): mounts the panel and keeps
+ * it in sync — coalesced onto animation frames, since a crossfader sweep
+ * changes state at MIDI rate.
  */
 export class PresetsController {
 
-    constructor(rootSelector) {
+    constructor(rootSelector, PresetsComponent) {
         this.root = document.querySelector(rootSelector);
         if (!this.root) throw new Error(`PresetsController: missing ${rootSelector}`);
         this.component = new PresetsComponent(this.root.querySelector('#presets-panel'));
@@ -30,8 +39,6 @@ export class PresetsController {
     }
 
     init() {
-        presetStore.load();
-        PresetActions.watch(SOUND_EVENTS);
         this.component.render();
         document.addEventListener(PRESETS_CHANGED, () => this.scheduleSync());
     }

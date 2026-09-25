@@ -26,6 +26,7 @@
  */
 
 import express from 'express';
+import compression from 'compression';
 import path from 'node:path';
 import http from 'node:http';
 import { fileURLToPath } from 'node:url';
@@ -117,6 +118,10 @@ function stateSnapshot() {
 // ================================
 
 const app = express();
+// The bundle is the page's one big download — gzip it (and the CSS/JSON
+// with it). Local files in the M4L device don't care; a phone on mobile
+// data does.
+app.use(compression());
 app.use(express.static(path.join(__dirname)));
 
 // Bootstrap snapshot, applied by the app before its first render.

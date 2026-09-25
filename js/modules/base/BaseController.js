@@ -41,6 +41,7 @@ export class BaseController {
         this.bindComponentEvents();
         this.bindExternalEvents();
         this.update(); // first render with fresh props
+        BaseController.mounted.add(this);
     }
 
 
@@ -75,14 +76,45 @@ export class BaseController {
      * per event would saturate the main thread. Audio must NOT wait on
      * this — it renders visuals only, and rAF may be throttled or stopped
      * entirely while the page is hidden (background tab, occluded jweb).
+     *
+     * A panel that is NOT ON SCREEN (its surface isn't showing) is not
+     * rendered at all: the work is remembered and done once, when the
+     * surface appears. Most controllers listen to app-wide events — a
+     * fundamental sweep used to re-render every overtone of the hidden
+     * Trigger pads on every step. Anything that must run while hidden
+     * should call update() directly.
      */
     scheduleUpdate() {
+        if (this.hidden()) {
+            this._updateDeferred = true;
+            return;
+        }
         if (this._updatePending) return;
         this._updatePending = true;
         requestAnimationFrame(() => {
             this._updatePending = false;
             this.update();
         });
+    }
+
+    /**
+     * Is the component's root off screen? Only asked on the coalesced
+     * path, and only of a mounted element: `offsetParent` is null for a
+     * `display:none` subtree, which is how the surface shell hides panels.
+     */
+    hidden() {
+        const el = this.component?.el;
+        return Boolean(el && !el.offsetParent && el !== document.body);
+    }
+
+    /**
+     * Render now if an update was skipped while this panel was hidden.
+     * The surfaces controller calls this on every surface change.
+     */
+    flushDeferredUpdate() {
+        if (!this._updateDeferred || this.hidden()) return;
+        this._updateDeferred = false;
+        this.update();
     }
 
     /**
@@ -106,8 +138,20 @@ export class BaseController {
      * Optional destruction (future-proofing)
      */
     destroy() {
+        BaseController.mounted.delete(this);
         if (this.component.teardown) {
             this.component.teardown();
         }
     }
+}
+
+/**
+ * Every live controller, so the surfaces controller can flush the ones
+ * whose panels were hidden when their state changed.
+ */
+BaseController.mounted = new Set();
+
+/** Render every controller that skipped an update while it was hidden. */
+export function flushHiddenControllers() {
+    for (const controller of BaseController.mounted) controller.flushDeferredUpdate();
 }

@@ -1,4 +1,6 @@
 import { AppState } from '../../config.js';
+import { contourFn } from '../../dsp/gate/contours.js';
+import { patternById, patternPeriod } from '../../dsp/gate/patterns.js';
 import { themeColor } from '../../theme.js';
 import { getWaveValue } from '../tonewheel/tonewheelActions.js';
 import { OvertoneSignalActions } from './overtoneSignalActions.js';
@@ -11,29 +13,20 @@ import { OvertoneSignalActions } from './overtoneSignalActions.js';
  */
 
 /**
- * Unipolar (0-1) cycle contour for a shape name — mirrors shapeValue() in
- * gate-processor.js. Custom waveforms are min-max normalized like the
- * table the worklet receives.
+ * Unipolar (0-1) cycle contour for a shape name — the same definition the
+ * worklet plays (js/dsp/gate/contours.js); null for a custom waveform,
+ * which is sampled separately and min-max normalized like the table the
+ * worklet receives.
  */
 export function shapeContour(shapeName, phase) {
-    switch (shapeName) {
-        case 'sine': return (1 - Math.cos(2 * Math.PI * phase)) / 2;
-        case 'triangle': return 1 - Math.abs(2 * phase - 1);
-        case 'sawtooth': return 1 - phase;
-        // A real 50% pulse: high for the first half of the cycle, low
-        // for the second. A constant would pin every shaped row to 1 and
-        // make the gate contour a no-op — see shapeValue() in
-        // gate-processor.js, which mirrors this.
-        case 'square': return phase < 0.5 ? 1 : 0;
-        default: return null; // custom — sampled separately
-    }
+    const fn = contourFn(shapeName);
+    return fn ? fn(phase) : null;
 }
 
 /** Sampler covering built-ins and custom waves (0-1, min-max normalized). */
 export function shapeSampler(shapeName, resolution = 256) {
-    if (shapeContour(shapeName, 0) !== null) {
-        return (phase) => shapeContour(shapeName, phase);
-    }
+    const builtIn = contourFn(shapeName);
+    if (builtIn) return builtIn;
     const coeffs = AppState.customWaveCoefficients?.[shapeName];
     if (!coeffs) return () => 1;
     const raw = [];
@@ -51,41 +44,26 @@ export function shapeSampler(shapeName, resolution = 256) {
     };
 }
 
-/** Pattern activity for one cycle — mirrors gateForCycle in the worklet
- *  (probability is depicted as all-active; randomness can't be drawn). */
+/** What the patterns decide from (js/dsp/gate/patterns.js). */
+function patternContext(gate) {
+    return { x: gate.x, y: gate.y, steps: gate.seq || null, cache: {} };
+}
+
+/**
+ * Pattern activity per cycle — the worklet's own `active`, so the drawing
+ * and the sound can't disagree. A random pattern is drawn all-active:
+ * randomness can't be depicted.
+ */
 export function previewPattern(gate, cycles) {
-    switch (gate.mode) {
-        case 1: {
-            const period = Math.max(1, Math.round(gate.x) + Math.round(gate.y));
-            return Array.from({ length: cycles }, (_, c) => (c % period) < Math.round(gate.x));
-        }
-        case 2: {
-            const steps = Math.max(1, Math.round(gate.y));
-            const pulses = Math.min(Math.round(gate.x), steps);
-            const pat = [];
-            let bucket = 0;
-            for (let i = 0; i < steps; i++) {
-                bucket += pulses;
-                if (bucket >= steps) { bucket -= steps; pat.push(true); } else pat.push(false);
-            }
-            return Array.from({ length: cycles }, (_, c) => pat[c % steps]);
-        }
-        case 4: {
-            const seq = gate.seq || [];
-            if (!seq.length) return Array.from({ length: cycles }, () => true);
-            return Array.from({ length: cycles }, (_, c) => seq[c % seq.length] > 0.5);
-        }
-        default: // off and probability
-            return Array.from({ length: cycles }, () => true);
-    }
+    const pattern = patternById(gate.mode);
+    if (pattern.bypass || pattern.random) return Array.from({ length: cycles }, () => true);
+    const ctx = patternContext(gate);
+    return Array.from({ length: cycles }, (_, c) => Boolean(pattern.active(c, ctx)));
 }
 
 /** Cycles the preview spans: the full pattern period and the full shape period. */
 export function previewCycleCount(gate, stretch) {
-    let period = 1;
-    if (gate.mode === 1) period = Math.max(1, Math.round(gate.x) + Math.round(gate.y));
-    else if (gate.mode === 2) period = Math.max(1, Math.round(gate.y));
-    else if (gate.mode === 4) period = Math.max(1, (gate.seq || []).length || 1);
+    const period = patternPeriod(gate.mode, patternContext(gate));
     return Math.min(32, Math.max(period, Math.ceil(stretch), 1));
 }
 

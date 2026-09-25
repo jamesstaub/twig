@@ -139,6 +139,9 @@ export class SpectralSystemComponent extends BaseComponent {
                 label.className = 'system-frequency-label';
                 const hz = document.createElement('span');
                 hz.className = 'system-frequency-hz';
+                // A text node each, written in place below
+                label.appendChild(document.createTextNode(''));
+                hz.appendChild(document.createTextNode(''));
                 item.append(label, hz);
                 return item;
             }));
@@ -147,8 +150,11 @@ export class SpectralSystemComponent extends BaseComponent {
         voices.forEach((voice, i) => {
             const item = list.children[i];
             item.style.setProperty('--partial-color', partialColor(voice.ratio));
-            item.children[0].textContent = voice.label;
-            item.children[1].textContent = voice.hz;
+            // nodeValue, not textContent: a fundamental sweep rewrites these
+            // 24 readouts per step, and textContent would throw away and
+            // rebuild a text node every time
+            setText(item.children[0], voice.label);
+            setText(item.children[1], voice.hz);
         });
     }
 
@@ -299,5 +305,15 @@ export class SpectralSystemComponent extends BaseComponent {
             this.onSubharmonicToggle?.();
         };
         subharmonicToggle.addEventListener('click', this._subharmonicToggleHandler);
+    }
+}
+
+/** Write an element's text in place, leaving its text node alone. */
+function setText(el, value) {
+    const node = el.firstChild;
+    if (node) {
+        if (node.nodeValue !== value) node.nodeValue = value;
+    } else {
+        el.textContent = value;
     }
 }

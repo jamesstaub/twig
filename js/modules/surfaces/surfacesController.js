@@ -1,4 +1,4 @@
-import { BaseController } from '../base/BaseController.js';
+import { BaseController, flushHiddenControllers } from '../base/BaseController.js';
 import { ToolbarComponent } from './ToolbarComponent.js';
 import { SurfaceShellComponent } from './SurfaceShellComponent.js';
 import { SideToggleComponent } from './SideToggleComponent.js';
@@ -58,7 +58,14 @@ export class SurfacesController extends BaseController {
     }
 
     bindExternalEvents() {
-        document.addEventListener(SURFACE_CHANGED, () => this.update());
-        document.addEventListener(LAYOUT_MODE_CHANGED, () => this.update());
+        // The shell hides and shows the panels; a panel that comes back
+        // may have skipped updates while it was off screen, so it renders
+        // them now — after the shell has applied, so it measures as shown
+        const applied = () => {
+            this.update();
+            flushHiddenControllers();
+        };
+        document.addEventListener(SURFACE_CHANGED, applied);
+        document.addEventListener(LAYOUT_MODE_CHANGED, applied);
     }
 }

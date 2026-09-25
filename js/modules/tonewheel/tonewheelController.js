@@ -49,9 +49,8 @@ export class TonewheelController extends BaseController {
     }
 
     getProps() {
-        let p5Instance = null;
-        p5Instance = TonewheelActions.initVisualization();
-        return { p5Instance };
+        // The component makes the box, then calls this to fill it
+        return { createSketch: () => TonewheelActions.initVisualization() };
     }
 
     bindComponentEvents() {

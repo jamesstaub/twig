@@ -106,6 +106,7 @@ import { midiConfig } from "../../appConfig.js";
 import { SourceActions } from "../source/sourceActions.js";
 import { ConvolutionActions } from "../convolution/convolutionActions.js";
 import { irManager } from "../../dsp/IRManager.js";
+import { PATTERNS, patternIdFromName } from "../../dsp/gate/patterns.js";
 import { updateHarmonicPulse } from "../../audio.js";
 import { updateMidiOutputPort } from "../midi/midiConfigActions.js";
 import { showStatus } from "../../domUtils.js";
@@ -151,13 +152,14 @@ const TRANSIENT_COMMANDS = new Set(['reset', 'randomize', 'setdrawbarfundamental
 
 const SEQ_AMOUNT_TARGETS = { seqgain: 'gain', seqfreq: 'freq', seqres: 'res', seqwet: 'wet', seqfb: 'fb' };
 
-const GATE_MODES = {
-    off: 0, 0: 0,
-    alt: 1, alternating: 1, 1: 1,
-    euclid: 2, euclidean: 2, 2: 2,
-    prob: 3, probability: 3, 3: 3,
-    seq: 4, sequence: 4, 4: 4,
-};
+/** A gate mode from the bridge: a pattern id, or its name/alias. */
+function gateMode(value) {
+    if (typeof value === 'number' || /^\d+$/.test(String(value))) {
+        const id = Math.round(Number(value));
+        return PATTERNS.some((p) => p.id === id) ? id : undefined;
+    }
+    return patternIdFromName(value);
+}
 
 /** Parse a gate sequence: one "10110" string or a list of 0/1 numbers. */
 function parseGateSeq(parts) {
@@ -419,7 +421,7 @@ export class OscClient {
                 // 0-3 or off|alternating|euclidean|probability. For
                 // probability, x = percent 0-100, y unused.
                 const [n, rest] = perVoiceArgs(sub, args);
-                const mode = GATE_MODES[rest[0]];
+                const mode = gateMode(rest[0]);
                 if (n === null || mode === undefined) break;
                 const config = mode === 4
                     ? { mode, seq: parseGateSeq(rest.slice(1)) }
