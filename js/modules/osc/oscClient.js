@@ -137,7 +137,8 @@ import {
 const COMMANDS = new Set([
     'drawbar', 'drawbars', 'gain', 'slew', 'note', 'freq',
     'system', 'startharmonic', 'stiffness', 'closedness', 'stretch', 'compress',
-    'waveform', 'source', 'adcin', 'adcchannel', 'subharmonic', 'play', 'reset', 'randomize',
+    'waveform', 'source', 'adcin', 'adcchannel', 'sfloop', 'sffund', 'sfrange',
+    'subharmonic', 'play', 'reset', 'randomize',
     'setdrawbarfundamental', 'gate', 'filter', 'res', 'drive', 'pan', 'conv', 'convir', 'irring',
     'pulsemidi', 'pulseosc', 'pulseoffset', 'midiclock',
     'seqshape', 'seqgain', 'seqfreq', 'seqres', 'seqwet', 'seqfb', 'seqstretch',
@@ -367,6 +368,19 @@ export class OscClient {
                 break;
             case 'adcchannel':
                 SourceActions.setAdcChannel(args[0]);
+                break;
+            case 'sfloop':
+                // Loop the file (1) or one-shot per ADSR trigger (0)
+                SourceActions.setSoundfileLoop(Boolean(Number(args[0])));
+                break;
+            case 'sffund':
+                // The file's fundamental in Hz for tuning; 0 = detected
+                SourceActions.setSoundfileFundamental(Number(args[0]));
+                break;
+            case 'sfrange':
+                // The part of the file that plays: [start, end] as 0-1
+                // fractions; 0 1 (or one arg) = the whole file
+                SourceActions.setSoundfileRange(args.length >= 2 ? [Number(args[0]), Number(args[1])] : null);
                 break;
             case 'waveform': {
                 // By name ("sine") or by index into the oscillator menu
@@ -663,6 +677,9 @@ export class OscClient {
             this.emit('source', [SOURCE_MODES.indexOf(AppState.sourceMode)]);
             this.emit('adcin', [AppState.adcDeviceId ?? '']);
             this.emit('adcchannel', [AppState.adcChannel]);
+            this.emit('sfloop', [AppState.soundfileLoop ? 1 : 0]);
+            this.emit('sffund', [AppState.soundfileFundamental ?? 0]);
+            this.emit('sfrange', AppState.soundfileRange ?? [0, 1]);
         });
         // Bulk amplitude changes: emit the full set so Max multisliders track
         document.addEventListener(DRAWBARS_RESET, () => {

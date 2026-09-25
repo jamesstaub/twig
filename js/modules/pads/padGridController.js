@@ -5,12 +5,16 @@ import { calculateFrequency, formatHz } from '../../utils.js';
 import { getVoiceLevel, triggerHarmonicAttack, triggerHarmonicRelease } from '../../audio.js';
 import { OvertoneSignalActions } from '../overtoneSignal/overtoneSignalActions.js';
 import { TRIGGER_KEY_LABELS } from '../../KeyboardShortcuts.js';
+import { SourceActions } from '../source/sourceActions.js';
 import {
     ENVELOPE_MODE_CHANGED,
     FUNDAMENTAL_CHANGED,
+    SOURCE_CHANGED,
     SPECTRAL_SYSTEM_CHANGED,
     SUBHARMONIC_TOGGLED,
 } from '../../events.js';
+
+const LOOP_TOGGLE_ID = 'pad-loop-toggle';
 
 /**
  * Trigger surface pads: one per overtone of the current system, gating the
@@ -49,7 +53,26 @@ export class PadGridController extends BaseController {
         this.component.onRelease = (index) => triggerHarmonicRelease(index);
     }
 
+    /**
+     * "Loop Samples": loop the sound file, or play it once per trigger.
+     * Disabled outside sound-file mode (the app's rule — inapplicable
+     * controls stay, grayed); the state is synth state (bridged, preset).
+     */
+    bindLoopToggle() {
+        const btn = document.getElementById(LOOP_TOGGLE_ID);
+        if (!btn) return;
+        const sync = () => {
+            btn.setAttribute('aria-pressed', String(AppState.soundfileLoop));
+            btn.disabled = AppState.sourceMode !== 'soundfile';
+        };
+        btn.addEventListener('click', () => SourceActions.setSoundfileLoop(!AppState.soundfileLoop));
+        document.addEventListener(SOURCE_CHANGED, sync);
+        sync();
+    }
+
     bindExternalEvents() {
+        this.bindLoopToggle();
+
         // Coalesced: a fundamental sweep floods FUNDAMENTAL_CHANGED, and each
         // re-render releases held pads (teardown) — one per frame at most
         document.addEventListener(SPECTRAL_SYSTEM_CHANGED, () => this.scheduleUpdate());

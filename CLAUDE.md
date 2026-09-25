@@ -122,13 +122,77 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
   `currentWaveform` is then the nearer endpoint (what the picker, the bake
   and the bridge see). 'sine' is a one-coefficient PeriodicWave in the
   engine's standard table so it can sit in a slot. Or the head is a
-  per-voice tap on one shared external node (`js/dsp/SourceManager.js`:
-  ADC/soundfile/pink/white) — voices keep their frequency identity so the
+  per-voice SAMPLER (poly sample mode: its own AudioBufferSourceNode over
+  the shared decoded file — `voice.set({ sample: { buffer, loop,
+  baseFrequency } })`, `harmonicSamplePayload()` in audio.js; a new
+  buffer or loop setting restarts the player, a base frequency only
+  retunes it to frequency / baseFrequency; a one-shot ends on its own
+  and `voice.retrigger()` plays it again — players are single-use, so
+  that is a fresh node). Or the head is a per-voice tap on one shared
+  external node (`js/dsp/SourceManager.js`: ADC/mono soundfile/pink/white) — voices keep their frequency identity so the
   pitch-tracked lowpasses (forced to multiplier 1 / Q 30 on entering an
   external mode) form a resonant filter bank. The gate worklet, sequencer,
   and pulses run on external-source voices too (their clock is the voice
   frequency). External modes hide only the waveform picker and disable the wavetable
   actions; the fundamental stays visible — it tunes the bank.
+- Sound-file source (`sourceMode: 'soundfile'`): the Source panel swaps
+  the waveform picker for the file controls (picker, Mono/Poly and Tune
+  as label+switch pairs, Fundamental — disabled in place where they
+  don't apply) and its preview draws the loaded file's min/max envelope
+  (`sourceManager.fileOverview`, 1024 bins) instead of the oscillator
+  wave; entering the mode without a file is allowed and silent. Loading
+  a file sets TWIG'S FUNDAMENTAL to the file's detected one
+  (`FundamentalActions.setFundamentalExact`), so tuned poly voices play
+  it at their ratios — overtone 1 as is. How a file PLAYS is app
+  config (`soundfileConfig` in appConfig.js, localStorage, not bridged,
+  not in presets): `mode` 'poly' (default) = a player per voice
+  (`polySampleMode()`), 'mono' = ONE player for the bank (SourceManager,
+  every voice taps it — the filter-bank/vocoder treatment, like the
+  ADC), switched by a bank restart; `tune` (default on) plays the file
+  at each overtone's pitch from its fundamental: `soundfileFundamental`
+  (synth state, Hz, null = detected) or `sourceManager.fileFundamental`
+  from `js/dsp/pitchDetect.js` — a file of ≤ 1 s is taken as ONE PERIOD
+  (1 / duration, the single-cycle convention); a longer file's first
+  4096 samples (channels averaged) go to YIN (`js/dsp/yin.js`, pure:
+  W = 1024 windows hopped by 512, estimates averaged in the log
+  domain, one W = 2048 pass when none is clear; null for noise) in a
+  module Worker (`js/dsp/workers/pitch-worker.js`, served unbundled like
+  the worklets) so detection never blocks the main thread —
+  `detectFundamental(buffer)` is async and `setFileBuffer` resolves when
+  the fundamental is known. `soundfileLoop` (default true;
+  the Trigger panel's "Loop Samples" button, `padGridController.
+  bindLoopToggle`, disabled outside sound-file mode):
+  false makes the file a one-shot that every ADSR attack restarts from
+  the top (`triggerHarmonicAttack` → `voice.retrigger()` in poly,
+  `sourceManager.retrigger()` in mono) — in Drone mode it then plays
+  once. PULSES IN SAMPLE MODE follow the sample, not its pitch: a voice's
+  cycle clock (the gate worklet's `frequency`) is its LOOP rate —
+  playback rate ÷ range length (`SourceStage.clockFrequency`; the mono
+  player's `1 / loopSeconds`, handed to every voice as the `clock` param
+  with the player's start time, `updateAllHarmonicClocks`) — and the
+  worklet's phase restarts whenever a player does (`{ type: 'phase', at }`
+  → `ModulatorStage.resetPhase`, from `Voice`'s sample/retrigger/start),
+  so pulses, gates and contours land on each loop pass; the worklet's
+  separate `pitch` param keeps the cutoff-CV curve on the voice's pitch.
+  `soundfileRange` ([start, end] as 0-1 fractions, null = the whole
+  file): a drag across the Source preview (`SourceComponent.bindRangeDrag`
+  on the `#source-range-overlay`, shades outside the range, the corner
+  button back to the whole file; committed on release, since a change
+  restarts the players — `loopStart`/`loopEnd` and the start offset, a
+  one-shot's duration) — a new file resets it. A range change re-runs
+  YIN on the region's first 4096 samples (`sourceManager.
+  detectFundamental(range)`; the single-cycle rule is for whole files
+  only) and resets the fundamental from it: typed override dropped,
+  twig's fundamental and the samplers follow; a region with no clear
+  pitch keeps the previous value. Bridged as
+  `/twig/sfloop` (0/1), `sffund` (Hz, 0 = detected) and `sfrange` (start
+  end; 0 1 = whole); in presets under `source.soundfile`. The file itself is
+  session-only (stored by name).
+  Decoding: the browser's `decodeAudioData` takes WAV/MP3/FLAC/OGG/M4A but
+  Chromium has NO AIFF demuxer (every .aif/.aifc fails "Unable to decode
+  audio data"), so `js/dsp/aiff.js` (pure) reads AIFF/AIFF-C PCM itself —
+  8/16/24/32-bit big-endian, 'sowt' little-endian (Apple/Logic), fl32/fl64;
+  compressed AIFF-C (ima4, ulaw…) throws a clear message.
 - The gate worklet (`js/dsp/worklets/gate-processor.js`) is served
   **unbundled** — no imports allowed in that file. Arbitrary data (0/1
   sequences, shape tables) goes over `port.postMessage`, numbers go as
@@ -468,7 +532,9 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
   onto the next animation frame — SPECTRAL_SYSTEM_CHANGED at most every
   150 ms while interpolated, since the strip rebuilds on it. A waveform
   difference is a fast-path morph, not a restart.
-  `presetActions.js`: select/store/recall/rename/clear, the crossfader
+  `presetActions.js`: select/store/recall/rename/clear (a bank button
+  recalls a stored bank and selects an empty one; Store/Clear act on the
+  selection), the crossfader
   (`setCrossfade(0-127)`; frames memoized per position until A, B or
   their banks change — a frame is a few hundred lerps, no worker;
   `clearInterpolation()` — the Interpolate card's Clear — unassigns A/B

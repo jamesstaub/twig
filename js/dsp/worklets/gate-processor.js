@@ -148,6 +148,10 @@ class OvertoneGateProcessor extends AudioWorkletProcessor {
     static get parameterDescriptors() {
         return [
             { name: 'frequency', defaultValue: 440, minValue: 0, maxValue: 24000, automationRate: 'a-rate' },
+            // The voice's PITCH when the clock isn't it — a sampler voice's
+            // clock is its loop rate; the cutoff-CV curve still needs the
+            // pitch. 0 = the clock frequency is the pitch.
+            { name: 'pitch', defaultValue: 0, minValue: 0, maxValue: 24000, automationRate: 'k-rate' },
             { name: 'mode', defaultValue: 0, minValue: 0, maxValue: 4, automationRate: 'k-rate' },
             { name: 'x', defaultValue: 1, minValue: 0, maxValue: 1024, automationRate: 'k-rate' },
             { name: 'y', defaultValue: 1, minValue: 0, maxValue: 1024, automationRate: 'k-rate' },
@@ -208,9 +212,15 @@ class OvertoneGateProcessor extends AudioWorkletProcessor {
         this.seqRatios = null;    // extended overtone-series ratio table
         this.seqBaseStep = 0;     // filter's base partial index (0 = open)
         this.stopped = false;
+        // A { type: 'phase', at } message restarts the cycle at that
+        // audio-clock time — a sampler's player (re)started then, and its
+        // pulses, gate and contour follow the loop from its start
+        this.phaseResetAt = null;
         this.port.onmessage = (e) => {
             if (e.data === 'stop') {
                 this.stopped = true;
+            } else if (e.data && e.data.type === 'phase') {
+                this.phaseResetAt = Number(e.data.at) || 0;
             } else if (e.data && e.data.type === 'sequence') {
                 this.patternState.customSeq = Array.isArray(e.data.steps) ? e.data.steps : null;
             } else if (e.data && e.data.type === 'shapetable') {
@@ -294,6 +304,7 @@ class OvertoneGateProcessor extends AudioWorkletProcessor {
         const fbCV = outputs[4] && outputs[4][0];
 
         const freq = parameters.frequency;
+        const pitchParam = parameters.pitch[0];
         const mode = parameters.mode[0] | 0;
         const x = parameters.x[0];
         const y = parameters.y[0];
@@ -332,8 +343,27 @@ class OvertoneGateProcessor extends AudioWorkletProcessor {
         }
 
         const frames = output[0].length;
+        // A pending phase reset: at its frame within this block, or — the
+        // message arrived after the fact — wherever the phase would be now
+        // had the cycle restarted then
+        let resetFrame = -1;
+        if (this.phaseResetAt !== null) {
+            const blockStart = currentFrame / sampleRate;
+            if (this.phaseResetAt <= blockStart) {
+                this.phase = ((blockStart - this.phaseResetAt) * freq[0]) % 1;
+                this.pulsedThisCycle = false;
+                this.phaseResetAt = null;
+            } else if (this.phaseResetAt < blockStart + frames / sampleRate) {
+                resetFrame = Math.round((this.phaseResetAt - blockStart) * sampleRate);
+                this.phaseResetAt = null;
+            }
+        }
         for (let i = 0; i < frames; i++) {
             const f = freq.length > 1 ? freq[i] : freq[0];
+            if (i === resetFrame) {
+                this.phase = 0;
+                this.pulsedThisCycle = false;
+            }
             this.phase += f / sampleRate;
             if (this.phase >= 1) {
                 this.phase -= Math.floor(this.phase);
@@ -379,7 +409,7 @@ class OvertoneGateProcessor extends AudioWorkletProcessor {
                 output[ch][i] = inCh[i] * g;
             }
             // Targets: filter cutoff (Hz delta CV) and resonance (Q CV)
-            if (freqCV) freqCV[i] = off ? 0 : this.freqDelta(f, s, amtFreq);
+            if (freqCV) freqCV[i] = off ? 0 : this.freqDelta(pitchParam > 0 ? pitchParam : f, s, amtFreq);
             if (qCV) qCV[i] = off ? 0 : amtRes * s * Q_SPAN;
             // Convolution: contour adds to the base send, clamped to range
             if (wetCV) wetCV[i] = off ? 0 : Math.min(1, baseWet + amtWet * s) - baseWet;

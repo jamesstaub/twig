@@ -4,7 +4,7 @@
  */
 
 import { AppState } from './config.js';
-import { loadAppConfig, midiConfig, recorderConfig } from './appConfig.js';
+import { loadAppConfig, midiConfig, recorderConfig, soundfileConfig } from './appConfig.js';
 import * as midiConfigActions from './modules/midi/midiConfigActions.js';
 import { momentumSmoother } from './momentum-smoother.js';
 
@@ -13,6 +13,7 @@ import { showStatus } from './domUtils.js';
 import { faviconService } from './modules/favicon/faviconService.js';
 import { audioEngine } from './dsp/engine/AudioEngine.js';
 import { irManager } from './dsp/IRManager.js';
+import { sourceManager } from './dsp/SourceManager.js';
 import { recordingStore } from './modules/recording/RecordingStore.js';
 import { RecordingActions } from './modules/recording/recordingActions.js';
 import { PresetActions } from './modules/presets/presetActions.js';
@@ -189,9 +190,10 @@ window.TWIG = {
     getAudioCtx: () => audioEngine.context,
     getAudioEngine: () => audioEngine,
     getIRManager: () => irManager,
+    getSourceManager: () => sourceManager,
     getRecordingStore: () => recordingStore,
     recorder: RecordingActions,
-    getAppConfig: () => ({ midiConfig, recorderConfig }),
+    getAppConfig: () => ({ midiConfig, recorderConfig, soundfileConfig }),
     midiConfigActions,
     presets: PresetActions,
 

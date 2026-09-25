@@ -42,3 +42,64 @@ body.embed .download-group .routing-mode-group {
 body.embed .download-group .control-select {
     width: auto;
 }
+
+/* Sound-file controls in the band: the picker on one line, then Mono/
+   Poly, the tune box and the fundamental together on the next — the
+   section's column is short, so there is no third line. */
+body.embed .source-file-controls {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.15rem 0.4rem;
+}
+
+body.embed .source-file-pick {
+    flex-basis: 100%;
+    gap: 0.3rem;
+}
+
+body.embed .source-file-btn {
+    padding: 0 0.3rem;
+    font-size: var(--font-size-2xs);
+    line-height: 16px;
+}
+
+/* The two rows dissolve into the wrapping row above */
+body.embed .source-file-row {
+    display: contents;
+}
+
+body.embed .source-file-switch-label {
+    font-size: var(--font-size-2xs);
+    white-space: nowrap;
+}
+
+body.embed .source-file-switch {
+    min-width: 26px;
+    height: 14px;
+    border-radius: 7px;
+}
+
+body.embed .source-file-switch::before {
+    width: 10px;
+    height: 10px;
+}
+
+body.embed .source-file-switch.active::before {
+    transform: translateX(12px);
+}
+
+body.embed .source-file-tune-long,
+body.embed .source-file-fundamental > .start-harmonic-label {
+    display: none;
+}
+
+body.embed .source-file-fundamental input {
+    min-width: 3.5em;
+}
+
+body.embed .source-file-reset {
+    padding: 0 0.3rem;
+    font-size: var(--font-size-2xs);
+    line-height: 16px;
+}

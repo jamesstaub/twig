@@ -1,7 +1,8 @@
 /**
  * SOURCE — the head of a voice: a PAIR of oscillators mixed by a morph
- * position, or a per-voice tap on a shared external node (ADC, sound
- * file, noise — see SourceManager).
+ * position; a per-voice SAMPLER (its own player over a shared
+ * AudioBuffer — poly sample mode); or a per-voice tap on a shared external
+ * node (ADC, mono sample mode, noise — see SourceManager).
  *
  * Two oscillators started on the same frame at the same frequency are
  * sample-exactly phase-locked, and PeriodicWave synthesis is linear, so a
@@ -13,6 +14,12 @@
  * frequency / period; the two slots correct independently, so a morph
  * between different periods is a plain crossfade of two sounds and uses
  * an equal-power curve (coherent slots use a linear one, which is exact).
+ *
+ * A sampler plays the file — or the RANGE of it, [start, end] as 0-1
+ * fractions — at frequency / baseFrequency when tuned (the file's
+ * fundamental, detected or given), else at its own pitch; a one-shot ends
+ * on its own and retrigger() plays it again from the range's start (a
+ * fresh AudioBufferSourceNode — they are single-use).
  *
  * An external-source voice keeps its frequency identity: the modulator's
  * clock and the pitch-tracked lowpass still follow it, so the external
@@ -32,15 +39,26 @@ export class SourceStage extends Stage {
      * @param {AudioContext} ctx
      * @param {Object} opts
      * @param {AudioNode|null} opts.external - Shared node to tap instead of oscillators
+     * @param {boolean} opts.sampler - A per-voice sample player instead of oscillators
      */
-    constructor(ctx, { external = null }) {
+    constructor(ctx, { external = null, sampler = false }) {
         super();
+        this.ctx = ctx;
         this.external = external;
         this.frequency = 0;
+        this.slots = null;
+        this.sample = null;   // { buffer, loop, baseFrequency } of a sampler head
+        this.player = null;   // its current AudioBufferSourceNode
+        this.startedAt = null;
+        this.clockOverride = null; // an external head's cycle rate, when the host knows it
         if (external) {
             this.output = this.own(ctx.createGain());
             external.connect(this.output);
-            this.slots = null;
+            return;
+        }
+        if (sampler) {
+            this.output = this.own(ctx.createGain());
+            this.sample = { buffer: null, loop: true, baseFrequency: null, range: null };
             return;
         }
         this.output = this.own(ctx.createGain());
@@ -56,20 +74,98 @@ export class SourceStage extends Stage {
         this.position = 0; // 0 = slot 0 alone … 1 = slot 1 alone
     }
 
-    /** The slots' pitch (Hz), each corrected for its own table period. */
+    /**
+     * The voice's pitch (Hz): each wave slot corrected for its table period;
+     * a tuned sampler's playback rate.
+     */
     setFrequency(frequency, time, ramp) {
         this.frequency = frequency;
-        if (!this.slots) return;
-        for (const slot of this.slots) setParam(slot.oscillator.frequency, frequency / slot.period, time, ramp);
+        if (this.slots) {
+            for (const slot of this.slots) setParam(slot.oscillator.frequency, frequency / slot.period, time, ramp);
+        } else if (this.player) {
+            setParam(this.player.playbackRate, this.playbackRate(), time, ramp);
+        }
+    }
+
+    // ---- sampler ----
+
+    /**
+     * What the sampler plays. A new buffer, loop setting or range restarts
+     * the player; a new base frequency only retunes it.
+     * @param {{buffer: AudioBuffer|null, loop?: boolean, baseFrequency?: number|null,
+     *   range?: number[]|null}} sample - range: [start, end] fractions of the file
+     */
+    setSample({ buffer, loop = true, baseFrequency = null, range = null }, time, ramp) {
+        if (!this.sample) return null;
+        const restart = buffer !== this.sample.buffer || loop !== this.sample.loop
+            || (range?.[0] ?? 0) !== (this.sample.range?.[0] ?? 0) || (range?.[1] ?? 1) !== (this.sample.range?.[1] ?? 1);
+        this.sample = { buffer, loop, baseFrequency, range };
+        if (restart) {
+            if (this.startedAt === null) return null;
+            const at = Math.max(this.startedAt, time);
+            this.play(at);
+            return at; // the player restarted: the cycle clock realigns here
+        }
+        if (this.player) setParam(this.player.playbackRate, this.playbackRate(), time, ramp);
+        return null;
+    }
+
+    /** Play the sample again from its start (a one-shot's trigger); returns the start time. */
+    retrigger(time) {
+        if (!this.sample || this.startedAt === null) return null;
+        this.play(time);
+        return time;
+    }
+
+    playbackRate() {
+        const base = this.sample?.baseFrequency;
+        return base > 0 && this.frequency > 0 ? this.frequency / base : 1;
+    }
+
+    play(at) {
+        if (this.player) {
+            const old = this.player;
+            try { old.stop(at); } catch { /* not started */ }
+            old.onended = () => old.disconnect();
+        }
+        this.player = null;
+        if (!this.sample.buffer) return;
+        const player = this.ctx.createBufferSource();
+        const { buffer, loop, range } = this.sample;
+        player.buffer = buffer;
+        player.loop = loop;
+        player.playbackRate.value = this.playbackRate();
+        const start = (range?.[0] ?? 0) * buffer.duration;
+        const end = (range?.[1] ?? 1) * buffer.duration;
+        player.loopStart = start;
+        player.loopEnd = end;
+        player.connect(this.output);
+        if (loop) player.start(at, start);
+        else player.start(at, start, Math.max(0, end - start));
+        this.player = player;
     }
 
     /**
      * The rate the voice's cycle clock should run at: the audible table's
-     * full period (a packed wavetable's cycle is all its periods).
+     * full period (a packed wavetable's cycle is all its periods); a
+     * sampler's LOOP rate — the range at the playback rate — so pulses,
+     * gate and contour follow the sample's own rhythm, not its pitch; an
+     * external head's rate when the host set one (the mono sample player).
      */
     get clockFrequency() {
-        if (!this.slots) return this.frequency;
-        return this.frequency / this.slots[this.position < 0.5 ? 0 : 1].period;
+        if (this.clockOverride !== null) return this.clockOverride;
+        if (this.slots) return this.frequency / this.slots[this.position < 0.5 ? 0 : 1].period;
+        if (this.sample?.buffer) {
+            const { buffer, range } = this.sample;
+            const seconds = ((range?.[1] ?? 1) - (range?.[0] ?? 0)) * buffer.duration;
+            return seconds > 0 ? this.playbackRate() / seconds : this.frequency;
+        }
+        return this.frequency;
+    }
+
+    /** An external head's cycle rate (null = the voice's pitch). */
+    setClock(hz) {
+        this.clockOverride = hz;
     }
 
     /**
@@ -141,13 +237,20 @@ export class SourceStage extends Stage {
      */
     start(at = 0) {
         if (this.slots) for (const slot of this.slots) slot.oscillator.start(at);
+        if (this.sample) {
+            this.startedAt = at;
+            this.play(at);
+        }
+        return at;
     }
 
     stop(at) {
         if (this.slots) for (const slot of this.slots) slot.oscillator.stop(at);
+        if (this.player) { try { this.player.stop(at); } catch { /* not started */ } }
     }
 
     dispose() {
+        if (this.player) { try { this.player.disconnect(); } catch { /* already disconnected */ } }
         // The shared external source outlives voices — unhook this voice's
         // tap from it so the tap subgraph can be collected
         if (this.external) {

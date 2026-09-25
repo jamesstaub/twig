@@ -12,7 +12,7 @@
 
 import { PLAY_STATE_CHANGED } from './events.js';
 import { AppState, ENVELOPE_DEFAULTS, seriesStepAt, updateAppState, WAVETABLE_SIZE } from './config.js';
-import { midiConfig } from './appConfig.js';
+import { midiConfig, soundfileConfig } from './appConfig.js';
 import { calculateFrequency, generateFilenameParts, getVoicePan } from './utils.js';
 
 import { audioEngine, WavetableManager, WAVExporter, WaveformGenerator } from './dsp/index.js';
@@ -99,6 +99,51 @@ export function harmonicWaveformPayload() {
 
 /** Seconds a waveform change takes to morph onto the new table. */
 const WAVEFORM_MORPH_S = 0.02;
+
+/**
+ * Whether the bank's voices each own a sample player (poly sample mode);
+ * in mono sample mode the file plays once, for the bank, through the
+ * shared external node.
+ */
+export function polySampleMode() {
+    return AppState.sourceMode === 'soundfile' && soundfileConfig.mode === 'poly';
+}
+
+/** A poly voice's sample parameter: the file, looping, and the pitch it is tuned from. */
+function harmonicSamplePayload() {
+    const tune = soundfileConfig.tune;
+    return {
+        buffer: sourceManager.fileBuffer,
+        loop: AppState.soundfileLoop,
+        baseFrequency: tune ? (AppState.soundfileFundamental ?? sourceManager.fileFundamental) : null,
+        range: AppState.soundfileRange,
+    };
+}
+
+/** Apply the sample settings (file, loop, tuning) to every running poly voice. */
+export function updateAllHarmonicSamples() {
+    if (!polySampleMode()) return;
+    const sample = harmonicSamplePayload();
+    for (const voice of audioEngine.voices.values()) voice.set({ sample });
+}
+
+/**
+ * Mono sample mode: every voice's cycle clock is the shared player's loop
+ * — its rate, restarted when the player did — so pulses, gates and
+ * contours follow the sample's rhythm, as a poly voice's follow its own
+ * player. Null frequency hands the clock back to the voice's pitch.
+ */
+function harmonicClockPayload() {
+    const mono = AppState.sourceMode === 'soundfile' && !polySampleMode();
+    const seconds = mono ? sourceManager.loopSeconds : null;
+    return seconds > 0 ? { frequency: 1 / seconds, at: sourceManager.playerStartedAt } : { frequency: null, at: null };
+}
+
+/** Re-align every voice's clock with the mono sample player (after it (re)started). */
+export function updateAllHarmonicClocks() {
+    const clock = harmonicClockPayload();
+    for (const voice of audioEngine.voices.values()) voice.set({ clock });
+}
 
 /** Apply the current waveform (or crossfade) to every running voice, click-free. */
 export function updateAllHarmonicWaveforms(ramp = WAVEFORM_MORPH_S) {
@@ -199,15 +244,21 @@ export async function startTone({ startAt = null } = {}) {
 function createHarmonicVoice(i, ratio, gain, startAt = null) {
     // In an external source mode, every voice taps the shared source node
     // (also covers voices created mid-playback by a system switch)
-    const source = AppState.sourceMode !== 'oscillators' ? sourceManager.node : null;
+    // Poly sample mode: the voice owns a player; other external modes tap
+    // the shared source node
+    const sampler = polySampleMode();
+    const source = !sampler && AppState.sourceMode !== 'oscillators' ? sourceManager.node : null;
     const frequency = calculateFrequency(ratio);
 
     return audioEngine.addVoice(i, {
         source,
+        sampler,
         startAt,
         // The wave slots correct for their own table periods; an
         // external-source voice has none (frequency tunes its filter and clock)
-        waveform: source ? undefined : harmonicWaveformPayload(),
+        waveform: source || sampler ? undefined : harmonicWaveformPayload(),
+        sample: sampler ? harmonicSamplePayload() : undefined,
+        clock: source ? harmonicClockPayload() : undefined,
         frequency,
         gain,
         envelopeOpen: AppState.envelopeMode !== 'adsr',
@@ -233,11 +284,13 @@ async function startToneWithOscillators(startAt = null) {
     // External source modes: one shared node feeds every voice chain in
     // place of its oscillator (see SourceManager). Voices keep their
     // frequency identity for the pitch-tracked filters and gate clocks.
-    if (AppState.sourceMode !== 'oscillators') {
+    if (AppState.sourceMode !== 'oscillators' && !polySampleMode()) {
         try {
             await sourceManager.prepare(audioEngine.context, AppState.sourceMode, {
                 deviceId: AppState.adcDeviceId,
                 channel: AppState.adcChannel,
+                loop: AppState.soundfileLoop,
+                range: AppState.soundfileRange,
             });
         } catch (error) {
             console.error(`Source '${AppState.sourceMode}' unavailable:`, error);
@@ -449,7 +502,18 @@ function harmonicEnvelope(index) {
  */
 export function triggerHarmonicAttack(index) {
     if (AppState.envelopeMode !== 'adsr') return;
-    audioEngine.voice(index)?.attack(harmonicEnvelope(index));
+    const voice = audioEngine.voice(index);
+    if (!voice) return;
+    voice.attack(harmonicEnvelope(index));
+    // A one-shot sample plays again from its start on every trigger
+    if (AppState.sourceMode === 'soundfile' && !AppState.soundfileLoop) {
+        if (polySampleMode()) {
+            voice.retrigger();
+        } else {
+            sourceManager.retrigger();
+            updateAllHarmonicClocks();
+        }
+    }
 }
 
 /** Gate one harmonic's ADSR off (release to silence). */

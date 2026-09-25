@@ -8,8 +8,8 @@
  *     restored from the bridge cache (GET /state) at boot.
  *   - appConfig (this file) is how THIS browser is set up: MIDI routing
  *     and mappings, recorder modes, the preset crossfader's A/B
- *     assignment. It is not part of the patch — it lives in localStorage
- *     and survives reloads without the bridge.
+ *     assignment, how sound files play. It is not part of the patch — it
+ *     lives in localStorage and survives reloads without the bridge.
  *
  * loadAppConfig() applies the stored blob at boot BEFORE the bridge
  * bootstrap, so the few values that are also bridged (e.g. the note-out
@@ -86,6 +86,16 @@ export const presetConfig = {
     position: 0,
 };
 
+/**
+ * Sound-file playback: 'poly' gives each voice its own player (tuned to
+ * its overtone when `tune` is on), 'mono' plays the file once for the
+ * whole bank (every voice filtering the same signal, like the ADC).
+ */
+export const soundfileConfig = {
+    mode: 'poly',
+    tune: true,
+};
+
 const STORAGE_KEY = 'twig.appConfig';
 
 function write() {
@@ -94,6 +104,7 @@ function write() {
             midi: { ...midiConfig },
             recorder: { ...recorderConfig },
             presets: { ...presetConfig },
+            soundfile: { ...soundfileConfig },
         }));
     } catch {
         // Storage unavailable (blocked webview, private mode) — config
@@ -124,6 +135,7 @@ export function loadAppConfig() {
     applyKnown(midiConfig, saved.midi);
     applyKnown(recorderConfig, saved.recorder);
     applyKnown(presetConfig, saved.presets);
+    applyKnown(soundfileConfig, saved.soundfile);
 }
 
 function applyKnown(target, source) {

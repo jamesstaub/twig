@@ -101,6 +101,12 @@ const SPEC = {
         mode: snap('oscillators'),
         adcDeviceId: snap(null),
         adcChannel: num(0, 63, 'snap', 0),
+        // The file itself is session-only; mono/poly and tuning are app config
+        soundfile: {
+            loop: snap(true),
+            fundamental: snap(null), // Hz as a number, or null = detected
+            range: snap(null),       // [start, end] fractions, or null = the whole file
+        },
     },
     envelopeMode: snap('open'),
     irRingSeconds: num(0, IR_RING_MAX_SECONDS),
@@ -151,7 +157,12 @@ export function capture() {
         masterGain: s.masterGainValue,
         masterSlew: s.masterSlewValue,
         waveform: s.waveformMorph ? { ...s.waveformMorph } : s.currentWaveform || 'sine',
-        source: { mode: s.sourceMode, adcDeviceId: s.adcDeviceId ?? null, adcChannel: s.adcChannel || 0 },
+        source: {
+            mode: s.sourceMode,
+            adcDeviceId: s.adcDeviceId ?? null,
+            adcChannel: s.adcChannel || 0,
+            soundfile: { loop: s.soundfileLoop, fundamental: s.soundfileFundamental ?? null, range: s.soundfileRange ? [...s.soundfileRange] : null },
+        },
         envelopeMode: s.envelopeMode,
         irRingSeconds: s.irRingSeconds || 0,
         voices,
@@ -207,8 +218,8 @@ function sanitizeLeaf(spec, value) {
         }
         return def;
     }
-    // Nullable leaves: a key (string), a ratio table (array), or nothing
-    if (def === null) return typeof value === 'string' || Array.isArray(value) ? value : null;
+    // Nullable leaves: a key (string), a ratio table (array), a frequency (number), or nothing
+    if (def === null) return typeof value === 'string' || Array.isArray(value) || (Number.isFinite(value) && value > 0) ? value : null;
     if (Array.isArray(def)) return Array.isArray(value) ? value.map((v) => (v > 0.5 ? 1 : 0)) : [...def];
     return typeof value === typeof def ? value : def;
 }

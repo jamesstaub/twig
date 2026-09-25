@@ -98,9 +98,31 @@
                             <select id="adc-device-select" class="control-select" aria-label="Audio input device"></select>
                             <select id="adc-channel-select" class="control-select" aria-label="Audio input channel"></select>
                         </div>
-                        <div id="source-file-controls" class="start-harmonic-row hidden">
-                            <input type="file" id="soundfile-input" accept="audio/*" aria-label="Sound file">
-                            <span id="soundfile-name" class="start-harmonic-label"></span>
+                        <div id="source-file-controls" class="source-file-controls hidden">
+                            <label class="source-file-pick">
+                                <input type="file" id="soundfile-input" accept="audio/*" aria-label="Sound file">
+                                <span class="action-btn source-file-btn">Choose file…</span>
+                                <span id="soundfile-name" class="start-harmonic-label"></span>
+                            </label>
+                            <div class="source-file-row">
+                                <span class="source-file-switch-group">
+                                    <span id="soundfile-mode-label" class="toggle-label source-file-switch-label">Poly</span>
+                                    <span id="soundfile-mode-switch" class="toggle-switch source-file-switch" role="switch" aria-checked="true"
+                                        aria-label="Sample playback: poly (a player per voice) or mono (one for the bank)"></span>
+                                </span>
+                                <span class="source-file-switch-group">
+                                    <span class="toggle-label source-file-switch-label">Tune<span class="source-file-tune-long">&nbsp;to overtone</span></span>
+                                    <span id="soundfile-tune" class="toggle-switch source-file-switch" role="switch" aria-checked="true"
+                                        aria-label="Play the file at each overtone's pitch"></span>
+                                </span>
+                            </div>
+                            <label class="source-file-row source-file-fundamental">
+                                <span class="start-harmonic-label">Fundamental</span>
+                                <input type="number" id="soundfile-fundamental" class="fundamental-input" min="0" step="0.01" placeholder="auto"> Hz
+                                <!-- Back to the detected value, shown while a typed one overrides it -->
+                                <button type="button" id="soundfile-fundamental-reset" class="action-btn source-file-reset hidden"
+                                    title="Use the sample's detected fundamental"></button>
+                            </label>
                         </div>
                         <div id="oscillator-picker" class="select-stepper">
                             <button type="button" class="action-btn select-step-btn" data-target="waveform-select"
@@ -118,6 +140,17 @@
                         </div>
                         <div id="current-waveform-canvas-area" class="canvas-flex-area">
                             <!-- P5 canvas injected here -->
+                            <!-- Sound-file mode: drag across the file to choose the part
+                                 that plays; the shades cover what is left out, and the
+                                 button returns to the whole file (SourceComponent) -->
+                            <div id="source-range-overlay" class="source-range-overlay hidden">
+                                <div class="source-range-dim source-range-dim-left"></div>
+                                <div class="source-range-dim source-range-dim-right"></div>
+                                <button type="button" id="source-range-reset" class="source-range-reset hidden"
+                                    aria-label="Play the whole file" title="Play the whole file">
+                                    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4H4v3M13 4h3v3M4 13v3h3M16 13v3h-3"/></svg>
+                                </button>
+                            </div>
                         </div>
                     </div>
 
@@ -245,6 +278,11 @@
                         <button type="button" id="pad-fundamental-toggle" class="overtone-mode-btn"
                             aria-pressed="false"
                             title="Set fundamental: tapping a pad promotes that overtone to the fundamental instead of playing it">Set Fundamental</button>
+                        <!-- Sound-file source: loop the file, or play it once per
+                             trigger (padGridController; disabled otherwise) -->
+                        <button type="button" id="pad-loop-toggle" class="overtone-mode-btn"
+                            aria-pressed="true" disabled
+                            title="Loop samples: off makes the sound file a one-shot that every trigger restarts">Loop Samples</button>
                     </div>
                     <div id="pad-grid" class="pad-grid"></div>
                 </div>

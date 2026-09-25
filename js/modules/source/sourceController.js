@@ -1,4 +1,5 @@
 import { AppState } from '../../config.js';
+import { soundfileConfig } from '../../appConfig.js';
 import { sourceManager } from '../../dsp/SourceManager.js';
 import { SOURCE_CHANGED } from '../../events.js';
 import { BaseController } from '../base/BaseController.js';
@@ -18,6 +19,13 @@ export class SourceController extends BaseController {
             adcChannel: AppState.adcChannel,
             adcDevices: this._adcDevices || [],
             soundfileName: AppState.soundfileName,
+            soundfile: {
+                mode: soundfileConfig.mode,
+                tune: soundfileConfig.tune,
+                fundamental: AppState.soundfileFundamental,
+                range: AppState.soundfileRange,
+                detectedHz: sourceManager.fileFundamental,
+            },
         };
     }
 
@@ -28,6 +36,10 @@ export class SourceController extends BaseController {
         this.component.onAdcDeviceChange = (id) => SourceActions.setAdcDevice(id);
         this.component.onAdcChannelChange = (ch) => SourceActions.setAdcChannel(ch);
         this.component.onFile = (file) => SourceActions.loadSoundFile(file);
+        this.component.onSoundfileMode = (mode) => SourceActions.setSoundfileMode(mode);
+        this.component.onSoundfileTune = (on) => SourceActions.setSoundfileTune(on);
+        this.component.onSoundfileFundamental = (hz) => SourceActions.setSoundfileFundamental(hz);
+        this.component.onSoundfileRange = (range) => SourceActions.setSoundfileRange(range);
     }
 
     bindExternalEvents() {

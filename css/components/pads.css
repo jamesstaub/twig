@@ -110,3 +110,9 @@ body.coarse .pad-grid {
 body.coarse .trigger-pad-key {
     display: none;
 }
+
+/* Loop Samples applies to the sound-file source only */
+.pad-grid-header .overtone-mode-btn:disabled {
+    opacity: 0.4;
+    cursor: default;
+}

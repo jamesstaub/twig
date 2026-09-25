@@ -83,6 +83,28 @@ function createWaveformSketch(component) {
             p.strokeWeight(2);
             p.noFill();
 
+            if (props.mode === "single" && props.sourceMode === "soundfile") {
+                // The loaded file: its min/max envelope across the box
+                // (nothing until a file loads)
+                const ov = props.sample;
+                if (!ov) return;
+                const bin = (x) => Math.floor((x / width) * ov.max.length);
+                // Filled envelope for a long file; the stroke keeps a short
+                // one (a single cycle, one sample per bin) visible
+                p.noStroke();
+                p.fill(trace);
+                p.beginShape();
+                for (let x = 0; x < width; x++) p.vertex(x, height / 2 - ov.max[bin(x)] * ampScale);
+                for (let x = width - 1; x >= 0; x--) p.vertex(x, height / 2 - ov.min[bin(x)] * ampScale);
+                p.endShape(p.CLOSE);
+                p.noFill();
+                p.stroke(trace);
+                p.beginShape();
+                for (let x = 0; x < width; x++) p.vertex(x, height / 2 - ((ov.max[bin(x)] + ov.min[bin(x)]) / 2) * ampScale);
+                p.endShape();
+                return;
+            }
+
             if (props.mode === "single") {
                 // Only first partial — mid-morph, both waves overlaid, each as
                 // opaque as its share of the mix

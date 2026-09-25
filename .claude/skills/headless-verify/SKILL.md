@@ -95,9 +95,9 @@ description: Verify twig changes end-to-end in a headless browser — screenshot
   `.envelope-mode-label`; `TWIG.getState().envelopeMode` is 'adsr'
   (Trigger) | 'open' (Drone); `body.adsr-mode` follows.
 - Presets: `.surface-toolbar-btn[data-surface="presets"]` → `#presets-panel`:
-  `.preset-bank[data-index=N]` (click selects, dblclick recalls; classes
+  `.preset-bank[data-index=N]` (click recalls a stored bank, selects an empty one; classes
   `stored` / `selected` / `loaded`, `.preset-bank-badge` reads A/B),
-  `.preset-btn` Store / Recall / Clear / Show state / Copy / Apply,
+  `.preset-btn` Store / Clear / Show state / Copy / Apply,
   `.preset-name-input`, `.preset-status` (`.dirty` = modified),
   `.preset-slot-stepper` A and B, `.preset-crossfader-input` (0-127),
   `.preset-json` textarea. `TWIG.presets` = PresetActions (`select`,
@@ -105,6 +105,24 @@ description: Verify twig changes end-to-end in a headless browser — screenshot
   getters `selected/loaded/dirty/slotA/slotB/position`). Banks live in
   localStorage `twig.presets` — clear it (once, not on every document)
   for a known start. Mid-crossfade `getState().currentSystemIndex` is −1.
+- Sound file: `#source-mode-select` → `soundfile` shows
+  `#source-file-controls` (`#soundfile-input` — puppeteer `uploadFile` a
+  WAV written by the script; a ≤ 1 s file is one period, so a 5 ms
+  240-sample cycle reads as ~200 Hz, resampled to the context rate —
+  `#soundfile-mode-switch` (toggle; `.active` = poly, label
+  `#soundfile-mode-label`), `#soundfile-tune` (toggle, `aria-disabled`
+  in mono), `#soundfile-fundamental` with the detected Hz as its
+  placeholder, `#soundfile-fundamental-reset` ("↺ 220.0", shown only
+  while a typed value overrides; click = back to detected); loading a
+  file moves `fundamentalFrequency` to that Hz). Range: pointer events on
+  `#source-range-overlay` (down/move/up across the preview; < 3px travel
+  = no change), `#source-range-reset` shown while a range is set,
+  `getState().soundfileRange` = [start, end] fractions; poly players carry
+  `loopStart`/`loopEnd`.
+  Poly voices: `stages.source.player.playbackRate.value` = voice Hz /
+  fundamental, `.player.loop`; a retrigger is a new `player` object. The
+  Trigger panel's "Loop Samples" is `#pad-loop-toggle` (`aria-pressed`;
+  `disabled` outside sound-file mode).
 - Settings: the toolbar button or the recorder's ⚙ → tabs
   `.settings-tab[data-tab="midi|recorder"]` over `#midi-settings` /
   `#recorder-settings`, no dock; in embed an overlay (`body.settings-open`,

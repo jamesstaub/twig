@@ -69,9 +69,19 @@ export class ModulatorStage extends Stage {
         }
     }
 
-    /** The voice's frequency is the modulator's clock. */
+    /** The modulator's clock: the voice's cycle rate (its pitch, or a sampler's loop rate). */
     setFrequency(frequency, time, ramp) {
         setParam(this.param('frequency'), frequency, time, ramp);
+    }
+
+    /** The voice's pitch, when the clock isn't it (the cutoff-CV curve reads it). */
+    setPitch(hz, time, ramp) {
+        setParam(this.param('pitch'), hz, time, ramp);
+    }
+
+    /** Restart the cycle at audio-clock time `at` (a sampler's player just did). */
+    resetPhase(at) {
+        this.node.port.postMessage({ type: 'phase', at });
     }
 
     /** Base value of a clamped control signal's target (see CV_BASES). */

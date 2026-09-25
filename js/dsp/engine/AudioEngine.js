@@ -85,11 +85,12 @@ export class AudioEngine {
      * @param {number} index
      * @param {Object} spec - VoiceParams (see Voice.js), plus what the voice is made of:
      * @param {AudioNode|null} [spec.source] - Shared external node to tap instead of oscillators
+     * @param {boolean} [spec.sampler] - A per-voice sample player instead of oscillators
      * @param {number|null} [spec.startAt] - Audio-clock start time, shared by a
      *   bank to put every voice at phase 0 on the same frame (null = now)
      * @returns {Voice}
      */
-    addVoice(index, { source = null, startAt = null, ...params }) {
+    addVoice(index, { source = null, sampler = false, startAt = null, ...params }) {
         if (!this.master) throw new Error('AudioEngine must be initialized before adding voices');
         // A voice already at this index would be orphaned by the overwrite —
         // still connected and sounding, but unreachable. Stop it first.
@@ -97,6 +98,7 @@ export class AudioEngine {
 
         const voice = new Voice(this.context, {
             external: source,
+            sampler,
             startAt,
             onPulse: (pulse) => this.onPulse?.(index, pulse),
         }, params);

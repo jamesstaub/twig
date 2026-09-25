@@ -14,6 +14,9 @@
  *
  * @typedef {Object} VoiceParams - every key optional; set() applies those present
  * @property {Object} waveform - { a: WaveSlot, b?: WaveSlot, morph?: 0-1 } — see SourceStage.setWaveform
+ * @property {Object} sample - { buffer, loop, baseFrequency, range } — a sampler head's file, see SourceStage.setSample
+ * @property {Object} clock - { frequency, at } — an external head's cycle rate and the audio time
+ *   its cycle started (the mono sample player); null frequency = the voice's pitch again
  * @property {number} frequency - Hz: the voice's pitch (each wave slot corrects for its
  *   own table period; the modulator's clock runs at the audible table's rate)
  * @property {number} gain - Drawbar level, 0-1
@@ -59,9 +62,20 @@ const APPLY = {
         s.source.setWaveform(waveform, time, ramp);
         s.modulator.setFrequency(s.source.clockFrequency, time, ramp);
     },
+    sample(s, sample, time, ramp) {
+        const restartedAt = s.source.setSample(sample, time, ramp);
+        s.modulator.setFrequency(s.source.clockFrequency, time, ramp);
+        if (restartedAt !== null) s.modulator.resetPhase(restartedAt);
+    },
+    clock(s, { frequency, at }, time, ramp) {
+        s.source.setClock(frequency ?? null);
+        s.modulator.setFrequency(s.source.clockFrequency, time, ramp);
+        if (at != null) s.modulator.resetPhase(at);
+    },
     frequency(s, hz, time, ramp) {
         s.source.setFrequency(hz, time, ramp);
         s.modulator.setFrequency(s.source.clockFrequency, time, ramp);
+        s.modulator.setPitch(hz, time, ramp);
     },
     gain: (s, gain, time, ramp) => s.level.setGain(gain, time, ramp),
     envelopeOpen: (s, open, time, ramp) => s.envelope.setOpen(open, time, ramp),
@@ -85,14 +99,15 @@ export class Voice {
      * @param {AudioContext} ctx
      * @param {Object} head - What the voice is made of (fixed for its lifetime)
      * @param {AudioNode|null} head.external - Shared source to tap instead of oscillators
+     * @param {boolean} [head.sampler] - A per-voice sample player instead of oscillators
      * @param {number|null} head.startAt - Audio-clock time to start at (null = now)
      * @param {function(Object)} head.onPulse - Receives the modulator's pulse messages
      * @param {VoiceParams} params - Initial parameters
      */
-    constructor(ctx, { external, startAt, onPulse }, params) {
+    constructor(ctx, { external, sampler = false, startAt, onPulse }, params) {
         this.ctx = ctx;
         const s = this.stages = {
-            source: new SourceStage(ctx, { external }),
+            source: new SourceStage(ctx, { external, sampler }),
             envelope: new EnvelopeStage(ctx),
             level: new LevelStage(ctx),
             modulator: new ModulatorStage(ctx, onPulse),
@@ -113,7 +128,9 @@ export class Voice {
         });
 
         this.set(params, 0);
-        s.source.start(startAt ?? 0);
+        const at = s.source.start(startAt ?? 0);
+        // A sampler's cycle is its loop: align the clock with the first play
+        if (s.source.sample) s.modulator.resetPhase(at || ctx.currentTime);
     }
 
     /**
@@ -140,6 +157,12 @@ export class Voice {
     /** Gate the envelope on: { a, d, s } in seconds / level. */
     attack(envelope) {
         this.stages.envelope.attack(envelope, this.ctx.currentTime);
+    }
+
+    /** A sampler head: play the sample again from its start. */
+    retrigger() {
+        const at = this.stages.source.retrigger(this.ctx.currentTime);
+        if (at !== null) this.stages.modulator.resetPhase(at);
     }
 
     /** Gate the envelope off: { r } in seconds. */

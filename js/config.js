@@ -353,6 +353,8 @@ export const BASE_OCTAVE_MIDI = 48; // MIDI for C3
 export const WAVETABLE_SIZE = 4096; // Standard size for a PeriodicWave table
 // Signal source modes; order is the bridge index for /twig/source
 export const SOURCE_MODES = ['oscillators', 'adc', 'soundfile', 'pink', 'white'];
+// Sound-file playback: one shared player, or one per voice; order is the bridge index
+export const SOUNDFILE_MODES = ['mono', 'poly'];
 // Per-overtone lowpass resonance applied when an external source is
 // selected, turning the voice bank into a resonant filter bank
 export const FILTER_BANK_Q = 30;
@@ -393,6 +395,15 @@ export const AppState = {
     adcDeviceId: null,         // audio input device (null = system default)
     adcChannel: 0,             // 0-based channel within the input stream
     soundfileName: null,       // display only; the buffer lives in SourceManager
+    // Sound-file source (how it plays — mono/poly, tuning — is app config,
+    // appConfig.js soundfileConfig). loop=false makes the file a one-shot
+    // that the ADSR triggers restart; the fundamental (Hz) tunes poly
+    // players, null = detected (a file of ≤ 1 s is taken as one period).
+    soundfileLoop: true,
+    soundfileFundamental: null,
+    // The part of the file that plays/loops: [start, end] as 0-1 fractions
+    // of its length, or null for the whole file
+    soundfileRange: null,
 
     // Per-overtone convolution sends, sparse objects keyed by voice index:
     // { wet 0-1, feedback 0-0.99, gain -1..1, ir: IRManager key | null }

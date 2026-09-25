@@ -6,8 +6,9 @@ import { CROSSFADER_MAX, PresetActions } from './presetActions.js';
 import { BANK_COUNT, presetStore } from './presetStore.js';
 
 /**
- * The Presets surface: the 32 banks as a grid, store/recall for the
- * selected bank, the A/B crossfader, and the JSON view. Built once;
+ * The Presets surface: the 32 banks as a grid (click recalls a stored
+ * bank, selects an empty one), Store/Clear for the selected bank, the A/B
+ * crossfader, and the JSON view. Built once;
  * sync() brings it up to date on PRESETS_CHANGED without rebuilding, so
  * the crossfader mid-sweep and pasted JSON survive. Styles: presets.css.
  */
@@ -40,8 +41,9 @@ export class PresetsComponent extends BaseComponent {
             const badge = document.createElement('span');
             badge.className = 'preset-bank-badge';
             btn.append(num, badge);
-            this.bindEvent(btn, 'click', () => PresetActions.select(i));
-            this.bindEvent(btn, 'dblclick', () => PresetActions.recall(i));
+            // A stored bank recalls on click; an empty one is just selected
+            // (the target for Store)
+            this.bindEvent(btn, 'click', () => (presetStore.has(i) ? PresetActions.recall(i) : PresetActions.select(i)));
             grid.appendChild(btn);
             this.banks.push(btn);
         }
@@ -57,9 +59,8 @@ export class PresetsComponent extends BaseComponent {
             if (presetStore.has(PresetActions.selected)) PresetActions.rename(PresetActions.selected, this.nameInput.value);
         });
         this.storeBtn = this.button('Store', () => PresetActions.store(this.nameInput.value));
-        this.recallBtn = this.button('Recall', () => PresetActions.recall());
         this.clearBtn = this.button('Clear', () => PresetActions.clear());
-        actions.append(this.nameInput, this.storeBtn, this.recallBtn, this.clearBtn);
+        actions.append(this.nameInput, this.storeBtn, this.clearBtn);
 
         this.status = document.createElement('p');
         this.status.className = 'preset-status';
@@ -194,7 +195,6 @@ export class PresetsComponent extends BaseComponent {
         });
         const selectedBank = presetStore.get(selected);
         if (document.activeElement !== this.nameInput) this.nameInput.value = selectedBank?.name || '';
-        this.recallBtn.disabled = !selectedBank;
         this.clearBtn.disabled = !selectedBank;
 
         if (loaded === null) {

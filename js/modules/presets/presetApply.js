@@ -141,6 +141,9 @@ function writeAppState(s, diff) {
         sourceMode: s.source.mode,
         adcDeviceId: s.source.adcDeviceId,
         adcChannel: s.source.adcChannel,
+        soundfileLoop: s.source.soundfile.loop,
+        soundfileRange: Array.isArray(s.source.soundfile.range) && s.source.soundfile.range.length === 2 ? [...s.source.soundfile.range] : null,
+        soundfileFundamental: s.source.soundfile.fundamental,
         envelopeMode: s.envelopeMode,
         irRingSeconds: s.irRingSeconds,
     });

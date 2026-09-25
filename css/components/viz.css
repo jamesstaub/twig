@@ -28,6 +28,62 @@
     min-height: 0;
 }
 
+/* Sound-file range selection over the preview: the overlay takes the
+   drags (touch-action none so a finger draws a range rather than
+   scrolling), the shades cover what the range leaves out, and the corner
+   button returns to the whole file. */
+.source-range-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    cursor: col-resize;
+    touch-action: none;
+    user-select: none;
+}
+
+.source-range-dim {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    background: color-mix(in srgb, var(--surface-deep) 65%, transparent);
+    pointer-events: none;
+}
+
+.source-range-dim-left { left: 0; }
+.source-range-dim-right { right: 0; }
+
+.source-range-reset {
+    position: absolute;
+    top: 0.3rem;
+    right: 0.3rem;
+    width: 1.5rem;
+    height: 1.5rem;
+    padding: 0.2rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-secondary);
+    background: color-mix(in srgb, var(--surface-deep) 75%, transparent);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+}
+
+.source-range-reset svg {
+    width: 100%;
+    height: 100%;
+}
+
+.source-range-reset:hover {
+    color: var(--text-accent);
+    border-color: var(--text-accent);
+}
+
+body.coarse .source-range-reset {
+    width: 2rem;
+    height: 2rem;
+}
+
 /* The two p5 canvas-area wrappers (oscillator preview, summed wavetable)
    both just claim the remaining space in their row */
 .canvas-flex-area {

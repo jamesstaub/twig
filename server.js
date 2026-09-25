@@ -55,7 +55,8 @@ const log = (msg) => (Max ? Max.post(msg) : console.log(msg));
 // tracks upstream app gestures, so a jweb reload restores the latest state.
 const STATE_ORDER = [
     'startharmonic', 'stiffness', 'closedness', 'stretch', 'compress',
-    'system', 'waveform', 'source', 'adcin', 'adcchannel', 'subharmonic', 'note', 'freq',
+    'system', 'waveform', 'source', 'adcin', 'adcchannel', 'sfloop', 'sffund', 'sfrange',
+    'subharmonic', 'note', 'freq',
     'gain', 'slew', 'drawbars', 'drawbar', 'gate', 'filter', 'res', 'drive', 'pan',
     'conv', 'convir', 'irring',
     'adsr', 'seqshape', 'seqgain', 'seqfreq', 'seqres', 'seqwet', 'seqfb', 'seqstretch',
@@ -183,7 +184,8 @@ if (Max) {
     const APP_COMMANDS = [
         'drawbar', 'drawbars', 'gain', 'slew', 'note', 'freq',
         'system', 'startharmonic', 'stiffness', 'closedness', 'stretch', 'compress',
-        'waveform', 'source', 'adcin', 'adcchannel', 'subharmonic', 'play', 'reset', 'randomize',
+        'waveform', 'source', 'adcin', 'adcchannel', 'sfloop', 'sffund', 'sfrange',
+        'subharmonic', 'play', 'reset', 'randomize',
         'setdrawbarfundamental', 'gate', 'filter', 'res', 'drive', 'pan', 'conv', 'convir', 'irring',
         'seqshape', 'seqgain', 'seqfreq', 'seqres', 'seqwet', 'seqfb', 'seqstretch',
         'pulsemidi', 'pulseosc', 'pulseoffset', 'midiclock', 'adsr', 'envmode', 'midiout'
