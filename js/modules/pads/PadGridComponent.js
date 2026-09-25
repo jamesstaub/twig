@@ -9,8 +9,12 @@ import { openOvertoneMenu, isTouchContextMenu } from '../generic/overtoneMenu.js
  * fingers play several voices. No velocity: the voice's own ADSR (set in
  * the inspector) is the whole articulation.
  *
+ * `setFundamental` flips what a pad does: instead of playing the voice, a
+ * tap promotes that overtone to the fundamental (onSetFundamental) — the
+ * grid says so with a green border on every pad.
+ *
  * Pure presentation: renders from props and reports through
- * onAttack(index) / onRelease(index). A per-frame level glow
+ * onAttack(index) / onRelease(index) / onSetFundamental(index). A per-frame level glow
  * (props.levelOf) shows what's sounding — including voices triggered
  * from the keyboard, not just the pads.
  */
@@ -20,16 +24,22 @@ export class PadGridComponent extends BaseComponent {
         super(target);
         this.onAttack = null;
         this.onRelease = null;
+        this.onSetFundamental = null;
+        this.setFundamental = false;
         this._held = new Set();
         this._pads = [];
         this._levelRaf = null;
     }
 
-    render({ voices, envelopeMode, keyHints = [], levelOf = null }) {
+    render({ voices, envelopeMode, keyHints = [], levelOf = null, setFundamental = false }) {
         this.teardown();
         this.el.innerHTML = '';
 
-        this.el.classList.toggle('pad-grid-inactive', envelopeMode !== 'adsr');
+        this.setFundamental = Boolean(setFundamental);
+        this.el.classList.toggle('pad-grid-set-fundamental', this.setFundamental);
+        // Drone mode dims the pads because they can't sound — but promoting
+        // a fundamental works whatever the envelope mode is
+        this.el.classList.toggle('pad-grid-inactive', envelopeMode !== 'adsr' && !this.setFundamental);
         this._pads = voices.map((v, i) => this.createPad(i, v, keyHints[i]));
         this._pads.forEach((p) => this.el.appendChild(p));
 
@@ -42,7 +52,7 @@ export class PadGridComponent extends BaseComponent {
         pad.type = 'button';
         pad.className = 'trigger-pad';
         pad.style.setProperty('--pad-color', partialColor(this._ratioOf(index)));
-        pad.setAttribute('aria-label', `Play overtone ${index + 1} (${label})`);
+        pad.setAttribute('aria-label', `Overtone ${index + 1} (${label})`);
         pad.dataset.index = index;
 
         const name = document.createElement('span');
@@ -72,6 +82,12 @@ export class PadGridComponent extends BaseComponent {
         this.bindEvent(pad, 'pointerdown', (e) => {
             if (e.button !== 0) return;
             e.preventDefault();
+            // Set-fundamental mode: a tap promotes, it never gates — so no
+            // held state and nothing to release
+            if (this.setFundamental) {
+                this.onSetFundamental?.(index);
+                return;
+            }
             try {
                 pad.setPointerCapture(e.pointerId);
             } catch { /* synthetic pointer — hold still works */ }

@@ -4,16 +4,18 @@ import { AppState } from '../../config.js';
 import { calculateFrequency, formatHz } from '../../utils.js';
 import { getVoiceLevel, triggerHarmonicAttack, triggerHarmonicRelease } from '../../audio.js';
 import { OvertoneSignalActions } from '../overtoneSignal/overtoneSignalActions.js';
-import { TRIGGER_KEY_LABELS } from '../../KeyboardShortcuts.js';
+import { DrawbarsActions } from '../drawbars/drawbarsActions.js';
 import { SourceActions } from '../source/sourceActions.js';
+import { TRIGGER_KEY_LABELS } from '../../KeyboardShortcuts.js';
 import {
     ENVELOPE_MODE_CHANGED,
     FUNDAMENTAL_CHANGED,
-    SOURCE_CHANGED,
     SPECTRAL_SYSTEM_CHANGED,
     SUBHARMONIC_TOGGLED,
+    SOURCE_CHANGED,
 } from '../../events.js';
 
+const MODE_TOGGLE_ID = 'pad-fundamental-toggle';
 const LOOP_TOGGLE_ID = 'pad-loop-toggle';
 
 /**
@@ -22,6 +24,13 @@ const LOOP_TOGGLE_ID = 'pad-loop-toggle';
  * outside ADSR mode or while stopped, same as the keyboard's Q–] keys).
  */
 export class PadGridController extends BaseController {
+
+    constructor(...args) {
+        super(...args);
+        // UI-only, like the strip's link/shape locks: never bridged, and
+        // it outlives the re-renders a promotion itself causes
+        this.setFundamental = false;
+    }
 
     createComponent(selector) {
         return new PadGridComponent(selector);
@@ -39,6 +48,7 @@ export class PadGridController extends BaseController {
             envelopeMode: OvertoneSignalActions.getEnvelopeMode(),
             keyHints: TRIGGER_KEY_LABELS,
             levelOf: getVoiceLevel,
+            setFundamental: this.setFundamental,
         };
     }
 
@@ -51,6 +61,21 @@ export class PadGridController extends BaseController {
     bindComponentEvents() {
         this.component.onAttack = (index) => triggerHarmonicAttack(index);
         this.component.onRelease = (index) => triggerHarmonicRelease(index);
+        // The same action as the overtone menu's "Set as Fundamental":
+        // the partial's exact frequency becomes the fundamental and the
+        // spectrum mirrors around it
+        this.component.onSetFundamental = (index) => DrawbarsActions.setDrawbarAsFundamental(index);
+    }
+
+    /** The header's toggle: what a pad tap does. */
+    bindModeToggle() {
+        const btn = document.getElementById(MODE_TOGGLE_ID);
+        if (!btn) return;
+        btn.addEventListener('click', () => {
+            this.setFundamental = !this.setFundamental;
+            btn.setAttribute('aria-pressed', String(this.setFundamental));
+            this.update();
+        });
     }
 
     /**
@@ -71,6 +96,7 @@ export class PadGridController extends BaseController {
     }
 
     bindExternalEvents() {
+        this.bindModeToggle();
         this.bindLoopToggle();
 
         // Coalesced: a fundamental sweep floods FUNDAMENTAL_CHANGED, and each

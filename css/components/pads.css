@@ -23,6 +23,12 @@
     color: var(--text-label);
 }
 
+/* Loop Samples applies to the sound-file source only */
+.pad-grid-header .overtone-mode-btn:disabled {
+    opacity: 0.4;
+    cursor: default;
+}
+
 .pad-grid {
     flex: 1 1 auto;
     min-height: 0;
@@ -97,6 +103,19 @@
     opacity: 0.55;
 }
 
+/* Set-fundamental mode: a tap promotes the overtone instead of playing
+   it — the whole grid says so, in the same green the app uses for active
+   states (theme.css --accent-positive) */
+.pad-grid-set-fundamental .trigger-pad {
+    border-color: var(--accent-positive);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent-positive) 45%, transparent);
+}
+
+.pad-grid-set-fundamental .trigger-pad:hover {
+    border-color: var(--accent-positive-strong);
+    background: color-mix(in srgb, var(--accent-positive) 12%, var(--surface-deep));
+}
+
 /* Open mode: the pads can't sound; keep them visible but quiet */
 .pad-grid-inactive .trigger-pad {
     opacity: 0.55;
@@ -109,10 +128,4 @@ body.coarse .pad-grid {
 
 body.coarse .trigger-pad-key {
     display: none;
-}
-
-/* Loop Samples applies to the sound-file source only */
-.pad-grid-header .overtone-mode-btn:disabled {
-    opacity: 0.4;
-    cursor: default;
 }
