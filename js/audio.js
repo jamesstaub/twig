@@ -19,6 +19,7 @@ import { audioEngine, WavetableManager, WAVExporter, WaveformGenerator } from '.
 import { irManager } from './dsp/IRManager.js';
 import { sourceManager } from './dsp/SourceManager.js';
 import { CONTOUR, contourIdFor } from './dsp/gate/contours.js';
+import { saveWave, useContext as useAssetContext } from './dsp/assetLibrary.js';
 import { midiOutputRouter } from './modules/midi/midiOutputRouter.js';
 import {
     buildSpectrum,
@@ -38,7 +39,7 @@ const MAX_SPECTRUM_BIN = 2047;
 // DSP INSTANCES
 // ================================
 
-let wavetableManager = null;
+const wavetableManager = new WavetableManager();
 
 /** Register the consumer of voice cycle pulses: fn(voiceIndex, pulse). */
 export function setPulseHandler(fn) {
@@ -65,8 +66,10 @@ export function getWavetableManager() {
  * context the browser suspended.
  */
 export async function initAudio() {
-    wavetableManager ??= new WavetableManager();
     await audioEngine.initialize(AppState.masterGainValue);
+    // The library can now build what the session asks for (a stored
+    // waveform's PeriodicWave, an IR's buffer)
+    useAssetContext(audioEngine.context, wavetableManager);
     await audioEngine.resume();
 }
 
@@ -545,7 +548,7 @@ export function updateHarmonicGate(index) {
 
 /** Whether a harmonic has a usable IR assigned (else its convolution is bypassed). */
 function harmonicHasIR(index) {
-    return Boolean(irManager.get(AppState.oscillatorConvolutions[index]?.ir ?? null));
+    return irManager.has(AppState.oscillatorConvolutions[index]?.ir ?? null);
 }
 
 /**
@@ -1029,14 +1032,23 @@ export function getWaveValue(type, theta, customCoeffs) {
  * visual lookup table.
  * @param {Object} spectrum - { real, imag, periodMultiplier } from buildCurrentSpectrum
  */
-export async function addWaveformToAudio(spectrum) {
+export async function addWaveformToAudio(spectrum, name = '') {
     await initAudio();
 
-    const waveKey = getWavetableManager().addFromSpectrum(
+    // Stored first: the asset's content hash becomes the waveform's key,
+    // so a preset referencing it means this exact spectrum forever
+    const waveKey = await saveWave({
+        real: spectrum.real,
+        imag: spectrum.imag,
+        periodMultiplier: spectrum.periodMultiplier,
+        name,
+    });
+    getWavetableManager().addFromSpectrum(
         spectrum.real,
         spectrum.imag,
         audioEngine.context,
-        spectrum.periodMultiplier
+        spectrum.periodMultiplier,
+        waveKey
     );
 
     const coefficients = getWavetableManager().getCoefficients(waveKey);

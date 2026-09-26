@@ -2,6 +2,7 @@ import { polySampleMode, restartAudio, updateAllHarmonicClocks, updateAllHarmoni
 import { AppState, FILTER_BANK_Q, SOUNDFILE_MODES, SOURCE_MODES, updateAppState } from '../../config.js';
 import { persistAppConfig, soundfileConfig } from '../../appConfig.js';
 import { audioEngine } from '../../dsp/engine/AudioEngine.js';
+import { saveSoundFile } from '../../dsp/assetLibrary.js';
 import { sourceManager } from '../../dsp/SourceManager.js';
 import { decodeAiff, isAiff } from '../../dsp/aiff.js';
 import { showStatus } from '../../domUtils.js';
@@ -164,6 +165,9 @@ export const SourceActions = {
         if (!file) return;
         try {
             const arrayBuffer = await file.arrayBuffer();
+            // Kept as the user gave it — the encoded bytes, which stay small
+            // and re-decode at whatever rate the context runs at
+            const assetId = await saveSoundFile({ bytes: arrayBuffer.slice(0), name: file.name });
             // A context always exists by the time a user can drop a file;
             // decodeAudioData needs one even before playback starts
             const { initAudio } = await import('../../audio.js');
@@ -172,7 +176,7 @@ export const SourceActions = {
             // Resolves once YIN has the file's fundamental (a typed override
             // belonged to the previous file — the new one starts from its
             // own detected pitch, which the samplers then tune from)
-            const hz = await sourceManager.setFileBuffer(buffer, file.name);
+            const hz = await sourceManager.setFileBuffer(buffer, file.name, assetId);
             // A new file: whole, and starting from its own detected pitch
             updateAppState({ soundfileName: file.name, soundfileFundamental: null, soundfileRange: null });
             // The bank tunes itself around the sample: its fundamental

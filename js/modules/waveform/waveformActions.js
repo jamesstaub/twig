@@ -57,8 +57,12 @@ export function handleAddToWaveforms(isSubharmonic) {
  */
 export async function addToWaveforms(spectrum) {
     try {
-        // 1) AUDIO
-        const { waveKey, coefficients } = await addWaveformToAudio(spectrum);
+        // The name is settled first: it is stored with the asset, so the
+        // menu reads the same label in every later session
+        const name = waveformLabel();
+
+        // 1) AUDIO (and the library — the key is the spectrum's content id)
+        const { waveKey, coefficients } = await addWaveformToAudio(spectrum, name);
 
         // 2) STATE
         const customWaveIndex = addWaveformToState(
@@ -69,7 +73,7 @@ export async function addToWaveforms(spectrum) {
         );
 
         // 3) UI
-        addWaveformToUI(AppState, waveKey, customWaveIndex);
+        addWaveformToUI(waveKey, name, customWaveIndex);
 
         document.dispatchEvent(new CustomEvent(CURRENT_WAVEFORM_CHANGED));
 
@@ -105,26 +109,52 @@ export function addWaveformToState(AppState, waveKey, coefficients, periodMultip
 
 // Handles ONLY DOM + messages
 
-export function addWaveformToUI(AppState, waveKey, customWaveIndex) {
-    const select = document.getElementById('waveform-select');
-    if (!select) return;
-
+/** What a bake is called: the sound it was made from. */
+export function waveformLabel() {
     const parts = generateFilenameParts();
-    const optionName =
-        `${parts.noteLetter}-${parts.waveform}-${parts.systemName}-${parts.levels}` +
+    return `${parts.noteLetter}-${parts.waveform}-${parts.systemName}-${parts.levels}` +
         (parts.subharmonicFlag ? `-${parts.subharmonicFlag}` : '');
+}
 
+/** Put a waveform in the oscillator menu (once per key). */
+export function addWaveformOption(waveKey, name, index) {
+    const select = document.getElementById('waveform-select');
+    if (!select || select.querySelector(`option[value="${waveKey}"]`)) return;
     const option = document.createElement('option');
-    option.textContent = `Custom ${customWaveIndex}: ${optionName}`;
+    option.textContent = `Custom ${index}: ${name}`;
     option.value = waveKey;
+    // Before the display-only "Interpolated" entry, which stays last
+    const tail = select.querySelector('option[disabled][hidden]');
+    select.insertBefore(option, tail);
+}
 
-    select.appendChild(option);
-
-    select.value = waveKey;
+export function addWaveformToUI(waveKey, name, customWaveIndex) {
+    addWaveformOption(waveKey, name, customWaveIndex);
+    const select = document.getElementById('waveform-select');
+    if (select) select.value = waveKey;
     setCurrentWaveform(waveKey);
 
     showStatus(
         `Successfully added new waveform: Custom ${customWaveIndex}. Now synthesizing with it!`,
         "success"
     );
+}
+
+/**
+ * Put every waveform the machine has kept back into the menu and the
+ * state the visualizations read. The PeriodicWaves themselves are built
+ * on first use (WavetableManager), so this costs nothing at boot.
+ */
+export function restoreWaveformOptions(wavetableManager) {
+    wavetableManager.list().forEach(({ key, name }, i) => {
+        addWaveformOption(key, name || key, i + 1);
+        const coefficients = wavetableManager.getCoefficients(key);
+        if (coefficients) {
+            AppState.customWaveCoefficients = AppState.customWaveCoefficients || {};
+            AppState.customWaveCoefficients[key] = coefficients;
+            AppState.customWavePeriodMultipliers = AppState.customWavePeriodMultipliers || {};
+            AppState.customWavePeriodMultipliers[key] = wavetableManager.getPeriodMultiplier(key);
+        }
+    });
+    AppState.customWaveCount = wavetableManager.list().length;
 }

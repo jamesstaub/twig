@@ -2,6 +2,7 @@ import { sampleCurrentWaveform } from '../../audio.js';
 import { AppState, IR_RING_MAX_SECONDS, updateAppState } from '../../config.js';
 import { audioEngine } from '../../dsp/engine/AudioEngine.js';
 import { irManager } from '../../dsp/IRManager.js';
+import { saveIR } from '../../dsp/assetLibrary.js';
 import { showStatus } from '../../domUtils.js';
 import { CONVOLUTION_IRS_CHANGED, IR_RING_CHANGED } from '../../events.js';
 import { generateFilenameParts } from '../../utils.js';
@@ -50,7 +51,9 @@ export const ConvolutionActions = {
         const parts = generateFilenameParts();
         const ringTag = ring > 0 ? `-ring${ring.toFixed(1)}s` : '';
         const name = `${parts.noteLetter}-${parts.systemName}-${parts.levels}${ringTag}`;
-        const key = irManager.add(audioBuffer, name, f0);
+        // Stored first, so the key voices point at is the content hash
+        const key = await saveIR({ buffer: audioBuffer, name, bakeFrequency: f0 });
+        irManager.add(audioBuffer, name, f0, key);
         // Menus need the new entry before voices point at it
         document.dispatchEvent(new CustomEvent(CONVOLUTION_IRS_CHANGED));
         const count = AppState.currentSystem.ratios.length;
@@ -73,7 +76,7 @@ export const ConvolutionActions = {
     /** Select one overtone's IR by key, or by creation index (bridge form). */
     selectIR(index, selector) {
         const key = typeof selector === 'number' ? irManager.keyAt(Math.round(selector)) : (selector || null);
-        if (key !== null && !irManager.get(key)) return; // unknown — no-op
+        if (key !== null && !irManager.has(key)) return; // unknown — no-op
         OvertoneSignalActions.setConvolution(index, { ir: key });
     },
 };

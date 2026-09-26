@@ -13,8 +13,10 @@ import { showStatus } from './domUtils.js';
 import { faviconService } from './modules/favicon/faviconService.js';
 import { audioEngine } from './dsp/engine/AudioEngine.js';
 import { irManager } from './dsp/IRManager.js';
+import { assetStore } from './dsp/assetStore.js';
 import { sourceManager } from './dsp/SourceManager.js';
 import { recordingStore } from './modules/recording/RecordingStore.js';
+import { restoreLibrary } from './modules/assets/assetsBoot.js';
 import { RecordingActions } from './modules/recording/recordingActions.js';
 import { PresetActions } from './modules/presets/presetActions.js';
 import { oscClient, oscEnabled } from './modules/osc/oscClient.js';
@@ -29,6 +31,10 @@ async function initApp() {
         // Local app config (MIDI routing, recorder modes) first, then the
         // bridge bootstrap — bridged values override the local copy
         loadAppConfig();
+
+        // The machine's own library (baked waveforms, IRs) before anything
+        // renders or the bridge applies state that may reference one
+        await restoreLibrary();
 
         // Apply state pushed to the bridge (Live's plugin parameters)
         // BEFORE the UI renders, so the first paint shows that state
@@ -84,16 +90,18 @@ function cleanup() {
 }
 
 /**
- * What a close would throw away. Synth state is bridged and restored, but
- * these only live in the tab: the sound in the air, a take being captured,
- * and the recordings and IRs made this session (RecordingStore and
- * IRManager are memory-only by design).
+ * What a close would throw away. Synth state is bridged and restored, and
+ * baked waveforms and IRs are kept in the library now (assetStore) — so
+ * what is left is the sound in the air, a take being captured, and the
+ * recordings made this session, which are still memory-only by design.
+ * An IR only counts as unsaved when the library itself is ephemeral (no
+ * storage available, so this session really is all there is).
  */
 function hasUnsavedWork() {
     return AppState.isPlaying
         || AppState.recorder.status !== 'idle'   // armed or recording
         || recordingStore.list().length > 0
-        || irManager.list().length > 0;
+        || (assetStore.ephemeral && irManager.list().length > 0);
 }
 
 /**
@@ -191,6 +199,7 @@ window.TWIG = {
     getAudioCtx: () => audioEngine.context,
     getAudioEngine: () => audioEngine,
     getIRManager: () => irManager,
+    assets: assetStore,
     getSourceManager: () => sourceManager,
     getRecordingStore: () => recordingStore,
     recorder: RecordingActions,

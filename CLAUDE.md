@@ -74,8 +74,10 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
   split by kind: the bridge cache holds SYNTH state (everything bridged);
   the user's local app configuration — `midiConfig` and `recorderConfig`
   in `js/appConfig.js` (MIDI routing/mappings, recorder modes) — lives in
-  localStorage, loaded before bootstrap so bridged values win. Recordings
-  and IRs remain session-only.
+  localStorage, loaded before bootstrap so bridged values win. The
+  user's own MATERIAL — baked waveforms, IRs, sound files — is the third
+  kind: the LIBRARY (`js/dsp/assetStore.js`, IndexedDB), see below.
+  Recordings are still session-only.
 - Audio engine (`js/dsp/engine/`, the Web Audio backend): `AudioEngine.js`
   exports the `audioEngine` singleton — context lifecycle, `now()` /
   `sampleRate`, and the registry of running voices keyed by OVERTONE INDEX
@@ -565,6 +567,31 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
   inside a grid-stretched ancestor is a circular sizing dependency that
   Chromium resolves by falling back to its WIDTH; the tonewheel sketch
   sizes its square from `Math.min(clientWidth, clientHeight)`.
+- The LIBRARY (`js/dsp/assetStore.js` + `assetLibrary.js`): what the user
+  makes or imports, kept on the machine in IndexedDB — baked waveforms,
+  IRs, sound files. CONTENT ADDRESSED: an asset's id is the hash of its
+  payload, so the same bake stores once, a preset's `custom_9f86d0…` or
+  `ir_a3f1…` means one exact payload forever, and a sync service later is
+  "send the ids the server lacks" rather than a merge problem. Ids keep
+  the app's prefixes because `custom_` is load-bearing (audio.js reads it
+  to know a waveform is baked). Sound files are stored as the ENCODED
+  bytes the user gave, not decoded samples.
+  - LAZY: `restoreLibrary()` (modules/assets/assetsBoot.js) runs before
+    the first render so menus list everything and preset references
+    resolve, but it never touches an AudioContext — there isn't one at
+    boot, and building it costs worklet loading and a latency probe. The
+    managers `adopt()` the small parts and build the PeriodicWave / IR
+    AudioBuffer on first use, once `useContext()` hands them the engine's
+    context (from `initAudio`).
+  - So `has(key)` — not `get(key)` — is the existence test everywhere
+    outside the audio path: before the engine exists `get()` returns null
+    for a perfectly good stored asset, and a preset recall would silently
+    drop the reference.
+  - Storage may be unavailable (private mode, a locked webview) and an
+    IndexedDB open can hang forever; the store times out and degrades to
+    memory-only, because the synth must start regardless.
+  - `beforeunload` warns about unsaved work; a stored IR is no longer
+    unsaved, so it only counts when `assetStore.ephemeral`.
 - Presets surface (`js/modules/presets/`, `#presets-control-root`, the
   toolbar item above Settings): 32 storage banks, an A/B crossfader and
   the JSON state view. Frontend-only for now — `presetStore.js` keeps the

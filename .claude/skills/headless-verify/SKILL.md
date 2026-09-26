@@ -114,6 +114,13 @@ description: Verify twig changes end-to-end in a headless browser — screenshot
   getters `selected/loaded/dirty/slotA/slotB/position`). Banks live in
   localStorage `twig.presets` — clear it (once, not on every document)
   for a known start. Mid-crossfade `getState().currentSystemIndex` is −1.
+- The library (IndexedDB `twig`): wipe it ONCE per run
+  (`evaluateOnNewDocument` guarded by sessionStorage — wiping on every
+  document would also wipe the reload you are testing). Baking gives
+  content-addressed ids (`custom_<12 hex>`, `ir_<12 hex>`) that survive
+  `page.reload()`; `TWIG.assets.usage()` reports counts and bytes. The
+  app warns on close when there is unsaved work, which BLOCKS navigation
+  in headless — register `page.on('dialog', (d) => d.accept())`.
 - Sound file: `#source-mode-select` → `soundfile` shows
   `#source-file-controls` (`#soundfile-input` — puppeteer `uploadFile` a
   WAV written by the script; a ≤ 1 s file is one period, so a 5 ms

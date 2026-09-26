@@ -70,6 +70,7 @@ export class SourceManager {
         this._stream = null;
         this._fileBuffer = null;
         this.fileName = null;
+        this.fileAssetId = null;
         /** Detected fundamental of the loaded file (Hz), or null. */
         this.fileFundamental = null;
         /** The file's waveform as a min/max envelope, for the Source preview. */
@@ -175,9 +176,11 @@ export class SourceManager {
      * fundamental (YIN, in a worker). Resolves once the fundamental is
      * known; a newer file loaded meanwhile wins.
      */
-    async setFileBuffer(audioBuffer, name) {
+    async setFileBuffer(audioBuffer, name, assetId = null) {
         this._fileBuffer = audioBuffer;
         this.fileName = name;
+        /** The stored asset this file came from (assetLibrary), if any. */
+        this.fileAssetId = assetId;
         this.fileFundamental = null;
         this.fileOverview = overviewOf(audioBuffer);
         // A file swapped in while the mono player runs replaces it in place

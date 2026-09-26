@@ -174,7 +174,7 @@ function writeAppState(s, diff) {
         gates[i] = { ...v.gate, seq: [...v.gate.seq] };
         filters[i] = { ...v.filter };
         drives[i] = v.drive;
-        convolutions[i] = { ...v.convolution, ir: v.convolution.ir && irManager.get(v.convolution.ir) ? v.convolution.ir : null };
+        convolutions[i] = { ...v.convolution, ir: irManager.has(v.convolution.ir) ? v.convolution.ir : null };
         envelopes[i] = { ...v.envelope };
         sequencers[i] = { shape: v.sequencer.shape, stretch: v.sequencer.stretch, amounts: { ...v.sequencer.amounts } };
     }
@@ -193,7 +193,7 @@ function writeAppState(s, diff) {
 /** A baked wave the session no longer has plays as a sine. */
 function resolveWaveform(name) {
     if (!name.startsWith('custom_')) return name;
-    return getWavetableManager()?.getWaveform(name) ? name : 'sine';
+    return getWavetableManager()?.has(name) ? name : 'sine';
 }
 
 function interpolatedSystem(ratios) {

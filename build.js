@@ -1,4 +1,9 @@
 import esbuild from "esbuild";
+import { rmSync } from "node:fs";
+
+// Chunk names carry a content hash, so every build would otherwise leave
+// the previous build's chunks behind in dist/
+rmSync("dist/chunks", { recursive: true, force: true });
 
 // The app. `splitting` is what makes a dynamic import a separate file:
 // the panels most sessions never open (Presets, Settings) and the export

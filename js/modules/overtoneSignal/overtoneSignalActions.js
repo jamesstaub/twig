@@ -82,7 +82,7 @@ export const OvertoneSignalActions = {
             wet: Math.max(0, Math.min(1, Number(merged.wet) || 0)),
             feedback: Math.max(-CONV_FEEDBACK_MAX, Math.min(CONV_FEEDBACK_MAX, Number(merged.feedback) || 0)),
             gain: Math.max(0, Math.min(1, isFinite(Number(merged.gain)) ? Number(merged.gain) : 1)),
-            ir: merged.ir && irManager.get(merged.ir) ? merged.ir : null,
+            ir: irManager.has(merged.ir) ? merged.ir : null,
             tune: Math.max(0, Math.min(MAX_FILTER_PARTIALS, Math.round(Number(merged.tune) || 0))),
         };
         updateHarmonicConvolution(index);

@@ -20,9 +20,28 @@ const PITCHED_FADE_SECONDS = 0.02;
 export class IRManager {
 
     constructor() {
-        this.irs = new Map();      // key → { name, buffer, bakeFrequency }
+        this.irs = new Map();      // key → { name, buffer, bakeFrequency, pcm, sampleRate }
         this.pitchedCache = new Map(); // `${key}@${cents}` → AudioBuffer (LRU by insertion)
         this.count = 0;
+        this.ctx = null;
+    }
+
+    /**
+     * The context IR buffers are built on. Set when the engine starts;
+     * anything adopted before then is built on first use.
+     */
+    useContext(ctx) {
+        this.ctx = ctx;
+    }
+
+    /**
+     * Take a stored IR (assetLibrary) as samples, without an AudioBuffer:
+     * at boot there is no AudioContext, and the steppers only need to know
+     * it exists. The buffer is made when a voice first rings through it.
+     */
+    adopt(key, { pcm, sampleRate, bakeFrequency, name }) {
+        this.count++;
+        this.irs.set(key, { name: name || `IR ${this.count}`, buffer: null, bakeFrequency, pcm, sampleRate });
     }
 
     /**
@@ -31,16 +50,33 @@ export class IRManager {
      * @param {number} bakeFrequency - Fundamental (Hz) the IR was baked at
      * @returns {string} key
      */
-    add(buffer, name, bakeFrequency) {
+    add(buffer, name, bakeFrequency, key = null) {
         this.count++;
-        const key = `ir_${this.count}`;
-        this.irs.set(key, { name: name || `IR ${this.count}`, buffer, bakeFrequency });
-        return key;
+        // The caller passes the content id (assetLibrary.saveIR); without
+        // one — an IR that is not being stored — fall back to a serial key
+        const id = key || `ir_${this.count}`;
+        this.irs.set(id, { name: name || `IR ${this.count}`, buffer, bakeFrequency, pcm: null, sampleRate: 0 });
+        return id;
     }
 
-    /** @returns {AudioBuffer|null} the IR as baked */
+    /**
+     * Is this IR in the session's library? True for a stored IR whose
+     * buffer has not been built yet — existence is not the same question
+     * as "can it play right now", which needs a context.
+     */
+    has(key) {
+        return Boolean(key) && this.irs.has(key);
+    }
+
+    /** @returns {AudioBuffer|null} the IR as baked; built on first use when adopted */
     get(key) {
-        return this.irs.get(key)?.buffer || null;
+        const ir = this.irs.get(key);
+        if (!ir) return null;
+        if (!ir.buffer && ir.pcm && this.ctx) {
+            ir.buffer = this.ctx.createBuffer(1, ir.pcm.length, ir.sampleRate);
+            ir.buffer.copyToChannel(ir.pcm, 0);
+        }
+        return ir.buffer || null;
     }
 
     /** @returns {number} fundamental the IR was baked at (0 if unknown) */
@@ -62,11 +98,14 @@ export class IRManager {
      */
     pitched(key, frequency, ctx) {
         const ir = this.irs.get(key);
-        if (!ir) return null;
-        if (!(frequency > 0) || !(ir.bakeFrequency > 0)) return ir.buffer;
+        // Through get(), so an IR restored from the library is built here
+        // rather than read as a null buffer
+        const base = this.get(key);
+        if (!ir || !base) return null;
+        if (!(frequency > 0) || !(ir.bakeFrequency > 0)) return base;
 
         const cents = Math.round((1200 * Math.log2(frequency / ir.bakeFrequency)) / 10) * 10;
-        if (cents === 0) return ir.buffer;
+        if (cents === 0) return base;
         const cacheKey = `${key}@${cents}`;
         const cached = this.pitchedCache.get(cacheKey);
         if (cached) {
@@ -77,7 +116,7 @@ export class IRManager {
         }
 
         const factor = Math.pow(2, cents / 1200); // playback speed-up
-        const src = ir.buffer.getChannelData(0);
+        const src = base.getChannelData(0);
         const wanted = Math.max(2, Math.round(src.length / factor));
         const maxLength = Math.round(PITCHED_MAX_SECONDS * ctx.sampleRate);
         const length = Math.min(wanted, maxLength);
