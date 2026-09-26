@@ -1,9 +1,11 @@
 /* Embed-mode overrides for pads.css: the Trigger surface in the band —
    two rows of six, short and wide like everything else there. */
 
+/* Wide enough for "1308.1 Hz 100%" on one line of each pad: two lines
+   don't fit the band's 42px pads */
 body.embed #pad-grid-root {
-    flex: 1 1 28rem;
-    min-width: 24rem;
+    flex: 1 1 38rem;
+    min-width: 36rem;
 }
 
 body.embed .pad-grid {

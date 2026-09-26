@@ -88,10 +88,30 @@
     line-height: 1.1;
 }
 
+/* "440.0 Hz - 100%": frequency and drawbar level. Narrow pads (a phone's
+   three columns, the embed band's six) drop the dash and let the level
+   wrap under the frequency instead of clipping */
 .trigger-pad-hz {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    column-gap: 0.4em;
     font-family: var(--font-mono);
     font-size: var(--font-size-xs);
     opacity: 0.8;
+    white-space: pre;
+}
+
+.pad-grid {
+    container: pad-grid / inline-size;
+}
+
+/* (`.trigger-pad-hz >`: layout.css's `.labeled-control span` would
+   otherwise out-specify this and keep the dash) */
+@container pad-grid (max-width: 48rem) {
+    .trigger-pad-hz > .trigger-pad-sep {
+        display: none;
+    }
 }
 
 .trigger-pad-key {

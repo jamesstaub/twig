@@ -453,7 +453,10 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
   to the Sequence panel's exclusive "Output as MIDI clock"; disabled in
   place without a MIDI output or on the voice that already is the clock).
 - Trigger surface (`js/modules/pads/`): `#pad-grid-root` = a title over
-  `#pad-grid`, the `PadGridComponent` root — one big pad per overtone,
+  `#pad-grid`, the `PadGridComponent` root — one big pad per overtone
+  (label, then "440.0 Hz - 100%": its frequency and drawbar level, the
+  level rewritten IN PLACE on `DRAWBAR_CHANGE` — `setGain` — because a
+  re-render releases held pads; narrow pads drop the dash and wrap),
   always 4 columns (3 in portrait) × rows that share the panel's height.
   Pads gate the voice envelopes through `triggerHarmonicAttack/Release`
   (the same path as the Q–] keys and the strip's small trigger pads), so

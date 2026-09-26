@@ -8,6 +8,9 @@ import { DrawbarsActions } from '../drawbars/drawbarsActions.js';
 import { SourceActions } from '../source/sourceActions.js';
 import { TRIGGER_KEY_LABELS } from '../../KeyboardShortcuts.js';
 import {
+    DRAWBAR_CHANGE,
+    DRAWBARS_RANDOMIZED,
+    DRAWBARS_RESET,
     ENVELOPE_MODE_CHANGED,
     FUNDAMENTAL_CHANGED,
     SPECTRAL_SYSTEM_CHANGED,
@@ -16,6 +19,9 @@ import {
 } from '../../events.js';
 
 const MODE_TOGGLE_ID = 'pad-fundamental-toggle';
+
+/** The pad's level readout: the drawbar's gain as the strip shows it. */
+const gainText = (index) => `${Math.round((AppState.harmonicAmplitudes[index] || 0) * 100)}%`;
 const LOOP_TOGGLE_ID = 'pad-loop-toggle';
 
 /**
@@ -42,6 +48,7 @@ export class PadGridController extends BaseController {
         const voices = sys.ratios.map((ratio, i) => ({
             label: labels[i] || `#${i + 1}`,
             hz: formatHz(calculateFrequency(ratio)),
+            gain: gainText(i),
         }));
         return {
             voices,
@@ -105,5 +112,13 @@ export class PadGridController extends BaseController {
         document.addEventListener(SUBHARMONIC_TOGGLED, () => this.scheduleUpdate());
         document.addEventListener(FUNDAMENTAL_CHANGED, () => this.scheduleUpdate());
         document.addEventListener(ENVELOPE_MODE_CHANGED, () => this.scheduleUpdate());
+        // Levels change under a drag: in place, never a re-render
+        document.addEventListener(DRAWBAR_CHANGE, (e) => {
+            const { index } = e.detail || {};
+            if (index !== undefined) this.component.setGain(index, gainText(index));
+        });
+        for (const evt of [DRAWBARS_RESET, DRAWBARS_RANDOMIZED]) {
+            document.addEventListener(evt, () => this.scheduleUpdate());
+        }
     }
 }

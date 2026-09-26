@@ -47,7 +47,7 @@ export class PadGridComponent extends BaseComponent {
         this.startLevelLoop();
     }
 
-    createPad(index, { label, hz }, keyHint) {
+    createPad(index, { label, hz, gain }, keyHint) {
         const pad = document.createElement('button');
         pad.type = 'button';
         pad.className = 'trigger-pad';
@@ -58,10 +58,19 @@ export class PadGridComponent extends BaseComponent {
         const name = document.createElement('span');
         name.className = 'trigger-pad-label';
         name.textContent = label;
+        // "440.0 Hz - 100%": the voice's frequency and its drawbar level
+        const detail = document.createElement('span');
+        detail.className = 'trigger-pad-hz';
         const freq = document.createElement('span');
-        freq.className = 'trigger-pad-hz';
         freq.textContent = hz;
-        pad.append(name, freq);
+        const level = document.createElement('span');
+        level.className = 'trigger-pad-gain';
+        level.textContent = gain;
+        const sep = document.createElement('span');
+        sep.className = 'trigger-pad-sep';
+        sep.textContent = ' - ';
+        detail.append(freq, sep, level);
+        pad.append(name, detail);
         if (keyHint) {
             const key = document.createElement('span');
             key.className = 'trigger-pad-key';
@@ -133,6 +142,12 @@ export class PadGridComponent extends BaseComponent {
     releaseAll() {
         for (const pad of this._pads) pad._release?.();
         this._held.clear();
+    }
+
+    /** A drawbar moved: rewrite that pad's level in place (a re-render would release held pads). */
+    setGain(index, text) {
+        const level = this._pads?.[index]?.querySelector('.trigger-pad-gain');
+        if (level) level.textContent = text;
     }
 
     teardown() {
