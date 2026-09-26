@@ -79,6 +79,22 @@ export class IRManager {
         return ir.buffer || null;
     }
 
+    setName(key, name) {
+        const ir = this.irs.get(key);
+        if (ir) ir.name = name;
+    }
+
+    /**
+     * Forget an IR (the library deleted it), along with every pitched copy
+     * cached for it — those hold an AudioBuffer each.
+     */
+    remove(key) {
+        this.irs.delete(key);
+        for (const cacheKey of [...this.pitchedCache.keys()]) {
+            if (cacheKey.startsWith(`${key}@`)) this.pitchedCache.delete(cacheKey);
+        }
+    }
+
     /** @returns {number} fundamental the IR was baked at (0 if unknown) */
     bakeFrequency(key) {
         return this.irs.get(key)?.bakeFrequency || 0;

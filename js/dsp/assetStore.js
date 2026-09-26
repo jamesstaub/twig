@@ -138,6 +138,24 @@ export const assetStore = {
         return (await transact(db, 'readonly', (store) => store.get(id))) ?? null;
     },
 
+    /**
+     * Rename an asset. The id is the hash of the CONTENT, and a name is
+     * not content — so renaming is a metadata write and every preset that
+     * references the asset keeps pointing at it.
+     */
+    async setName(id, name) {
+        const db = await openDb();
+        if (!db) {
+            const record = memory.get(id);
+            if (record) record.meta = { ...record.meta, name };
+            return;
+        }
+        const record = await transact(db, 'readonly', (store) => store.get(id));
+        if (!record) return;
+        record.meta = { ...record.meta, name };
+        await transact(db, 'readwrite', (store) => store.put(record));
+    },
+
     /** Every asset of a kind, oldest first. */
     async list(kind) {
         const db = await openDb();
@@ -154,6 +172,22 @@ export const assetStore = {
         if (db) await transact(db, 'readwrite', (store) => store.delete(id));
     },
 
+    /**
+     * A kind's assets WITHOUT their payloads: what the library view lists.
+     * The bytes are counted here and the records dropped, so browsing a
+     * library of sound files doesn't hold every file in memory.
+     */
+    async summaries(kind) {
+        return (await this.list(kind)).map((record) => ({
+            id: record.id,
+            kind: record.kind,
+            name: record.meta?.name || '',
+            meta: record.meta || {},
+            savedAt: record.savedAt,
+            bytes: recordBytes(record),
+        }));
+    },
+
     /** Bytes held, by kind — for a future library view and storage limits. */
     async usage() {
         const out = {};
@@ -162,6 +196,20 @@ export const assetStore = {
             out[kind] = { count: records.length, bytes: records.reduce((sum, r) => sum + recordBytes(r), 0) };
         }
         return out;
+    },
+
+    /**
+     * What the browser has granted this origin and how much of it is spent,
+     * or null where it won't say. Its figure covers everything the origin
+     * stores, not only the library.
+     */
+    async quota() {
+        try {
+            const estimate = await navigator.storage?.estimate?.();
+            return estimate ? { usage: estimate.usage || 0, quota: estimate.quota || 0 } : null;
+        } catch {
+            return null;
+        }
     },
 };
 

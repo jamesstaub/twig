@@ -68,14 +68,27 @@ export function saveSoundFile({ bytes, name }) {
     });
 }
 
-/** Every stored sound file, for the Source panel's list. */
-export function listSoundFiles() {
-    return assetStore.list(ASSET.soundfile.kind);
+/**
+ * A kind's assets as the library view lists them — id, name, size, date,
+ * and the meta the kind carries — without their payloads.
+ */
+export function listAssets(kind) {
+    return assetStore.summaries(kind);
+}
+
+/** One asset with its payload: what a preview draws or a download writes. */
+export function assetRecord(id) {
+    return assetStore.get(id);
 }
 
 /** The encoded bytes of a stored sound file, or null. */
 export async function soundFileBytes(id) {
     return (await assetStore.get(id))?.bytes ?? null;
+}
+
+/** A new display name. The id is the content hash and does not change. */
+export function renameAsset(id, name) {
+    return assetStore.setName(id, name);
 }
 
 export function forgetAsset(id) {

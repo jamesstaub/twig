@@ -1,22 +1,44 @@
-import { addWaveformToAudio, buildCurrentSpectrum, updateAllHarmonicWaveforms } from "../../audio.js";
+import { addWaveformToAudio, buildCurrentSpectrum, getWavetableManager, updateAllHarmonicWaveforms } from "../../audio.js";
 import { AppState, updateAppState } from "../../config.js";
 import { showStatus } from "../../domUtils.js";
 import { generateFilenameParts } from "../../utils.js";
 
 import { TonewheelActions } from "../tonewheel/tonewheelActions.js";
+import { openSettings } from "../settings/settingsSurface.js";
 
 export const CURRENT_WAVEFORM_CHANGED = 'currentWaveformChanged';
 
 /**
+ * The menu's last entry once the library holds a baked wave: it opens the
+ * file manager instead of choosing a waveform. Carries `data-role="action"`
+ * so the ‹ › steppers step past it and the bridge's index mapping — which
+ * counts menu positions — never sees it.
+ */
+export const MANAGE_FILES_OPTION = '__files__';
+
+/**
  * The oscillator menu's choosable waveform names, in menu order (built-ins,
- * then baked waves) — skipping the disabled "Interpolated" display option.
+ * then baked waves) — skipping the "Interpolated" display option and the
+ * library entry.
  */
 export function waveformMenuNames() {
     const select = document.getElementById('waveform-select');
-    return select ? [...select.options].filter((o) => !o.disabled).map((o) => o.value) : ['sine', 'square', 'triangle', 'sawtooth'];
+    return select
+        ? [...select.options].filter(isWaveformOption).map((o) => o.value)
+        : ['sine', 'square', 'triangle', 'sawtooth'];
+}
+
+function isWaveformOption(option) {
+    return !option.disabled && option.dataset.role !== 'action';
 }
 
 export function handleWaveformChange(e) {
+    if (e.target.value === MANAGE_FILES_OPTION) {
+        // Not a waveform: put the menu back where it was and open the library
+        e.target.value = AppState.waveformMorph ? '' : AppState.currentWaveform;
+        openSettings('files');
+        return;
+    }
     setCurrentWaveform(e.target.value);
 }
 
@@ -116,20 +138,44 @@ export function waveformLabel() {
         (parts.subharmonicFlag ? `-${parts.subharmonicFlag}` : '');
 }
 
-/** Put a waveform in the oscillator menu (once per key). */
-export function addWaveformOption(waveKey, name, index) {
+/**
+ * Rewrite the menu's library entries from the wavetable manager: the baked
+ * waveforms in order, then "Manage files…" once there is one. ONE path for
+ * a bake, a boot restore, a rename and a delete — "Custom 3" is a position,
+ * so the numbering stays truthful only if it is rewritten whole. The
+ * built-ins and the "Interpolated" tail are left alone, as is the current
+ * selection when it still exists.
+ */
+export function syncWaveformOptions(wavetableManager = getWavetableManager()) {
     const select = document.getElementById('waveform-select');
-    if (!select || select.querySelector(`option[value="${waveKey}"]`)) return;
-    const option = document.createElement('option');
-    option.textContent = `Custom ${index}: ${name}`;
-    option.value = waveKey;
-    // Before the display-only "Interpolated" entry, which stays last
+    if (!select) return;
+    const chosen = select.value;
+    for (const option of [...select.options]) {
+        if (option.value.startsWith('custom_') || option.dataset.role === 'action') option.remove();
+    }
+    // Everything goes before the display-only "Interpolated" entry, which
+    // is hidden — so the library entry reads as the menu's last line
     const tail = select.querySelector('option[disabled][hidden]');
-    select.insertBefore(option, tail);
+    const waves = wavetableManager.list();
+    waves.forEach(({ key, name }, i) => {
+        const option = document.createElement('option');
+        option.value = key;
+        option.textContent = `Custom ${i + 1}: ${name || key}`;
+        select.insertBefore(option, tail);
+    });
+    if (waves.length) {
+        const manage = document.createElement('option');
+        manage.value = MANAGE_FILES_OPTION;
+        manage.dataset.role = 'action';
+        manage.textContent = 'Manage files…';
+        select.insertBefore(manage, tail);
+    }
+    if ([...select.options].some((o) => o.value === chosen)) select.value = chosen;
+    AppState.customWaveCount = waves.length;
 }
 
 export function addWaveformToUI(waveKey, name, customWaveIndex) {
-    addWaveformOption(waveKey, name, customWaveIndex);
+    syncWaveformOptions();
     const select = document.getElementById('waveform-select');
     if (select) select.value = waveKey;
     setCurrentWaveform(waveKey);
@@ -146,15 +192,13 @@ export function addWaveformToUI(waveKey, name, customWaveIndex) {
  * on first use (WavetableManager), so this costs nothing at boot.
  */
 export function restoreWaveformOptions(wavetableManager) {
-    wavetableManager.list().forEach(({ key, name }, i) => {
-        addWaveformOption(key, name || key, i + 1);
+    syncWaveformOptions(wavetableManager);
+    for (const { key } of wavetableManager.list()) {
         const coefficients = wavetableManager.getCoefficients(key);
-        if (coefficients) {
-            AppState.customWaveCoefficients = AppState.customWaveCoefficients || {};
-            AppState.customWaveCoefficients[key] = coefficients;
-            AppState.customWavePeriodMultipliers = AppState.customWavePeriodMultipliers || {};
-            AppState.customWavePeriodMultipliers[key] = wavetableManager.getPeriodMultiplier(key);
-        }
-    });
-    AppState.customWaveCount = wavetableManager.list().length;
+        if (!coefficients) continue;
+        AppState.customWaveCoefficients = AppState.customWaveCoefficients || {};
+        AppState.customWaveCoefficients[key] = coefficients;
+        AppState.customWavePeriodMultipliers = AppState.customWavePeriodMultipliers || {};
+        AppState.customWavePeriodMultipliers[key] = wavetableManager.getPeriodMultiplier(key);
+    }
 }

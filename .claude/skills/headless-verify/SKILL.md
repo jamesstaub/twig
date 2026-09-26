@@ -11,7 +11,13 @@ description: Verify twig changes end-to-end in a headless browser — screenshot
   once leaked into it). Always start an isolated server:
   `PORT=3401 node server.js &` … and `lsof -ti :3401 | xargs kill` when done.
   Its bridge cache PERSISTS state between runs (envelope mode, pans,
-  filters…): read state before asserting, never assume defaults.
+  filters…): read state before asserting, never assume defaults. Set the
+  state a suite depends on over OSC at its START — a cached
+  `/twig/source ['soundfile']` disables the bake buttons and gives the
+  voices sampler heads, and a cached `/twig/play [1]` makes the page build
+  an AudioContext during bootstrap, which reads as "restoring the library
+  created a context". Leave the bridge stopped (`/twig/play [0]`) at the
+  end of a suite that plays.
   If another session may be testing at the same time, pick your own port
   (`PORT=3417`): two test pages on one bridge relay play/stop and every
   parameter to each other, which reads as voices vanishing mid-test.
@@ -140,9 +146,24 @@ description: Verify twig changes end-to-end in a headless browser — screenshot
   Trigger panel's "Loop Samples" is `#pad-loop-toggle` (`aria-pressed`;
   `disabled` outside sound-file mode).
 - Settings: the toolbar button or the recorder's ⚙ → tabs
-  `.settings-tab[data-tab="midi|recorder"]` over `#midi-settings` /
-  `#recorder-settings`, no dock; in embed an overlay (`body.settings-open`,
-  `.settings-close`).
+  `.settings-tab[data-tab="midi|recorder|files"]` over `#midi-settings` /
+  `#recorder-settings` / `#files-settings`, no dock; in embed an overlay
+  (`body.settings-open`, `.settings-close`).
+- Files (the library UI, `#files-settings`): one
+  `.files-kind[data-kind="wave|ir|soundfile|recording"]` card each, rows
+  `.files-row[data-id][data-kind]` (click = select + preview,
+  `.selected`), cells `.files-name-text` / `.files-detail` / `.files-size`
+  / `.files-inuse`, buttons `[data-action="use|play|rename|download|
+  remove"]` (delete needs TWO clicks — the first adds `.files-armed`),
+  rename swaps the name for `.files-name-input` (commits on blur). The
+  preview canvas is `.files-preview-canvas canvas` (hash its pixels to
+  assert a redraw) with `.files-preview-meta` under it; storage reads from
+  `.files-figures` / `.files-location-text`. The oscillator menu's library
+  entry is `option[data-role="action"]` (value `__files__`) — filter it out
+  of any menu-name assertion, as `waveformMenuNames()` does; the
+  Convolution panel's is `#manage-ir-button`. To see downloads without
+  writing files, wrap `URL.createObjectURL` and
+  `HTMLAnchorElement.prototype.click` in `evaluateOnNewDocument`.
 
 ## Gestures that don't work via page.mouse
 

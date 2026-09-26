@@ -40,7 +40,8 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
   and Settings panels (built the first time their surface is shown —
   `LAZY_PANELS` / `mountPanelFor` in ui.js; the presets STATE still boots
   eagerly, since a MIDI crossfade must work before the panel is opened).
-  Boot is ~80 kB gzipped over 8 files.
+  Boot is ~85 kB gzipped over 10 files; the two lazy panels are another
+  ~11 kB when first opened.
 - `server.js` gzips what it serves (`compression`), so measure transfer
   with `PerformanceResourceTiming.transferSize` — a gzipped response has
   no `content-length`.
@@ -592,6 +593,44 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
     memory-only, because the synth must start regardless.
   - `beforeunload` warns about unsaved work; a stored IR is no longer
     unsaved, so it only counts when `assetStore.ephemeral`.
+  - THE FILE MANAGER is Settings › Files (`js/modules/files/`,
+    `#files-settings`): what the library holds and what it spends of the
+    machine's storage (`assetStore.usage()` + `quota()`), a preview of the
+    selected file on the Source panel's own waveform view
+    (`modules/waveform/waveformDraw.js` — `drawOverview` for samples,
+    `drawCycle` for a baked table; `js/dsp/overview.js` reduces samples to
+    min/max bins), and ONE TABLE PER KIND: waveforms, IRs, sound files and
+    RECORDINGS, which are in the same place although they are session-only
+    (takes need a compressed format before they can be stored).
+    `filesActions.js` is the only file that knows what a kind means — what
+    "use it" does (play that oscillator / ring every overtone through that
+    IR / load that file into the sampler / select that take), what a
+    deletion leaves dangling (a deleted waveform falls back to sine, a
+    deleted IR is unpicked from every voice), what a download is called,
+    and how to turn a payload back into something drawable. A sound file
+    is decoded on an OfflineAudioContext — drawing must not open an audio
+    device; `audition.js` plays a preview straight to `destination`, past
+    the voices and the master chain, so it is audible while the synth is
+    stopped and is not caught by a recording. Renaming writes
+    `meta.name` only: the id is the content hash, so every preset keeps
+    its reference. Deleting takes TWO clicks (the app has no modals, so
+    the second click is the confirmation). The component rebuilds rows on
+    every library change, so all its handlers are delegated from the panel
+    root.
+  - The library is reached from the menus that list its files: the
+    oscillator menu's last entry, "Manage files…" (`MANAGE_FILES_OPTION`,
+    `data-role="action"` — the ‹ › steppers step past it and
+    `waveformMenuNames()` excludes it, so the bridge's menu-index mapping
+    is unchanged), and the Convolution panel's "Files…" button beside
+    Create IR, since IRs are picked with steppers rather than a menu (it
+    is `.files-link`, which the source-mode gating leaves enabled —
+    baking needs the oscillators, reaching the library does not). Both
+    appear only once there is one of that kind. `openSettings(tab)` in
+    ui.js is the one way in (it mounts the lazy panel first).
+  - `syncWaveformOptions()` (waveformActions.js) rewrites the menu's
+    library entries from the wavetable manager — one path for a bake, a
+    boot restore, a rename and a delete, because "Custom 3" is a POSITION
+    and stays truthful only if the whole list is rewritten.
 - Presets surface (`js/modules/presets/`, `#presets-control-root`, the
   toolbar item above Settings): 32 storage banks, an A/B crossfader and
   the JSON state view. Frontend-only for now — `presetStore.js` keeps the
@@ -643,13 +682,17 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
   line in `capture()` and `presetApply.writeAppState` (see the
   add-bridged-param skill).
 - Settings surface (`js/modules/settings/`, `#settings-control-root`):
-  MIDI | Recording tabs (`selectTab`) over `MidiSettingsComponent`
+  MIDI | Recording | Files tabs (`selectTab`; the Files tab re-reads the
+  library every time it is shown, since files arrive from everywhere but
+  there) over `MidiSettingsComponent`
   (a ports card, then one card per concern with its own channel and
   start-of-range inputs; re-rendered on `MIDI_PORTS_CHANGED` /
   `MIDI_OUTPUT_CHANGED` since ports arrive late) and
   `RecorderSettingsComponent` (wav/mid layout, take length, tempo mode;
-  `syncChecked` on `RECORDER_CHANGED`). The toolbar button and the
-  recorder's ⚙ (`SettingsController.open(tab)`) get there, on both shells.
+  `syncChecked` on `RECORDER_CHANGED`) and `FilesSettingsComponent` (the
+  file manager, see THE LIBRARY above). The toolbar button, the
+  recorder's ⚙ and the two "manage files" entries (`openSettings(tab)` in
+  ui.js) get there, on both shells.
 - Navbar: Playing/Stopped, Trigger/Drone, the recorder strip, Gain/Slew.
   Every label + switch names its CURRENT STATE (switch on = Playing /
   Trigger), never the action. Wide, it is the fixed one-row bar with

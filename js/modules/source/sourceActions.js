@@ -2,9 +2,9 @@ import { polySampleMode, restartAudio, updateAllHarmonicClocks, updateAllHarmoni
 import { AppState, FILTER_BANK_Q, SOUNDFILE_MODES, SOURCE_MODES, updateAppState } from '../../config.js';
 import { persistAppConfig, soundfileConfig } from '../../appConfig.js';
 import { audioEngine } from '../../dsp/engine/AudioEngine.js';
-import { saveSoundFile } from '../../dsp/assetLibrary.js';
+import { saveSoundFile, soundFileBytes } from '../../dsp/assetLibrary.js';
 import { sourceManager } from '../../dsp/SourceManager.js';
-import { decodeAiff, isAiff } from '../../dsp/aiff.js';
+import { decodeAudioFile } from '../../dsp/decodeAudio.js';
 import { showStatus } from '../../domUtils.js';
 import { SOURCE_CHANGED } from '../../events.js';
 import { OvertoneSignalActions } from '../overtoneSignal/overtoneSignalActions.js';
@@ -158,7 +158,7 @@ export const SourceActions = {
     },
 
     /**
-     * Decode a dropped/picked audio file, keep it in the source manager,
+     * Decode a dropped/picked audio file, keep it in the machine's library,
      * and switch to soundfile mode.
      */
     async loadSoundFile(file) {
@@ -168,46 +168,51 @@ export const SourceActions = {
             // Kept as the user gave it — the encoded bytes, which stay small
             // and re-decode at whatever rate the context runs at
             const assetId = await saveSoundFile({ bytes: arrayBuffer.slice(0), name: file.name });
-            // A context always exists by the time a user can drop a file;
-            // decodeAudioData needs one even before playback starts
-            const { initAudio } = await import('../../audio.js');
-            await initAudio();
-            const buffer = await decodeAudioFile(audioEngine.context, arrayBuffer);
-            // Resolves once YIN has the file's fundamental (a typed override
-            // belonged to the previous file — the new one starts from its
-            // own detected pitch, which the samplers then tune from)
-            const hz = await sourceManager.setFileBuffer(buffer, file.name, assetId);
-            // A new file: whole, and starting from its own detected pitch
-            updateAppState({ soundfileName: file.name, soundfileFundamental: null, soundfileRange: null });
-            // The bank tunes itself around the sample: its fundamental
-            // becomes twig's, so the first overtone plays the file as is
-            if (hz) FundamentalActions.setFundamentalExact(hz);
-            if (AppState.sourceMode === 'soundfile') {
-                // Mono: the manager swapped the file in place (the clocks
-                // realign with it); poly: the voices take the new buffer AND
-                // its detected fundamental
-                updateAllHarmonicSamples();
-                updateAllHarmonicClocks();
-                document.dispatchEvent(new CustomEvent(SOURCE_CHANGED, { detail: { soundfileName: file.name } }));
-            } else {
-                this.setSourceMode('soundfile');
-            }
-            showStatus(`Loaded ${file.name}${hz ? ` · ${hz.toFixed(hz >= 100 ? 1 : 2)} Hz` : ''}`, 'success');
+            await applySoundFile({ arrayBuffer, name: file.name, assetId, mode: this });
         } catch (error) {
             showStatus(`Could not load ${file?.name || 'file'}: ${error.message}`, 'error');
+        }
+    },
+
+    /** Play a sound file the library already holds (the file manager's Use). */
+    async loadStoredSoundFile(id, name) {
+        try {
+            const bytes = await soundFileBytes(id);
+            if (!bytes) throw new Error('the library no longer has it');
+            await applySoundFile({ arrayBuffer: bytes, name, assetId: id, mode: this });
+        } catch (error) {
+            showStatus(`Could not load ${name || 'file'}: ${error.message}`, 'error');
         }
     },
 };
 
 /**
- * Decode a file to an AudioBuffer. The browser handles WAV/MP3/FLAC/OGG/
- * M4A; AIFF (Logic's and Pro Tools' default) it cannot — Chromium ships
- * no AIFF demuxer — so that goes through js/dsp/aiff.js.
+ * Hand a decoded file to the bank: one path for a file just picked and one
+ * recalled from the library, so both tune the synth the same way.
  */
-async function decodeAudioFile(ctx, arrayBuffer) {
-    if (!isAiff(arrayBuffer)) return ctx.decodeAudioData(arrayBuffer);
-    const { sampleRate, channels } = decodeAiff(arrayBuffer);
-    const buffer = ctx.createBuffer(channels.length, channels[0].length, sampleRate);
-    channels.forEach((data, c) => buffer.copyToChannel(data, c));
-    return buffer;
+async function applySoundFile({ arrayBuffer, name, assetId, mode }) {
+    // A context always exists by the time a user can drop a file;
+    // decodeAudioData needs one even before playback starts
+    const { initAudio } = await import('../../audio.js');
+    await initAudio();
+    const buffer = await decodeAudioFile(audioEngine.context, arrayBuffer.slice(0));
+    // Resolves once YIN has the file's fundamental (a typed override
+    // belonged to the previous file — the new one starts from its
+    // own detected pitch, which the samplers then tune from)
+    const hz = await sourceManager.setFileBuffer(buffer, name, assetId);
+    // A new file: whole, and starting from its own detected pitch
+    updateAppState({ soundfileName: name, soundfileFundamental: null, soundfileRange: null });
+    // The bank tunes itself around the sample: its fundamental becomes
+    // twig's, so the first overtone plays the file as is
+    if (hz) FundamentalActions.setFundamentalExact(hz);
+    if (AppState.sourceMode === 'soundfile') {
+        // Mono: the manager swapped the file in place (the clocks realign
+        // with it); poly: the voices take the new buffer AND its fundamental
+        updateAllHarmonicSamples();
+        updateAllHarmonicClocks();
+        document.dispatchEvent(new CustomEvent(SOURCE_CHANGED, { detail: { soundfileName: name } }));
+    } else {
+        mode.setSourceMode('soundfile');
+    }
+    showStatus(`Loaded ${name}${hz ? ` · ${hz.toFixed(hz >= 100 ? 1 : 2)} Hz` : ''}`, 'success');
 }

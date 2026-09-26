@@ -12,6 +12,9 @@
     display: flex;
     align-items: center;
     gap: 0.75rem;
+    /* Three tabs beside the title are wider than a phone: let them drop to
+       their own line rather than run off the panel */
+    flex-wrap: wrap;
 }
 
 .settings-title {
@@ -24,6 +27,7 @@
    were a long scroll) */
 .settings-tabs {
     display: inline-flex;
+    flex-wrap: wrap;
     gap: 0.25rem;
 }
 

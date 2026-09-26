@@ -308,10 +308,13 @@
                         <span class="settings-tabs" role="tablist">
                             <button type="button" class="settings-tab" data-tab="midi" aria-pressed="true">MIDI</button>
                             <button type="button" class="settings-tab" data-tab="recorder" aria-pressed="false">Recording</button>
+                            <button type="button" class="settings-tab" data-tab="files" aria-pressed="false">Files</button>
                         </span>
                     </div>
                     <div id="midi-settings"></div>
                     <div id="recorder-settings" hidden></div>
+                    <!-- The machine's library: waveforms, IRs, sound files, takes -->
+                    <div id="files-settings" hidden></div>
                 </div>
                 </div><!-- /.surface-stack -->
 
@@ -364,6 +367,11 @@
                                 aria-label="Create convolution impulse response">Create IR</button>
                             <!-- Ring time for the next Create IR (dial mounted by JS) -->
                             <span id="ir-ring-root" class="ir-ring-root" title="IR ring time"></span>
+                            <!-- The stored IRs, in the file manager. Shown once there is
+                                 one; not gated by source mode, unlike baking. -->
+                            <button id="manage-ir-button" type="button" hidden
+                                class="action-btn focus-ring files-link"
+                                aria-label="Manage files">Files…</button>
                         </div>
                     </div>
 

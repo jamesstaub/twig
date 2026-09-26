@@ -977,6 +977,11 @@ export function exportAsWAV(data, numCycles = 1) {
 const VISUAL_TABLE_SIZE = 4096;
 const wavetableCache = {};
 
+/** Drop a deleted waveform's drawing table (see the library's delete). */
+export function forgetCustomWaveTable(waveKey) {
+    delete wavetableCache[waveKey];
+}
+
 export function getWaveValue(type, theta, customCoeffs) {
     // --- custom waveform ---
     if (type.startsWith("custom")) {
@@ -1048,7 +1053,8 @@ export async function addWaveformToAudio(spectrum, name = '') {
         spectrum.imag,
         audioEngine.context,
         spectrum.periodMultiplier,
-        waveKey
+        waveKey,
+        name
     );
 
     const coefficients = getWavetableManager().getCoefficients(waveKey);

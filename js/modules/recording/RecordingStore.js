@@ -28,6 +28,20 @@ export class RecordingStore {
         return this.recordings.get(key) || null;
     }
 
+    rename(key, name) {
+        const recording = this.recordings.get(key);
+        if (recording) recording.name = name;
+    }
+
+    /**
+     * Drop a take. `count` is NOT decremented: it names the next take, and
+     * two takes called "rec 3" in one session would be a worse confusion
+     * than a gap in the numbering.
+     */
+    remove(key) {
+        return this.recordings.delete(key);
+    }
+
     /** Next sequence number, for naming a take before it is stored. */
     nextNumber() {
         return this.count + 1;

@@ -42,8 +42,7 @@ import { InspectorController } from './modules/inspector/inspectorController.js'
 import { PadGridController } from './modules/pads/padGridController.js';
 import { initPresets } from './modules/presets/presetsController.js';
 import { EnvelopeModeController } from './modules/envelopeMode/envelopeModeController.js';
-
-let settingsController;
+import { mountSettings, openSettings } from './modules/settings/settingsSurface.js';
 
 export function initUI() {
     setupMainButtons();
@@ -168,11 +167,9 @@ const LAZY_PANELS = {
         ]);
         new PresetsController('#presets-control-root', PresetsComponent).init();
     },
-    settings: async () => {
-        const { SettingsController } = await import('./modules/settings/settingsController.js');
-        settingsController = new SettingsController('#settings-control-root');
-        settingsController.init();
-    },
+    // Settings owns its own mount (settingsSurface.js), because the things
+    // that open it are modules ui.js itself imports
+    settings: () => mountSettings(),
 };
 const mounted = new Map();
 
@@ -189,10 +186,7 @@ function setupMainButtons() {
     setupEnvelopeMode();
     const recorder = new RecorderController('#recorder-root');
     // The ⚙ can be the first thing that ever needs the settings panel
-    recorder.onOpenSettings = async () => {
-        await mountPanelFor('settings');
-        settingsController?.open('recorder');
-    };
+    recorder.onOpenSettings = () => openSettings('recorder');
     recorder.init();
 }
 
@@ -288,8 +282,12 @@ function setupSelectSteppers() {
             const step = parseInt(btn.dataset.step, 10) || 1;
             const count = select.options.length;
             let index = select.selectedIndex;
-            // Skip display-only entries (the waveform menu's "Interpolated")
-            do { index = (index + step + count) % count; } while (select.options[index].disabled);
+            // Skip what isn't a choice: display-only entries (the waveform
+            // menu's "Interpolated") and entries that run an action instead
+            // of selecting a value ("Manage files…")
+            do {
+                index = (index + step + count) % count;
+            } while (select.options[index].disabled || select.options[index].dataset.role === 'action');
             select.selectedIndex = index;
             select.dispatchEvent(new Event('change', { bubbles: true }));
         });

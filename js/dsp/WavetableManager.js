@@ -46,6 +46,23 @@ export class WavetableManager {
         return [...this.coefficients.keys()].map((key) => ({ key, name: this.names.get(key) || '' }));
     }
 
+    /** What the menus call this waveform. */
+    name(key) {
+        return this.names.get(key) || '';
+    }
+
+    setName(key, name) {
+        if (this.coefficients.has(key)) this.names.set(key, name);
+    }
+
+    /** Forget a waveform (the library deleted it). */
+    remove(key) {
+        this.waveforms.delete(key);
+        this.coefficients.delete(key);
+        this.periodMultipliers.delete(key);
+        this.names.delete(key);
+    }
+
     /**
      * Stores a baked spectrum as a PeriodicWave.
      * @param {Float32Array} real - Real Fourier coefficients
@@ -54,7 +71,7 @@ export class WavetableManager {
      * @param {number} periodMultiplier - Fundamental periods the table spans
      * @returns {string} Unique key for the stored waveform
      */
-    addFromSpectrum(real, imag, context, periodMultiplier = 1, key = null) {
+    addFromSpectrum(real, imag, context, periodMultiplier = 1, key = null, name = '') {
         this.ctx = this.ctx || context;
         this.count++;
         // The caller passes the content id (assetLibrary.saveWave); without
@@ -64,6 +81,7 @@ export class WavetableManager {
         this.waveforms.set(id, context.createPeriodicWave(real, imag, { disableNormalization: false }));
         this.coefficients.set(id, { real, imag });
         this.periodMultipliers.set(id, periodMultiplier);
+        this.names.set(id, name);
         return id;
     }
 

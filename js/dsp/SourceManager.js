@@ -18,24 +18,10 @@
  */
 
 import { detectFundamental, monoMix } from './pitchDetect.js';
-
-/** Bins of the file's waveform overview (min/max per bin, for drawing). */
-const OVERVIEW_BINS = 1024;
+import { overviewOfData } from './overview.js';
 
 function overviewOf(buffer) {
-    const data = monoMix(buffer);
-    const bins = Math.min(OVERVIEW_BINS, data.length);
-    const min = new Float32Array(bins);
-    const max = new Float32Array(bins);
-    for (let b = 0; b < bins; b++) {
-        const from = Math.floor((b * data.length) / bins);
-        const to = Math.max(from + 1, Math.floor(((b + 1) * data.length) / bins));
-        let lo = Infinity, hi = -Infinity;
-        for (let i = from; i < to; i++) { if (data[i] < lo) lo = data[i]; if (data[i] > hi) hi = data[i]; }
-        min[b] = lo;
-        max[b] = hi;
-    }
-    return { min, max, duration: buffer.duration };
+    return overviewOfData(monoMix(buffer), buffer.duration);
 }
 
 const NOISE_SECONDS = 4;

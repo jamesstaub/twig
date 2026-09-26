@@ -3,6 +3,7 @@ import BaseComponent from "../base/BaseComponent.js";
 import { getWaveValue } from "../tonewheel/tonewheelActions.js";
 import { themeColor } from "../../theme.js";
 import { Sketch, strokePath, withAlpha } from "../generic/sketch/Sketch.js";
+import { drawOverview, drawWaveformFrame } from "./waveformDraw.js";
 
 function lcm(a, b) {
     return (a * b) / gcd(a, b);
@@ -35,14 +36,10 @@ function createWaveformSketch(component) {
             const height = sk.height;
             const ampScale = height * 0.4;
 
-            ctx.fillStyle = themeColor("--viz-bg");
-            ctx.fillRect(0, 0, width, height);
-            ctx.strokeStyle = themeColor("--viz-grid");
-            ctx.lineWidth = 1;
-            ctx.beginPath();
-            ctx.moveTo(0, height / 2);
-            ctx.lineTo(width, height / 2);
-            ctx.stroke();
+            drawWaveformFrame(ctx, width, height, {
+                background: themeColor("--viz-bg"),
+                grid: themeColor("--viz-grid"),
+            });
 
             // A preset crossfade between two waveforms: the pair and how far
             // between them (see AppState.waveformMorph)
@@ -54,24 +51,8 @@ function createWaveformSketch(component) {
             if (props.mode === "single" && props.sourceMode === "soundfile") {
                 // The loaded file: its min/max envelope across the box
                 // (nothing until a file loads)
-                const ov = props.sample;
-                if (!ov) return;
-                const bin = (x) => Math.floor((x / width) * ov.max.length);
-                // Filled envelope for a long file; the stroke keeps a short
-                // one (a single cycle, one sample per bin) visible
-                const envelope = [];
-                for (let x = 0; x < width; x++) envelope.push(x, height / 2 - ov.max[bin(x)] * ampScale);
-                for (let x = width - 1; x >= 0; x--) envelope.push(x, height / 2 - ov.min[bin(x)] * ampScale);
-                ctx.fillStyle = trace;
-                ctx.beginPath();
-                ctx.moveTo(envelope[0], envelope[1]);
-                for (let i = 2; i < envelope.length; i += 2) ctx.lineTo(envelope[i], envelope[i + 1]);
-                ctx.closePath();
-                ctx.fill();
-                ctx.strokeStyle = trace;
-                const mid = [];
-                for (let x = 0; x < width; x++) mid.push(x, height / 2 - ((ov.max[bin(x)] + ov.min[bin(x)]) / 2) * ampScale);
-                strokePath(ctx, mid);
+                if (!props.sample) return;
+                drawOverview(ctx, props.sample, width, height, trace);
                 return;
             }
 

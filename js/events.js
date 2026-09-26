@@ -21,6 +21,9 @@ export const CONVOLUTION_IRS_CHANGED = 'convolution-irs-changed';
 export const IR_RING_CHANGED = 'ir-ring-changed';
 export const RECORDER_CHANGED = 'recorder-changed';
 export const RECORDINGS_CHANGED = 'recordings-changed';
+// The machine's library of files gained, lost or renamed something
+// (js/dsp/assetStore.js) — no detail; the file manager re-reads it
+export const LIBRARY_CHANGED = 'library-changed';
 // Preset banks, selection, loaded/dirty state or the A/B crossfader changed
 export const PRESETS_CHANGED = 'presets-changed';
 // Shell (embed | surfaces) or pointer density (coarse) changed — see

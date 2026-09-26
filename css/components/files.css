@@ -1,0 +1,216 @@
+/* ================================
+   FILES — the machine's library, in the Settings surface
+   ================================
+   #files-settings: the storage summary and the preview side by side, then
+   one full-width table per kind. The cards, headings and hints are the
+   Settings ones (settings.css); only what is particular to a file table
+   lives here. */
+
+/* ---- Storage summary ---- */
+
+.files-bar {
+    height: 0.4rem;
+    border-radius: 999px;
+    background-color: var(--surface-app);
+    overflow: hidden;
+}
+
+/* Child selectors throughout this file out-specify layout.css's
+   `.labeled-control span` (display:flex, a colour and a bottom margin on
+   every span in the panel) — see the note by .files-name-text. */
+.files-bar > .files-bar-fill {
+    display: block;
+    height: 100%;
+    margin: 0;
+    background-color: var(--accent-primary);
+    transition: width 0.2s;
+}
+
+.files-figures {
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
+}
+
+.files-location > .files-location-text {
+    margin: 0;
+    color: var(--text-muted);
+    font-weight: var(--font-weight-normal);
+    font-size: var(--font-size-sm);
+}
+
+/* ---- Preview ---- */
+
+.files-preview-canvas {
+    height: 96px;
+    min-width: 0;
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+}
+
+.files-preview-meta {
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* ---- One table per kind ---- */
+
+.files-table {
+    width: 100%;
+    border-collapse: collapse;
+    /* The name column takes what the other three leave */
+    table-layout: auto;
+}
+
+.files-row {
+    cursor: pointer;
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.files-row:last-child {
+    border-bottom: none;
+}
+
+.files-row:hover {
+    background-color: var(--surface-hover);
+}
+
+.files-row.selected {
+    background-color: color-mix(in srgb, var(--accent-primary) 20%, transparent);
+}
+
+.files-table td {
+    padding: 0.2rem 0.4rem;
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
+    vertical-align: middle;
+}
+
+.files-name {
+    width: 100%;
+    max-width: 0; /* lets the ellipsis below actually apply in a table cell */
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* layout.css restyles EVERY span in a .labeled-control panel as a flex
+   heading (display:flex, its own colour, a bottom margin) — and
+   #settings-control-root is one. The two spans in a row have to say what
+   they are themselves. */
+.files-name > .files-name-text {
+    display: inline;
+    color: inherit;
+    font-weight: inherit;
+    margin: 0;
+}
+
+.files-name-input {
+    width: 100%;
+    background-color: var(--surface-app);
+    color: var(--text-primary);
+    border: 1px solid var(--accent-primary);
+    border-radius: var(--radius-sm);
+    padding: 0.1rem 0.25rem;
+    font-size: var(--font-size-sm);
+}
+
+/* Sounding, ringing or loaded right now */
+.files-name > .files-inuse {
+    display: inline-block;
+    margin: 0 0 0 0.4rem;
+    padding: 0 0.35rem;
+    border-radius: 999px;
+    font-size: var(--font-size-2xs);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-accent);
+    border: 1px solid var(--accent-primary);
+}
+
+.files-detail,
+.files-size {
+    white-space: nowrap;
+    color: var(--text-muted);
+    font-size: var(--font-size-xs);
+}
+
+.files-size {
+    text-align: right;
+}
+
+.files-actions {
+    white-space: nowrap;
+    text-align: right;
+}
+
+.files-icon-btn {
+    padding: 0.2rem;
+    line-height: 0;
+    color: var(--text-muted);
+}
+
+.files-icon-btn svg {
+    width: 1rem;
+    height: 1rem;
+    display: block;
+}
+
+.files-icon-btn:hover {
+    color: var(--text-accent);
+}
+
+/* Armed: the next click deletes. There are no modals in this app, so the
+   second click IS the confirmation — it has to look like one. */
+.files-icon-btn.files-armed {
+    color: var(--text-primary);
+    background-color: var(--accent-negative-strong);
+}
+
+body.coarse .files-icon-btn {
+    padding: 0.4rem;
+}
+
+body.coarse .files-table td {
+    padding: 0.4rem;
+}
+
+/* A kind with nothing in it keeps its card and says what would fill it */
+.files-empty {
+    margin-top: 0.2rem;
+}
+
+/* Narrow (a phone): four columns can only give the name a few characters,
+   so the row folds — the name takes a line of its own above the size and
+   the buttons, and the per-file detail (which the preview repeats) goes. */
+@media (max-width: 40rem) {
+
+    .files-table,
+    .files-table tbody {
+        display: block;
+    }
+
+    .files-row {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        align-items: center;
+        padding: 0.25rem 0;
+    }
+
+    .files-name {
+        grid-column: 1 / -1;
+        width: auto;
+        max-width: none;
+    }
+
+    .files-detail {
+        display: none;
+    }
+
+    .files-size {
+        text-align: left;
+    }
+}
