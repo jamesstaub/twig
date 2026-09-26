@@ -2,8 +2,8 @@ import BaseComponent from '../base/BaseComponent.js';
 
 /**
  * The surface toolbar — a left rail, or a row across the top of the embed
- * band: one button per surface, a divider after the ones that toggle
- * independently (Source), and a collapse button (shown where the toolbar
+ * band: one button per surface, a divider between the groups (pins |
+ * main surfaces | pages), and a collapse button (shown where the toolbar
  * can collapse — surfaces.embed.css). Pure presentation — renders from
  * props and reports clicks through onSelect(id) / onToggleCollapsed().
  * Icons are inline SVG in currentColor so
@@ -39,8 +39,7 @@ export class ToolbarComponent extends BaseComponent {
                 id: s.id, label: s.label, title: s.title, pressed: s.showing,
                 onClick: () => this.onSelect?.(s.id),
             }));
-            // Source toggles on its own, apart from the surfaces below it
-            if (s.independent) {
+            if (s.dividerAfter) {
                 const divider = document.createElement('span');
                 divider.className = 'surface-toolbar-divider';
                 this.el.appendChild(divider);

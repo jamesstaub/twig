@@ -2,62 +2,66 @@ import { SURFACE_CHANGED } from '../../events.js';
 import { layoutMode } from '../layout/layoutMode.js';
 
 /**
- * Surface state — which surface is showing, whether the Source panel
- * accompanies it, and whether its side column is open. UI-only: never
- * bridged, never persisted.
+ * Surface state — which surface is showing, which pinned panel accompanies
+ * it, and whether its side column is open. UI-only: never bridged, never
+ * persisted.
  *
- * A surface is a named group of existing panel roots (by element id). One
- * MAIN surface is active at a time. SOURCE is the exception: where the
- * layout is roomy (layoutMode.roomy) it DOCKS — shown together with the
- * active surface, toggled independently by its own toolbar button — and
- * everywhere else (a short or narrow screen, or beside a surface without
- * `withSource`) it is a surface like the others, shown ALONE.
+ * A surface is a named group of existing panel roots (by element id), in
+ * one of three GROUPS (the toolbar draws a divider between them):
+ *   pin  — Source and Trigger. Where the layout is roomy
+ *          (layoutMode.roomy) ONE of them is PINNED: shown together with
+ *          the active main surface, toggled by its own toolbar button
+ *          (the page opens on Source + Gain). Never both at once.
+ *          Where there is no room (a short or narrow screen, or a page
+ *          surface active) a pin button shows that panel ALONE instead.
+ *   main — the per-overtone surfaces (the drawbar strip's families and
+ *          Sequence): one active at a time, a pin may sit with it.
+ *   page — Presets and Settings: the whole screen, nothing pinned.
  *
  * A surface with `side` has a side column — that visualization panel over
  * the SIDE_ROOTS (the tonewheel) — which the panel's own toggle opens and
  * closes as a whole; surfaces without one have no side column at all.
- * A surface with `family` puts the drawbar strip into that
- * parameter family (drawbarParams.js); `tools` marks the per-overtone
- * surfaces, whose panels carry the overtone toolbar (link / shape).
- * Presentation (toolbar, hiding panels, body classes) lives in the
- * surfaces controller/components — this module only holds the state and
- * the registry.
+ * A surface with `family` puts the drawbar strip into that parameter
+ * family (drawbarParams.js); `tools` marks the per-overtone surfaces,
+ * whose panels carry the overtone toolbar (link / shape). Presentation
+ * (toolbar, hiding panels, body classes) lives in the surfaces
+ * controller/components — this module only holds the state and the
+ * registry.
  */
-
-export const SOURCE = 'source';
 
 export const SURFACES = [
     // Fundamental, signal source, overtone system
-    { id: 'source', label: 'Source', roots: ['fundamental-control-root', 'oscillator-control-root', 'spectral-system-root'] },
+    { id: 'source', group: 'pin', label: 'Source', roots: ['fundamental-control-root', 'oscillator-control-root', 'spectral-system-root'] },
+    // One pad per overtone
+    { id: 'trigger', group: 'pin', label: 'Trigger', roots: ['pad-grid-root'] },
     // The drawbar strip in each of its parameter families, each with its
     // own visualization in the side column
-    { id: 'gain', label: 'Gain', roots: ['drawbars-control-root'], side: 'gain-viz-root', family: 'gain', tools: true, withSource: true },
-    // One pad per overtone
-    { id: 'trigger', label: 'Trigger', roots: ['pad-grid-root'], withSource: true },
-    { id: 'adsr', label: 'ADSR', roots: ['drawbars-control-root'], side: 'adsr-viz-root', family: 'adsr', tools: true, withSource: true },
-    { id: 'filter', label: 'Filter', roots: ['drawbars-control-root'], side: 'filter-viz-root', family: 'filter', tools: true, withSource: true },
+    { id: 'gain', group: 'main', label: 'Gain', roots: ['drawbars-control-root'], side: 'gain-viz-root', family: 'gain', tools: true },
+    { id: 'adsr', group: 'main', label: 'ADSR', roots: ['drawbars-control-root'], side: 'adsr-viz-root', family: 'adsr', tools: true },
+    { id: 'filter', group: 'main', label: 'Filter', roots: ['drawbars-control-root'], side: 'filter-viz-root', family: 'filter', tools: true },
     // `label` is what fits the rail; `title` is the full name (tooltip)
-    { id: 'convolution', label: 'Conv', title: 'Convolution', roots: ['drawbars-control-root'], side: 'conv-viz-root', family: 'convolution', tools: true, withSource: true },
+    { id: 'convolution', group: 'main', label: 'Conv', title: 'Convolution', roots: ['drawbars-control-root'], side: 'conv-viz-root', family: 'convolution', tools: true },
     // The inspector: one voice's sequence, modulation and pulse outs,
     // that sequence drawn in the side column
-    { id: 'sequence', label: 'Sequence', roots: ['sequence-control-root'], side: 'sequence-viz-root', tools: true, withSource: true },
+    { id: 'sequence', group: 'main', label: 'Sequence', roots: ['sequence-control-root'], side: 'sequence-viz-root', tools: true },
     // Storage banks, the A/B crossfader and the JSON state view
-    { id: 'presets', label: 'Presets', roots: ['presets-control-root'] },
-    { id: 'settings', label: 'Settings', roots: ['settings-control-root'] },
+    { id: 'presets', group: 'page', label: 'Presets', roots: ['presets-control-root'] },
+    { id: 'settings', group: 'page', label: 'Settings', roots: ['settings-control-root'] },
 ];
 
 /** Panels every side column shows under the surface's own visualization. */
 export const SIDE_ROOTS = ['tonewheel-container'];
 
 const state = {
-    // The main surface — never SOURCE
+    // The active main or page surface — never a pin
     active: 'gain',
-    // The Source panel accompanies the active surface wherever it can dock
-    // (the page opens on Source + Gain where there is room, on Gain alone
-    // where there isn't)
-    dock: true,
-    // Source is THE surface right now (only where it can't dock)
-    alone: false,
+    // The pin panel that accompanies the active main surface wherever it
+    // can (the page opens on Source + Gain where there is room, on Gain
+    // alone where there isn't); null = none pinned
+    pinned: 'source',
+    // A pin panel showing INSTEAD of the active surface (only where it
+    // can't be pinned), or null
+    alone: null,
     // null = "not chosen yet": the default depends on the pointer density,
     // which layoutMode only knows after init() — later than this module
     // is imported — so it's resolved on first read, not here. Desktop
@@ -79,36 +83,37 @@ function emit() {
 }
 
 export const surfaceState = {
-    /** The main surface (never SOURCE — see `sourceAlone`). */
+    /** The active main or page surface (never a pin — see `alone`). */
     get active() {
         return state.active;
     },
-    /** Source may sit together with the active surface right now. */
-    get canDock() {
-        return layoutMode.roomy && Boolean(def(state.active).withSource);
+    /** A pin may sit with the active surface right now. */
+    get canPin() {
+        return layoutMode.roomy && def(state.active).group === 'main';
     },
-    get sourceDocked() {
-        return state.dock && this.canDock;
+    /** The pin panel showing WITH the active surface, or null. */
+    get pinnedShown() {
+        return this.canPin ? state.pinned : null;
     },
-    /** Source is showing INSTEAD of the active surface. */
-    get sourceAlone() {
-        return state.alone && !this.canDock;
+    /** The pin panel showing INSTEAD of the active surface, or null. */
+    get alone() {
+        return this.canPin ? null : state.alone;
     },
     /** Is `id`'s panel on screen? */
     showing(id) {
-        if (id === SOURCE) return this.sourceDocked || this.sourceAlone;
-        return id === state.active && !this.sourceAlone;
+        if (def(id).group === 'pin') return this.pinnedShown === id || this.alone === id;
+        return id === state.active && !this.alone;
     },
     /** The showing surface carries the overtone toolbar (link / shape). */
     get tools() {
-        return !this.sourceAlone && Boolean(def(state.active).tools);
+        return !this.alone && Boolean(def(state.active).tools);
     },
     get side() {
         return state.side ?? sideDefault();
     },
     /** The showing surface's side visualization panel id, if it has a side column. */
     get sidePanel() {
-        return this.sourceAlone ? null : def(state.active).side ?? null;
+        return this.alone ? null : def(state.active).side ?? null;
     },
     /** The toggle is on AND the showing surface has a side column. */
     get sideShown() {
@@ -116,22 +121,23 @@ export const surfaceState = {
     },
 
     /**
-     * A toolbar button. A main surface becomes the active one; SOURCE
-     * toggles — its dock where it can dock, itself as the surface where
-     * it can't.
+     * A toolbar button. A main or page surface becomes the active one; a
+     * pin toggles — pinned where it can be (replacing the other pin),
+     * shown alone where it can't.
      */
     show(id) {
-        if (id === SOURCE) {
-            if (this.canDock) {
-                state.dock = state.alone || !state.dock;
-                state.alone = false;
+        const surface = def(id);
+        if (!surface) return;
+        if (surface.group === 'pin') {
+            if (this.canPin) {
+                state.pinned = state.pinned === id ? null : id;
             } else {
-                state.alone = !state.alone;
+                state.alone = state.alone === id ? null : id;
             }
         } else {
-            if (!def(id) || (id === state.active && !state.alone)) return;
+            if (id === state.active && !state.alone) return;
             state.active = id;
-            state.alone = false;
+            state.alone = null;
         }
         emit();
     },

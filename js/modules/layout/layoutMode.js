@@ -15,8 +15,8 @@ import { LAYOUT_MODE_CHANGED } from '../../events.js';
  *           longer fits the navbar, so it becomes a static wrapping block
  *           (navbar.css) and master Gain/Slew move out of it into the
  *           master rail down the right edge (js/modules/masterRail/).
- *   roomy:  true when the Source panel fits on screen TOGETHER with
- *           another surface (surfaceState docks it there): the embed
+ *   roomy:  true when a pin panel (Source, Trigger) fits on screen
+ *           TOGETHER with another surface (surfaceState pins it there): the embed
  *           band, which is as wide as it needs to be, or a viewport both
  *           tall and wide enough (ROOMY_QUERY).
  *   coarse: true when the primary pointer is a finger (`pointer: coarse`,
@@ -27,7 +27,7 @@ import { LAYOUT_MODE_CHANGED } from '../../events.js';
  * Exposed to CSS as body.embed | body.surfaces, plus body.coarse and
  * body.narrow — CSS keys the narrow layout off that class, never its own
  * copy of the breakpoint
- * (roomy reaches CSS through the surface shell's body.source-docked).
+ * (roomy reaches CSS through the surface shell's body.pinned).
  * --embed-max-height (css/theme.css) is the single source of truth for the
  * shell boundary.
  */

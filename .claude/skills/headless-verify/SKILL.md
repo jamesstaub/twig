@@ -84,11 +84,13 @@ description: Verify twig changes end-to-end in a headless browser — screenshot
   `.inspector-step` inside `#sequence-toolbar`, the drawn sequence in the
   side column (`#sequence-canvas-area canvas` — hash its pixels to assert
   a redraw). Column labels navigate nowhere; there is no inspector sheet.
-- Source docking: at ≥1440×784 (or ≥1100×824) the page opens with
-  `body.source-docked` — Source above the active surface, BOTH toolbar
-  buttons pressed; the Source button toggles the dock. To test one
-  surface at a time, click Source once first (or use 1180×720 / 1024×900,
-  where Source is a surface of its own). Guard clicks with the button's
+- Pins: at ≥1440×784 (or ≥1100×824) the page opens with
+  `body.pinned.source-docked` — Source above the active surface, BOTH
+  toolbar buttons pressed. Source and Trigger are the pins: a pin button
+  pins that panel (replacing the other — never both), pressing it again
+  unpins; Presets/Settings never take a pin. To test one surface at a
+  time, click Source once first (or use 1180×720 / 1024×900, where a pin
+  is a surface of its own). Guard clicks with the button's
   `aria-pressed`, since a second click undocks. The card is flush: a
   1440×500 viewport makes the strip compact (<420px); 520 no longer does.
 - Narrow (≤1360px wide, `body.narrow`): master Gain/Slew are upright range

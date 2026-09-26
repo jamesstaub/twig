@@ -298,26 +298,28 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
   must fit 150px WITH the toolbar row. There are no modals or overlays in
   the app.
 - Surfaces (`js/modules/surfaces/`, both shells): `surfaceState.js` is
-  the UI-only registry and state. `SURFACES`, in toolbar order: source,
-  gain, trigger, adsr, filter, convolution, sequence, settings — each a
-  list of panel-root element ids; `label` is what fits the rail ("Conv"),
-  optional `title` the full name for the tooltip; `family` names the
-  drawbar strip's parameter family for the four parameter surfaces;
-  `side` a surface's visualization panel (those four, and Sequence): a
-  surface with `side` has a SIDE COLUMN — that panel over `SIDE_ROOTS`,
-  the tonewheel — and the others have none; `withSource` = Source may
-  dock with it (all but Settings). ONE main surface is `active`; SOURCE
-  is the exception: where `layoutMode.roomy` (and the active surface is
-  `withSource`) it DOCKS — shown together with the active surface and
-  toggled independently by its own button (`dock`, default on: the page
-  opens on Source + Gain) — and everywhere else it is a surface like the
-  others, shown alone (`alone`). `show(id)` is the toolbar's one entry
-  point; read `showing(id)`, `sourceDocked`, `sourceAlone`, `tools`,
-  `sideShown` — `SURFACE_CHANGED` carries no detail. `ToolbarComponent`
-  is the toolbar (left rail, or the embed band's top row: a divider
-  after Source, and the collapse button — shown only where
-  surfaces.embed.css enables it; collapsed state lives in
-  `SurfacesController`), `SideToggleComponent` the icon button pinned to
+  the UI-only registry and state. `SURFACES`, in toolbar order and in
+  three GROUPS the toolbar divides: `pin` — source, trigger; `main` —
+  gain, adsr, filter, convolution, sequence; `page` — presets, settings.
+  Each is a list of panel-root element ids; `label` is what fits the rail
+  ("Conv"), optional `title` the full name for the tooltip; `family`
+  names the drawbar strip's parameter family for the four parameter
+  surfaces; `side` a surface's visualization panel (those four, and
+  Sequence): a surface with `side` has a SIDE COLUMN — that panel over
+  `SIDE_ROOTS`, the tonewheel — and the others have none. ONE main or
+  page surface is `active`. The pins: where `layoutMode.roomy` and the
+  active surface is `main`, ONE of them is PINNED (`pinned`, default
+  source: the page opens on Source + Gain) — shown together with the
+  active surface, its button toggling it (pinning the other replaces it;
+  never both) — and everywhere else (short or narrow screens, a page
+  surface active) a pin button shows that panel ALONE (`alone`). Pages
+  are the whole screen. `show(id)` is the toolbar's one entry point; read
+  `showing(id)`, `pinnedShown`, `alone`, `tools`, `sideShown` —
+  `SURFACE_CHANGED` carries no detail. `ToolbarComponent` is the toolbar
+  (left rail, or the embed band's top row: a divider wherever the group
+  changes, and the collapse button — shown only where surfaces.embed.css
+  enables it; collapsed state lives in `SurfacesController`),
+  `SideToggleComponent` the icon button pinned to
   the top-right corner of a panel (`.side-toggle-btn`, one per panel — it
   lives only in the panels whose surfaces have a side column, the drawbar
   strip and the Sequence panel, and opens/closes the WHOLE column,
@@ -327,7 +329,9 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
   that forces `display` with `!important` must carry `:not([hidden])`),
   collapses the wrappers whose children are all hidden
   (`#m4l-fundamental-source-panel`, `.surface-stack`, `.surface-side`),
-  exposes `body[data-surface="…"]` and `body.source-docked`, then
+  exposes `body[data-surface="…"]` and, while a pin shows with the
+  surface, `body.pinned` + `body.source-docked` / `body.trigger-docked`,
+  then
   dispatches a synthetic window `resize` so canvases re-measure.
   `SurfacesController` mounts LAST in `initUI()` so every panel has sized
   itself while visible. The side column defaults OPEN for fine pointers
@@ -489,7 +493,9 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
   window's), which keeps the rest; the row is kept to ~250px — keyboard at
   its floor, no toggle sublabels, the System dials beside the toggle from
   an 18rem panel — and the roomy thresholds guarantee the strip under it
-  stays out of compact mode; from 120rem it stands BESIDE the surface instead, one 22rem
+  stays out of compact mode. A pinned TRIGGER takes the same 16rem above
+  the surface (`order: -1` — its root follows the strip in the markup),
+  three rows of pads; from 120rem it stands BESIDE the surface instead, one 22rem
   column, and the card's max-width is lifted so the surface isn't
   squeezed.
   Everything in it flexes rather than

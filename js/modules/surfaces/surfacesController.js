@@ -2,7 +2,7 @@ import { BaseController, flushHiddenControllers } from '../base/BaseController.j
 import { ToolbarComponent } from './ToolbarComponent.js';
 import { SurfaceShellComponent } from './SurfaceShellComponent.js';
 import { SideToggleComponent } from './SideToggleComponent.js';
-import { SOURCE, SURFACES, surfaceState } from './surfaceState.js';
+import { SURFACES, surfaceState } from './surfaceState.js';
 import { LAYOUT_MODE_CHANGED, SURFACE_CHANGED } from '../../events.js';
 
 /**
@@ -32,9 +32,10 @@ export class SurfacesController extends BaseController {
 
     getProps() {
         return {
-            surfaces: SURFACES.map((s) => ({ ...s, showing: surfaceState.showing(s.id), independent: s.id === SOURCE })),
+            // A divider where the group changes: pins | main | pages
+            surfaces: SURFACES.map((s, i) => ({ ...s, showing: surfaceState.showing(s.id), dividerAfter: SURFACES[i + 1] !== undefined && SURFACES[i + 1].group !== s.group })),
             active: surfaceState.active,
-            sourceDocked: surfaceState.sourceDocked,
+            pinned: surfaceState.pinnedShown,
             collapsed: this.collapsed,
             visibleRoots: surfaceState.visibleRoots(),
             allRoots: surfaceState.allRoots(),

@@ -210,12 +210,13 @@ body.surfaces #fundamental-control-root {
     }
 }
 
-/* --- Source DOCKED (body.source-docked — the surface shell, where
-       layoutMode.roomy): it shares the screen with the active surface, so
-       it takes only its own height — all three panels across ONE row —
-       and the surface below keeps the rest. On a very wide screen it
-       stands BESIDE the surface instead, one narrow column, and the
-       surface keeps its full height. --- */
+/* --- A PINNED panel (body.pinned + body.source-docked /
+       body.trigger-docked — the surface shell, where layoutMode.roomy):
+       Source or Trigger shares the screen with the active surface, so it
+       takes only its own height — Source's three panels across ONE row,
+       the pads at a fixed height — and the surface below keeps the rest.
+       On a very wide screen it stands BESIDE the surface instead, one
+       narrow column, and the surface keeps its full height. --- */
 body.source-docked #m4l-fundamental-source-panel {
     flex: 0 0 auto;
     overflow-y: visible;
@@ -246,8 +247,18 @@ body.source-docked .subharmonic-toggle-container .toggle-sublabel {
     }
 }
 
+/* Trigger pinned: the pads keep the height a pinned Source takes — three
+   rows of finger-sized pads — ABOVE the surface (the root comes after the
+   strip in the markup). `body.surfaces.` out-specifies the surface rule
+   below that lets the pads fill the stack. */
+body.surfaces.trigger-docked #pad-grid-root {
+    order: -1;
+    flex: 0 0 16rem;
+    height: 16rem;
+}
+
 @media (min-width: 120rem) {
-    body.source-docked .surface-stack {
+    body.pinned .surface-stack {
         flex-direction: row;
     }
 
@@ -258,7 +269,16 @@ body.source-docked .subharmonic-toggle-container .toggle-sublabel {
         overflow-y: auto;
     }
 
-    body.source-docked .surface-stack > .labeled-control {
+    body.surfaces.trigger-docked #pad-grid-root {
+        flex: 0 0 22rem;
+        height: auto;
+    }
+
+    body.trigger-docked .pad-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    body.pinned .surface-stack > .labeled-control {
         flex: 1 1 0;
         width: auto;
         min-width: 0;
