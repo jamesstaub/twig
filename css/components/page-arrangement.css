@@ -55,6 +55,13 @@ body.surfaces .page-content {
    on a big screen is what buys the drawbars their spacing */
 body.surfaces .control-card {
     max-width: none;
+    /* Flush with the shell: no margins, radius or shadow — every pixel of
+       the page is instrument, not a card floating in whitespace */
+    width: 100%;
+    margin: 0;
+    padding: 0.4rem;
+    border-radius: 0;
+    box-shadow: none;
 }
 
 /* Narrow: the side column gives up a quarter of its width — at 1100px it
@@ -212,6 +219,18 @@ body.surfaces #fundamental-control-root {
 body.source-docked #m4l-fundamental-source-panel {
     flex: 0 0 auto;
     overflow-y: visible;
+}
+
+/* Docked, height is what the surface below is short of: the keyboard
+   stays at its floor, the toggle loses its Partch sublabels, and the
+   preview just fills whatever the row's tallest panel sets */
+body.source-docked .keyboard-container {
+    flex: 0 0 auto;
+    height: 4.5rem;
+}
+
+body.source-docked .subharmonic-toggle-container .toggle-sublabel {
+    display: none;
 }
 
 /* Three across from a narrower stack than the alone layout's two: docked

@@ -435,6 +435,32 @@ body.surfaces #spectral-system-root {
     }
 }
 
+/* Docked (a third of the Source row, where every pixel of height comes
+   off the surface below), the dials already sit beside the toggle from
+   18rem — the row is about as wide as the toggle needs */
+@container system-panel (min-width: 18rem) and (max-width: 31.99rem) {
+    body.source-docked .system-body {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        grid-template-rows: auto minmax(min-content, 1fr);
+        align-items: center;
+        column-gap: 0.5rem;
+    }
+
+    body.source-docked .system-body > .overtone-controls {
+        grid-area: 1 / 1;
+    }
+
+    body.source-docked .system-body > .system-dials-row {
+        grid-area: 1 / 2;
+    }
+
+    body.source-docked .system-body > .system-frequencies-row {
+        grid-column: 1 / -1;
+        align-self: stretch;
+    }
+}
+
 /* Overtone/subharmonic toggle row's wrapper, beneath the system select */
 .overtone-controls {
     display: flex;

@@ -262,9 +262,11 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
   shell; **narrow** (`body.narrow`, ≤ 85rem wide on the surfaces shell)
   is the tablet-and-smaller arrangement — wrapping navbar, master rail;
   **roomy** = the Source panel fits on screen TOGETHER with another
-  surface (`ROOMY_QUERY`: ≥ 54rem tall and ≥ 68.75rem = 1100px wide —
-  so it overlaps narrow, where the side column narrows to 15rem to make
-  room; the embed band always is, being as wide as it needs). Changes dispatch
+  surface (`ROOMY_QUERY`: ≥ 49rem tall above 85rem wide — a 13" MacBook
+  Air's browser window — or ≥ 51.5rem tall from 68.75rem = 1100px, where
+  the layout is narrow: the side column narrows to 15rem to make room,
+  but the System panel is too slim to seat its dials beside the toggle;
+  the embed band always is, being as wide as it needs). Changes dispatch
   `LAYOUT_MODE_CHANGED`.
 - Readouts are inline, never floating: `Dial` renders its own caption
   above the arc and value below it (`.mini-dial-label` / `.mini-dial-value`,
@@ -337,10 +339,11 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
   surface's visualization panel — `#gain-viz-root` waveform + Create
   Oscillator/Download, `#filter-viz-root` output scope, `#conv-viz-root`
   spectrum + Create IR/ring, `#adsr-viz-root` envelope curves — plus
-  `#tonewheel-container`). page-arrangement.css: the card drops
-  layout.css's reading-width cap (`max-width: none`) — a surface is the
-  page, and on a big screen that width is what buys the drawbars their
-  spacing; when the side wrapper is
+  `#tonewheel-container`). page-arrangement.css: the card is FLUSH with
+  the shell — layout.css's reading-width cap, margins, radius and shadow
+  are the embed band's "floating card"; a surface is the page, every
+  pixel of it instrument, and on a big screen that width is what buys
+  the drawbars their spacing; when the side wrapper is
   not hidden the card is a two-column grid (`:has()`), stack |
   `--dock-width`; in portrait a band on top sized to its content (`auto`
   row, 64px canvases; on a phone the tonewheel square shrinks so the
@@ -480,8 +483,10 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
   screen from tablets up, a phone scrolls inside the panel. DOCKED (`body.source-docked`, where
   `layoutMode.roomy`): it takes only its own height — all three panels
   across ONE row above the active surface (from a 34rem stack — a 1100px
-  window's), which keeps the rest (the roomy thresholds guarantee the
-  strip under it stays out of compact mode); from 120rem it stands BESIDE the surface instead, one 22rem
+  window's), which keeps the rest; the row is kept to ~250px — keyboard at
+  its floor, no toggle sublabels, the System dials beside the toggle from
+  an 18rem panel — and the roomy thresholds guarantee the strip under it
+  stays out of compact mode; from 120rem it stands BESIDE the surface instead, one 22rem
   column, and the card's max-width is lifted so the surface isn't
   squeezed.
   Everything in it flexes rather than
