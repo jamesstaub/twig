@@ -154,11 +154,32 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
   frequency). External modes hide only the waveform picker and disable the wavetable
   actions; the fundamental stays visible — it tunes the bank.
 - Sound-file source (`sourceMode: 'soundfile'`): the Source panel swaps
-  the waveform picker for the file controls (picker, Mono/Poly and Tune
-  as label+switch pairs, Fundamental — disabled in place where they
-  don't apply) and its preview draws the loaded file's min/max envelope
+  the waveform picker for the file controls (Choose file… + the LIBRARY
+  MENU beside it, Mono/Poly and Tune as label+switch pairs, Fundamental —
+  disabled in place where they don't apply) and its preview draws the
+  loaded file's min/max envelope
   (`sourceManager.fileOverview`, 1024 bins) instead of the oscillator
-  wave; entering the mode without a file is allowed and silent. Loading
+  wave; entering the mode without a file is allowed and silent.
+  `#soundfile-library-select` is everything on the machine the sampler can
+  play, in `<optgroup>`s: Uploaded files, Exported waves, Impulse
+  responses, Recordings (`SAMPLER_SECTIONS` in
+  `js/modules/source/sourceLibrary.js`, which is also the only file that
+  turns one into an AudioBuffer). A BAKED WAVE has no samples, so it is
+  RENDERED: one loop of its PeriodicWave offline at the table's loop rate
+  (the current fundamental ÷ its period multiplier), which is band-limited
+  and loop-continuous exactly as the oscillator plays it, and for the usual
+  single-period table lands on the pitch the bank is already tuned to — so
+  picking one changes nothing. An IR is its PCM; a take is its channels,
+  mixed down past stereo (a sampler plays a sound, not a session). From
+  there `SourceActions.loadLibraryEntry` treats all four exactly like a
+  dropped file, and `sourceManager.fileSource` = `{ kind, id }` says which
+  one is loaded (the menu's value, and the file manager's "in use"). The
+  menu itself is rebuilt only when the library changes, never on the
+  panel's other re-renders: rewriting a `<select>` under the pointer
+  closes it mid-choice. The list is re-read on ENTERING the mode and on
+  `LIBRARY_CHANGED` / `RECORDINGS_CHANGED` while in it — SOURCE_CHANGED
+  also fires for every range drag, which must not each cost a pass over
+  storage. Loading
   a file sets TWIG'S FUNDAMENTAL to the file's detected one
   (`FundamentalActions.setFundamentalExact`), so tuned poly voices play
   it at their ratios — overtone 1 as is. How a file PLAYS is app
@@ -631,6 +652,11 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
     the second click is the confirmation). The component rebuilds rows on
     every library change, so all its handlers are delegated from the panel
     root.
+  - `LIBRARY_CHANGED` means the library gained, lost or renamed a file.
+    The store is in `js/dsp/` and must stay DOM-free, so the three save
+    sites dispatch it themselves (the wave bake, Create IR, and importing
+    a sound file) along with the file manager's own edits. The Files panel
+    and the sampler's menu both live off it.
   - The library is reached from the menus that list its files: the
     oscillator menu's last entry, "Manage files…" (`MANAGE_FILES_OPTION`,
     `data-role="action"` — the ‹ › steppers step past it and

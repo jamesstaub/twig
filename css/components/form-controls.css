@@ -90,6 +90,12 @@
     align-items: center;
     gap: 0.5rem;
     min-width: 0;
+}
+
+.source-file-choose {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
     cursor: pointer;
 }
 
@@ -105,9 +111,12 @@
     flex-shrink: 0;
 }
 
-.source-file-pick .start-harmonic-label {
-    overflow: hidden;
-    text-overflow: ellipsis;
+/* The library menu takes the rest of the row and never pushes the button
+   off it — a file name can be any length, so the menu must be allowed to
+   shrink and ellipsize. */
+.source-file-library {
+    flex: 1 1 0;
+    min-width: 0;
 }
 
 .source-file-row {

@@ -11,7 +11,7 @@ import BaseComponent from "../base/BaseComponent.js";
  * Callbacks set by the controller:
  *  - onModeChange(mode)
  *  - onAdcDeviceChange(deviceId), onAdcChannelChange(channel)
- *  - onFile(file)
+ *  - onFile(file), onLibraryPick({ kind, id, name })
  *  - onSoundfileMode(mode), onSoundfileTune(on), onSoundfileFundamental(hz)
  *  - onSoundfileRange([start, end] | null) — a drag across the preview
  */
@@ -23,14 +23,15 @@ export default class SourceComponent extends BaseComponent {
         this.onAdcDeviceChange = null;
         this.onAdcChannelChange = null;
         this.onFile = null;
+        this.onLibraryPick = null;
         this.onSoundfileMode = null;
         this.onSoundfileTune = null;
         this.onSoundfileFundamental = null;
         this.onSoundfileRange = null;
     }
 
-    render({ sourceMode, adcDeviceId, adcChannel, adcDevices, soundfileName, soundfile }) {
-        this.props = { sourceMode, soundfileName, soundfile };
+    render({ sourceMode, adcDeviceId, adcChannel, adcDevices, soundfileName, soundfile, library }) {
+        this.props = { sourceMode, soundfileName, soundfile, library };
         const modeSelect = this.q('#source-mode-select');
         if (modeSelect && modeSelect.value !== sourceMode) modeSelect.value = sourceMode;
 
@@ -43,9 +44,10 @@ export default class SourceComponent extends BaseComponent {
 
         if (sourceMode === 'adc') this.renderAdcSelectors({ adcDeviceId, adcChannel, adcDevices });
 
-        const nameEl = this.q('#soundfile-name');
-        if (nameEl) nameEl.textContent = soundfileName || 'no file loaded';
-        if (sourceMode === 'soundfile') this.renderSoundfile(soundfile);
+        if (sourceMode === 'soundfile') {
+            this.renderLibrary(library, soundfile.source, soundfileName);
+            this.renderSoundfile(soundfile);
+        }
         this.renderRange(sourceMode === 'soundfile' && soundfileName ? soundfile.range : null, sourceMode === 'soundfile' && Boolean(soundfileName));
     }
 
@@ -61,6 +63,51 @@ export default class SourceComponent extends BaseComponent {
         overlay.querySelector('.source-range-dim-left').style.width = `${start * 100}%`;
         overlay.querySelector('.source-range-dim-right').style.width = `${(1 - end) * 100}%`;
         this.q('#source-range-reset')?.classList.toggle('hidden', !range);
+    }
+
+    /**
+     * The library menu: every file on the machine that can be played as a
+     * sample, grouped by where it came from, and naming what is loaded.
+     *
+     * The options are rebuilt only when the library itself changes — this
+     * panel re-renders on every fundamental step and range drag, and
+     * rewriting a <select> under the pointer closes it mid-choice.
+     *
+     * @param {Array} groups - sourceLibrary.samplerLibrary()
+     * @param {?{kind: string, id: string}} current - what is loaded
+     * @param {?string} name - its name, for a file the library no longer has
+     */
+    renderLibrary(groups, current, name) {
+        const select = this.q('#soundfile-library-select');
+        if (!select) return;
+        const value = current ? `${current.kind}:${current.id}` : '';
+        const known = (groups || []).some((g) => g.items.some((i) => `${g.kind}:${i.id}` === value));
+        const signature = [known ? '' : name, ...(groups || [])
+            .map((g) => `${g.kind}=${g.items.map((i) => i.id).join(',')}`)].join('|');
+        if (select.dataset.signature !== signature) {
+            select.dataset.signature = signature;
+            select.innerHTML = '';
+            // A loaded sample the library has no entry for (its file was
+            // deleted, or the name came from the bridge with nothing loaded)
+            // still has to be what the menu reads
+            const placeholder = document.createElement('option');
+            placeholder.value = '';
+            placeholder.textContent = known ? 'Choose a file…' : (name || 'No file loaded');
+            select.appendChild(placeholder);
+            for (const group of groups || []) {
+                if (!group.items.length) continue;
+                const optgroup = document.createElement('optgroup');
+                optgroup.label = group.label;
+                for (const item of group.items) {
+                    const option = document.createElement('option');
+                    option.value = `${group.kind}:${item.id}`;
+                    option.textContent = item.name;
+                    optgroup.appendChild(option);
+                }
+                select.appendChild(optgroup);
+            }
+        }
+        select.value = known ? value : '';
     }
 
     /** Mono/Poly, tune, fundamental — tune and fundamental only apply to poly. */
@@ -185,6 +232,11 @@ export default class SourceComponent extends BaseComponent {
         this.bindEvent(this.q('#soundfile-input'), 'change', (e) => {
             const file = e.target.files?.[0];
             if (file) this.onFile?.(file);
+        });
+        this.bindEvent(this.q('#soundfile-library-select'), 'change', (e) => {
+            const [kind, id] = e.target.value.split(':');
+            if (!id) return; // the placeholder is not a choice
+            this.onLibraryPick?.({ kind, id, name: e.target.selectedOptions[0]?.textContent || '' });
         });
         this.bindEvent(this.q('#soundfile-mode-switch'), 'click', (e) => {
             this.onSoundfileMode?.(e.currentTarget.classList.contains('active') ? 'mono' : 'poly');

@@ -84,7 +84,7 @@ export async function libraryEntries() {
         soundfile: soundfiles.map((asset) => ({
             ...base(asset),
             detail: 'as imported',
-            inUse: sourceManager.fileAssetId === asset.id,
+            inUse: sourceManager.fileSource?.id === asset.id,
         })),
         recording: recordingStore.list().map(({ key }) => {
             const take = recordingStore.get(key);
@@ -146,7 +146,7 @@ export async function useEntry(entry) {
             break;
         }
         case 'soundfile':
-            await SourceActions.loadStoredSoundFile(entry.id, entry.name);
+            await SourceActions.loadLibraryEntry(entry);
             break;
         case 'recording':
             RecordingActions.select(entry.id);

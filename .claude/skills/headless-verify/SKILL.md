@@ -134,6 +134,14 @@ description: Verify twig changes end-to-end in a headless browser — screenshot
   `#source-file-controls` (`#soundfile-input` — puppeteer `uploadFile` a
   WAV written by the script; a ≤ 1 s file is one period, so a 5 ms
   240-sample cycle reads as ~200 Hz, resampled to the context rate —
+  `#soundfile-library-select` beside Choose file…, `<optgroup>`s labelled
+  Uploaded files / Exported waves / Impulse responses / Recordings and
+  option values `<kind>:<id>`; empty sections are left out, and the first
+  option names what is loaded when the library has no entry for it. Set
+  `.value` + dispatch `change` to pick. It is re-read on ENTERING the mode
+  and on library events while in it, so bake/record BEFORE switching in,
+  or switch out and back. `TWIG.getSourceManager().fileSource` is
+  `{ kind, id }` —
   `#soundfile-mode-switch` (toggle; `.active` = poly, label
   `#soundfile-mode-label`), `#soundfile-tune` (toggle, `aria-disabled`
   in mono), `#soundfile-fundamental` with the detected Hz as its

@@ -2,6 +2,7 @@ import { addWaveformToAudio, buildCurrentSpectrum, getWavetableManager, updateAl
 import { AppState, updateAppState } from "../../config.js";
 import { showStatus } from "../../domUtils.js";
 import { generateFilenameParts } from "../../utils.js";
+import { LIBRARY_CHANGED } from "../../events.js";
 
 import { TonewheelActions } from "../tonewheel/tonewheelActions.js";
 import { openSettings } from "../settings/settingsSurface.js";
@@ -98,6 +99,9 @@ export async function addToWaveforms(spectrum) {
         addWaveformToUI(waveKey, name, customWaveIndex);
 
         document.dispatchEvent(new CustomEvent(CURRENT_WAVEFORM_CHANGED));
+        // The machine's library gained a file — the menus that list it
+        // (the file manager, the sampler's picker) re-read on this
+        document.dispatchEvent(new CustomEvent(LIBRARY_CHANGED));
 
     } catch (error) {
         showStatus(`Failed to add waveform: ${error.message}`, "error");

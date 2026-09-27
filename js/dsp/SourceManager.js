@@ -56,7 +56,13 @@ export class SourceManager {
         this._stream = null;
         this._fileBuffer = null;
         this.fileName = null;
-        this.fileAssetId = null;
+        /**
+         * Where the loaded sample came from in the machine's library:
+         * `{ kind, id }` — 'soundfile' for an import, but a baked wave, an
+         * IR or a take can be played as a sample too. Null for anything
+         * the library doesn't hold.
+         */
+        this.fileSource = null;
         /** Detected fundamental of the loaded file (Hz), or null. */
         this.fileFundamental = null;
         /** The file's waveform as a min/max envelope, for the Source preview. */
@@ -162,11 +168,10 @@ export class SourceManager {
      * fundamental (YIN, in a worker). Resolves once the fundamental is
      * known; a newer file loaded meanwhile wins.
      */
-    async setFileBuffer(audioBuffer, name, assetId = null) {
+    async setFileBuffer(audioBuffer, name, source = null) {
         this._fileBuffer = audioBuffer;
         this.fileName = name;
-        /** The stored asset this file came from (assetLibrary), if any. */
-        this.fileAssetId = assetId;
+        this.fileSource = source;
         this.fileFundamental = null;
         this.fileOverview = overviewOf(audioBuffer);
         // A file swapped in while the mono player runs replaces it in place

@@ -4,7 +4,7 @@ import { audioEngine } from '../../dsp/engine/AudioEngine.js';
 import { irManager } from '../../dsp/IRManager.js';
 import { saveIR } from '../../dsp/assetLibrary.js';
 import { showStatus } from '../../domUtils.js';
-import { CONVOLUTION_IRS_CHANGED, IR_RING_CHANGED } from '../../events.js';
+import { CONVOLUTION_IRS_CHANGED, IR_RING_CHANGED, LIBRARY_CHANGED } from '../../events.js';
 import { generateFilenameParts } from '../../utils.js';
 import { OvertoneSignalActions } from '../overtoneSignal/overtoneSignalActions.js';
 
@@ -56,6 +56,9 @@ export const ConvolutionActions = {
         irManager.add(audioBuffer, name, f0, key);
         // Menus need the new entry before voices point at it
         document.dispatchEvent(new CustomEvent(CONVOLUTION_IRS_CHANGED));
+        // …and the library's own listeners (the file manager, the sampler's
+        // picker) learn about it the same way every other file is announced
+        document.dispatchEvent(new CustomEvent(LIBRARY_CHANGED));
         const count = AppState.currentSystem.ratios.length;
         for (let i = 0; i < count; i++) {
             OvertoneSignalActions.setConvolution(i, { ir: key });

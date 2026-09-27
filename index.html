@@ -105,11 +105,17 @@
                             <select id="adc-channel-select" class="control-select" aria-label="Audio input channel"></select>
                         </div>
                         <div id="source-file-controls" class="source-file-controls hidden">
-                            <label class="source-file-pick">
-                                <input type="file" id="soundfile-input" accept="audio/*" aria-label="Sound file">
-                                <span class="action-btn source-file-btn">Choose file…</span>
-                                <span id="soundfile-name" class="start-harmonic-label"></span>
-                            </label>
+                            <div class="source-file-pick">
+                                <label class="source-file-choose">
+                                    <input type="file" id="soundfile-input" accept="audio/*" aria-label="Sound file">
+                                    <span class="action-btn source-file-btn">Choose file…</span>
+                                </label>
+                                <!-- Everything on this machine that can be played as a
+                                     sample, by where it came from: uploads, baked waves,
+                                     IRs, takes. Also names what is loaded. -->
+                                <select id="soundfile-library-select" class="control-select source-file-library"
+                                    aria-label="Sound files on this machine"></select>
+                            </div>
                             <div class="source-file-row">
                                 <span class="source-file-switch-group">
                                     <span id="soundfile-mode-label" class="toggle-label source-file-switch-label">Poly</span>
@@ -117,7 +123,7 @@
                                         aria-label="Sample playback: poly (a player per voice) or mono (one for the bank)"></span>
                                 </span>
                                 <span class="source-file-switch-group">
-                                    <span class="toggle-label source-file-switch-label">Tune<span class="source-file-tune-long">&nbsp;to overtone</span></span>
+                                    <span class="toggle-label source-file-switch-label">Repitch</span>
                                     <span id="soundfile-tune" class="toggle-switch source-file-switch" role="switch" aria-checked="true"
                                         aria-label="Play the file at each overtone's pitch"></span>
                                 </span>

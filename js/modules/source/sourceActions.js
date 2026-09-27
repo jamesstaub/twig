@@ -2,11 +2,12 @@ import { polySampleMode, restartAudio, updateAllHarmonicClocks, updateAllHarmoni
 import { AppState, FILTER_BANK_Q, SOUNDFILE_MODES, SOURCE_MODES, updateAppState } from '../../config.js';
 import { persistAppConfig, soundfileConfig } from '../../appConfig.js';
 import { audioEngine } from '../../dsp/engine/AudioEngine.js';
-import { saveSoundFile, soundFileBytes } from '../../dsp/assetLibrary.js';
+import { saveSoundFile } from '../../dsp/assetLibrary.js';
 import { sourceManager } from '../../dsp/SourceManager.js';
 import { decodeAudioFile } from '../../dsp/decodeAudio.js';
+import { samplerBuffer } from './sourceLibrary.js';
 import { showStatus } from '../../domUtils.js';
-import { SOURCE_CHANGED } from '../../events.js';
+import { LIBRARY_CHANGED, SOURCE_CHANGED } from '../../events.js';
 import { OvertoneSignalActions } from '../overtoneSignal/overtoneSignalActions.js';
 import { FundamentalActions } from '../fundamental/fundamentalActions.js';
 
@@ -167,19 +168,30 @@ export const SourceActions = {
             const arrayBuffer = await file.arrayBuffer();
             // Kept as the user gave it — the encoded bytes, which stay small
             // and re-decode at whatever rate the context runs at
-            const assetId = await saveSoundFile({ bytes: arrayBuffer.slice(0), name: file.name });
-            await applySoundFile({ arrayBuffer, name: file.name, assetId, mode: this });
+            const id = await saveSoundFile({ bytes: arrayBuffer.slice(0), name: file.name });
+            // The machine's library just gained a file: the menus that list
+            // it (the sampler's, the file manager's) re-read on this
+            document.dispatchEvent(new CustomEvent(LIBRARY_CHANGED));
+            const ctx = await audioContext();
+            const buffer = await decodeAudioFile(ctx, arrayBuffer.slice(0));
+            await applySoundFile({ buffer, name: file.name, source: { kind: 'soundfile', id }, mode: this });
         } catch (error) {
             showStatus(`Could not load ${file?.name || 'file'}: ${error.message}`, 'error');
         }
     },
 
-    /** Play a sound file the library already holds (the file manager's Use). */
-    async loadStoredSoundFile(id, name) {
+    /**
+     * Play something the library already holds through the sampler — an
+     * imported file, but also a baked wave, an IR or a take (see
+     * sourceLibrary.js). The Source panel's menu and the file manager's
+     * Use both come here.
+     */
+    async loadLibraryEntry({ kind, id, name }) {
         try {
-            const bytes = await soundFileBytes(id);
-            if (!bytes) throw new Error('the library no longer has it');
-            await applySoundFile({ arrayBuffer: bytes, name, assetId: id, mode: this });
+            const ctx = await audioContext();
+            const buffer = await samplerBuffer(ctx, kind, id);
+            if (!buffer) throw new Error('the library no longer has it');
+            await applySoundFile({ buffer, name, source: { kind, id }, mode: this });
         } catch (error) {
             showStatus(`Could not load ${name || 'file'}: ${error.message}`, 'error');
         }
@@ -187,19 +199,24 @@ export const SourceActions = {
 };
 
 /**
- * Hand a decoded file to the bank: one path for a file just picked and one
- * recalled from the library, so both tune the synth the same way.
+ * A context always exists by the time a user can pick a file, but decoding
+ * and rendering need one even before playback starts.
  */
-async function applySoundFile({ arrayBuffer, name, assetId, mode }) {
-    // A context always exists by the time a user can drop a file;
-    // decodeAudioData needs one even before playback starts
+async function audioContext() {
     const { initAudio } = await import('../../audio.js');
     await initAudio();
-    const buffer = await decodeAudioFile(audioEngine.context, arrayBuffer.slice(0));
+    return audioEngine.context;
+}
+
+/**
+ * Hand a decoded sample to the bank: one path for a dropped file and one
+ * for anything picked from the library, so both tune the synth the same way.
+ */
+async function applySoundFile({ buffer, name, source, mode }) {
     // Resolves once YIN has the file's fundamental (a typed override
     // belonged to the previous file — the new one starts from its
     // own detected pitch, which the samplers then tune from)
-    const hz = await sourceManager.setFileBuffer(buffer, name, assetId);
+    const hz = await sourceManager.setFileBuffer(buffer, name, source);
     // A new file: whole, and starting from its own detected pitch
     updateAppState({ soundfileName: name, soundfileFundamental: null, soundfileRange: null });
     // The bank tunes itself around the sample: its fundamental becomes
