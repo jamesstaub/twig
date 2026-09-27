@@ -135,13 +135,13 @@ function setupSurfaces() {
     new SurfacesController('#surface-toolbar', '.page-content', '.side-toggle-btn').init();
     // The Sequence panel's bottom bar: reset/randomize act on every
     // voice's gate; its slot carries the inspector's voice stepper
-    const sequenceToolbar = new OvertoneToolbarController('#sequence-toolbar', {
+    new OvertoneToolbarController('#sequence-toolbar', {
         onReset: () => OvertoneSignalActions.resetGates(),
         onRandomize: () => OvertoneSignalActions.randomizeGates(),
-    });
-    sequenceToolbar.init();
+    }).init();
     // The per-overtone sequence editor
-    new InspectorController('#sequence-inspector', sequenceToolbar.slotEl).init();
+    // The ‹ Overtone N › stepper sits top and center of the panel
+    new InspectorController('#sequence-inspector', document.getElementById('sequence-voice')).init();
     // Link and shape are tools of the per-overtone surfaces: leaving them
     // drops both
     document.addEventListener(SURFACE_CHANGED, () => {

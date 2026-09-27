@@ -458,10 +458,13 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
   (lock or held key) the title reads "All voices" (`setScope`, updated IN
   PLACE on `LINK_ALL_CHANGED` / `SHAPE_MODE_CHANGED` — shift can go down
   mid-drag, and a re-render would destroy the control; the title has a
-  fixed width in the bar so the ‹ › buttons don't move). The editor has
-  ONE home: `#sequence-inspector`, scrolling above the panel's overtone
-  toolbar, with the ‹ Overtone N › header mounted in the toolbar's slot
-  (`headerSlot`). There is no inspector sheet, no "Inspect" menu item and
+  fixed width so the ‹ › buttons don't move). The editor has ONE home:
+  `#sequence-inspector`, scrolling above the panel's overtone toolbar,
+  with the ‹ Overtone N › header mounted TOP AND CENTER of the panel
+  (`#sequence-voice` in the panel's `.sequence-header`, a 1fr auto 1fr
+  grid padded symmetrically with the side toggle's corner; `headerSlot`).
+  With a pin on screen the Sequence panel sits ABOVE it (`order: -2`
+  under 120rem), next to the sequence canvas. There is no inspector sheet, no "Inspect" menu item and
   no way in but the toolbar. It renders only while the Sequence surface
   shows (`surfaceState.showing('sequence')`). The sequence itself (gate pattern × shape ×
   stretch) is drawn in the panel's SIDE COLUMN, not in the editor:
@@ -469,7 +472,13 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
   `OVERTONE_SIGNAL_CHANGED` (`gate`/`seq` kinds, selected voice) and
   `INSPECTOR_CHANGED` — the editor never talks to it;
   `drawSequencePreview(ctx, index, w, h)` (sequencePreview.js) draws
-  into the caller's DPR-transformed context. The editor re-renders on
+  into the caller's DPR-transformed context: the 0-1 signal, then a
+  MODULATION LAYER per target whose depth is non-zero (`MOD_LAYERS`:
+  each depth's curve in normalized units, the filter's bipolar around
+  the middle — the same arithmetic as modTargets.js), each in its
+  `--mod-gain/-freq/-res/-wet/-fb` color (theme.css), which the
+  Modulation section's rows wear too (`data-target` → `--mod-color` on
+  label and slider). The editor re-renders on
   `OVERTONE_SIGNAL_CHANGED` for the selected index EXCEPT its own writes
   (`apply()` / `applyValue()` set `component.writing`; re-rendering under
   a control mid-drag would destroy it). The overtone menu (right-click on bars

@@ -272,8 +272,10 @@
                      bottom bar, whose slot carries the ‹ Overtone N › voice
                      stepper -->
                 <div id="sequence-control-root" class="labeled-control">
-                    <span>
-                        <span>Sequence</span>
+                    <span class="sequence-header">
+                        <span class="sequence-title">Sequence</span>
+                        <!-- ‹ Overtone N › (InspectorComponent's header, mounted here) -->
+                        <span id="sequence-voice" class="sequence-voice"></span>
                         <button type="button" class="side-toggle-btn"></button>
                     </span>
                     <div id="sequence-inspector" class="sequence-inspector"></div>

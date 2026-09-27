@@ -322,6 +322,7 @@ export class InspectorComponent extends BaseComponent {
         const addAmount = (target, labelText, min, max) => {
             const row = document.createElement('label');
             row.className = 'inspector-target-row';
+            row.dataset.target = target; // colored like its curve on the sequence canvas
             const label = document.createElement('span');
             label.className = 'inspector-target-label';
             label.textContent = labelText;

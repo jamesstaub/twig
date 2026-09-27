@@ -3,6 +3,7 @@ import { contourFn } from '../../dsp/gate/contours.js';
 import { patternById, patternPeriod } from '../../dsp/gate/patterns.js';
 import { themeColor } from '../../theme.js';
 import { getWaveValue } from '../tonewheel/tonewheelActions.js';
+import { audioGain } from '../../dsp/gate/modTargets.js';
 import { OvertoneSignalActions } from './overtoneSignalActions.js';
 
 /**
@@ -68,10 +69,26 @@ export function previewCycleCount(gate, stretch) {
 }
 
 /**
+ * The modulation layers over the sequence: each target's depth turns the
+ * 0-1 signal into the curve the worklet sends it (modTargets.js, in
+ * normalized units — a fraction of the target's span; the filter's depth
+ * is bipolar, so its curve sits around the middle). Drawn only while the
+ * depth is non-zero, each in its --mod-* color, which the Modulation
+ * section's rows share.
+ */
+export const MOD_LAYERS = [
+    { target: 'gain', color: '--mod-gain', curve: (s, a) => audioGain(s, a) },
+    { target: 'freq', color: '--mod-freq', curve: (s, a) => 0.5 + 0.5 * a * s },
+    { target: 'res', color: '--mod-res', curve: (s, a) => a * s },
+    { target: 'wet', color: '--mod-wet', curve: (s, a) => a * s },
+    { target: 'fb', color: '--mod-fb', curve: (s, a) => a * s },
+];
+
+/**
  * Draw the full sequence — pattern × shape × stretch — for a voice, exactly
- * the control signal the worklet produces (sans declick), into a `w` × `h`
- * box of `ctx`'s current coordinate space (the caller owns the canvas and
- * its DPR transform).
+ * the control signal the worklet produces (sans declick), with its
+ * modulation layers over it, into a `w` × `h` box of `ctx`'s current
+ * coordinate space (the caller owns the canvas and its DPR transform).
  */
 export function drawSequencePreview(ctx, index, w, h) {
     const gate = OvertoneSignalActions.getGate(index);
@@ -94,22 +111,34 @@ export function drawSequencePreview(ctx, index, w, h) {
     ctx.strokeRect(0.5, 0.5, w - 1, h - 1);
 
     const shapeAt = shapeSampler(seq.shape);
-
-    ctx.strokeStyle = themeColor('--viz-trace');
-    ctx.lineWidth = 2;
-    ctx.beginPath();
+    const signal = new Float32Array(w + 1);
     for (let i = 0; i <= w; i++) {
         const t = (i / w) * cycles;
         const c = Math.min(cycles - 1, Math.floor(t));
         const phase = t - c;
-        const s = gate.mode === 0
+        signal[i] = gate.mode === 0
             ? 1
             : (active[c] ? shapeAt(((c + phase) / seq.stretch) % 1) : 0);
-        const y = pad + (1 - s) * (h - 2 * pad);
-        if (i === 0) ctx.moveTo(i, y);
-        else ctx.lineTo(i, y);
     }
-    ctx.stroke();
+
+    const plot = (valueAt, color, width) => {
+        ctx.strokeStyle = themeColor(color);
+        ctx.lineWidth = width;
+        ctx.beginPath();
+        for (let i = 0; i <= w; i++) {
+            const y = pad + (1 - Math.max(0, Math.min(1, valueAt(i)))) * (h - 2 * pad);
+            if (i === 0) ctx.moveTo(i, y);
+            else ctx.lineTo(i, y);
+        }
+        ctx.stroke();
+    };
+
+    plot((i) => signal[i], '--viz-trace', 2);
+    for (const { target, color, curve } of MOD_LAYERS) {
+        const amount = seq.amounts[target] || 0;
+        if (amount === 0) continue;
+        plot((i) => curve(signal[i], amount), color, 1.25);
+    }
 }
 
 // ---------------------------------------------------------------

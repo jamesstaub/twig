@@ -14,15 +14,31 @@ body.embed #sequence-inspector {
 
 /* The panel's title row would cost the editor a fifth of its height, and
    every card is titled already: only the side toggle stays (absolute) */
-body.embed #sequence-control-root > span {
+/* The header keeps only the stepper, one short row (every card is
+   titled already) */
+body.embed #sequence-control-root > .sequence-header {
+    grid-template-columns: 0 1fr 0;
     min-height: 0;
-    height: 0;
     margin: 0;
     padding: 0;
 }
 
-body.embed #sequence-control-root > span > span {
+body.embed .sequence-title {
     display: none;
+}
+
+body.embed .sequence-voice .inspector-title-voice {
+    font-size: var(--font-size-sm-alt);
+}
+
+body.embed .sequence-voice .inspector-title-detail {
+    font-size: var(--font-size-xs);
+}
+
+body.embed .sequence-voice .inspector-step {
+    width: 1.5rem;
+    height: 1.5rem;
+    font-size: 1rem;
 }
 
 body.embed .inspector {
@@ -108,6 +124,6 @@ body.embed .inspector-pulse-detail {
 }
 
 /* One line here (voice · label · Hz), so the fixed-width title is wider */
-body.embed .overtone-toolbar-slot .inspector-title {
+body.embed .sequence-voice .inspector-title {
     width: 14rem;
 }

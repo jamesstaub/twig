@@ -46,12 +46,52 @@
     text-overflow: ellipsis;
 }
 
-/* In the Sequence panel's bottom bar the title has a fixed width, so the
-   ‹ › buttons never move as it changes (voice to voice, or to "All
-   voices" while link/shape is in effect) */
-.overtone-toolbar-slot .inspector-title {
-    width: 10rem;
+/* The panel's header row: the title at the left, the ‹ Overtone N ›
+   stepper top and CENTER (the side toggle is pinned to the corner). The
+   title has a fixed width, so the ‹ › buttons never move as it changes
+   (voice to voice, or to "All voices" while link/shape is in effect). */
+#sequence-control-root > .sequence-header {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    align-items: center;
+    /* Symmetric with the side toggle's reserved corner (surfaces.css), so
+       the stepper is centered on the panel, not on what's left of it */
+    padding-inline: 2.4rem;
+}
+
+body.coarse #sequence-control-root > .sequence-header {
+    padding-inline: 3rem;
+}
+
+.sequence-voice {
+    display: flex;
+    justify-content: center;
+    margin: 0;
+}
+
+.sequence-voice .inspector-header {
+    gap: 0.75rem;
+}
+
+.sequence-voice .inspector-title {
+    width: 12rem;
     text-align: center;
+}
+
+.sequence-voice .inspector-title-voice {
+    font-size: var(--font-size-lg);
+}
+
+.sequence-voice .inspector-title-detail {
+    font-size: var(--font-size-sm);
+}
+
+.sequence-voice .inspector-step {
+    width: 2.4rem;
+    height: 2.4rem;
+    color: var(--text-accent);
+    border-color: var(--border-default);
+    background-color: var(--surface-deep);
 }
 
 .inspector-step {
@@ -203,9 +243,20 @@ body.coarse .inspector-step {
     gap: 0.5rem;
 }
 
-.inspector-target-label {
+/* Each row wears its target's color — the same its curve has on the
+   sequence canvas (theme.css --mod-*, sequencePreview.js MOD_LAYERS) */
+.inspector-target-row[data-target="gain"] { --mod-color: var(--mod-gain); }
+.inspector-target-row[data-target="freq"] { --mod-color: var(--mod-freq); }
+.inspector-target-row[data-target="res"] { --mod-color: var(--mod-res); }
+.inspector-target-row[data-target="wet"] { --mod-color: var(--mod-wet); }
+.inspector-target-row[data-target="fb"] { --mod-color: var(--mod-fb); }
+
+/* (`.inspector-target-row >`: out-specifies layout.css's heading rule
+   for every span in a panel, which would keep the label color) */
+.inspector-target-row > .inspector-target-label {
     font-size: var(--font-size-xs);
-    color: var(--text-secondary);
+    font-weight: var(--font-weight-semibold);
+    color: var(--mod-color, var(--text-secondary));
     width: 5em;
     flex-shrink: 0;
 }
@@ -213,7 +264,7 @@ body.coarse .inspector-step {
 .inspector-target-slider {
     flex: 1;
     min-width: 0;
-    accent-color: var(--accent-primary);
+    accent-color: var(--mod-color, var(--accent-primary));
 }
 
 body.coarse .inspector-target-slider {

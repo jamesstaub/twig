@@ -26,6 +26,14 @@
     --viz-bg-tonewheel: #111827;     /* tonewheel canvas background */
     --viz-grid: #374151;             /* axis lines, canvas borders */
     --viz-trace: #10b981;            /* waveform trace */
+    /* The sequence's modulation targets: each depth's curve on the
+       sequence canvas, and its row in the Sequence panel's Modulation
+       section, share the color */
+    --mod-gain: #f59e0b;
+    --mod-freq: #60a5fa;
+    --mod-res: #a78bfa;
+    --mod-wet: #f472b6;
+    --mod-fb: #fb923c;
 
     /* ---- Text ---- */
     --text-primary: #f3f4f6;

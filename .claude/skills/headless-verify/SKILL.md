@@ -81,9 +81,11 @@ description: Verify twig changes end-to-end in a headless browser — screenshot
   `#sequence-inspector` (sections Sequence / Modulation / Pulse Out, gate
   mode in `.inspector-gate-mode select`, its fields as dials in
   `.inspector-gate-params .mini-dial`), the ‹ Overtone N › stepper
-  `.inspector-step` inside `#sequence-toolbar`, the drawn sequence in the
-  side column (`#sequence-canvas-area canvas` — hash its pixels to assert
-  a redraw). Column labels navigate nowhere; there is no inspector sheet.
+  `#sequence-voice .inspector-step` in the panel's header, the drawn
+  sequence in the side column (`#sequence-canvas-area canvas` — hash its
+  pixels to assert a redraw; count pixels near a `--mod-*` token's color
+  to assert a modulation layer, tolerance ~60 where it overlays the
+  trace). Column labels navigate nowhere; there is no inspector sheet.
 - Pins: at ≥1440×784 (or ≥1100×824) the page opens with
   `body.pinned.source-docked` — Source above the active surface, BOTH
   toolbar buttons pressed. Source and Trigger are the pins: a pin button

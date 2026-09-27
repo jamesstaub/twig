@@ -247,6 +247,15 @@ body.source-docked .subharmonic-toggle-container .toggle-sublabel {
     }
 }
 
+/* With a pin, the Sequence panel goes ABOVE it: its controls sit next to
+   the sequence canvas at the top of the side column (not beside a pin
+   standing on the left of a very wide screen) */
+@media (max-width: 119.99rem) {
+    body.surfaces.pinned #sequence-control-root {
+        order: -2;
+    }
+}
+
 /* Trigger pinned: the pads keep the height a pinned Source takes — three
    rows of finger-sized pads — ABOVE the surface (the root comes after the
    strip in the markup). `body.surfaces.` out-specifies the surface rule
