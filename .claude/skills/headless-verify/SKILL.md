@@ -170,9 +170,12 @@ description: Verify twig changes end-to-end in a headless browser — screenshot
   `{ kind, id }` —
   `#soundfile-mode-switch` (toggle; `.active` = poly, label
   `#soundfile-mode-label`), `#soundfile-tune` (toggle, `aria-disabled`
-  in mono), `#soundfile-fundamental` with the detected Hz as its
-  placeholder, `#soundfile-fundamental-reset` ("↺ 220.0", shown only
-  while a typed value overrides; click = back to detected); loading a
+  in mono), the fundamental as an octaveField in `.soundfile-fundamental`
+  (`.octave-field-input` shows the value IN FORCE — the detected pitch
+  while nothing overrides it — `.octave-field-btn` ÷2/×2/auto, and
+  `.octave-field-auto.is-auto` is lit while `soundfileFundamental` is
+  null; the same control as the filter multiplier's `.filter-multiplier`,
+  so select buttons by text, not position); loading a
   file moves `fundamentalFrequency` to that Hz). Range: pointer events on
   `#source-range-overlay` (down/move/up across the preview; < 3px travel
   = no change), `#source-range-reset` shown while a range is set,

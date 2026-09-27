@@ -170,30 +170,6 @@
     cursor: default;
 }
 
-.source-file-fundamental:has(input:disabled) {
-    opacity: 0.4;
-}
-
-/* The Hz field takes the row's width */
-.source-file-fundamental {
-    gap: 0.5rem;
-}
-
-.source-file-fundamental input {
-    flex: 1 1 auto;
-    width: auto;
-    min-width: 5em;
-}
-
-/* "↺ 220.0" — back to the detected fundamental */
-.source-file-reset {
-    flex: 0 0 auto;
-    padding: 0.15rem 0.5rem;
-    font-size: var(--font-size-xs);
-    font-variant-numeric: tabular-nums;
-    white-space: nowrap;
-}
-
 /* Shared by the ADC/soundfile secondary controls */
 .start-harmonic-row {
     display: flex;

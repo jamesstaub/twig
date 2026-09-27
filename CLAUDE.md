@@ -218,7 +218,12 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
   every voice taps it — the filter-bank/vocoder treatment, like the
   ADC), switched by a bank restart; `tune` (default on) plays the file
   at each overtone's pitch from its fundamental: `soundfileFundamental`
-  (synth state, Hz, null = detected) or `sourceManager.fileFundamental`
+  (synth state, Hz, null = detected; the Source panel shows it as an
+  octaveField — ÷2 · Hz · ×2 · auto, the same control as the filter
+  multiplier, since a detected pitch is wrong by an OCTAVE when it is
+  wrong and halving or doubling is the whole repair; the steppers work
+  from the value SHOWING, so correcting a detected pitch is one click)
+  or `sourceManager.fileFundamental`
   from `js/dsp/pitchDetect.js` — a file of ≤ 1 s is taken as ONE PERIOD
   (1 / duration, the single-cycle convention); a longer file's first
   4096 samples (channels averaged) go to YIN (`js/dsp/yin.js`, pure:

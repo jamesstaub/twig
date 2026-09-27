@@ -1,4 +1,5 @@
 import BaseComponent from "../base/BaseComponent.js";
+import { octaveField } from "../generic/octaveField.js";
 import { MANAGE_FILES_OPTION } from "../settings/settingsSurface.js";
 
 /**
@@ -47,6 +48,7 @@ export default class SourceComponent extends BaseComponent {
         if (sourceMode === 'adc') this.renderAdcSelectors({ adcDeviceId, adcChannel, adcDevices });
 
         if (sourceMode === 'soundfile') {
+            this.mountFundamentalField();
             this.renderLibrary(library, soundfile.source, soundfileName);
             this.renderSoundfile(soundfile);
         }
@@ -124,7 +126,7 @@ export default class SourceComponent extends BaseComponent {
     }
 
     /** Mono/Poly, tune, fundamental — tune and fundamental only apply to poly. */
-    renderSoundfile({ mode, tune, fundamental, detectedHz }) {
+    renderSoundfile({ mode, tune }) {
         const poly = mode === 'poly';
         const modeSwitch = this.q('#soundfile-mode-switch');
         if (modeSwitch) {
@@ -140,21 +142,44 @@ export default class SourceComponent extends BaseComponent {
             tuneEl.setAttribute('aria-disabled', String(!poly));
             tuneEl.parentElement.classList.toggle('disabled', !poly);
         }
-        const detected = detectedHz ? detectedHz.toFixed(detectedHz >= 100 ? 1 : 2) : null;
-        const hzEl = this.q('#soundfile-fundamental');
-        if (hzEl) {
-            if (document.activeElement !== hzEl) hzEl.value = fundamental ?? '';
-            hzEl.placeholder = detected ? `auto ${detected}` : 'auto';
-            hzEl.disabled = !(poly && tune);
-        }
-        // While a typed value overrides the detected one, a button offers it back
-        const reset = this.q('#soundfile-fundamental-reset');
-        if (reset) {
-            const show = fundamental !== null && fundamental !== undefined && detected !== null;
-            reset.classList.toggle('hidden', !show);
-            reset.textContent = detected ? `↺ ${detected}` : '';
-            reset.disabled = !(poly && tune);
-        }
+        // The fundamental field reads the props it was mounted with, so it
+        // is always showing this render's numbers
+        this.fundamentalField?.sync();
+        this.fundamentalField?.setEnabled(poly && tune);
+    }
+
+    /**
+     * The sample's fundamental: ÷2 · Hz · ×2 · auto — the same control as
+     * the filter bank's multiplier, because a detected pitch is wrong by an
+     * OCTAVE when it is wrong, and halving or doubling is the whole repair.
+     * `auto` is the pitch YIN found; it is lit while nothing overrides it.
+     *
+     * Built once (the props it reads are re-read on every sync), and only
+     * when its host is in the DOM.
+     */
+    mountFundamentalField() {
+        const host = this.q('#soundfile-fundamental-field');
+        if (!host || this.fundamentalField) return;
+        host.innerHTML = '';
+        // What sounds: the typed value, or the detected one behind it
+        const effective = () => this.props?.soundfile?.fundamental ?? this.props?.soundfile?.detectedHz ?? null;
+        this.fundamentalField = octaveField({
+            label: 'Fundamental',
+            unit: 'Hz',
+            className: 'soundfile-fundamental',
+            ariaLabel: "The sample's fundamental pitch in Hz",
+            min: 0,
+            max: 20000,
+            format: (v) => String(Number(v.toFixed(v >= 100 ? 1 : 2))),
+            autoTitle: 'The pitch detected in the sample',
+            get: effective,
+            set: (v) => this.onSoundfileFundamental?.(v),
+            autoValue: () => this.props?.soundfile?.detectedHz ?? null,
+            isAuto: () => (this.props?.soundfile?.fundamental ?? null) === null,
+            // null hands it back to the detected pitch
+            setAuto: () => this.onSoundfileFundamental?.(null),
+        });
+        host.appendChild(this.fundamentalField.el);
     }
 
     renderAdcSelectors({ adcDeviceId, adcChannel, adcDevices }) {
@@ -265,11 +290,6 @@ export default class SourceComponent extends BaseComponent {
         this.bindEvent(this.q('#soundfile-tune'), 'click', (e) => {
             if (e.currentTarget.getAttribute('aria-disabled') === 'true') return;
             this.onSoundfileTune?.(!e.currentTarget.classList.contains('active'));
-        });
-        this.bindEvent(this.q('#soundfile-fundamental'), 'change', (e) => this.onSoundfileFundamental?.(parseFloat(e.target.value)));
-        this.bindEvent(this.q('#soundfile-fundamental-reset'), 'click', (e) => {
-            e.preventDefault(); // inside the field's <label>: don't refocus the input
-            this.onSoundfileFundamental?.(null);
         });
         this.bindRangeDrag();
         this.bindEvent(this.q('#source-range-reset'), 'click', () => this.onSoundfileRange?.(null));

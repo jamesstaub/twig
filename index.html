@@ -158,13 +158,12 @@
                                         aria-label="Play the file at each overtone's pitch"></span>
                                 </span>
                             </div>
-                            <label class="source-file-row source-file-fundamental">
-                                <span class="start-harmonic-label">Fundamental</span>
-                                <input type="number" id="soundfile-fundamental" class="fundamental-input" min="0" step="0.01" placeholder="auto"> Hz
-                                <!-- Back to the detected value, shown while a typed one overrides it -->
-                                <button type="button" id="soundfile-fundamental-reset" class="action-btn source-file-reset hidden"
-                                    title="Use the sample's detected fundamental"></button>
-                            </label>
+                            <!-- The sample's fundamental: ÷2 · Hz · ×2 · auto,
+                                 the same control as the filter bank's multiplier
+                                 (generic/octaveField.js) — a detected pitch is
+                                 wrong by an octave when it is wrong. Mounted by
+                                 SourceComponent. -->
+                            <div id="soundfile-fundamental-field" class="source-file-row source-file-fundamental"></div>
                         </div>
                         <div id="oscillator-picker" class="select-stepper">
                             <button type="button" class="action-btn select-step-btn" data-target="waveform-select"

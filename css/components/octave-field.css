@@ -1,0 +1,83 @@
+/* ================================
+   OCTAVE FIELD — `label ÷2 [ n ] ×2 auto`
+   ================================
+   The shape of a number twig works out for itself and the user may
+   overrule: the filter bank's cutoff multiplier (in the drawbar strip's
+   footer) and a loaded sample's fundamental (in the Source panel). See
+   js/modules/generic/octaveField.js — the two are one control, so they
+   are one stylesheet. */
+
+.octave-field {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    min-width: 0;
+}
+
+.octave-field-label {
+    font-size: var(--font-size-xs);
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+
+.octave-field-input {
+    /* Wide enough for a four-figure multiplier or a fundamental in Hz,
+       and allowed to give that back when the row is tight */
+    flex: 1 1 4.5em;
+    min-width: 3.5em;
+    padding: 0.1rem 0.25rem;
+    font-size: var(--font-size-sm);
+    font-variant-numeric: tabular-nums;
+    text-align: center;
+    color: var(--text-primary);
+    background-color: var(--surface-app);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-sm);
+}
+
+.octave-field-btn {
+    flex: 0 0 auto;
+    padding: 0.1rem 0.35rem;
+    font-size: var(--font-size-xs);
+}
+
+/* Lit while the value in force is the one twig derived */
+.octave-field-auto.is-auto {
+    color: var(--text-accent);
+    border-color: var(--accent-primary);
+}
+
+/* Inapplicable controls are grayed out in place, never hidden */
+.octave-field.disabled {
+    opacity: 0.4;
+}
+
+/* Phones: the caption goes, the number and its steppers stay */
+@media (max-width: 40rem) {
+    .octave-field-label {
+        display: none;
+    }
+}
+
+/* In the Source panel the field is a row of its own, so the number takes
+   the width the caption and buttons leave */
+.soundfile-fundamental {
+    flex: 1 1 auto;
+}
+
+.soundfile-fundamental .octave-field-input {
+    flex: 1 1 auto;
+}
+
+/* …and there the caption earns its place even on a phone */
+@media (max-width: 40rem) {
+    .soundfile-fundamental .octave-field-label {
+        display: inline;
+    }
+}
+
+.octave-field-unit {
+    flex: 0 0 auto;
+    font-size: var(--font-size-xs);
+    color: var(--text-muted);
+}
