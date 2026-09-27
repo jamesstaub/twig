@@ -1,5 +1,8 @@
 <!DOCTYPE html>
-<html lang="en">
+<!-- `booting` holds the first paint until the controllers have filled the
+     page: the shell alone is a skeleton that would visibly jump when the
+     UI arrives. app.js removes it (see base.css). -->
+<html lang="en" class="booting">
 
 <head>
     <meta charset="UTF-8">
@@ -32,12 +35,14 @@
     <link rel="icon" type="image/x-icon" href="assets/favicon.ico">
 
     <!-- Application Styles -->
-    <!-- The font is fetched in parallel with the stylesheet: an @import
-         inside the CSS made the browser download and parse our CSS first,
-         serializing two round trips before any text could paint. -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap">
+    <!-- Inter is self-hosted (css/fonts.css): the Google Fonts stylesheet
+         was a render-blocking round trip to one third party followed by
+         another to fonts.gstatic.com for the file, and made the Max4Live
+         device depend on the internet. These two weights are the ones the
+         UI paints with, preloaded so they are in flight while the
+         stylesheet is still parsing. -->
+    <link rel="preload" href="assets/fonts/inter-latin-400.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="assets/fonts/inter-latin-700.woff2" as="font" type="font/woff2" crossorigin>
     <link rel="stylesheet" href="dist/styles-compiled.css">
 </head>
 
@@ -72,7 +77,22 @@
     </nav>
 
 
-    <div class="page-shell embed-flatten">
+    <main class="page-shell embed-flatten" aria-labelledby="app-title">
+        <!-- The instrument, for anyone who cannot see it. The app is a grid
+             of canvases and unlabelled bars, so this is where a screen
+             reader learns what it is and how to play it without a mouse;
+             it names Source and Gain first because those two panels are
+             where a session starts. Kept in the markup, not built by JS,
+             so it is there before anything mounts. -->
+        <h1 id="app-title" class="sr-only">twig — a tone wheel interval generator</h1>
+        <p class="sr-only">
+            An additive synthesizer: one fundamental pitch and twelve overtones above it,
+            tuned by the chosen overtone system. Start in the Source panel, which sets the
+            fundamental and what the overtones are made of, then Gain, which sets how loud
+            each overtone is; the other surfaces shape those same twelve voices. Press
+            Space to start and stop the sound. The number row sets the fundamental and the
+            Q to ] row plays the overtones. The full list is in Settings, under Shortcuts.
+        </p>
         <!-- Surface toolbar (rendered by ToolbarComponent); hidden in the embed band -->
         <nav id="surface-toolbar" class="surface-toolbar" aria-label="Surfaces"></nav>
         <div class="page-content embed-flatten">
@@ -149,7 +169,7 @@
                         <div id="oscillator-picker" class="select-stepper">
                             <button type="button" class="action-btn select-step-btn" data-target="waveform-select"
                                 data-step="-1" aria-label="Previous oscillator">&lt;-</button>
-                            <select id="waveform-select" class="control-select">
+                            <select id="waveform-select" class="control-select" aria-label="Oscillator waveform">
                                 <option value="sine">Sine</option>
                                 <option value="square">Square</option>
                                 <option value="triangle">Triangle</option>
@@ -326,12 +346,15 @@
                             <button type="button" class="settings-tab" data-tab="midi" aria-pressed="true">MIDI</button>
                             <button type="button" class="settings-tab" data-tab="recorder" aria-pressed="false">Recording</button>
                             <button type="button" class="settings-tab" data-tab="files" aria-pressed="false">Files</button>
+                            <button type="button" class="settings-tab" data-tab="keyboard" aria-pressed="false">Shortcuts</button>
                         </span>
                     </div>
                     <div id="midi-settings"></div>
                     <div id="recorder-settings" hidden></div>
                     <!-- The machine's library: waveforms, IRs, sound files, takes -->
                     <div id="files-settings" hidden></div>
+                    <!-- The keyboard, printed from KeyboardShortcuts.js -->
+                    <div id="keyboard-settings" hidden></div>
                 </div>
                 </div><!-- /.surface-stack -->
 
@@ -353,7 +376,8 @@
                                     class="action-btn focus-ring"
                                     aria-label="Download wav">Download</button>
                                 <div id="routing-mode-group" class="routing-mode-group">
-                                    <select name="routing-mode" id="routing-mode-select" class="control-select">
+                                    <select name="routing-mode" id="routing-mode-select" class="control-select"
+                                        aria-label="Channel layout of the exported .wav">
                                         <option value="mono" selected>Mono</option>
                                         <option value="stereo">Stereo</option>
                                         <option value="multichannel">Multichannel</option>
@@ -420,7 +444,7 @@
         <!-- Master rail: Gain and Slew stand here, upright, while the layout
              is narrow (MasterRailController moves their roots in and out) -->
         <aside id="master-rail" class="master-rail" aria-label="Master gain and slew"></aside>
-    </div>
+    </main>
 
 
     <!-- Status Message Container -->

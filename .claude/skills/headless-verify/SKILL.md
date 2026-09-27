@@ -18,6 +18,11 @@ description: Verify twig changes end-to-end in a headless browser — screenshot
   an AudioContext during bootstrap, which reads as "restoring the library
   created a context". Leave the bridge stopped (`/twig/play [0]`) at the
   end of a suite that plays.
+  A baseline worth sending before any suite that listens for sound:
+  `/twig/play [0]`, `/twig/envmode [0]` (Drone — a cached Trigger mode
+  leaves every voice silent and reads as "no audio"), `/twig/gain [0.6]`,
+  `/twig/source ['oscillators']`, `/twig/waveform ['sine']`,
+  `/twig/system [0]`, `/twig/freq [110]`, `/twig/drawbars [...]`.
   If another session may be testing at the same time, pick your own port
   (`PORT=3417`): two test pages on one bridge relay play/stop and every
   parameter to each other, which reads as voices vanishing mid-test.
@@ -164,9 +169,18 @@ description: Verify twig changes end-to-end in a headless browser — screenshot
   Trigger panel's "Loop Samples" is `#pad-loop-toggle` (`aria-pressed`;
   `disabled` outside sound-file mode).
 - Settings: the toolbar button or the recorder's ⚙ → tabs
-  `.settings-tab[data-tab="midi|recorder|files"]` over `#midi-settings` /
-  `#recorder-settings` / `#files-settings`, no dock; in embed an overlay
-  (`body.settings-open`, `.settings-close`).
+  `.settings-tab[data-tab="midi|recorder|files|keyboard"]` over
+  `#midi-settings` / `#recorder-settings` / `#files-settings` /
+  `#keyboard-settings` (the printed shortcuts: `.shortcut-list dt kbd` and
+  `dd`), no dock; in embed an overlay (`body.settings-open`,
+  `.settings-close`).
+- Boot and a11y: the page paints nothing until app.js removes
+  `<html class="booting">`, so wait for app init before screenshotting or
+  measuring paint — a shot taken too early is blank, not broken. Layout
+  still happens while hidden, so `clientWidth` and canvas sizing work.
+  Assert no third-party requests (filter `data:` URIs — the live favicon
+  is one), one `<main>`, one `<h1>`, and that every visible `input`/
+  `select` has an `aria-label`, a wrapping/`for` label or a `title`.
 - Files (the library UI, `#files-settings`): one
   `.files-kind[data-kind="wave|ir|soundfile|recording"]` card each, rows
   `.files-row[data-id][data-kind]` (click = select + preview,

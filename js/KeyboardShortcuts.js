@@ -25,6 +25,51 @@ const TRIGGER_KEYS = [
 export const TRIGGER_KEY_LABELS = TRIGGER_KEYS.map((code) =>
     code.replace('Key', '').replace('BracketLeft', '[').replace('BracketRight', ']'));
 
+/**
+ * Every shortcut, as Settings › Shortcuts prints it. It lives HERE, beside
+ * the handler that implements it, because a list of keys kept anywhere
+ * else drifts the first time one changes. Link and shape are in it too:
+ * they are keys the user holds (linkAll.js, shapeMode.js), even though
+ * this file is not what reads them.
+ */
+export const SHORTCUTS = [
+    {
+        group: 'Transport',
+        items: [{ keys: ['Space'], what: 'Start and stop the sound' }],
+    },
+    {
+        group: 'Fundamental',
+        items: [
+            { keys: ['`', '1', '…', '='], what: 'Set the fundamental to a semitone of the current octave' },
+            { keys: ['⌘/Ctrl', '↑ ↓ ← →'], what: 'Octave up or down' },
+        ],
+    },
+    {
+        group: 'Overtones',
+        items: [
+            { keys: ['Q', 'W', '…', ']'], what: 'Play an overtone — hold to sustain (Trigger mode only)' },
+            { keys: ['Shift', 'Q … ]'], what: 'Make that overtone the new fundamental' },
+        ],
+    },
+    {
+        group: 'A focused drawbar',
+        items: [
+            { keys: ['Tab'], what: 'Move focus onto the drawbars' },
+            { keys: ['← →'], what: 'Move to the previous or next overtone' },
+            { keys: ['↑ ↓'], what: 'Adjust by 1%' },
+            { keys: ['⌘/Ctrl', '↑ ↓'], what: 'Adjust by 10%' },
+            { keys: ['Shift', '↑ ↓'], what: 'Jump to the maximum or minimum' },
+        ],
+    },
+    {
+        group: 'Held while editing',
+        items: [
+            { keys: ['⌘/Ctrl'], what: 'Link — the edit writes every overtone at once' },
+            { keys: ['Shift'], what: 'Shape — the edit sculpts every overtone along a contour' },
+        ],
+    },
+];
+
 export class KeyboardShortcuts {
     constructor() {
         this.heldTriggers = new Set();

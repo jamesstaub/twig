@@ -44,6 +44,10 @@ esbuild.build({
     entryPoints: ["css/styles.css"],
     bundle: true,
     outfile: "dist/styles-compiled.css",
+    // The self-hosted font files are served from assets/, not bundled:
+    // left external, their url() passes through to the stylesheet as
+    // written (esbuild otherwise reads `/assets/…` as a filesystem path)
+    external: ["/assets/*"],
     minify: true,
     logLevel: "info"
 }).catch(() => process.exit(1));

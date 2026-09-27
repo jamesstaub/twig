@@ -23,6 +23,9 @@ export class TonewheelController extends BaseController {
             step: 0.01,
             value: AppState.spreadFactor ?? 0.2,
             label: 'Gain',
+            // The caption reads "Gain" beside the wheel, but the navbar's
+            // master gain says the same word: spoken aloud they must differ
+            ariaLabel: 'Tonewheel ring spread',
             formatValue: (v) => `${(v * 100).toFixed(0)}%`
         }, (value) => {
             TonewheelActions.setSpreadFactor(value);
@@ -36,6 +39,7 @@ export class TonewheelController extends BaseController {
             step: 0.1,
             value: AppState.visualizationFrequency ?? 1,
             label: 'Rate',
+            ariaLabel: 'Tonewheel rotation rate',
             formatValue: (v) => `${v.toFixed(1)} Hz`
         }, (value) => {
             TonewheelActions.setVisualizationFrequency(value);

@@ -1,4 +1,5 @@
 @import "./reset.css";
+@import "./fonts.css";
 
 /* Plain CSS — no build-time framework. Every class here is hand-written
    and lives in exactly one of the files below; there's no utility-class

@@ -36,6 +36,10 @@ export default class SliderComponent extends BaseComponent {
         this.input.step = props.step ?? 0.01;
         this.input.value = props.value ?? 0;
         this.input.className = "slider-input";
+        // The <label> above is a caption, not an association (no `for`, and
+        // the input is its sibling), so the control names itself — several
+        // of these sliders live in the navbar with the same word on them.
+        if (props.label) this.input.setAttribute("aria-label", props.ariaLabel || props.label);
         this.el.appendChild(this.input);
 
         // Value display (optional, for accessibility)

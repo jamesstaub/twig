@@ -45,6 +45,25 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
 - `server.js` gzips what it serves (`compression`), so measure transfer
   with `PerformanceResourceTiming.transferSize` — a gzipped response has
   no `content-length`.
+- NO third-party requests, at boot or ever. Inter is SELF-HOSTED
+  (`css/fonts.css` → `assets/fonts/*.woff2`, SIL OFL): the Google Fonts
+  link was a render-blocking hop to one CDN and then another to
+  fonts.gstatic.com for the file, and it made the Max4Live device need
+  the internet to look right. The `url()`s are absolute from the site
+  root so esbuild passes them through (`external: ["/assets/*"]` in
+  build.js — it reads a relative url() as something to bundle and an
+  absolute one as a filesystem path). The latin weights are preloaded in
+  index.html; latin-ext costs nothing until a character needs it
+  (`unicode-range`).
+- FIRST PAINT waits for the UI: `<html class="booting">` (index.html) →
+  `visibility: hidden` on the body (base.css), lifted by app.js. The
+  markup is empty containers the controllers fill, so painting it showed
+  a skeleton and then jumped — 0.36 of layout shift, almost all of it one
+  frame. `visibility`, not `display`, because the panels must still LAY
+  OUT while hidden (the surface shell mounts last precisely so each has
+  measured itself). app.js lifts it in a `finally` so a failed boot still
+  shows the page, and on a 2 s timer so a boot that never finishes (a
+  bridge that accepts `/state` and never answers) cannot leave it blank.
 - NO p5 (or any rendering library): the visualizations draw on
   `js/modules/generic/sketch/Sketch.js`, the app's own canvas runtime.
   p5 was 1.3 MB of the 1.55 MB bundle and ~350 ms of mobile boot for a
@@ -749,18 +768,30 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
   fader survive). Adding a synth parameter = one leaf in `SPEC` plus its
   line in `capture()` and `presetApply.writeAppState` (see the
   add-bridged-param skill).
+- ACCESSIBILITY: the app is a grid of canvases and ratio-labelled bars, so
+  the words live in three places. `<main>` (index.html) opens with an
+  `.sr-only` (base.css) `<h1>` and a paragraph saying what the instrument
+  is and naming SOURCE and GAIN as where to start — the entry point for
+  anyone who cannot see it. Every drawbar names itself
+  (`aria-label` "Overtone 3 gain" — its visible label is a ratio, which
+  means nothing read alone), and `SliderComponent` labels its input from
+  `ariaLabel ?? label`, since its `<label>` is a caption with no `for` and
+  several sliders say "Gain". The keys are printed in Settings ›
+  Shortcuts, from `SHORTCUTS` in KeyboardShortcuts.js — defined beside the
+  handler that implements them so the list cannot drift.
 - Settings surface (`js/modules/settings/`, `#settings-control-root`):
-  MIDI | Recording | Files tabs (`selectTab`; the Files tab re-reads the
-  library every time it is shown, since files arrive from everywhere but
-  there) over `MidiSettingsComponent`
+  MIDI | Recording | Files | Shortcuts tabs (`selectTab`; the Files tab
+  re-reads the library every time it is shown, since files arrive from
+  everywhere but there) over `MidiSettingsComponent`
   (a ports card, then one card per concern with its own channel and
   start-of-range inputs; re-rendered on `MIDI_PORTS_CHANGED` /
   `MIDI_OUTPUT_CHANGED` since ports arrive late) and
   `RecorderSettingsComponent` (wav/mid layout, take length, tempo mode;
-  `syncChecked` on `RECORDER_CHANGED`) and `FilesSettingsComponent` (the
-  file manager, see THE LIBRARY above). The toolbar button, the
+  `syncChecked` on `RECORDER_CHANGED`), `FilesSettingsComponent` (the
+  file manager, see THE LIBRARY above) and `KeyboardSettingsComponent` (a
+  pure view over `SHORTCUTS`). The toolbar button, the
   recorder's ⚙ and the two "manage files" entries (`openSettings(tab)` in
-  ui.js) get there, on both shells.
+  settingsSurface.js) get there, on both shells.
 - Navbar: Playing/Stopped, Trigger/Drone, the recorder strip, Gain/Slew.
   Every label + switch names its CURRENT STATE (switch on = Playing /
   Trigger), never the action. Wide, it is the fixed one-row bar with

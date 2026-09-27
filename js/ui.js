@@ -213,6 +213,7 @@ function setupControlSliders() {
         step: 0.01,
         value: AppState.masterGainValue,
         label: 'Gain',
+        ariaLabel: 'Master gain',
         formatValue: (v) => `${(v * 100).toFixed(0)}%`,
     }, (value) => {
         smoothUpdateMasterGain(value);
@@ -226,6 +227,7 @@ function setupControlSliders() {
         step: 0.01,
         value: AppState.masterSlewValue,
         label: 'Slew',
+        ariaLabel: 'Master slew',
         formatValue: (v) => {
             v = parseFloat(v);
             let displayValue = (v * 1000).toFixed(0);

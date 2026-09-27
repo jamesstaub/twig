@@ -389,7 +389,8 @@ export class DrawbarsComponent extends BaseComponent {
         return wrapper;
     }
 
-    createSliderWrap(index, { min, max, step }, value) {
+    createSliderWrap(index, param, value) {
+        const { min, max, step } = param;
         const track = document.createElement("div");
         track.className = "drawbar-track";
 
@@ -401,6 +402,11 @@ export class DrawbarsComponent extends BaseComponent {
         slider.step = String(step);
         slider.value = value;
         slider.dataset.index = index;
+        // The column's own label is a ratio ("3:1") and means nothing read
+        // alone, so the bar names the parameter and the overtone itself;
+        // the readout under it is the value, which a screen reader gets
+        // from the range input.
+        slider.setAttribute("aria-label", `Overtone ${index + 1} ${param.label.toLowerCase()}`);
 
         const wrap = document.createElement("div");
         wrap.className = "drawbar-input-wrapper";

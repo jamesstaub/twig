@@ -22,6 +22,37 @@ html, body {
     }
 }
 
+/* BOOT: the markup ships as empty containers that the controllers fill,
+   so painting it would show a skeleton and then jump — measured at 0.36
+   of layout shift, nearly all of it one frame where the drawbar strip
+   grew 151 → 547px and the navbar's controls appeared. `visibility`
+   (not `display`) because the panels still have to LAY OUT while hidden:
+   the surface shell mounts last precisely so every panel has measured
+   itself, and the canvases size from their containers. Nothing of value
+   paints before this lifts — the first frame under it is blank — and
+   app.js lifts it in a `finally`, so a failed boot still shows the page.
+
+   The class is on <html>, set in the markup, so there is no unstyled
+   flash before the stylesheet applies it. */
+html.booting body {
+    visibility: hidden;
+}
+
+/* For screen readers only: in the accessibility tree, out of the layout.
+   Not `display:none` and not `visibility:hidden` — both remove it from
+   the tree as well, which is the opposite of the point. */
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
+}
+
 /* Generic "not shown" utility — plain CSS, not a Tailwind holdover.
    Shared by any element JS toggles visibility on (status toast, the
    start-harmonic row, etc). */

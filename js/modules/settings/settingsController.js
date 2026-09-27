@@ -1,6 +1,7 @@
 import { MidiSettingsComponent } from './MidiSettingsComponent.js';
 import { RecorderSettingsComponent } from './RecorderSettingsComponent.js';
 import { FilesSettingsComponent } from '../files/FilesSettingsComponent.js';
+import { KeyboardSettingsComponent } from './KeyboardSettingsComponent.js';
 import { LIBRARY_CHANGED, MIDI_OUTPUT_CHANGED, MIDI_PORTS_CHANGED, RECORDER_CHANGED, RECORDINGS_CHANGED } from '../../events.js';
 
 /**
@@ -12,6 +13,7 @@ const TABS = {
     midi: '#midi-settings',
     recorder: '#recorder-settings',
     files: '#files-settings',
+    keyboard: '#keyboard-settings',
 };
 
 export class SettingsController {
@@ -22,12 +24,14 @@ export class SettingsController {
         this.midi = new MidiSettingsComponent(this.root.querySelector(TABS.midi));
         this.recorder = new RecorderSettingsComponent(this.root.querySelector(TABS.recorder));
         this.files = new FilesSettingsComponent(this.root.querySelector(TABS.files));
+        this.keyboard = new KeyboardSettingsComponent(this.root.querySelector(TABS.keyboard));
     }
 
     init() {
         this.midi.render();
         this.recorder.render();
         this.files.render();
+        this.keyboard.render();
         // Port lists arrive after Web MIDI's delayed init and change with
         // devices; the note-out port is also bridged from Max
         document.addEventListener(MIDI_PORTS_CHANGED, () => this.midi.render());

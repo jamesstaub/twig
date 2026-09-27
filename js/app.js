@@ -23,6 +23,9 @@ import { oscClient, oscEnabled } from './modules/osc/oscClient.js';
 import { pulseBus } from './modules/pulse/pulseBus.js';
 import { layoutMode } from './modules/layout/layoutMode.js';
 
+/** Longest the page stays blank waiting for a boot that may never finish. */
+const BOOT_REVEAL_MS = 2000;
+
 /**
  * Main application initialization function
  */
@@ -52,6 +55,11 @@ async function initApp() {
     } catch (error) {
         console.error('Failed to initialize application:', error);
         showStatus('Failed to initialize application. Please refresh the page.', 'error');
+    } finally {
+        // First paint happens here, with the page already built (see
+        // `html.booting` in base.css). In `finally` so a boot that threw
+        // still shows the page and its error message rather than nothing.
+        document.documentElement.classList.remove('booting');
     }
 }
 
@@ -172,8 +180,16 @@ function startup() {
     // Setup error handling first
     setupErrorHandling();
 
+    // The page is held blank until the UI is built (see `html.booting`).
+    // initApp lifts it in a `finally`, which covers a boot that FAILS —
+    // this covers one that never finishes, e.g. a bridge that accepts the
+    // /state connection and then says nothing. A skeleton is a poor first
+    // frame; a blank page is a worse one.
+    setTimeout(() => document.documentElement.classList.remove('booting'), BOOT_REVEAL_MS);
+
     // Check browser compatibility
     if (!checkCompatibility()) {
+        document.documentElement.classList.remove('booting');
         return;
     }
 

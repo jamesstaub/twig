@@ -116,6 +116,52 @@ body.coarse .settings-tab {
     margin-left: 0.25rem;
 }
 
+/* ---- Shortcuts ---- */
+
+/* A card here holds a key column AND a sentence, so it ASKS for more than
+   the settings default (at 14rem the sentence wraps to four words a line)
+   — as a basis, not a minimum, so a phone can still shrink it to fit. */
+#keyboard-settings .settings-section {
+    flex-basis: 17rem;
+}
+
+.shortcut-list {
+    display: grid;
+    /* The keys column takes what it needs; the description takes the rest */
+    grid-template-columns: auto 1fr;
+    align-items: baseline;
+    gap: 0.3rem 0.6rem;
+    margin: 0;
+}
+
+.shortcut-list dt {
+    display: flex;
+    align-items: center;
+    gap: 0.2rem;
+    white-space: nowrap;
+}
+
+.shortcut-list dd {
+    margin: 0;
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
+}
+
+.shortcut-list kbd {
+    padding: 0.05rem 0.35rem;
+    font-family: inherit;
+    font-size: var(--font-size-xs);
+    color: var(--text-primary);
+    background-color: var(--surface-app);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-sm);
+}
+
+/* The "…" between a first and last key is a span, not a key */
+.shortcut-list dt span {
+    color: var(--text-muted);
+}
+
 /* ---- MIDI ---- */
 
 .midi-num-input {
@@ -180,4 +226,35 @@ body.coarse .settings-tab {
 body.coarse .rec-radio-row input[type="radio"] {
     width: 1.25rem;
     height: 1.25rem;
+}
+
+/* An option that doesn't apply stays where it is, grayed out (the export
+   sizes while Record Animation is off) */
+.rec-radio-row:has(input:disabled) {
+    color: var(--text-muted);
+    opacity: 0.55;
+    cursor: default;
+}
+
+/* ---- Animation ---- */
+
+.rec-video-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.rec-video-toggle {
+    min-width: 38px;
+    height: 22px;
+    flex: 0 0 auto;
+}
+
+.rec-video-toggle::before {
+    width: 16px;
+    height: 16px;
+}
+
+.rec-video-toggle.active::before {
+    transform: translateX(16px);
 }
