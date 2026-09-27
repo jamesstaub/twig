@@ -162,7 +162,12 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
   wave; entering the mode without a file is allowed and silent.
   `#soundfile-library-select` is everything on the machine the sampler can
   play, in `<optgroup>`s: Uploaded files, Exported waves, Impulse
-  responses, Recordings (`SAMPLER_SECTIONS` in
+  responses, Recordings, then "Manage files…" — with its own ‹ › (a
+  `.select-stepper`, like the oscillator picker), since native dropdowns
+  don't open inside jweb. The row WRAPS below 15rem of menu, so the pinned
+  Source column and a phone put the menu on a line of its own rather than
+  leaving the file name four characters. Sections with nothing in them are
+  left out (`SAMPLER_SECTIONS` in
   `js/modules/source/sourceLibrary.js`, which is also the only file that
   turns one into an AudioBuffer). A BAKED WAVE has no samples, so it is
   RENDERED: one loop of its PeriodicWave offline at the table's loop rate
@@ -666,11 +671,15 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
     sites dispatch it themselves (the wave bake, Create IR, and importing
     a sound file) along with the file manager's own edits. The Files panel
     and the sampler's menu both live off it.
-  - The library is reached from the menus that list its files: the
-    oscillator menu's last entry, "Manage files…" (`MANAGE_FILES_OPTION`,
+  - The library is reached from the menus that list its files: the last
+    entry of the oscillator menu AND of the sampler's,
+    "Manage files…" (`MANAGE_FILES_OPTION` in settingsSurface.js,
     `data-role="action"` — the ‹ › steppers step past it and
     `waveformMenuNames()` excludes it, so the bridge's menu-index mapping
-    is unchanged), and the Convolution panel's "Files…" button beside
+    is unchanged; the sampler's "no file" line is `disabled` for the same
+    reason. A menu can be ALL unsteppable entries — an empty library — so
+    `setupSelectSteppers` walks a BOUNDED loop, not a do/while), and the
+    Convolution panel's "Files…" button beside
     Create IR, since IRs are picked with steppers rather than a menu (it
     is `.files-link`, which the source-mode gating leaves enabled —
     baking needs the oscillators, reaching the library does not). Both

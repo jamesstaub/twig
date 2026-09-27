@@ -1,4 +1,5 @@
 import BaseComponent from "../base/BaseComponent.js";
+import { MANAGE_FILES_OPTION } from "../settings/settingsSurface.js";
 
 /**
  * SourceComponent — the signal-source picker: mode select, the ADC device/
@@ -11,7 +12,7 @@ import BaseComponent from "../base/BaseComponent.js";
  * Callbacks set by the controller:
  *  - onModeChange(mode)
  *  - onAdcDeviceChange(deviceId), onAdcChannelChange(channel)
- *  - onFile(file), onLibraryPick({ kind, id, name })
+ *  - onFile(file), onLibraryPick({ kind, id, name }), onManageFiles()
  *  - onSoundfileMode(mode), onSoundfileTune(on), onSoundfileFundamental(hz)
  *  - onSoundfileRange([start, end] | null) — a drag across the preview
  */
@@ -24,6 +25,7 @@ export default class SourceComponent extends BaseComponent {
         this.onAdcChannelChange = null;
         this.onFile = null;
         this.onLibraryPick = null;
+        this.onManageFiles = null;
         this.onSoundfileMode = null;
         this.onSoundfileTune = null;
         this.onSoundfileFundamental = null;
@@ -88,12 +90,15 @@ export default class SourceComponent extends BaseComponent {
             select.dataset.signature = signature;
             select.innerHTML = '';
             // A loaded sample the library has no entry for (its file was
-            // deleted, or the name came from the bridge with nothing loaded)
-            // still has to be what the menu reads
+            // deleted, or the name came from the bridge with nothing
+            // loaded) still has to be what the menu reads. Disabled, so it
+            // is a readout rather than somewhere the ‹ › can land.
             const placeholder = document.createElement('option');
             placeholder.value = '';
+            placeholder.disabled = true;
             placeholder.textContent = known ? 'Choose a file…' : (name || 'No file loaded');
             select.appendChild(placeholder);
+            let files = 0;
             for (const group of groups || []) {
                 if (!group.items.length) continue;
                 const optgroup = document.createElement('optgroup');
@@ -103,8 +108,16 @@ export default class SourceComponent extends BaseComponent {
                     option.value = `${group.kind}:${item.id}`;
                     option.textContent = item.name;
                     optgroup.appendChild(option);
+                    files++;
                 }
                 select.appendChild(optgroup);
+            }
+            if (files) {
+                const manage = document.createElement('option');
+                manage.value = MANAGE_FILES_OPTION;
+                manage.dataset.role = 'action';
+                manage.textContent = 'Manage files…';
+                select.appendChild(manage);
             }
         }
         select.value = known ? value : '';
@@ -234,6 +247,14 @@ export default class SourceComponent extends BaseComponent {
             if (file) this.onFile?.(file);
         });
         this.bindEvent(this.q('#soundfile-library-select'), 'change', (e) => {
+            if (e.target.value === MANAGE_FILES_OPTION) {
+                // Not a file: put the menu back on what is loaded and open
+                // the library
+                const current = this.props?.soundfile?.source;
+                e.target.value = current ? `${current.kind}:${current.id}` : '';
+                this.onManageFiles?.();
+                return;
+            }
             const [kind, id] = e.target.value.split(':');
             if (!id) return; // the placeholder is not a choice
             this.onLibraryPick?.({ kind, id, name: e.target.selectedOptions[0]?.textContent || '' });

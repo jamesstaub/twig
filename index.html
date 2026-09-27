@@ -112,9 +112,19 @@
                                 </label>
                                 <!-- Everything on this machine that can be played as a
                                      sample, by where it came from: uploads, baked waves,
-                                     IRs, takes. Also names what is loaded. -->
-                                <select id="soundfile-library-select" class="control-select source-file-library"
-                                    aria-label="Sound files on this machine"></select>
+                                     IRs, takes. Also names what is loaded. The ‹ › are
+                                     the only way through it inside jweb, where native
+                                     dropdowns don't open. -->
+                                <div class="select-stepper source-file-library">
+                                    <button type="button" class="action-btn select-step-btn"
+                                        data-target="soundfile-library-select" data-step="-1"
+                                        aria-label="Previous sound file">&lt;-</button>
+                                    <select id="soundfile-library-select" class="control-select"
+                                        aria-label="Sound files on this machine"></select>
+                                    <button type="button" class="action-btn select-step-btn"
+                                        data-target="soundfile-library-select" data-step="1"
+                                        aria-label="Next sound file">-&gt;</button>
+                                </div>
                             </div>
                             <div class="source-file-row">
                                 <span class="source-file-switch-group">

@@ -281,15 +281,22 @@ function setupSelectSteppers() {
             if (!select || select.options.length === 0) return;
             const step = parseInt(btn.dataset.step, 10) || 1;
             const count = select.options.length;
-            let index = select.selectedIndex;
             // Skip what isn't a choice: display-only entries (the waveform
-            // menu's "Interpolated") and entries that run an action instead
-            // of selecting a value ("Manage files…")
-            do {
+            // menu's "Interpolated", the sampler's "no file" placeholder)
+            // and entries that run an action instead of selecting a value
+            // ("Manage files…"). A menu can be ALL of those — an empty
+            // library — so the walk is bounded rather than a do/while that
+            // would spin the page.
+            const skip = (option) => option.disabled || option.dataset.role === 'action';
+            let index = select.selectedIndex;
+            for (let taken = 0; taken < count; taken++) {
                 index = (index + step + count) % count;
-            } while (select.options[index].disabled || select.options[index].dataset.role === 'action');
-            select.selectedIndex = index;
-            select.dispatchEvent(new Event('change', { bubbles: true }));
+                if (!skip(select.options[index])) {
+                    select.selectedIndex = index;
+                    select.dispatchEvent(new Event('change', { bubbles: true }));
+                    return;
+                }
+            }
         });
     });
 }

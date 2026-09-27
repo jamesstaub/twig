@@ -5,17 +5,9 @@ import { generateFilenameParts } from "../../utils.js";
 import { LIBRARY_CHANGED } from "../../events.js";
 
 import { TonewheelActions } from "../tonewheel/tonewheelActions.js";
-import { openSettings } from "../settings/settingsSurface.js";
+import { MANAGE_FILES_OPTION, openSettings } from "../settings/settingsSurface.js";
 
 export const CURRENT_WAVEFORM_CHANGED = 'currentWaveformChanged';
-
-/**
- * The menu's last entry once the library holds a baked wave: it opens the
- * file manager instead of choosing a waveform. Carries `data-role="action"`
- * so the ‹ › steppers step past it and the bridge's index mapping — which
- * counts menu positions — never sees it.
- */
-export const MANAGE_FILES_OPTION = '__files__';
 
 /**
  * The oscillator menu's choosable waveform names, in menu order (built-ins,

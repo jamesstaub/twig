@@ -10,6 +10,15 @@ import { surfaceState } from '../surfaces/surfaceState.js';
  * cycle is what splitting the bundle has to pay for.
  */
 
+/**
+ * The value of a menu entry that opens the file manager instead of
+ * choosing something — the oscillator menu's and the sampler's last line.
+ * Those entries carry `data-role="action"`, so the ‹ › steppers step past
+ * them and code that maps menu positions (the bridge's waveform index)
+ * never sees them.
+ */
+export const MANAGE_FILES_OPTION = '__files__';
+
 let mounting = null;
 
 /** Build the panel once; resolves with the controller. */

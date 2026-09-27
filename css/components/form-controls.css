@@ -90,6 +90,10 @@
     align-items: center;
     gap: 0.5rem;
     min-width: 0;
+    /* On a phone the button plus the menu's own ‹ › leave the name a few
+       pixels, so the menu takes a line of its own instead (see its
+       flex-basis below) */
+    flex-wrap: wrap;
 }
 
 .source-file-choose {
@@ -111,11 +115,15 @@
     flex-shrink: 0;
 }
 
-/* The library menu takes the rest of the row and never pushes the button
-   off it — a file name can be any length, so the menu must be allowed to
-   shrink and ellipsize. */
+/* The library menu and its ‹ › take the rest of the row and never push
+   the Choose-file button off it — a file name can be any length, so the
+   menu must be allowed to shrink and ellipsize. */
 .source-file-library {
-    flex: 1 1 0;
+    /* What a file name plus the two arrows needs to be readable. Below it
+       the row wraps and the menu takes a line of its own — which is what
+       happens in the pinned Source column and on a phone, where sharing a
+       line with the button left the name four characters. */
+    flex: 1 1 15rem;
     min-width: 0;
 }
 

@@ -3,6 +3,7 @@ import { soundfileConfig } from '../../appConfig.js';
 import { sourceManager } from '../../dsp/SourceManager.js';
 import { LIBRARY_CHANGED, RECORDINGS_CHANGED, SOURCE_CHANGED } from '../../events.js';
 import { BaseController } from '../base/BaseController.js';
+import { openSettings } from '../settings/settingsSurface.js';
 import { SourceActions } from './sourceActions.js';
 import { samplerLibrary } from './sourceLibrary.js';
 import SourceComponent from './SourceComponent.js';
@@ -40,6 +41,7 @@ export class SourceController extends BaseController {
         this.component.onAdcChannelChange = (ch) => SourceActions.setAdcChannel(ch);
         this.component.onFile = (file) => SourceActions.loadSoundFile(file);
         this.component.onLibraryPick = (entry) => SourceActions.loadLibraryEntry(entry);
+        this.component.onManageFiles = () => openSettings('files');
         this.component.onSoundfileMode = (mode) => SourceActions.setSoundfileMode(mode);
         this.component.onSoundfileTune = (on) => SourceActions.setSoundfileTune(on);
         this.component.onSoundfileFundamental = (hz) => SourceActions.setSoundfileFundamental(hz);
