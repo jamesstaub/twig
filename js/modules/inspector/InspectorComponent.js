@@ -199,7 +199,7 @@ export class InspectorComponent extends BaseComponent {
 
         const modeGroup = document.createElement('div');
         modeGroup.className = 'inspector-gate-mode';
-        modeGroup.append(select, params);
+        modeGroup.append(this.selectStepper(select, 'gate mode'), params);
         el.sectionBody.appendChild(modeGroup);
 
         const renderParams = () => {
@@ -281,7 +281,7 @@ export class InspectorComponent extends BaseComponent {
             if (opt.value === seq.shape) o.selected = true;
             select.appendChild(o);
         }
-        wrap.appendChild(select);
+        wrap.appendChild(this.selectStepper(select, 'contour'));
 
         select.addEventListener('change', (e) => {
             this.apply(index, e, (i) => OvertoneSignalActions.setSequencerShape(i, select.value));
@@ -310,6 +310,33 @@ export class InspectorComponent extends BaseComponent {
         };
         lenRow.append(mkBtn('÷2', 0.5), lenLabel, mkBtn('×2', 2));
         wrap.appendChild(lenRow);
+        return wrap;
+    }
+
+    /**
+     * ‹ select › — next/previous buttons flanking a menu, the app's rule
+     * for every select (native dropdowns don't open inside jweb). Stepping
+     * wraps and fires the menu's own change handler.
+     */
+    selectStepper(select, what) {
+        const wrap = document.createElement('div');
+        wrap.className = 'select-stepper';
+        const step = (delta, label) => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'action-btn select-step-btn';
+            btn.textContent = delta < 0 ? '<-' : '->';
+            btn.setAttribute('aria-label', `${label} ${what}`);
+            this.bindEvent(btn, 'click', (e) => {
+                const n = select.options.length;
+                if (!n) return;
+                select.selectedIndex = (select.selectedIndex + delta + n) % n;
+                select.dispatchEvent(new Event('change', { bubbles: true }));
+                e.currentTarget.focus();
+            });
+            return btn;
+        };
+        wrap.append(step(-1, 'Previous'), select, step(1, 'Next'));
         return wrap;
     }
 
