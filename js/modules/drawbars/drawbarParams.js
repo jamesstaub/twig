@@ -1,6 +1,6 @@
 import { AppState, DEFAULT_FILTER_TYPE, FILTER_TYPES, seriesStepAt } from '../../config.js';
 import { getVoicePan, calculateFrequency, formatHz } from '../../utils.js';
-import { MAX_FILTER_PARTIALS, partialFrequency } from '../../audio.js';
+import { filterCutoffHz, MAX_FILTER_PARTIALS } from '../../audio.js';
 import { irManager } from '../../dsp/IRManager.js';
 import { DrawbarsActions } from './drawbarsActions.js';
 import {
@@ -51,7 +51,8 @@ const pan = {
 };
 
 // The cutoff is an overtone-series selector: a partial (of the current
-// system) of the voice's audible base; 0 = open
+// system) of THIS VOICE'S OWN pitch, so every column offers its own
+// series of frequencies; 0 = open
 const cutoff = {
     key: 'cutoff', label: 'cutoff', min: 0, max: MAX_FILTER_PARTIALS, step: 1,
     // Two-line readout (partial over Hz) — reserved for every column of
@@ -66,7 +67,7 @@ const cutoff = {
         const step = Math.round(v);
         if (step === 0) return 'open';
         const voiceHz = calculateFrequency(AppState.currentSystem.ratios[i]);
-        return `${partialLabel(step)}\n${formatHz(partialFrequency(voiceHz, step))}`;
+        return `${partialLabel(step)}\n${formatHz(filterCutoffHz(voiceHz, step))}`;
     },
 };
 

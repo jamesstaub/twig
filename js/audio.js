@@ -353,21 +353,25 @@ export function updateHarmonicAmplitude(index, rampTime = AppState.masterSlewVal
     }
 }
 
-const MIN_AUDIBLE_HZ = 20;
+/**
+ * A biquad asked for a couple of Hz at high Q is a numerical hazard and
+ * inaudible either way, so a cutoff never goes below this. It is the ONE
+ * place the floor lives: the drawbar readout prints through the same
+ * function, so the column never names a frequency the filter isn't using.
+ */
+const MIN_FILTER_HZ = 10;
 
 /**
- * Cutoff for a voice's lowpass — an overtone series within the overtone
+ * Cutoff for a voice's filter — an overtone series within the overtone
  * series: the multiplier is a 1-based partial index into the CURRENT
- * system's ratio table, applied to the voice's audible base frequency
- * (the lowest integer multiple of the voice's own pitch that clears 20 Hz;
- * an already-audible voice is its own base).
- *
- * So on the Harmonic Series a 12 Hz voice gives 24, 48, 72 … Hz for
- * partials 1, 2, 3 — but on a stretched or inharmonic system the cutoffs
- * land on THAT system's partials instead. Indexes beyond the system's
- * partial count clamp to its last ratio. The series always multiplies
- * upward, regardless of the subharmonic toggle — a lowpass below the
- * voice would just mute it. No multiplier set (or <= 0) → filter open.
+ * system's ratio table, applied to THAT VOICE'S OWN frequency. Every
+ * voice therefore offers its own series of cutoffs, in proportion to its
+ * own pitch — on the Harmonic Series a 110 Hz voice gives 110, 220, 330 …
+ * and the 330 Hz voice above it gives 330, 660, 990 …, while on a
+ * stretched or inharmonic system they land on THAT system's partials.
+ * Indexes beyond the system's partial count clamp to its last ratio. The
+ * series always multiplies upward, regardless of the subharmonic toggle.
+ * No multiplier set (or <= 0) → filter open.
  */
 export const MAX_FILTER_PARTIALS = 24;
 
@@ -380,20 +384,26 @@ export function filterPartialRatio(step) {
     return seriesStepAt(Math.min(MAX_FILTER_PARTIALS, Math.max(1, Math.round(step)))).ratio;
 }
 
+/** What the filter is actually set to for a voice at `step` — see MIN_FILTER_HZ. */
+export function filterCutoffHz(voiceFrequency, step) {
+    return Math.min(20000, Math.max(MIN_FILTER_HZ, partialFrequency(voiceFrequency, step)));
+}
+
 export function harmonicFilterCutoff(index, frequency) {
     const multiplier = AppState.oscillatorFilters[index]?.multiplier;
     if (!(multiplier > 0) || !(frequency > 0)) return 20000;
-    return Math.min(20000, Math.max(10, partialFrequency(frequency, multiplier)));
+    return filterCutoffHz(frequency, multiplier);
 }
 
 /**
- * Frequency of the `step`-th series partial (1-based) above a voice's
- * audible base — the series-relative convention shared by the filter
- * cutoff and the convolution feedback tuning.
+ * Frequency of the `step`-th series partial (1-based) of a voice — the
+ * series-relative convention shared by the filter cutoff, the worklet's
+ * cutoff-CV curve (modTargets.js) and the convolution feedback tuning.
+ * The voice's own pitch is the series' fundamental, so two voices never
+ * offer the same choices.
  */
 export function partialFrequency(frequency, step) {
-    const base = frequency * Math.max(1, Math.ceil(MIN_AUDIBLE_HZ / frequency));
-    return base * filterPartialRatio(step);
+    return frequency * filterPartialRatio(step);
 }
 
 

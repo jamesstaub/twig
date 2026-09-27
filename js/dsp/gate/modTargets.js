@@ -25,9 +25,6 @@ const Q_SPAN = 24;
 /** Convolution feedback ceiling (mirrors CONV_FEEDBACK_MAX in the actions). */
 const FEEDBACK_MAX = 0.99;
 
-/** Lowest frequency a voice's filter series counts from (Hz). */
-const MIN_AUDIBLE_HZ = 20;
-
 /**
  * Hz between the modulated cutoff and the base one, along the voice's
  * overtone-series curve: the depth walks a continuous (interpolated)
@@ -46,9 +43,10 @@ export function cutoffDelta(s, { ratios, baseStep, depthCutoff, tone }) {
     const r1 = ratios[Math.min(n, i0 + 1) - 1];
     const ratio = r0 + (r1 - r0) * frac;
 
-    // Audible base: the lowest integer multiple of the voice clearing 20 Hz
-    const base = tone * Math.max(1, Math.ceil(MIN_AUDIBLE_HZ / tone));
-    return base * (ratio - ratios[baseStep - 1]);
+    // The voice's own pitch is the series' fundamental, as it is for the
+    // base cutoff (partialFrequency in audio.js) — the sweep has to walk
+    // the same series the base sits on
+    return tone * (ratio - ratios[baseStep - 1]);
 }
 
 /**

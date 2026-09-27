@@ -55,10 +55,10 @@
  *                                 alternating R/L at ±0.8
  *   /twig/filter/<n> [mult q?]    per-overtone lowpass cutoff (n=0 → all).
  *                                 mult is a 1-based partial index into the
- *                                 current overtone system applied to the
- *                                 voice's audible base (lowest multiple of
- *                                 its pitch clearing 20 Hz) — an overtone
- *                                 series within the overtone series. Tracks
+ *                                 current overtone system applied to that
+ *                                 voice's OWN pitch — an overtone series
+ *                                 within the overtone series, one per
+ *                                 voice. Tracks
  *                                 fundamental glides. mult <= 0 opens. The
  *                                 optional q sets resonance atomically;
  *                                 upstream, cutoff and resonance emit as
@@ -444,7 +444,7 @@ export class OscClient {
                 // /twig/filter/<n> [multiplier, q?] or /twig/filter [n, multiplier, q?]
                 // n 1-based; n = 0 applies to all. The multiplier is a
                 // 1-based partial index into the current overtone system,
-                // applied to the voice's audible base — indexes past the
+                // applied to that voice's own pitch — indexes past the
                 // system's partial count clamp to its last ratio.
                 // multiplier <= 0 opens the filter.
                 const [n, rest] = perVoiceArgs(sub, args);

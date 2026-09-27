@@ -297,9 +297,16 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
   be chosen before the cutoff is raised. Switching type is a plain
   assignment and measured click-free — the biquad's state carries over.
 - Filter cutoffs are series-relative, not absolute Hz: the multiplier is a
-  1-based partial index into the current system's ratio table applied to the
-  voice's audible base (lowest integer multiple of its pitch clearing 20 Hz)
-  — see `harmonicFilterCutoff` in `js/audio.js`. Those indexes run to
+  1-based partial index into the current system's ratio table applied to
+  THAT VOICE'S OWN pitch — so every voice offers its own series of
+  cutoffs, in proportion to itself (`partialFrequency` /
+  `harmonicFilterCutoff` in `js/audio.js`). The voice is the fundamental
+  of its own filter series; it is NOT snapped up to an audible base first,
+  which used to collapse several sub-20 Hz voices onto one shared series.
+  `filterCutoffHz` is where the 10 Hz floor lives and the drawbar readout
+  prints through it, so a column never names a frequency the filter isn't
+  using. `modTargets.js`'s `cutoffDelta` counts from the same voice pitch
+  — a modulated sweep has to walk the series its base sits on. Those indexes run to
   `MAX_FILTER_PARTIALS` (24), past the twelve drawbars, so `seriesStepAt`
   (config.js) is the ONE place that answers "what is step n" — ratio AND
   label together, so a cutoff's readout and its frequency always describe
