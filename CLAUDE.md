@@ -35,6 +35,11 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
   `dist/app.js` (+ `dist/chunks/`, see below), the gate worklet to
   `dist/gate-processor.js`, and resolves `css/styles.css`'s @import chain
   into `dist/styles-compiled.css`. One step covers all three.
+  `npm run dev` is the same file with `--watch` (plus the server), NOT a
+  second set of esbuild flags — the two copies drifted the day the CSS
+  needed `external` for the self-hosted fonts, and the watch then failed
+  to resolve them while `npm run build` was fine. A watch build skips
+  minification and emits sourcemaps; nothing else differs.
 - The app build uses CODE SPLITTING: a `import()` becomes its own chunk
   fetched on first use, not at boot. What is deferred today: the Presets
   and Settings panels (built the first time their surface is shown —

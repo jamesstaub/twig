@@ -6,12 +6,9 @@
   "type": "module",
   "scripts": {
     "start": "node server.js",
-    "dev": "npm-run-all --parallel css:watch js:watch worklet:watch node-server",
-    "css:watch": "esbuild css/styles.css --bundle --outfile=dist/styles-compiled.css --watch",
-    "js:watch": "esbuild js/app.js --bundle --splitting --outdir=dist --entry-names=app --chunk-names=chunks/[name]-[hash] --format=esm --watch",
-    "worklet:watch": "esbuild js/dsp/worklets/gate-processor.js --bundle --outfile=dist/gate-processor.js --format=esm --watch",
+    "dev": "npm-run-all --parallel build:watch node-server",
     "build": "node build.js",
-    "js:build": "node build.js",
+    "build:watch": "node build.js --watch",
     "node-server": "node server.js"
   },
   "dependencies": {
