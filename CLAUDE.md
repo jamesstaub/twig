@@ -465,9 +465,12 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
   mid-drag, and a re-render would destroy the control; the title has a
   fixed width so the ‹ › buttons don't move). The editor has ONE home:
   `#sequence-inspector`, scrolling above the panel's overtone toolbar,
-  with the ‹ Overtone N › header mounted TOP AND CENTER of the panel
+  with the ‹ Sequence N › header mounted TOP AND CENTER of the panel
   (`#sequence-voice` in the panel's `.sequence-header`, a 1fr auto 1fr
   grid padded symmetrically with the side toggle's corner; `headerSlot`).
+  It NAMES the panel — there is no separate "Sequence" title beside it,
+  and the visualization panels dropped their `<label>` headings for the
+  same reason: a second word for what the panel already says.
   With a pin on screen the Sequence panel sits ABOVE it (`order: -2`
   under 120rem), next to the sequence canvas. There is no inspector sheet, no "Inspect" menu item and
   no way in but the toolbar. It renders only while the Sequence surface
@@ -483,7 +486,14 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
   the middle — the same arithmetic as modTargets.js), each in its
   `--mod-gain/-freq/-res/-wet/-fb` color (theme.css), which the
   Modulation section's rows wear too (`data-target` → `--mod-color` on
-  label and slider). The editor re-renders on
+  label and slider). While playing a PLAYHEAD runs over it: the gate
+  worklet posts a `{type:'position', position, rate, audioTime}` anchor
+  ~10× a second (at any voice frequency — pulses stop above 50 Hz,
+  anchors don't), `ModulatorStage.cyclePosition(now)` extrapolates from
+  it, `harmonicCyclePosition(index)` (audio.js) reads it, and the
+  component folds it into the cycles drawn (`previewCycleCount`),
+  blitting a cached static drawing plus the line per frame while playing
+  and laid out. The panel's label names the voice ("Sequence 3"). The editor re-renders on
   `OVERTONE_SIGNAL_CHANGED` for the selected index EXCEPT its own writes
   (`apply()` / `applyValue()` set `component.writing`; re-rendering under
   a control mid-drag would destroy it). The overtone menu (right-click on bars

@@ -106,7 +106,7 @@ export class InspectorComponent extends BaseComponent {
         this.titleDetailEl = document.createElement('span');
         this.titleDetailEl.className = 'inspector-title-detail';
         title.append(this.titleVoiceEl, this.titleDetailEl);
-        this._voiceTitle = `Overtone ${index + 1}`;
+        this._voiceTitle = `Sequence ${index + 1}`;
         this._voiceDetail = `${label} · ${freq.toFixed(freq >= 100 ? 1 : 2)} Hz`;
         this._voiceLabel = label;
         this.setScope(this.scope);

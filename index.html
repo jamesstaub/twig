@@ -170,7 +170,7 @@
                                 <div class="source-range-dim source-range-dim-right"></div>
                                 <button type="button" id="source-range-reset" class="source-range-reset hidden"
                                     aria-label="Play the whole file" title="Play the whole file">
-                                    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4H4v3M13 4h3v3M4 13v3h3M16 13v3h-3"/></svg>
+                                    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4H4v3M13 4h3v3M4 13v3h3M16 13v3h-3" /></svg>
                                 </button>
                             </div>
                         </div>
@@ -283,7 +283,6 @@
                      stepper -->
                 <div id="sequence-control-root" class="labeled-control">
                     <span class="sequence-header">
-                        <span class="sequence-title">Sequence</span>
                         <!-- ‹ Overtone N › (InspectorComponent's header, mounted here) -->
                         <span id="sequence-voice" class="sequence-voice"></span>
                         <button type="button" class="side-toggle-btn"></button>
@@ -342,7 +341,6 @@
                 <div class="surface-side embed-flatten">
                     <!-- Gain: the summed wavetable, with the bake/export actions -->
                     <div id="gain-viz-root" class="labeled-control viz-panel">
-                        <label>Waveform</label>
                         <div id="waveform-canvas-area" class="viz-canvas">
                             <!-- P5 canvas injected here -->
                         </div>
@@ -367,7 +365,6 @@
 
                     <!-- Filter: an oscilloscope of the live output -->
                     <div id="filter-viz-root" class="labeled-control viz-panel">
-                        <label>Output</label>
                         <div id="scope-canvas-area" class="viz-canvas">
                             <!-- Scope canvas injected here -->
                         </div>
@@ -375,7 +372,6 @@
 
                     <!-- Convolution: the spectrum, with Create IR + ring time -->
                     <div id="conv-viz-root" class="labeled-control viz-panel">
-                        <label>Spectrum</label>
                         <div id="spectrum-canvas-area" class="viz-canvas">
                             <!-- Spectrum canvas injected here -->
                         </div>
@@ -395,7 +391,6 @@
 
                     <!-- Sequence: the selected voice's gate pattern × shape -->
                     <div id="sequence-viz-root" class="labeled-control viz-panel">
-                        <label>Sequence</label>
                         <div id="sequence-canvas-area" class="viz-canvas">
                             <!-- Sequence canvas injected here -->
                         </div>
@@ -403,7 +398,6 @@
 
                     <!-- ADSR: every voice's envelope, drawn -->
                     <div id="adsr-viz-root" class="labeled-control viz-panel">
-                        <label>Envelopes</label>
                         <div id="envelope-canvas-area" class="viz-canvas">
                             <!-- Envelope canvas injected here -->
                         </div>

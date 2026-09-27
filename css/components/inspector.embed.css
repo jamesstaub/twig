@@ -23,10 +23,6 @@ body.embed #sequence-control-root > .sequence-header {
     padding: 0;
 }
 
-body.embed .sequence-title {
-    display: none;
-}
-
 body.embed .sequence-voice .inspector-title-voice {
     font-size: var(--font-size-sm-alt);
 }

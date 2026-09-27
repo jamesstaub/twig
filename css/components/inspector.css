@@ -47,16 +47,14 @@
 }
 
 /* The panel's header row: the title at the left, the ‹ Overtone N ›
-   stepper top and CENTER (the side toggle is pinned to the corner). The
+   stepper top left (the side toggle is pinned to the corner). The
    title has a fixed width, so the ‹ › buttons never move as it changes
    (voice to voice, or to "All voices" while link/shape is in effect). */
 #sequence-control-root > .sequence-header {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
     align-items: center;
-    /* Symmetric with the side toggle's reserved corner (surfaces.css), so
-       the stepper is centered on the panel, not on what's left of it */
-    padding-inline: 2.4rem;
+    padding-right: 2.4rem;
 }
 
 body.coarse #sequence-control-root > .sequence-header {

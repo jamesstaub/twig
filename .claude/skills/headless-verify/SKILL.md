@@ -80,8 +80,10 @@ description: Verify twig changes end-to-end in a headless browser — screenshot
 - Sequence: the toolbar's Sequence button → editor in
   `#sequence-inspector` (sections Sequence / Modulation / Pulse Out, gate
   mode in `.inspector-gate-mode select`, its fields as dials in
-  `.inspector-gate-params .mini-dial`), the ‹ Overtone N › stepper
-  `#sequence-voice .inspector-step` in the panel's header, the drawn
+  `.inspector-gate-params .mini-dial`), the ‹ Sequence N › stepper
+  `#sequence-voice .inspector-step` in the panel's header (which is the
+  panel's only title; the viz panels carry no `<label>` heading either),
+  the drawn
   sequence in the side column (`#sequence-canvas-area canvas` — hash its
   pixels to assert a redraw; count pixels near a `--mod-*` token's color
   to assert a modulation layer, tolerance ~60 where it overlays the
