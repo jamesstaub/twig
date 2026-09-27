@@ -66,6 +66,11 @@
  *   /twig/res/<n> [f q]           per-overtone filter resonance alone
  *                                 (n=0 → all), Q 0.1-40 — the patch-side
  *                                 handle for a resonance-only dial.
+ *   /twig/ftype/<n> [i|name]      per-overtone filter shape (n=0 → all):
+ *                                 0 lowpass | 1 bandpass | 2 highpass, by
+ *                                 index or name. The shape applies once the
+ *                                 voice's cutoff is set — an open filter is
+ *                                 bypassed whatever the type.
  *   /twig/drive/<n> [f 0-5]       per-overtone overdrive (tanh saturation)
  *                                 before the filter (n=0 → all); 0 = clean,
  *                                 1 = full saturation, 5 = hard clip
@@ -101,7 +106,7 @@
  * Live-native parameters. Inbound applications are not re-emitted.
  */
 
-import { AppState, SOURCE_MODES, updateAppState } from "../../config.js";
+import { AppState, DEFAULT_FILTER_TYPE, FILTER_TYPES, SOURCE_MODES, updateAppState } from "../../config.js";
 import { midiConfig } from "../../appConfig.js";
 import { SourceActions } from "../source/sourceActions.js";
 import { ConvolutionActions } from "../convolution/convolutionActions.js";
@@ -140,7 +145,7 @@ const COMMANDS = new Set([
     'system', 'startharmonic', 'stiffness', 'closedness', 'stretch', 'compress',
     'waveform', 'source', 'adcin', 'adcchannel', 'sfloop', 'sffund', 'sfrange',
     'subharmonic', 'play', 'reset', 'randomize',
-    'setdrawbarfundamental', 'gate', 'filter', 'res', 'drive', 'pan', 'conv', 'convir', 'irring',
+    'setdrawbarfundamental', 'gate', 'filter', 'res', 'ftype', 'drive', 'pan', 'conv', 'convir', 'irring',
     'pulsemidi', 'pulseosc', 'pulseoffset', 'midiclock',
     'seqshape', 'seqgain', 'seqfreq', 'seqres', 'seqwet', 'seqfb', 'seqstretch',
     'adsr', 'envmode', 'midiout'
@@ -465,6 +470,24 @@ export class OscClient {
                 }));
                 break;
             }
+            case 'ftype': {
+                // /twig/ftype/<n> [index|name] or /twig/ftype [n, v]; n = 0 → all.
+                // Lowpass | bandpass | highpass, by FILTER_TYPES index or
+                // by name — a Live param is an int, a patch message is
+                // often a word.
+                const [n, rest] = perVoiceArgs(sub, args);
+                if (n === null || rest[0] === undefined) break;
+                const raw = rest[0];
+                const type = typeof raw === 'number' || /^\d+$/.test(String(raw))
+                    ? FILTER_TYPES[Math.round(Number(raw))]
+                    : String(raw).toLowerCase();
+                if (!FILTER_TYPES.includes(type)) break;
+                this.forVoices(n, (i) => OvertoneSignalActions.setFilter(i, {
+                    ...OvertoneSignalActions.getFilter(i),
+                    type,
+                }));
+                break;
+            }
             case 'drive': {
                 // /twig/drive/<n> [0..5] or /twig/drive [n, v]; n = 0 → all
                 const [n, rest] = perVoiceArgs(sub, args);
@@ -728,6 +751,7 @@ export class OscClient {
                 const f = AppState.oscillatorFilters[index] || {};
                 this.emit(`filter/${n}`, [f.multiplier ?? 0]);
                 this.emit(`res/${n}`, [f.q ?? 0.707]);
+                this.emit(`ftype/${n}`, [Math.max(0, FILTER_TYPES.indexOf(f.type ?? DEFAULT_FILTER_TYPE))]);
             } else if (kind === 'drive') {
                 this.emit(`drive/${n}`, [OvertoneSignalActions.getDrive(index)]);
             } else if (kind === 'conv') {

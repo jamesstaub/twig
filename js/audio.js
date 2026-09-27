@@ -275,6 +275,7 @@ function createHarmonicVoice(i, ratio, gain, startAt = null) {
         filter: {
             cutoff: harmonicFilterCutoff(i, frequency),
             q: AppState.oscillatorFilters[i]?.q,
+            type: AppState.oscillatorFilters[i]?.type,
         },
         convolution: harmonicConvolutionPayload(i),
         pan: getVoicePan(i),
@@ -612,7 +613,7 @@ export function updateHarmonicDrive(index) {
 }
 
 /**
- * Apply the lowpass config for one harmonic to its running voice.
+ * Apply the filter config for one harmonic to its running voice.
  */
 export function updateHarmonicFilter(index) {
     const voice = audioEngine.voice(index);
@@ -622,6 +623,7 @@ export function updateHarmonicFilter(index) {
         filter: {
             cutoff: harmonicFilterCutoff(index, frequency),
             q: AppState.oscillatorFilters[index]?.q,
+            type: AppState.oscillatorFilters[index]?.type,
         },
     }, AppState.masterSlewValue);
     // The cutoff-CV curve is anchored on the filter's base step

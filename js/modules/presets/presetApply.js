@@ -226,7 +226,9 @@ function writeAudioFast(s, diff, ramp) {
         if (pitchChanged) params.frequency = frequency;
         if (changed.has('amplitude') || diff.masterGain) params.gain = v.amplitude * s.masterGain;
         if (pitchChanged || changed.has('filter')) {
-            params.filter = { cutoff: harmonicFilterCutoff(i, frequency), q: v.filter.q };
+            // The type is a snap, so it lands on the fast path too — a
+            // biquad's type is a plain assignment, not a ramped param
+            params.filter = { cutoff: harmonicFilterCutoff(i, frequency), q: v.filter.q, type: v.filter.type };
         }
         if (changed.has('drive')) params.drive = v.drive;
         if (changed.has('pan')) params.pan = v.pan;

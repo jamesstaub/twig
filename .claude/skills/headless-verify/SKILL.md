@@ -71,7 +71,15 @@ description: Verify twig changes end-to-end in a headless browser — screenshot
   convolution / adsr: `#drawbars-title` names the family; each column
   `.drawbar[data-index=N]` has the family's primary parameter on the bar
   (`.drawbar-value` readout) and the others as `.mini-dial`s under it
-  (labels in `.mini-dial-label`). When the panel is under 420px tall
+  (labels in `.mini-dial-label`). A family may add ONE choice stepper per
+  column: `.filter-type-stepper` (LP/BP/HP) and `.conv-ir-stepper`, whose
+  `.cycle-stepper-current` shows the value and cycles on click and whose
+  `.cycle-stepper-arrow`s step it (hidden under 40rem — the centre alone
+  is the control). A metaKey click on either writes every voice. Asserting
+  a filter TYPE on the engine needs a CUTOFF set too: an open filter is a
+  20 kHz lowpass bypass whatever the type, by design. Compare filter
+  shapes on a SINE — high-passing a rich wave keeps its upper harmonics
+  and can read louder by peak than the low-passed version. When the panel is under 420px tall
   (`page.setViewport` height ~520) the dials go and `#drawbars-tabs
   .drawbars-tab` (parameter tabs) appear (the embed band is always
   compact); the toolbar switches families on both shells.

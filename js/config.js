@@ -355,6 +355,11 @@ export const WAVETABLE_SIZE = 4096; // Standard size for a PeriodicWave table
 export const SOURCE_MODES = ['oscillators', 'adc', 'soundfile', 'pink', 'white'];
 // Sound-file playback: one shared player, or one per voice; order is the bridge index
 export const SOUNDFILE_MODES = ['mono', 'poly'];
+// Per-overtone filter shapes; order is the bridge index for /twig/ftype.
+// A voice's filter is bypassed while its cutoff is open, so the type is
+// what it becomes once a cutoff is set (js/dsp/engine/stages/filter.js).
+export const FILTER_TYPES = ['lowpass', 'bandpass', 'highpass'];
+export const DEFAULT_FILTER_TYPE = FILTER_TYPES[0];
 // Per-overtone lowpass resonance applied when an external source is
 // selected, turning the voice bank into a resonant filter bank
 export const FILTER_BANK_Q = 30;
@@ -439,10 +444,11 @@ export const AppState = {
     // nearer endpoint — what the picker, the bake and the bridge see.
     waveformMorph: null,
 
-    // Per-overtone cycle gates and lowpass filters, sparse objects keyed by
+    // Per-overtone cycle gates and filters, sparse objects keyed by
     // partial index. Gate: { mode: 0 off | 1 alternating | 2 euclidean |
     // 3 probability, x, y }. Filter: { multiplier (1-based partial index into
-    // the current system, applied to the voice's audible base; <= 0 open), q }.
+    // the current system, applied to the voice's audible base; <= 0 open), q,
+    // type (see FILTER_TYPES; the shape it takes once a cutoff is set) }.
     oscillatorGates: {},
     oscillatorFilters: {},
 

@@ -2,14 +2,12 @@ import { AppState } from "../../config.js";
 import { partialColor } from "../../theme.js";
 import BaseComponent from "../base/BaseComponent.js";
 import { getVoiceLevel, triggerHarmonicAttack, triggerHarmonicRelease } from "../../audio.js";
-import { OvertoneSignalActions } from "../overtoneSignal/overtoneSignalActions.js";
 import { FAMILIES, quantize } from "./drawbarParams.js";
 import { shapeMode } from "../shape/shapeMode.js";
 import { Dial } from "../generic/dial/Dial.js";
 import { cycleStepper } from "../generic/cycleStepper.js";
 import { voiceTargets } from "../generic/linkAll.js";
 import { openOvertoneMenu, closeOvertoneMenu, armLongPress, isTouchContextMenu } from "../generic/overtoneMenu.js";
-import { irManager } from "../../dsp/IRManager.js";
 
 const DRAWBAR_SLIDER_SELECTOR = ".drawbar-slider";
 
@@ -35,7 +33,7 @@ export class DrawbarsComponent extends BaseComponent {
         this.compact = false;
         this.sliders = [];
         this._dials = [];       // per column: { [param.key]: Dial }
-        this._irSteppers = [];
+        this._steppers = [];
         this._dots = [];
         this._dotLevels = [];
         this._meterRaf = null;
@@ -68,7 +66,7 @@ export class DrawbarsComponent extends BaseComponent {
         this.el.innerHTML = "";
         this.sliders = [];
         this._dials = [];
-        this._irSteppers = [];
+        this._steppers = [];
         this._dots = [];
 
         this.setupDrawbars();
@@ -320,7 +318,7 @@ export class DrawbarsComponent extends BaseComponent {
             const param = this.familyDef.params.find((p) => p.key === key);
             if (param) dial.setValue(param.get(index));
         }
-        this._irSteppers[index]?._refresh();
+        this._steppers[index]?._refresh();
         this.applyEnabled(index);
     }
 
@@ -416,8 +414,9 @@ export class DrawbarsComponent extends BaseComponent {
 
     /**
      * Below every column: the live amplitude dot, the ADSR trigger pad,
-     * the family's IR stepper (convolution), and — when the strip has the
-     * height — the family's other parameters as dials.
+     * the family's CHOICE stepper (the convolution's IR, the filter's
+     * type), and — when the strip has the height — the family's other
+     * parameters as dials.
      */
     createAux(index) {
         const aux = document.createElement("div");
@@ -432,25 +431,25 @@ export class DrawbarsComponent extends BaseComponent {
         // Always in the DOM; CSS shows it only under body.adsr-mode.
         aux.appendChild(this.createTriggerPad(index));
 
-        if (this.familyDef.irStepper) {
-            // ‹ IR n › stepper over the session IRs (buttons — native
-            // selects don't open inside jweb)
-            const irStepper = cycleStepper({
-                options: () => [null, ...irManager.list().map((ir) => ir.key)],
-                get: () => OvertoneSignalActions.getConvolution(index).ir,
-                set: (key, e) => {
-                    voiceTargets(index, e).forEach((i) => OvertoneSignalActions.setConvolution(i, { ir: key }));
-                    this._irSteppers.forEach((st) => st?._refresh());
+        // A family's per-column choice: not a range, so a dial can't hold
+        // it (buttons also being the only menu jweb can open). The family
+        // says what the options ARE — see `stepper` in drawbarParams.js;
+        // everything here is the same for any of them.
+        const choice = this.familyDef.stepper;
+        if (choice) {
+            const stepper = cycleStepper({
+                options: choice.options,
+                get: () => choice.get(index),
+                set: (value, e) => {
+                    voiceTargets(index, e).forEach((i) => choice.set(i, value));
+                    // A linked edit wrote every column: re-read them all
+                    this._steppers.forEach((st) => st?._refresh());
                 },
-                className: "conv-ir-stepper",
-                render: (el, key) => {
-                    const i = irManager.indexOf(key);
-                    el.textContent = i < 0 ? "—" : `IR${i + 1}`;
-                    el.title = i < 0 ? "no IR" : irManager.list()[i].name;
-                },
+                className: choice.className,
+                render: (el, value) => choice.render(el, value),
             });
-            this._irSteppers[index] = irStepper;
-            aux.appendChild(irStepper);
+            this._steppers[index] = stepper;
+            aux.appendChild(stepper);
         }
 
         const dialParams = this.dialParams;

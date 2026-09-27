@@ -491,6 +491,32 @@ body.adsr-mode .drawbar-trigger {
     border-color: var(--drawbar-color, var(--accent-primary));
 }
 
+/* The family's choice stepper (filter type, convolution IR) has to live
+   in a column that gives its width back down to a fingertip, so here it
+   is tighter than the generic one — otherwise ‹ LP › is wider than the
+   column and the arrows run into the neighbouring voice's. */
+.drawbar-aux .cycle-stepper {
+    gap: 1px;
+    max-width: 100%;
+}
+
+.drawbar-aux .cycle-stepper-current {
+    min-width: 0;
+    padding: 0 0.15rem;
+}
+
+.drawbar-aux .cycle-stepper-arrow {
+    padding: 0 0.1rem;
+}
+
+/* Narrower than the arrows need: the centre button cycles on click, so it
+   alone is the whole control (cycleStepper.js) */
+@media (max-width: 40rem) {
+    .drawbar-aux .cycle-stepper-arrow {
+        display: none;
+    }
+}
+
 /* The family's other parameters as dials under the bar (when the strip
    has the height — the compact strip offers them as tabs instead). Each
    Dial carries its own caption and readout; stacked, since side by side

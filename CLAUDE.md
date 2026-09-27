@@ -121,7 +121,7 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
   worklet — `stages/modulator.js` is the only file that knows its
   parameter names, output indices and port messages; outputs: audio +
   cutoff, Q, wet, feedback CVs summed into those AudioParams by `route()`)
-  → drive WaveShaper → lowpass biquad (→ meter tap) → convolution stage
+  → drive WaveShaper → filter biquad (→ meter tap) → convolution stage
   (dry/wet mix around a ConvolverNode with 0-1 send gain; feedback
   (−0.99..0.99, negative inverts each recirculation) is a delay line
   around the wet signal — Chrome won't process a signal reaching a
@@ -284,6 +284,18 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
     curve) goes over `port.postMessage`; numbers go as AudioParams. The
     app's names are translated to the worklet's in ModulatorStage, the
     one place that knows the protocol.
+- FILTER TYPE is per voice: lowpass (default), bandpass or highpass
+  (`FILTER_TYPES` in config.js — order is the bridge index), picked with a
+  cycle stepper in the filter column's aux row and bridged as
+  `/twig/ftype/<n>` (index or name; n = 0 → all). "Open" is a BYPASS, not
+  a wide-open filter of that type: a highpass parked at 20 kHz is silence
+  and a bandpass has no open state, so while the cutoff is open the biquad
+  is a 20 kHz lowpass whatever is selected, and the selection takes effect
+  as soon as a cutoff does (`FilterStage`; 20 kHz is the app's "open"
+  everywhere, and `harmonicFilterCutoff` clamps to it, so the stage reads
+  that value as the bypass). The type is remembered either way, so it can
+  be chosen before the cutoff is raised. Switching type is a plain
+  assignment and measured click-free — the biquad's state carries over.
 - Filter cutoffs are series-relative, not absolute Hz: the multiplier is a
   1-based partial index into the current system's ratio table applied to the
   voice's audible base (lowest integer multiple of its pitch clearing 20 Hz)
@@ -412,8 +424,12 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
   get(i), set(i, v), format(i, v) }` writing through the actions layer
   (`set` writes the STORED parameter, never a derived output, so linked and
   shaped writes copy positions across voices); families also carry
-  `reset`/`randomize` (the overtone toolbar's buttons) and, for convolution,
-  the per-column IR stepper + `enabled(i)` (no IR = bypassed column).
+  `reset`/`randomize` (the overtone toolbar's buttons), an optional
+  `stepper` — the column's CHOICE control, which a dial cannot hold: the
+  filter's type, the convolution's IR (`{ options, get, set, render,
+  className }`, one per family; the component owns link-all and refreshing
+  every column, so the family only says what the options ARE) — and, for
+  convolution, `enabled(i)` (no IR = bypassed column).
   `DrawbarsComponent` shows `params[paramIndex]` on the bars and the rest
   as dials under each bar (`.drawbar-aux-dials`) — unless `compact`
   (`DrawbarsController.syncCompact`, a ResizeObserver: panel height <

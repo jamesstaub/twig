@@ -25,7 +25,7 @@
 
 import {
     AppState,
-    COMPRESS_A_MAX, COMPRESS_A_MIN, DEFAULT_COMPRESS_A, DEFAULT_FUNDAMENTAL, DEFAULT_MASTER_GAIN,
+    COMPRESS_A_MAX, COMPRESS_A_MIN, DEFAULT_COMPRESS_A, DEFAULT_FILTER_TYPE, DEFAULT_FUNDAMENTAL, DEFAULT_MASTER_GAIN,
     DEFAULT_MASTER_SLEW, DEFAULT_STIFFNESS_B, DEFAULT_STRETCH_A, DEFAULT_TUBE_CLOSEDNESS, ENVELOPE_DEFAULTS,
     IR_RING_MAX_SECONDS, spectralSystems, START_HARMONIC_MAX, STIFFNESS_B_MAX,
     STRETCH_A_MAX, STRETCH_A_MIN,
@@ -49,6 +49,8 @@ const VOICE_SPEC = {
     filter: {
         multiplier: num(0, MAX_FILTER_PARTIALS, 'integer'),
         q: num(0.0001, Q_MAX, 'linear', 0.707),
+        // A shape, not a quantity: A below the midpoint, B from it
+        type: snap(DEFAULT_FILTER_TYPE),
     },
     convolution: {
         wet: num(0, 1),
@@ -131,7 +133,11 @@ export function capture() {
             amplitude: s.harmonicAmplitudes[i] || 0,
             pan: s.oscillatorPans?.[i] || 0,
             drive: s.oscillatorDrives[i] || 0,
-            filter: { multiplier: s.oscillatorFilters[i]?.multiplier || 0, q: s.oscillatorFilters[i]?.q ?? 0.707 },
+            filter: {
+                multiplier: s.oscillatorFilters[i]?.multiplier || 0,
+                q: s.oscillatorFilters[i]?.q ?? 0.707,
+                type: s.oscillatorFilters[i]?.type ?? DEFAULT_FILTER_TYPE,
+            },
             convolution: { wet: 0, feedback: 0, gain: 1, tune: 0, ir: null, ...s.oscillatorConvolutions[i] },
             envelope: { ...ENVELOPE_DEFAULTS, ...s.oscillatorEnvelopes[i] },
             gate: { mode: gate.mode ?? 0, x: gate.x ?? 1, y: gate.y ?? 1, seq: [...(gate.seq || [])] },

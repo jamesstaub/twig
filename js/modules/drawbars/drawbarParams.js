@@ -1,6 +1,7 @@
-import { AppState, seriesStepAt } from '../../config.js';
+import { AppState, DEFAULT_FILTER_TYPE, FILTER_TYPES, seriesStepAt } from '../../config.js';
 import { getVoicePan, calculateFrequency, formatHz } from '../../utils.js';
 import { MAX_FILTER_PARTIALS, partialFrequency } from '../../audio.js';
+import { irManager } from '../../dsp/IRManager.js';
 import { DrawbarsActions } from './drawbarsActions.js';
 import {
     OvertoneSignalActions, Q_MAX, DRIVE_MAX, CONV_FEEDBACK_MAX, ENV_TIME_MAX,
@@ -68,6 +69,9 @@ const cutoff = {
         return `${partialLabel(step)}\n${formatHz(partialFrequency(voiceHz, step))}`;
     },
 };
+
+/** Three characters is what a column's width affords under the bar. */
+const FILTER_TYPE_LABELS = { lowpass: 'LP', bandpass: 'BP', highpass: 'HP' };
 
 const resonance = {
     key: 'resonance', label: 'res', min: 0.1, max: Q_MAX, step: 0.05, color: '--accent-negative',
@@ -137,15 +141,39 @@ export const FAMILIES = {
     filter: {
         label: 'Filter',
         params: [cutoff, resonance, overdrive],
+        // Per-column filter shape. It stays live while the cutoff is open
+        // (the column reads "open" and the engine bypasses): picking the
+        // shape before sweeping the cutoff up is the natural order, and a
+        // disabled control there would only be in the way.
+        stepper: {
+            className: 'filter-type-stepper',
+            options: () => FILTER_TYPES,
+            get: (i) => OvertoneSignalActions.getFilter(i).type,
+            set: (i, type) => OvertoneSignalActions.setFilter(i, { ...OvertoneSignalActions.getFilter(i), type }),
+            render: (el, type) => {
+                el.textContent = FILTER_TYPE_LABELS[type] || FILTER_TYPE_LABELS[DEFAULT_FILTER_TYPE];
+                el.title = `${type} — the shape this voice's filter takes once its cutoff is set`;
+            },
+        },
         reset: () => OvertoneSignalActions.resetFilters(),
         randomize: () => OvertoneSignalActions.randomizeFilters(),
     },
     convolution: {
         label: 'Convolution',
         params: [wet, feedback, convGain, tune],
-        // Per-column IR picker in the aux row; a column without an IR is
-        // bypassed by the engine, so its controls read as inert
-        irStepper: true,
+        // Per-column IR picker; a column without an IR is bypassed by the
+        // engine, so its controls read as inert
+        stepper: {
+            className: 'conv-ir-stepper',
+            options: () => [null, ...irManager.list().map((ir) => ir.key)],
+            get: (i) => OvertoneSignalActions.getConvolution(i).ir,
+            set: (i, ir) => OvertoneSignalActions.setConvolution(i, { ir }),
+            render: (el, key) => {
+                const i = irManager.indexOf(key);
+                el.textContent = i < 0 ? '—' : `IR${i + 1}`;
+                el.title = i < 0 ? 'no IR' : irManager.list()[i].name;
+            },
+        },
         enabled: (i) => Boolean(OvertoneSignalActions.getConvolution(i).ir),
         reset: () => OvertoneSignalActions.resetConvolutions(),
         randomize: () => OvertoneSignalActions.randomizeConvolutions(),

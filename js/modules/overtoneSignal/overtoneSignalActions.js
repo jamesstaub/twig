@@ -1,4 +1,4 @@
-import { AppState, ENVELOPE_DEFAULTS } from "../../config.js";
+import { AppState, DEFAULT_FILTER_TYPE, ENVELOPE_DEFAULTS, FILTER_TYPES } from "../../config.js";
 import { midiConfig } from "../../appConfig.js";
 import { updateHarmonicGate, updateHarmonicFilter, updateHarmonicDrive, updateHarmonicConvolution, updateHarmonicPan, updateHarmonicPulse, updateHarmonicSequencer, updateAllHarmonicEnvelopeModes, MAX_FILTER_PARTIALS } from "../../audio.js";
 import { getVoicePan } from "../../utils.js";
@@ -7,7 +7,7 @@ import { PATTERNS } from "../../dsp/gate/patterns.js";
 import { OVERTONE_SIGNAL_CHANGED, ENVELOPE_MODE_CHANGED } from "../../events.js";
 
 /**
- * Per-overtone signal-chain state (cycle gate, lowpass, pan).
+ * Per-overtone signal-chain state (cycle gate, filter, pan).
  * Single write path shared by the modal UI; the OSC client listens for
  * OVERTONE_SIGNAL_CHANGED to sync Live params upstream. (Inbound OSC writes
  * state directly and does not emit this event, so there is no echo.)
@@ -36,7 +36,7 @@ export const OvertoneSignalActions = {
     },
 
     getFilter(index) {
-        return { multiplier: 0, q: 0.707, ...AppState.oscillatorFilters[index] };
+        return { multiplier: 0, q: 0.707, type: DEFAULT_FILTER_TYPE, ...AppState.oscillatorFilters[index] };
     },
 
     getPan(index) {
@@ -49,8 +49,17 @@ export const OvertoneSignalActions = {
         this._changed(index, 'gate');
     },
 
+    /**
+     * The whole filter config for one voice — callers spread the current
+     * one and change a field. The type is validated here rather than at
+     * each caller, because it also arrives from the bridge and from pasted
+     * preset JSON.
+     */
     setFilter(index, filter) {
-        AppState.oscillatorFilters[index] = filter;
+        AppState.oscillatorFilters[index] = {
+            ...filter,
+            type: FILTER_TYPES.includes(filter.type) ? filter.type : DEFAULT_FILTER_TYPE,
+        };
         updateHarmonicFilter(index);
         this._changed(index, 'filter');
     },
@@ -217,7 +226,7 @@ export const OvertoneSignalActions = {
     /** Filters to neutral: open (multiplier 0), default resonance, no drive. */
     resetFilters() {
         for (let i = 0; i < this._voiceCount(); i++) {
-            this.setFilter(i, { multiplier: 0, q: 0.707 });
+            this.setFilter(i, { multiplier: 0, q: 0.707, type: DEFAULT_FILTER_TYPE });
             this.setDrive(i, 0);
         }
     },
