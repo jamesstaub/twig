@@ -67,12 +67,16 @@ export const midiConfig = {
  * channel per overtone); midiMode: single (one track/channel) | multi
  * (a track + channel per overtone); tempoMode: fixed | map (see
  * midiFile.js); lengthMode: manual | loop (see recordingActions).
+ * videoEnabled films the tonewheel alongside the take, at videoSize
+ * (small | medium | large — see VIDEO_SIZES in recording/videoCapture.js).
  */
 export const recorderConfig = {
     audioMode: 'stereo',
     midiMode: 'single',
     tempoMode: 'fixed',
     lengthMode: 'manual',
+    videoEnabled: false,
+    videoSize: 'medium',
 };
 
 /**

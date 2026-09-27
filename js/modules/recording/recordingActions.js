@@ -3,9 +3,9 @@
  *
  * Composes the browser-facing pieces (AudioRecorder, RecordingPlayer,
  * MidiPlayback, downloads) with the pure ones (MidiCapture log → MIDI
- * document → SMF bytes; WAV bytes) and owns the recorder's state in
- * AppState.recorder. Every state change dispatches RECORDER_CHANGED;
- * the take list dispatches RECORDINGS_CHANGED.
+ * document → SMF bytes; WAV bytes; the tonewheel film) and owns the
+ * recorder's state in AppState.recorder. Every state change dispatches
+ * RECORDER_CHANGED; the take list dispatches RECORDINGS_CHANGED.
  *
  * Alignment contract: the audio take's sample 0 and the MIDI document's
  * time 0 are the same instant on the AudioContext clock — the take starts
@@ -36,11 +36,13 @@ import { MidiCapture } from './midiCapture.js';
 import { buildMidiDocument } from './midiDocument.js';
 import { midiPlayback } from './midiPlayback.js';
 import { recordingStore } from './RecordingStore.js';
+import { tonewheelFilm, TonewheelFilm, VIDEO_SIZES } from './videoCapture.js';
 
 export const AUDIO_MODES = ['mono', 'stereo', 'multitrack'];
 export const MIDI_MODES = ['single', 'multi'];
 export const TEMPO_MODES = ['fixed', 'map'];
 export const LENGTH_MODES = ['manual', 'loop'];
+export const VIDEO_SIZE_MODES = Object.keys(VIDEO_SIZES);
 
 // Arming waits this long for a clock beat before starting unaligned
 const ARM_TIMEOUT_MS = 3000;
@@ -133,10 +135,14 @@ function fileStamp(date) {
 }
 
 /** Store a finished take (manual stop or a sync loop's auto end). */
-function finalizeTake(take) {
+async function finalizeTake(take) {
     const log = capture.stop();
+    // The film may already have ended itself at a scheduled end time; stop()
+    // is idempotent and resolves with whatever it captured
+    const film = tonewheelFilm.stop();
     recorder = null;
     setRecorder({ status: 'idle' });
+    const video = await film;
     if (!take || take.duration <= 0) return;
 
     const number = recordingStore.nextNumber();
@@ -149,11 +155,27 @@ function finalizeTake(take) {
         audio: { sampleRate: take.sampleRate, channels: take.channels },
         voiceFrequencies: takeFrequencies.slice(0, take.channels.length),
         midi,
+        video,
         duration: take.duration,
     });
     document.dispatchEvent(new CustomEvent(RECORDINGS_CHANGED, { detail: { key } }));
     RecordingActions.select(key);
-    showStatus(`Recorded ${formatDuration(take.duration)} — ${take.channels.length} ch audio, ${midi.tracks.reduce((n, t) => n + t.notes.length, 0)} MIDI notes`, 'success');
+    showStatus(`Recorded ${formatDuration(take.duration)} — ${take.channels.length} ch audio, ` +
+        `${midi.tracks.reduce((n, t) => n + t.notes.length, 0)} MIDI notes` +
+        (video ? `, ${VIDEO_SIZES[recorderConfig.videoSize]}px .${video.extension}` : ''), 'success');
+}
+
+/**
+ * Film the tonewheel over the take's own capture window, when the setting
+ * asks for it. A runtime without MediaRecorder still records audio + MIDI.
+ */
+function startFilm(span) {
+    if (!recorderConfig.videoEnabled) return;
+    if (!TonewheelFilm.available()) {
+        showStatus('This browser cannot record video — audio and MIDI only', 'warning');
+        return;
+    }
+    tonewheelFilm.start({ pixels: VIDEO_SIZES[recorderConfig.videoSize] ?? VIDEO_SIZES.medium, ...span });
 }
 
 function selectedRecording() {
@@ -234,6 +256,15 @@ export const RecordingActions = {
         if (LENGTH_MODES.includes(mode)) setConfig({ lengthMode: mode });
     },
 
+    /** Film the tonewheel alongside the next take. */
+    setVideoEnabled(on) {
+        setConfig({ videoEnabled: Boolean(on) });
+    },
+
+    setVideoSize(size) {
+        if (VIDEO_SIZE_MODES.includes(size)) setConfig({ videoSize: size });
+    },
+
     /** Record button: idle → arm/start; armed or recording → stop. */
     async toggleRecord() {
         if (AppState.recorder.status === 'idle') await this.startRecording();
@@ -261,6 +292,7 @@ export const RecordingActions = {
             // Stem identity: each overtone's frequency as the take begins
             // (it may glide later — the name records where it started)
             takeFrequencies = AppState.currentSystem.ratios.map((r) => calculateFrequency(r));
+            startFilm({ atTime });
             recorder.start({ ...taps, atTime }).then((startTime) => {
                 takeStart = startTime;
                 if (AppState.recorder.status === 'armed') setRecorder({ status: 'recording' });
@@ -327,6 +359,7 @@ export const RecordingActions = {
             endTime = atTime + plan.duration;
             showStatus(`Sync loop: ${plan.duration.toFixed(3)} s (${plan.periods} × fundamental period)`, 'info');
         }
+        startFilm({ atTime, endTime });
         active.start({ ...taps, atTime, endTime }).then((startTime) => {
             takeStart = startTime;
             if (recorder === active && AppState.recorder.status === 'armed') setRecorder({ status: 'recording' });
@@ -417,25 +450,51 @@ export const RecordingActions = {
         WAVExporter.downloadFile(bytes, `${recording.base}.wav`, 'audio/wav');
     },
 
+    /** The take's animation on its own (mp4 where the browser writes one). */
+    downloadVideo() {
+        const { video, base } = selectedRecording() || {};
+        if (!video) return;
+        WAVExporter.downloadFile(video.blob, `${base}.${video.extension}`, video.mimeType);
+    },
+
     /**
-     * Multitrack takes only: a .zip of one mono 32-bit-float .wav per
-     * overtone, each named by the voice's frequency at recording start.
+     * The whole take as one .zip: its audio (one mono 32-bit-float .wav per
+     * overtone for a multitrack take, each named by the voice's frequency at
+     * recording start — otherwise the single master .wav), the .mid, and the
+     * animation when one was filmed. Everything shares the take's file stem
+     * so the bundle drops into a DAW whole.
      */
-    downloadStems() {
+    async downloadBundle() {
         const recording = selectedRecording();
-        if (!recording || recording.audioMode !== 'multitrack') return;
-        const names = stemNames(recording.voiceFrequencies || [], recording.audio.channels.length);
-        const gain = stemExportGain(recording.audio.channels);
-        const entries = recording.audio.channels.map((channel, i) => ({
-            name: `${recording.base}/${names[i]}`,
-            data: new Uint8Array(WAVExporter.createWAVBufferMulti([channel], recording.audio.sampleRate, { float: true, gain })),
-        }));
-        // The matching MIDI rides along so the bundle drops into a DAW whole
+        if (!recording) return;
+        const { base, audio } = recording;
+        const entries = [];
+        if (recording.audioMode === 'multitrack') {
+            const names = stemNames(recording.voiceFrequencies || [], audio.channels.length);
+            const gain = stemExportGain(audio.channels);
+            for (const [i, channel] of audio.channels.entries()) {
+                entries.push({
+                    name: `${base}/${names[i]}`,
+                    data: new Uint8Array(WAVExporter.createWAVBufferMulti([channel], audio.sampleRate, { float: true, gain })),
+                });
+            }
+        } else {
+            entries.push({
+                name: `${base}/${base}.wav`,
+                data: new Uint8Array(WAVExporter.createWAVBufferMulti(audio.channels, audio.sampleRate, { float: true })),
+            });
+        }
         entries.push({
-            name: `${recording.base}/${recording.base}.mid`,
+            name: `${base}/${base}.mid`,
             data: encodeMidiFile(recording.midi, { fixedTempo: recorderConfig.tempoMode === 'fixed' }),
         });
-        WAVExporter.downloadFile(buildZip(entries, new Date()), `${recording.base}-stems.zip`, 'application/zip');
+        if (recording.video) {
+            entries.push({
+                name: `${base}/${base}.${recording.video.extension}`,
+                data: new Uint8Array(await recording.video.blob.arrayBuffer()),
+            });
+        }
+        WAVExporter.downloadFile(buildZip(entries, new Date()), `${base}.zip`, 'application/zip');
     },
 
     downloadMidi() {

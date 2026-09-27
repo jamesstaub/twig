@@ -12,10 +12,14 @@ export class RecorderController extends BaseController {
 
     getProps() {
         const { status, transport, selected } = AppState.recorder;
+        const recording = recordingStore.get(selected);
         return {
             status, transport, selected,
             recordings: recordingStore.list(),
-            stemsAvailable: recordingStore.get(selected)?.audioMode === 'multitrack',
+            stemsAvailable: recording?.audioMode === 'multitrack',
+            // null = this take has no animation (the menu then names .mp4
+            // for the disabled item)
+            videoExtension: recording?.video?.extension ?? null,
         };
     }
 
@@ -32,7 +36,8 @@ export class RecorderController extends BaseController {
         c.onDownload = (kind) => {
             if (kind === 'wav') RecordingActions.downloadWav();
             else if (kind === 'mid') RecordingActions.downloadMidi();
-            else RecordingActions.downloadStems();
+            else if (kind === 'video') RecordingActions.downloadVideo();
+            else RecordingActions.downloadBundle();
         };
     }
 

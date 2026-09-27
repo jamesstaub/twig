@@ -830,15 +830,18 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
   the length to the intrinsic ~129px). Either failure looks the same:
   the focus ring covering less than the drawn groove.
 
-## Performance recording (audio + MIDI)
+## Performance recording (audio + MIDI + animation)
 
 - Navbar strip (`js/modules/recording/`): ● record, ⚙ settings (audio
   mono/stereo/multitrack = one mono channel per overtone; MIDI single
   channel/track vs a track + channel per overtone), take menu with
-  steppers, ▶/❚❚, ⏮, wav/mid downloads — plus zip for multitrack takes:
-  the stems as one mono float .wav per overtone, named by each voice's
-  frequency at recording start, packed by the pure store-only writer
-  `js/dsp/zipStore.js`. Stem exports (zip and the multichannel .wav) are
+  steppers, ▶/❚❚, ⏮, wav/mid/mp4 downloads and a BUNDLE zip — everything
+  the take has, in one archive: its audio (the stems for a multitrack
+  take, one mono float .wav per overtone named by each voice's frequency
+  at recording start — otherwise the single master .wav), the .mid and
+  the animation, packed by the pure store-only writer
+  `js/dsp/zipStore.js`. The bundle is offered whenever there is more than
+  the plain .wav/.mid pair to gather (stems, or a film). Stem exports (zip and the multichannel .wav) are
   normalized by ONE common gain when the take's global peak exceeds full
   scale — stems are pre-master, and a resonant filter bank runs 20-30 dB
   hot; unnormalized float overs play back clipped in DAWs (a clipped
@@ -854,12 +857,37 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
   harmonics reach minutes). No reachable T within 5 min → open-ended
   take from the phase-aligned restart. Exact for rational systems;
   snapped-P residue is the audible seam for irrational ones. Gates and
-  sequencers keep running but their pattern periods are not folded into P. One .wav + one .mid per take, sharing a file
-  stem. Browser-session only — not bridged to Max.
+  sequencers keep running but their pattern periods are not folded into P. One .wav + one .mid (+ one .mp4) per take,
+  sharing a file stem. Browser-session only — not bridged to Max.
+- RECORD ANIMATION (Settings › Recording; `recorderConfig.videoEnabled` /
+  `videoSize`, localStorage like the other recorder modes, never bridged):
+  films the TONEWHEEL over the take. `js/dsp/VideoRecorder.js` is the
+  browser layer — a canvas stream plus an audio track tapped off
+  `master.limiter`, muxed by ONE MediaRecorder, so picture and sound in
+  the file are in sync by construction (mp4/h264 where the runtime writes
+  one, webm otherwise; `extension` says which, and an empty blob — a
+  window too short for a frame, e.g. a 7 ms sync loop — stores as no
+  video). `captureStream()` is called with NO fps: the visualizations
+  animate by FRAME COUNT, so a capture rate below the draw rate would play
+  their motion back slowed down. `modules/recording/videoCapture.js` is
+  the app layer: it schedules start and stop from the same audio-clock
+  times the audio recorder arms with (so a sync loop's film covers its
+  loop, within timer accuracy — measured ~60 ms of head against the .wav,
+  which also carries the master chain's 12 ms the .wav trims), and its
+  `stop()` is idempotent AND KEEPS its result, since a self-ending film
+  resolves before the recorder's finalize asks for it.
+  RESOLUTION is not the on-screen wheel's: `TonewheelActions.
+  createFilmSketch(pixels)` builds a SECOND tonewheel in an off-screen
+  box, drawn in a fixed 360 CSS-pixel space with `Sketch`'s `pixelRatio`
+  override carrying it to 480/960/1920 square — same drawing, same line
+  weights, more pixels; the visible wheel is untouched and keeps
+  animating. Off screen and rAF-driven, a hidden tab throttles the film
+  exactly as it throttles the wheel.
 - Layers, bottom-up: pure codecs (`js/dsp/midiFile.js` SMF format-1
   writer + tempo-map math; `WAVExporter` with 32-bit float) → browser
   capture/playback with no app knowledge (`js/dsp/AudioRecorder.js` +
-  unbundled `worklets/recorder-processor.js`; `js/dsp/RecordingPlayer.js`)
+  unbundled `worklets/recorder-processor.js`; `js/dsp/RecordingPlayer.js`;
+  `js/dsp/VideoRecorder.js`)
   → app logic (`midiCapture.js` pulse-bus sink, `midiDocument.js` pure
   log→document, `midiPlayback.js` look-ahead scheduler, `RecordingStore`,
   `recordingActions.js` owning `AppState.recorder`) → UI. Keep it that

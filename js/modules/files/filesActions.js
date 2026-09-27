@@ -92,9 +92,11 @@ export async function libraryEntries() {
                 id: key,
                 kind: 'recording',
                 name: take.name,
-                bytes: take.audio.channels.reduce((sum, channel) => sum + channel.length * 4, 0),
+                bytes: take.audio.channels.reduce((sum, channel) => sum + channel.length * 4, 0) +
+                    (take.video?.blob.size ?? 0),
                 savedAt: null,
-                detail: `${take.audio.channels.length} ch · ${formatSeconds(take.duration)}`,
+                detail: `${take.audio.channels.length} ch · ${formatSeconds(take.duration)}` +
+                    (take.video ? ` · .${take.video.extension}` : ''),
                 inUse: AppState.recorder.selected === key,
             };
         }),

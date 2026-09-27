@@ -11,6 +11,15 @@ const baseRadiusRatio = 0.08;
 /** The running tonewheel sketch (one per page). */
 let sketch = null;
 
+/**
+ * The CSS-pixel box a filmed tonewheel is drawn in. Its resolution comes
+ * from the sketch's pixel ratio, so this is only the drawing SCALE: line
+ * weights and the hub read in the video exactly as they do on a tonewheel
+ * this many pixels wide, whatever the export resolution and however small
+ * the on-screen wheel currently is.
+ */
+const FILM_LOGICAL_SIZE = 360;
+
 export const TonewheelActions = {
     /** Build the tonewheel sketch inside #tonewheel-canvas and start it. */
     initVisualization() {
@@ -23,6 +32,35 @@ export const TonewheelActions = {
             fallbackSize: window.innerWidth < 640 ? 320 : 800,
         });
         return sketch;
+    },
+
+    /**
+     * A SECOND tonewheel for video export: the same drawing, off screen,
+     * with a backing store of `pixels` square. It runs its own frame loop
+     * (so it advances its rotation exactly as the visible one does) and is
+     * never the page's sketch — the on-screen wheel keeps animating.
+     * @param {number} pixels - Square export resolution
+     * @returns {{canvas: HTMLCanvasElement, dispose: function}}
+     */
+    createFilmSketch(pixels) {
+        const box = document.createElement('div');
+        // Laid out (so the sketch can measure it) but out of sight and out
+        // of the way; it is never painted, only read as a bitmap
+        box.style.cssText = `position:fixed;left:-20000px;top:0;` +
+            `width:${FILM_LOGICAL_SIZE}px;height:${FILM_LOGICAL_SIZE}px;pointer-events:none;`;
+        document.body.appendChild(box);
+        const film = new Sketch(box, {
+            draw: drawTonewheel,
+            fit: FIT.SQUARE,
+            pixelRatio: pixels / FILM_LOGICAL_SIZE,
+        });
+        return {
+            canvas: film.canvas,
+            dispose() {
+                film.destroy();
+                box.remove();
+            },
+        };
     },
 
     setVisualizationFrequency(freq) {

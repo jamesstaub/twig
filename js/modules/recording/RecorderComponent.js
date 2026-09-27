@@ -20,7 +20,7 @@ const ICONS = {
  * play/pause, reset, and a download button opening a download menu (custom
  * DOM, not <select>, for the same jweb reason). Pure DOM; callbacks are set by
  * the controller: onRecord, onConfig, onSelect(key), onSelectStep(±1),
- * onTogglePlay, onReset, onDownload('wav'|'mid'|'zip').
+ * onTogglePlay, onReset, onDownload('wav'|'mid'|'video'|'zip').
  */
 export class RecorderComponent extends BaseComponent {
 
@@ -31,7 +31,7 @@ export class RecorderComponent extends BaseComponent {
         this.expanded = false;
     }
 
-    render({ status, transport, recordings, selected, stemsAvailable } = {}) {
+    render({ status, transport, recordings, selected, stemsAvailable, videoExtension } = {}) {
         this.el.innerHTML = '';
         this.el.classList.toggle('rec-expanded', this.expanded);
         const has = Boolean(selected);
@@ -60,26 +60,33 @@ export class RecorderComponent extends BaseComponent {
             this.button('action-btn rec-icon-btn', ICONS.reset, 'reset', 'Reset to start', !has),
             this.button('action-btn rec-icon-btn rec-download-btn', ICONS.download, 'download', 'Download take…', !has),
         );
-        this.el.appendChild(this.downloadMenu(has, stemsAvailable));
+        this.el.appendChild(this.downloadMenu(has, stemsAvailable, videoExtension));
     }
 
-    /** The download button's menu: one item per export format. */
-    downloadMenu(has, stemsAvailable) {
+    /**
+     * The download button's menu: one item per export format. The bundle
+     * holds everything the take has — it is offered whenever there is more
+     * than the plain .wav/.mid pair to gather (stems, or an animation).
+     */
+    downloadMenu(has, stemsAvailable, videoExtension) {
         const menu = document.createElement('div');
         menu.className = 'rec-menu hidden';
         const items = [
-            ['wav', 'audio (.wav)', has],
-            ['mid', 'MIDI (.mid)', has],
-            ['zip', 'stems + MIDI (.zip)', has && stemsAvailable],
+            ['wav', 'audio (.wav)', has, null],
+            ['mid', 'MIDI (.mid)', has, null],
+            ['video', `animation (.${videoExtension || 'mp4'})`, has && Boolean(videoExtension),
+                'record with Record Animation on'],
+            ['zip', 'bundle (.zip)', has && (stemsAvailable || Boolean(videoExtension)),
+                'multitrack or filmed takes only'],
         ];
-        for (const [kind, label, enabled] of items) {
+        for (const [kind, label, enabled, why] of items) {
             const item = document.createElement('button');
             item.type = 'button';
             item.className = 'rec-menu-item';
             item.dataset.kind = kind;
             item.textContent = label;
             item.disabled = !enabled;
-            if (kind === 'zip' && !stemsAvailable) item.title = 'multitrack takes only';
+            if (!enabled && why) item.title = why;
             menu.appendChild(item);
         }
         return menu;

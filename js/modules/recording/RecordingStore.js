@@ -4,10 +4,13 @@
  * Each recording pairs one audio take with one MIDI document on the same
  * timeline (sample 0 of the audio = time 0 of the MIDI):
  *
- *   { key, name, base, audioMode, audio: { sampleRate, channels }, midi: document, duration }
+ *   { key, name, base, audioMode, audio: { sampleRate, channels }, midi: document,
+ *     video: { blob, mimeType, extension }|null, duration }
  *
- * `base` is the shared file stem for the .wav/.mid pair. Plain data — no
- * Web Audio objects — so a port to another runtime keeps the shape.
+ * `base` is the shared file stem for the .wav/.mid (and .mp4) set.
+ * `video` is the tonewheel film, when the take was recorded with one.
+ * Plain data — no Web Audio objects — so a port to another runtime keeps
+ * the shape.
  */
 export class RecordingStore {
 

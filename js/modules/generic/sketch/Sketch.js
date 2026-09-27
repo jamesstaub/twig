@@ -38,13 +38,17 @@ export class Sketch {
      * @param {string} [opts.fit=FIT.BOX] - See FIT
      * @param {boolean} [opts.loop=true] - Animate; false draws only on redraw()
      * @param {number} [opts.fallbackSize=0] - Size to use while the container measures 0
+     * @param {number} [opts.pixelRatio=0] - Backing-store scale instead of
+     *   the screen's devicePixelRatio (video export renders the same
+     *   drawing, in the same CSS-pixel space, at a chosen resolution)
      */
-    constructor(container, { draw, fit = FIT.BOX, loop = true, fallbackSize = 0 }) {
+    constructor(container, { draw, fit = FIT.BOX, loop = true, fallbackSize = 0, pixelRatio = 0 }) {
         this.container = container;
         this.drawFrame = draw;
         this.fit = fit;
         this.looping = loop;
         this.fallbackSize = fallbackSize;
+        this.pixelRatio = pixelRatio;
         /** Frames drawn — the animations count their rotation in these. */
         this.frameCount = 0;
         this.width = 0;
@@ -78,7 +82,7 @@ export class Sketch {
     resize() {
         const box = this.measure();
         if (box.width <= 0 || box.height <= 0) return;
-        const dpr = window.devicePixelRatio || 1;
+        const dpr = this.pixelRatio || window.devicePixelRatio || 1;
         const changed = box.width !== this.width || box.height !== this.height || dpr !== this._dpr;
         this.width = box.width;
         this.height = box.height;
