@@ -101,7 +101,9 @@ description: Verify twig changes end-to-end in a headless browser — screenshot
   mode in `.inspector-gate-mode select`, its fields as dials in
   `.inspector-gate-params .mini-dial`), the ‹ Sequence N › stepper
   `#sequence-voice .inspector-step` in the panel's header (which is the
-  panel's only title; the viz panels carry no `<label>` heading either),
+  panel's only title; the viz panels carry no `<label>` heading either,
+  and `#sequence-voice .amp-dot` is the selected voice's live level — read
+  its computed `opacity` over ~1s and take the PEAK, since it decays),
   the drawn
   sequence in the side column (`#sequence-canvas-area canvas` — hash its
   pixels to assert a redraw; count pixels near a `--mod-*` token's color

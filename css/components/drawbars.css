@@ -455,14 +455,6 @@
     min-height: 3.4rem;
 }
 
-.drawbar-amp {
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    background: var(--accent-negative);
-    opacity: 0.12;
-}
-
 /* ADSR trigger pad under each column — only shown in ADSR mode
    (body.adsr-mode, set by the navbar Open/ADSR toggle) */
 .drawbar-trigger {

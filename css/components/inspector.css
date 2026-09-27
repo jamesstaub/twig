@@ -30,6 +30,22 @@
     line-height: 1.15;
 }
 
+/* The dot and the voice's name on one line, above the detail line. The
+   pair centres together, since the title box is a fixed width that the
+   name is centred in (.sequence-voice .inspector-title).
+
+   The CHILD selector is load-bearing: layout.css restyles every span in a
+   .labeled-control panel as `display:flex; justify-content:space-between`,
+   and the Sequence panel is one — as a bare class this rule loses and the
+   dot is flung to the far end of the row. */
+.inspector-title > .inspector-title-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 0;
+    margin: 0;
+}
+
 .inspector-title-voice {
     font-size: var(--font-size-base);
     font-weight: var(--font-weight-bold);

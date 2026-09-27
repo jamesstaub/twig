@@ -534,7 +534,12 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
   probability 0–100%); entering a mode loads its defaults, because x/y
   mean different things per mode, and `Dial`'s `resetValue` makes
   double-click return there. Mode 4 keeps the 0/1 pattern text field.
-  `inspectorState` (UI-only: the selected voice index,
+  The title carries an AMP DOT before the voice's name
+  (`generic/ampDot.js`, shared with the drawbar strip's per-column dots):
+  the bars are not on screen from here, so this is what says whether the
+  voice being sequenced is making any sound. Its frame loop lives and dies
+  with the render, and the panel only renders while the Sequence surface
+  shows. `inspectorState` (UI-only: the selected voice index,
   `INSPECTOR_CHANGED`) is the model; while link or shape is in effect
   (lock or held key) the title reads "All voices" (`setScope`, updated IN
   PLACE on `LINK_ALL_CHANGED` / `SHAPE_MODE_CHANGED` — shift can go down

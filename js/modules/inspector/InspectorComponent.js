@@ -6,11 +6,12 @@ import { midiOutputRouter } from '../midi/midiOutputRouter.js';
 import { noteForVoice, pulseChannel } from '../midi/pulseMidi.js';
 import { clockFold } from '../midi/clockTicks.js';
 import { PATTERNS, patternParams } from '../../dsp/gate/patterns.js';
-import { getFrequencyCorrection } from '../../audio.js';
+import { getFrequencyCorrection, getVoiceLevel } from '../../audio.js';
 import { oscClient } from '../osc/oscClient.js';
 import { voiceTargets } from '../generic/linkAll.js';
 import { shapeMode } from '../shape/shapeMode.js';
 import { Dial } from '../generic/dial/Dial.js';
+import { AmpDot } from '../generic/ampDot.js';
 
 const PULSE_MAX_HZ = 50; // mirrors the cap in gate-processor.js
 
@@ -101,11 +102,22 @@ export class InspectorComponent extends BaseComponent {
 
         const title = document.createElement('h2');
         title.className = 'inspector-title';
+        // Whether the voice being sequenced is making any sound: the
+        // drawbars say so with a dot under every column, and none of them
+        // are on screen from here
+        this.ampDot = new AmpDot('inspector-amp');
         this.titleVoiceEl = document.createElement('span');
         this.titleVoiceEl.className = 'inspector-title-voice';
+        // The title stacks name over detail, so the dot shares a ROW with
+        // the name rather than becoming a line of its own. Its own element,
+        // not a child of the name — setScope rewrites that one's text.
+        const nameRow = document.createElement('span');
+        nameRow.className = 'inspector-title-row';
+        nameRow.append(this.ampDot.el, this.titleVoiceEl);
         this.titleDetailEl = document.createElement('span');
         this.titleDetailEl.className = 'inspector-title-detail';
-        title.append(this.titleVoiceEl, this.titleDetailEl);
+        title.append(nameRow, this.titleDetailEl);
+        this.startAmpMeter(index);
         this._voiceTitle = `Sequence ${index + 1}`;
         this._voiceDetail = `${label} · ${freq.toFixed(freq >= 100 ? 1 : 2)} Hz`;
         this._voiceLabel = label;
@@ -510,8 +522,24 @@ export class InspectorComponent extends BaseComponent {
         return row;
     }
 
+    /**
+     * The title's level dot. One frame loop, for the one voice on screen,
+     * living exactly as long as this render — the panel only exists while
+     * the Sequence surface shows, so nothing animates out of sight.
+     */
+    startAmpMeter(index) {
+        cancelAnimationFrame(this._ampRaf);
+        const tick = () => {
+            this.ampDot.tick(getVoiceLevel(index));
+            this._ampRaf = requestAnimationFrame(tick);
+        };
+        this._ampRaf = requestAnimationFrame(tick);
+    }
+
     teardown() {
         super.teardown();
+        cancelAnimationFrame(this._ampRaf);
+        this._ampRaf = null;
         this._redrawSeqPreview = null;
     }
 }

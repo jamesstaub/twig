@@ -1,0 +1,31 @@
+/* ================================
+   AMP DOT — a voice's live level
+   ================================
+   Under every drawbar column, and beside the voice the Sequence panel is
+   editing. One look, one decay (js/modules/generic/ampDot.js); the hosts
+   below only say how big it sits in their own row. */
+
+.amp-dot {
+    flex: 0 0 auto;
+    border-radius: 50%;
+    background: var(--accent-negative);
+    /* The frame loop writes opacity; this is the resting value, and what
+       shows if the loop never runs (a stopped synth) */
+    opacity: 0.12;
+}
+
+/* Under a drawbar, between the bar's readout and the trigger pad */
+.drawbar-amp {
+    width: 7px;
+    height: 7px;
+}
+
+/* In the Sequence panel's title, reading as a status light before the
+   voice's name — sized to the text it sits in rather than to the strip */
+.inspector-amp {
+    width: 0.5rem;
+    height: 0.5rem;
+    margin-right: 0.4rem;
+    /* The title is a flex row; without this the dot rides the baseline */
+    align-self: center;
+}

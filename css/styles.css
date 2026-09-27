@@ -23,6 +23,7 @@
 @import "./components/form-controls.css";
 @import "./components/cycle-stepper.css";
 @import "./components/octave-field.css";
+@import "./components/amp-dot.css";
 @import "./components/dial.css";
 @import "./components/slider.css";
 @import "./components/keyboard.css";

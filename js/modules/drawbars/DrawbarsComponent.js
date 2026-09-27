@@ -5,6 +5,7 @@ import { getVoiceLevel, triggerHarmonicAttack, triggerHarmonicRelease } from "..
 import { FAMILIES, quantize } from "./drawbarParams.js";
 import { shapeMode } from "../shape/shapeMode.js";
 import { Dial } from "../generic/dial/Dial.js";
+import { AmpDot } from "../generic/ampDot.js";
 import { cycleStepper } from "../generic/cycleStepper.js";
 import { voiceTargets } from "../generic/linkAll.js";
 import { openOvertoneMenu, closeOvertoneMenu, armLongPress, isTouchContextMenu } from "../generic/overtoneMenu.js";
@@ -35,7 +36,6 @@ export class DrawbarsComponent extends BaseComponent {
         this._dials = [];       // per column: { [param.key]: Dial }
         this._steppers = [];
         this._dots = [];
-        this._dotLevels = [];
         this._meterRaf = null;
         this._trackResizeObserver = null;
     }
@@ -269,20 +269,14 @@ export class DrawbarsComponent extends BaseComponent {
     }
 
     /**
-     * Live amplitude dots: per-frame peak from each voice's meter tap, with
-     * a decay envelope so subaudible clicks stay visible. rAF-driven —
-     * visuals freeze when the page is hidden, audio is unaffected.
+     * Live amplitude dots: per-frame peak from each voice's meter tap (the
+     * decay envelope lives in AmpDot). rAF-driven — visuals freeze when the
+     * page is hidden, audio is unaffected.
      */
     startMeterLoop() {
         if (this._meterRaf) cancelAnimationFrame(this._meterRaf);
         const tick = () => {
-            for (let i = 0; i < this._dots.length; i++) {
-                const dot = this._dots[i];
-                if (!dot) continue;
-                const level = Math.max(getVoiceLevel(i), (this._dotLevels[i] || 0) * 0.88);
-                this._dotLevels[i] = level;
-                dot.style.opacity = 0.12 + 0.88 * Math.min(1, level * 2.5);
-            }
+            for (let i = 0; i < this._dots.length; i++) this._dots[i]?.tick(getVoiceLevel(i));
             this._meterRaf = requestAnimationFrame(tick);
         };
         this._meterRaf = requestAnimationFrame(tick);
@@ -422,10 +416,9 @@ export class DrawbarsComponent extends BaseComponent {
         const aux = document.createElement("div");
         aux.className = "drawbar-aux";
 
-        const dot = document.createElement("span");
-        dot.className = "drawbar-amp";
+        const dot = new AmpDot("drawbar-amp");
         this._dots[index] = dot;
-        aux.appendChild(dot);
+        aux.appendChild(dot.el);
 
         // ADSR trigger pad: hold = attack/sustain, let go = release.
         // Always in the DOM; CSS shows it only under body.adsr-mode.
