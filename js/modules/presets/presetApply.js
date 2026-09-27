@@ -32,7 +32,7 @@ import { audioEngine } from '../../dsp/engine/AudioEngine.js';
 import { irManager } from '../../dsp/IRManager.js';
 import { calculateFrequency, freqToMidi } from '../../utils.js';
 import {
-    DRAWBARS_RESET, ENVELOPE_MODE_CHANGED, FUNDAMENTAL_CHANGED, IR_RING_CHANGED, MASTER_GAIN_CHANGED,
+    DRAWBARS_RESET, ENVELOPE_MODE_CHANGED, FILTER_MULTIPLIER_CHANGED, FUNDAMENTAL_CHANGED, IR_RING_CHANGED, MASTER_GAIN_CHANGED,
     MASTER_SLEW_CHANGED, OVERTONE_SIGNAL_CHANGED, SOURCE_CHANGED, SPECTRAL_SYSTEM_CHANGED, SUBHARMONIC_TOGGLED,
 } from '../../events.js';
 import { CURRENT_WAVEFORM_CHANGED } from '../waveform/waveformActions.js';
@@ -89,6 +89,7 @@ function diffSnapshots(prev, next) {
         system: !same(prev.system, next.system),
         masterGain: prev.masterGain !== next.masterGain,
         masterSlew: prev.masterSlew !== next.masterSlew,
+        filterMultiplier: prev.filterMultiplier !== next.filterMultiplier,
         waveform: !same(prev.waveform, next.waveform),
         // The menu shows the name, or "Interpolated" while a morph is on
         waveformName: waveformName(prev.waveform) !== waveformName(next.waveform)
@@ -135,6 +136,7 @@ function writeAppState(s, diff) {
         compressA: s.system.compressA,
         masterGainValue: s.masterGain,
         masterSlewValue: s.masterSlew,
+        filterMultiplier: s.filterMultiplier || 1,
         currentWaveform: resolveWaveform(waveformName(s.waveform)),
         waveformMorph: typeof s.waveform === 'string' ? null
             : { a: resolveWaveform(s.waveform.a), b: resolveWaveform(s.waveform.b), t: s.waveform.t },
@@ -288,6 +290,7 @@ function flush() {
     if (f.system) dispatchSystemChanged(d.fromInterpolated && AppState.currentSystemIndex === INTERPOLATED_SYSTEM);
     if (f.masterGain) dispatch(MASTER_GAIN_CHANGED, { value: AppState.masterGainValue });
     if (f.masterSlew) dispatch(MASTER_SLEW_CHANGED, { value: AppState.masterSlewValue });
+    if (f.filterMultiplier) dispatch(FILTER_MULTIPLIER_CHANGED);
     if (f.waveformName) dispatch(CURRENT_WAVEFORM_CHANGED, { currentWaveform: AppState.currentWaveform });
     if (f.source) dispatch(SOURCE_CHANGED, { sourceMode: AppState.sourceMode });
     if (f.envelopeMode) dispatch(ENVELOPE_MODE_CHANGED);

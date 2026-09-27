@@ -10,7 +10,7 @@
  * WAV export compensates via the file's sample-rate header.
  */
 
-import { PLAY_STATE_CHANGED } from './events.js';
+import { FILTER_MULTIPLIER_CHANGED, PLAY_STATE_CHANGED } from './events.js';
 import { AppState, ENVELOPE_DEFAULTS, seriesStepAt, updateAppState, WAVETABLE_SIZE } from './config.js';
 import { midiConfig, soundfileConfig } from './appConfig.js';
 import { calculateFrequency, generateFilenameParts, getVoicePan } from './utils.js';
@@ -361,6 +361,70 @@ export function updateHarmonicAmplitude(index, rampTime = AppState.masterSlewVal
  */
 const MIN_FILTER_HZ = 10;
 
+/** Where the bank's lowest cutoff series should start (Hz) — see filterSeriesShift. */
+const MIN_SERIES_HZ = 20;
+
+/**
+ * Octaves the WHOLE bank's filter series is lifted by, as a plain
+ * multiplier (1, 2, 4, 8 …).
+ *
+ * A voice's cutoff series counts from its own pitch, which is right until
+ * the bank is tuned below hearing: at a 3 Hz fundamental in subharmonic
+ * mode every voice sits under 3 Hz, so every cutoff on every slider is
+ * inaudible and the whole control is wasted — and that is exactly the
+ * setup this instrument is for, a sub-audio square through a resonant
+ * filter that pings in the audible range.
+ *
+ * So the series is TRANSPOSED: the smallest power of two that brings the
+ * LOWEST voice's series up to 20 Hz, applied to every voice. A power of
+ * two because octaves keep each series on its own voice's pitch class,
+ * and one shared shift because the filter bank is meant to mirror the
+ * overtone system — per-voice shifts would land each slider nicely and
+ * leave the bank no longer shaped like the series it came from.
+ *
+ * An audible bank is already above 20 Hz, so the shift is 1 and nothing
+ * moves; this only reaches the case that was broken.
+ */
+export function autoFilterMultiplier() {
+    const ratios = AppState.currentSystem?.ratios || [1];
+    let lowest = Infinity;
+    for (const ratio of ratios) {
+        const hz = calculateFrequency(ratio);
+        if (hz > 0 && hz < lowest) lowest = hz;
+    }
+    if (!isFinite(lowest) || lowest <= 0) return 1;
+    let shift = 1;
+    while (lowest * shift < MIN_SERIES_HZ) shift *= 2;
+    return shift;
+}
+
+/** The multiplier in effect — the heuristic's, or whatever the user set. */
+export function filterSeriesShift() {
+    return AppState.filterMultiplier > 0 ? AppState.filterMultiplier : 1;
+}
+
+// What the multiplier was last derived from: it is recalculated only when
+// the fundamental or the system moves, so any other update leaves a value
+// the user typed alone
+let lastMultiplierKey = null;
+
+/**
+ * Put the multiplier back on the heuristic. Called wherever the bank is
+ * retuned — a new fundamental or a new system OVERWRITES a typed value,
+ * because a multiplier chosen for one tuning means nothing in the next.
+ * @returns {boolean} whether it changed
+ */
+export function syncFilterMultiplier() {
+    const system = AppState.currentSystem;
+    const key = `${AppState.fundamentalFrequency}|${AppState.isSubharmonic}|${system?.name}|${(system?.ratios || []).join(',')}`;
+    if (key === lastMultiplierKey) return false;
+    lastMultiplierKey = key;
+    const auto = autoFilterMultiplier();
+    if (AppState.filterMultiplier === auto) return false;
+    AppState.filterMultiplier = auto;
+    return true;
+}
+
 /**
  * Cutoff for a voice's filter — an overtone series within the overtone
  * series: the multiplier is a 1-based partial index into the CURRENT
@@ -384,9 +448,14 @@ export function filterPartialRatio(step) {
     return seriesStepAt(Math.min(MAX_FILTER_PARTIALS, Math.max(1, Math.round(step)))).ratio;
 }
 
-/** What the filter is actually set to for a voice at `step` — see MIN_FILTER_HZ. */
+/**
+ * What the filter is actually set to for a voice at `step`: its own series
+ * partial, lifted by the bank's octave shift and clamped to what a biquad
+ * should be asked for. The drawbar readout prints through this too.
+ */
 export function filterCutoffHz(voiceFrequency, step) {
-    return Math.min(20000, Math.max(MIN_FILTER_HZ, partialFrequency(voiceFrequency, step)));
+    const hz = partialFrequency(voiceFrequency, step) * filterSeriesShift();
+    return Math.min(20000, Math.max(MIN_FILTER_HZ, hz));
 }
 
 export function harmonicFilterCutoff(index, frequency) {
@@ -400,7 +469,9 @@ export function harmonicFilterCutoff(index, frequency) {
  * series-relative convention shared by the filter cutoff, the worklet's
  * cutoff-CV curve (modTargets.js) and the convolution feedback tuning.
  * The voice's own pitch is the series' fundamental, so two voices never
- * offer the same choices.
+ * offer the same choices. The FILTER lifts this by the bank's octave
+ * shift (filterCutoffHz); the convolution comb does not — any period is
+ * a usable delay, so it has no range to be rescued from.
  */
 export function partialFrequency(frequency, step) {
     return frequency * filterPartialRatio(step);
@@ -441,7 +512,11 @@ function harmonicSequencerPayload(index) {
         },
         ...(table !== undefined ? { table } : {}),
         config: {
-            ratios: Array.from({ length: MAX_FILTER_PARTIALS }, (_, k) => filterPartialRatio(k + 1)),
+            // Pre-shifted, so the worklet's swept cutoff walks the same
+            // transposed series the base cutoff sits on (modTargets.js
+            // multiplies these by the voice's pitch)
+            ratios: Array.from({ length: MAX_FILTER_PARTIALS },
+                (_, k) => filterPartialRatio(k + 1) * filterSeriesShift()),
             baseStep: AppState.oscillatorFilters[index]?.multiplier || 0,
         },
     };
@@ -654,14 +729,23 @@ export function updateAudioProperties() {
  * Updates oscillator parameters with period multiplier frequency correction
  */
 let lastSeqConfigSystem = null;
+let lastSeqConfigShift = 1;
 
 function updateAudioPropertiesOscillators(rampTime) {
     audioEngine.master.setGain(AppState.masterGainValue, rampTime);
 
     // A system switch changes the sequencer's cutoff-CV ratio curve —
     // push it to every voice once per switch (not per parameter tweak)
-    const seqCurveStale = AppState.currentSystem !== lastSeqConfigSystem;
+    // …and so does a change of octave shift, which a fundamental glide can
+    // cross without the system changing at all
+    // The bank was retuned: the multiplier goes back to the heuristic
+    if (syncFilterMultiplier()) {
+        document.dispatchEvent(new CustomEvent(FILTER_MULTIPLIER_CHANGED));
+    }
+    const seriesShift = filterSeriesShift();
+    const seqCurveStale = AppState.currentSystem !== lastSeqConfigSystem || seriesShift !== lastSeqConfigShift;
     lastSeqConfigSystem = AppState.currentSystem;
+    lastSeqConfigShift = seriesShift;
 
     // Sync the voice bank with the current system: systems can have
     // different partial counts, so a switch mid-playback may add partials

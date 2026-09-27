@@ -444,6 +444,14 @@ export const AppState = {
     // nearer endpoint — what the picker, the bake and the bridge see.
     waveformMorph: null,
 
+    // One multiplier over EVERY voice's filter cutoff series, so a bank
+    // tuned below hearing still offers cutoffs inside it (a sub-audio
+    // square through a resonant filter is the point). Recalculated by the
+    // heuristic in audio.js whenever the fundamental or the system moves —
+    // which overwrites a value typed in the Filter footer, since a
+    // multiplier chosen for one tuning means nothing in the next.
+    filterMultiplier: 1,
+
     // Per-overtone cycle gates and filters, sparse objects keyed by
     // partial index. Gate: { mode: 0 off | 1 alternating | 2 euclidean |
     // 3 probability, x, y }. Filter: { multiplier (1-based partial index into

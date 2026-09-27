@@ -66,6 +66,12 @@
  *   /twig/res/<n> [f q]           per-overtone filter resonance alone
  *                                 (n=0 → all), Q 0.1-40 — the patch-side
  *                                 handle for a resonance-only dial.
+ *   /twig/fmult [x]               ONE multiplier over every voice's filter
+ *                                 cutoff series (1-4096). The app derives
+ *                                 it from the fundamental and the system —
+ *                                 a bank tuned below hearing is lifted into
+ *                                 it by octaves — and RETUNING OVERWRITES
+ *                                 whatever is sent here.
  *   /twig/ftype/<n> [i|name]      per-overtone filter shape (n=0 → all):
  *                                 0 lowpass | 1 bandpass | 2 highpass, by
  *                                 index or name. The shape applies once the
@@ -133,6 +139,7 @@ import {
     PLAY_STATE_CHANGED,
     MASTER_GAIN_CHANGED,
     MASTER_SLEW_CHANGED,
+    FILTER_MULTIPLIER_CHANGED,
     OVERTONE_SIGNAL_CHANGED,
     ENVELOPE_MODE_CHANGED,
     MIDI_OUTPUT_CHANGED,
@@ -145,7 +152,7 @@ const COMMANDS = new Set([
     'system', 'startharmonic', 'stiffness', 'closedness', 'stretch', 'compress',
     'waveform', 'source', 'adcin', 'adcchannel', 'sfloop', 'sffund', 'sfrange',
     'subharmonic', 'play', 'reset', 'randomize',
-    'setdrawbarfundamental', 'gate', 'filter', 'res', 'ftype', 'drive', 'pan', 'conv', 'convir', 'irring',
+    'setdrawbarfundamental', 'gate', 'filter', 'res', 'ftype', 'fmult', 'drive', 'pan', 'conv', 'convir', 'irring',
     'pulsemidi', 'pulseosc', 'pulseoffset', 'midiclock',
     'seqshape', 'seqgain', 'seqfreq', 'seqres', 'seqwet', 'seqfb', 'seqstretch',
     'adsr', 'envmode', 'midiout'
@@ -470,6 +477,13 @@ export class OscClient {
                 }));
                 break;
             }
+            case 'fmult': {
+                // /twig/fmult [x] — global, not per voice
+                const value = Number(args[0]);
+                if (!isFinite(value)) break;
+                OvertoneSignalActions.setFilterMultiplier(value);
+                break;
+            }
             case 'ftype': {
                 // /twig/ftype/<n> [index|name] or /twig/ftype [n, v]; n = 0 → all.
                 // Lowpass | bandpass | highpass, by FILTER_TYPES index or
@@ -718,6 +732,10 @@ export class OscClient {
         });
         document.addEventListener(MASTER_SLEW_CHANGED, () => {
             this.emit('slew', [AppState.masterSlewValue]);
+        });
+        // Fires both when it is typed and when retuning recalculates it
+        document.addEventListener(FILTER_MULTIPLIER_CHANGED, () => {
+            this.emit('fmult', [AppState.filterMultiplier]);
         });
         // Per-overtone signal chain edited in the app (modal UI) → Live params
         document.addEventListener(OVERTONE_SIGNAL_CHANGED, (e) => {

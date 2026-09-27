@@ -31,7 +31,9 @@ import {
     STRETCH_A_MAX, STRETCH_A_MIN,
 } from '../../config.js';
 import { MAX_FILTER_PARTIALS } from '../../audio.js';
-import { CONV_FEEDBACK_MAX, DRIVE_MAX, ENV_TIME_MAX, Q_MAX } from '../overtoneSignal/overtoneSignalActions.js';
+import {
+    CONV_FEEDBACK_MAX, DRIVE_MAX, ENV_TIME_MAX, FILTER_MULTIPLIER_MAX, FILTER_MULTIPLIER_MIN, Q_MAX,
+} from '../overtoneSignal/overtoneSignalActions.js';
 
 export const PRESET_VERSION = 1;
 
@@ -98,6 +100,9 @@ const SPEC = {
     },
     masterGain: num(0, 1, 'linear', DEFAULT_MASTER_GAIN),
     masterSlew: num(0, 10, 'linear', DEFAULT_MASTER_SLEW),
+    // Octaves, so geometric; recalculated on recall anyway when the
+    // preset's fundamental or system differs from what is loaded
+    filterMultiplier: num(FILTER_MULTIPLIER_MIN, FILTER_MULTIPLIER_MAX, 'geometric', 1),
     waveform: morph('square'),
     source: {
         mode: snap('oscillators'),
@@ -162,6 +167,7 @@ export function capture() {
         },
         masterGain: s.masterGainValue,
         masterSlew: s.masterSlewValue,
+        filterMultiplier: s.filterMultiplier || 1,
         waveform: s.waveformMorph ? { ...s.waveformMorph } : s.currentWaveform || 'sine',
         source: {
             mode: s.sourceMode,

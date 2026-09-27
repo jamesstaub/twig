@@ -7,10 +7,14 @@
 
 import { AppState, updateAppState } from './config.js';
 import { midiConfig } from './appConfig.js';
-import { MASTER_GAIN_CHANGED, MASTER_SLEW_CHANGED, ENVELOPE_MODE_CHANGED, SURFACE_CHANGED } from './events.js';
+import {
+    ENVELOPE_MODE_CHANGED, FUNDAMENTAL_CHANGED, MASTER_GAIN_CHANGED, MASTER_SLEW_CHANGED,
+    SPECTRAL_SYSTEM_CHANGED, SUBHARMONIC_TOGGLED, SURFACE_CHANGED,
+} from './events.js';
 import { OvertoneSignalActions } from './modules/overtoneSignal/overtoneSignalActions.js';
 import { updateValue } from './domUtils.js';
 import { DrawbarsController } from './modules/drawbars/drawbarsController.js';
+import { mountFilterMultiplier } from './modules/drawbars/filterMultiplierControl.js';
 import { SpectralSystemController } from './modules/spectralSystem/spectralSystemController.js';
 import { WaveformController } from './modules/waveform/waveformController.js';
 import { DownloadControlController } from './modules/downloadControl/downloadControlController.js';
@@ -99,10 +103,26 @@ function setupDrawbars() {
     const drawbarsController = new DrawbarsController("#drawbars");
     drawbarsController.init();
     // The strip's bottom bar: reset/randomize act on the showing family
-    new OvertoneToolbarController('#drawbars-toolbar', {
+    const toolbar = new OvertoneToolbarController('#drawbars-toolbar', {
         onReset: () => drawbarsController.reset(),
         onRandomize: () => drawbarsController.randomize(),
-    }).init();
+    });
+    toolbar.init();
+    // The bank's filter multiplier lives in the strip's footer — one
+    // control over all twelve columns, so it belongs to the bar rather
+    // than to a column. Disabled in place on the other three families.
+    const multiplier = mountFilterMultiplier(toolbar.slotEl);
+    const syncMultiplierFamily = () => multiplier.setFamily(drawbarsController.family);
+    document.addEventListener(SURFACE_CHANGED, syncMultiplierFamily);
+    syncMultiplierFamily();
+    // Retuning the bank puts the multiplier back on the heuristic, whether
+    // or not the synth is playing (the audio path only runs when it is)
+    for (const event of [FUNDAMENTAL_CHANGED, SPECTRAL_SYSTEM_CHANGED, SUBHARMONIC_TOGGLED]) {
+        document.addEventListener(event, () => OvertoneSignalActions.refreshFilterMultiplier());
+    }
+    // …and once now: the bridge bootstrap has already applied whatever
+    // fundamental and system this session starts on, without events
+    OvertoneSignalActions.refreshFilterMultiplier();
 }
 
 function setupSpectralSystem() {

@@ -38,3 +38,6 @@ export const INSPECTOR_CHANGED = 'inspector-changed';
 export const LINK_ALL_CHANGED = 'link-all-changed';
 // Shape mode changed: lock, held shift, contour or cycles (UI-only) — detail: { on, held }
 export const SHAPE_MODE_CHANGED = 'shape-mode-changed';
+// The filter bank's octave multiplier changed — recalculated whenever the
+// bank is retuned, or typed in the Filter panel's footer (see audio.js)
+export const FILTER_MULTIPLIER_CHANGED = 'filter-multiplier-changed';

@@ -58,7 +58,7 @@ const STATE_ORDER = [
     'startharmonic', 'stiffness', 'closedness', 'stretch', 'compress',
     'system', 'waveform', 'source', 'adcin', 'adcchannel', 'sfloop', 'sffund', 'sfrange',
     'subharmonic', 'note', 'freq',
-    'gain', 'slew', 'drawbars', 'drawbar', 'gate', 'filter', 'res', 'ftype', 'drive', 'pan',
+    'gain', 'slew', 'fmult', 'drawbars', 'drawbar', 'gate', 'filter', 'res', 'ftype', 'drive', 'pan',
     'conv', 'convir', 'irring',
     'adsr', 'seqshape', 'seqgain', 'seqfreq', 'seqres', 'seqwet', 'seqfb', 'seqstretch',
     'pulsemidi', 'pulseosc', 'pulseoffset', 'midiclock', 'midiout', 'envmode', 'play'
@@ -191,7 +191,7 @@ if (Max) {
         'system', 'startharmonic', 'stiffness', 'closedness', 'stretch', 'compress',
         'waveform', 'source', 'adcin', 'adcchannel', 'sfloop', 'sffund', 'sfrange',
         'subharmonic', 'play', 'reset', 'randomize',
-        'setdrawbarfundamental', 'gate', 'filter', 'res', 'ftype', 'drive', 'pan', 'conv', 'convir', 'irring',
+        'setdrawbarfundamental', 'gate', 'filter', 'res', 'ftype', 'fmult', 'drive', 'pan', 'conv', 'convir', 'irring',
         'seqshape', 'seqgain', 'seqfreq', 'seqres', 'seqwet', 'seqfb', 'seqstretch',
         'pulsemidi', 'pulseosc', 'pulseoffset', 'midiclock', 'adsr', 'envmode', 'midiout'
     ];

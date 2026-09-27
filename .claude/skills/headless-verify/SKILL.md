@@ -79,7 +79,13 @@ description: Verify twig changes end-to-end in a headless browser — screenshot
   a filter TYPE on the engine needs a CUTOFF set too: an open filter is a
   20 kHz lowpass bypass whatever the type, by design. Compare filter
   shapes on a SINE — high-passing a rich wave keeps its upper harmonics
-  and can read louder by peak than the low-passed version. When the panel is under 420px tall
+  and can read louder by peak than the low-passed version. The strip's
+  footer carries the bank's filter multiplier
+  (`.filter-multiplier-input`, `.filter-multiplier-btn` ÷2/×2/auto):
+  cutoffs are voice pitch × THIS × the system's partial, it is recalculated
+  whenever the fundamental/system/subharmonic moves (so set those FIRST,
+  then the multiplier), and the cutoff readout is two spans —
+  `.drawbar-value-label` (the partial) and `.drawbar-value-hz`. When the panel is under 420px tall
   (`page.setViewport` height ~520) the dials go and `#drawbars-tabs
   .drawbars-tab` (parameter tabs) appear (the embed band is always
   compact); the toolbar switches families on both shells.

@@ -5,6 +5,8 @@ import {
     DRAWBAR_CHANGE,
     DRAWBARS_RANDOMIZED,
     DRAWBARS_RESET,
+    FILTER_MULTIPLIER_CHANGED,
+    FUNDAMENTAL_CHANGED,
     OVERTONE_SIGNAL_CHANGED,
     SHAPE_MODE_CHANGED,
     SPECTRAL_SYSTEM_CHANGED,
@@ -154,6 +156,11 @@ export class DrawbarsController extends BaseController {
         document.addEventListener(DRAWBARS_RESET, () => this.update());
         document.addEventListener(SPECTRAL_SYSTEM_CHANGED, () => this.update());
         document.addEventListener(SUBHARMONIC_TOGGLED, () => this.update());
+        // The cutoff column reads in Hz, which moves with the fundamental
+        // and with the bank's filter multiplier — without these the number
+        // under the bar keeps naming the pitch the bank used to have
+        document.addEventListener(FUNDAMENTAL_CHANGED, () => this.update());
+        document.addEventListener(FILTER_MULTIPLIER_CHANGED, () => this.update());
 
         document.addEventListener(SHAPE_MODE_CHANGED, () => this.component.syncShapeMarker());
 

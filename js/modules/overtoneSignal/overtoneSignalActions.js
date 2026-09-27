@@ -1,10 +1,10 @@
 import { AppState, DEFAULT_FILTER_TYPE, ENVELOPE_DEFAULTS, FILTER_TYPES } from "../../config.js";
 import { midiConfig } from "../../appConfig.js";
-import { updateHarmonicGate, updateHarmonicFilter, updateHarmonicDrive, updateHarmonicConvolution, updateHarmonicPan, updateHarmonicPulse, updateHarmonicSequencer, updateAllHarmonicEnvelopeModes, MAX_FILTER_PARTIALS } from "../../audio.js";
+import { syncFilterMultiplier, updateHarmonicGate, updateHarmonicFilter, updateHarmonicDrive, updateHarmonicConvolution, updateHarmonicPan, updateHarmonicPulse, updateHarmonicSequencer, updateAllHarmonicEnvelopeModes, MAX_FILTER_PARTIALS } from "../../audio.js";
 import { getVoicePan } from "../../utils.js";
 import { irManager } from "../../dsp/IRManager.js";
 import { PATTERNS } from "../../dsp/gate/patterns.js";
-import { OVERTONE_SIGNAL_CHANGED, ENVELOPE_MODE_CHANGED } from "../../events.js";
+import { OVERTONE_SIGNAL_CHANGED, ENVELOPE_MODE_CHANGED, FILTER_MULTIPLIER_CHANGED } from "../../events.js";
 
 /**
  * Per-overtone signal-chain state (cycle gate, filter, pan).
@@ -28,6 +28,12 @@ export const ENV_TIME_MAX = { a: 2, d: 2, r: 5 };
 // away), shared by the convolution view dial and the OSC clamp. Negative
 // feedback inverts each recirculation.
 export const CONV_FEEDBACK_MAX = 0.99;
+
+// The filter bank's octave multiplier: 1 leaves every series on its own
+// voice, and the ceiling is what it takes to lift a fraction-of-a-Hz
+// subharmonic bank into hearing.
+export const FILTER_MULTIPLIER_MIN = 1;
+export const FILTER_MULTIPLIER_MAX = 4096;
 
 export const OvertoneSignalActions = {
 
@@ -62,6 +68,37 @@ export const OvertoneSignalActions = {
         };
         updateHarmonicFilter(index);
         this._changed(index, 'filter');
+    },
+
+    /**
+     * The bank-wide filter multiplier (see AppState.filterMultiplier). Every
+     * voice's cutoff series is lifted by it, so writing it retargets all of
+     * them — and their sequencer curves, which carry the same shift.
+     */
+    getFilterMultiplier() {
+        return AppState.filterMultiplier > 0 ? AppState.filterMultiplier : 1;
+    },
+
+    /**
+     * Put the multiplier back on the heuristic after a retune. The audio
+     * path does this too, but only while the synth is playing — the
+     * fundamental and the system can both move while it is stopped, and
+     * the footer has to be right when it starts.
+     */
+    refreshFilterMultiplier() {
+        if (!syncFilterMultiplier()) return;
+        for (let i = 0; i < this._voiceCount(); i++) updateHarmonicFilter(i);
+        document.dispatchEvent(new CustomEvent(FILTER_MULTIPLIER_CHANGED));
+    },
+
+    setFilterMultiplier(value) {
+        const v = Math.max(FILTER_MULTIPLIER_MIN, Math.min(FILTER_MULTIPLIER_MAX, Number(value) || 1));
+        if (v === AppState.filterMultiplier) return;
+        AppState.filterMultiplier = v;
+        for (let i = 0; i < this._voiceCount(); i++) {
+            updateHarmonicFilter(i);   // …which also refreshes the cutoff-CV curve
+        }
+        document.dispatchEvent(new CustomEvent(FILTER_MULTIPLIER_CHANGED));
     },
 
     /** Overdrive amount 0-DRIVE_MAX (0 = clean), applied before the lowpass. */

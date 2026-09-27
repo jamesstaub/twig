@@ -306,7 +306,31 @@ framework; esbuild bundles both JS and the hand-written CSS (`css/styles.css`
   `filterCutoffHz` is where the 10 Hz floor lives and the drawbar readout
   prints through it, so a column never names a frequency the filter isn't
   using. `modTargets.js`'s `cutoffDelta` counts from the same voice pitch
-  — a modulated sweep has to walk the series its base sits on. Those indexes run to
+  — a modulated sweep has to walk the series its base sits on.
+- THE FILTER MULTIPLIER (`AppState.filterMultiplier`, `/twig/fmult`, in
+  presets) lifts EVERY voice's cutoff series by one shared factor, and is
+  what makes the control usable on a bank tuned below hearing — a
+  sub-audio square through a resonant filter that pings in the audible
+  range is a main use of this instrument, and without it every slider sits
+  on the 10 Hz floor. `autoFilterMultiplier()` picks the smallest power of
+  two that brings the LOWEST voice's series up to 20 Hz: a power of two so
+  each series stays on its own voice's pitch class, and ONE shared factor
+  so the filter bank still mirrors the overtone system (per-voice shifts
+  would place each slider well and leave the bank no longer shaped like
+  the series it came from). At a 3 Hz subharmonic fundamental that is
+  ×128, putting the twelve cutoffs between 32 and 384 Hz; an audible bank
+  gets ×1 and nothing moves. It is EDITABLE in the drawbar strip's footer
+  (`filterMultiplierControl.js` in the overtone toolbar's slot — disabled
+  in place on the other three families, since that bar is shared and
+  nothing in it appears or moves), and any number is allowed, not only
+  octaves. RETUNING OVERWRITES a typed value: `syncFilterMultiplier()`
+  recalculates whenever the fundamental, the subharmonic toggle or the
+  system moves, because a multiplier chosen for one tuning means nothing
+  in the next. It is derived in two places for one reason — the audio
+  update path (while playing) and a listener in ui.js (while stopped, and
+  once at boot, since the bridge bootstrap applies state without events).
+  The worklet's cutoff-CV ratio table is pre-multiplied by it, so a swept
+  cutoff walks the same transposed series. Those indexes run to
   `MAX_FILTER_PARTIALS` (24), past the twelve drawbars, so `seriesStepAt`
   (config.js) is the ONE place that answers "what is step n" — ratio AND
   label together, so a cutoff's readout and its frequency always describe
