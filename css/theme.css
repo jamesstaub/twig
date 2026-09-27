@@ -26,6 +26,7 @@
     --viz-bg-tonewheel: #111827;     /* tonewheel canvas background */
     --viz-grid: #374151;             /* axis lines, canvas borders */
     --viz-trace: #10b981;            /* waveform trace */
+    --viz-playhead: #f8fafc;         /* the sequence canvas's playhead line */
     /* The sequence's modulation targets: each depth's curve on the
        sequence canvas, and its row in the Sequence panel's Modulation
        section, share the color */

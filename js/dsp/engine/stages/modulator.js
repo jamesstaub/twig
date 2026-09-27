@@ -59,9 +59,25 @@ export class ModulatorStage extends Stage {
             outputChannelCount: new Array(outputs).fill(1),
         }));
         this.input = this.output = this.node;
+        // The worklet's latest position anchor: where its cycle clock stood
+        // at an audio-clock time, and how fast it runs — enough to know
+        // where it is now without a message per cycle
+        this.positionAnchor = null;
         this.node.port.onmessage = (e) => {
-            if (e.data?.type === 'pulse' || e.data?.type === 'clock') onPulse(e.data);
+            const data = e.data;
+            if (data?.type === 'position') this.positionAnchor = data;
+            else if (data?.type === 'pulse' || data?.type === 'clock') onPulse(data);
         };
+    }
+
+    /**
+     * The cycle clock's position (whole cycles + phase) at audio-clock time
+     * `now`, extrapolated from the worklet's last anchor; null before one.
+     */
+    cyclePosition(now) {
+        const a = this.positionAnchor;
+        if (!a) return null;
+        return a.position + Math.max(0, now - a.audioTime) * a.rate;
     }
 
     /**

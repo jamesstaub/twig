@@ -452,6 +452,15 @@ export function getVoiceLevel(index) {
 }
 
 /**
+ * Where one harmonic's sequence is: its gate clock in cycles (whole +
+ * phase), for the sequence canvas's playhead. Null while there is no
+ * running voice to ask.
+ */
+export function harmonicCyclePosition(index) {
+    return audioEngine.voice(index)?.cyclePosition() ?? null;
+}
+
+/**
  * The AnalyserNode tapping the master output (post-limiter) — the
  * oscilloscope reads it with getFloatTimeDomainData. Null until the engine
  * exists (first play).

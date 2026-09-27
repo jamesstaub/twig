@@ -180,6 +180,11 @@ export class Voice {
         return this.stages.meter.level();
     }
 
+    /** The gate's cycle clock now — whole cycles + phase (the sequence playhead), or null. */
+    cyclePosition() {
+        return this.stages.modulator.cyclePosition(this.ctx.currentTime);
+    }
+
     /**
      * Fade out, then unhook. An abrupt stop is a click — and the
      * convolution loop would repeat it. A throttled timer only delays the

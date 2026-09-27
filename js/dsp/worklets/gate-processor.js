@@ -28,6 +28,9 @@
  * PORT — out (a cross-thread contract; see modules/pulse/pulseBus.js):
  *   { type: 'pulse', lead, cycle, gateOn, frequency, audioTime }
  *   { type: 'clock', frequency, fold, audioTime }
+ *   { type: 'position', position, rate, audioTime }  where the cycle clock is,
+ *       ~10× a second — an anchor the main thread extrapolates from (the
+ *       sequence canvas's playhead), at any voice frequency
  *
  * NOTE: bundled by build.js to dist/gate-processor.js, which is what
  * addModule() loads — edit the sources here, then `npm run build`.
@@ -40,6 +43,9 @@ import { audioGain, MOD_TARGETS } from '../gate/modTargets.js';
 
 /** Pulses are the rhythm regime only: above this they would flood the port. */
 const PULSE_MAX_HZ = 50;
+
+/** Seconds between position anchors — enough to draw a playhead, few enough to be free. */
+const POSITION_REPORT_S = 0.1;
 
 /** Where in its cycle a pulse lands, and so where its lead is announced. */
 const PULSE_AT_START = 0;
@@ -98,6 +104,7 @@ class OvertoneGateProcessor extends AudioWorkletProcessor {
         this.signal = new GateSignal();
         this.beats = new ClockBeats();
         this.stopped = false;
+        this.lastPositionReport = -Infinity;
         // The block's parameter snapshot, reused every block and handed to
         // the targets (no per-sample allocation on the audio thread)
         this.params = {
@@ -249,6 +256,13 @@ class OvertoneGateProcessor extends AudioWorkletProcessor {
                 const cv = cvs[t];
                 if (cv) cv[i] = bypass ? 0 : MOD_TARGETS[t].value(s, p);
             }
+        }
+
+        // Where the clock stands at the block's end, now and then
+        const blockEnd = (currentFrame + frames) / sampleRate;
+        if (blockEnd - this.lastPositionReport >= POSITION_REPORT_S) {
+            this.lastPositionReport = blockEnd;
+            this.port.postMessage({ type: 'position', position: this.clock.position, rate: rates[rates.length - 1], audioTime: blockEnd });
         }
         return true;
     }
